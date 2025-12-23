@@ -1,0 +1,2 @@
+erii-plugins/animal/src/main/resources/**/*.svg filter=lfs diff=lfs merge=lfs -text
+erii-plugins/rollpig/src/main/resources/**/*.png filter=lfs diff=lfs merge=lfs -text
