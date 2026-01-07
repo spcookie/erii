@@ -41,7 +41,7 @@ fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent)
     val flowGauge by GlobalContext.get().inject<FlowGauge>()
 
     val behaviorProfile = emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
-    val historyEntities = historyService.getLatestHistory(groupId, groupId, 200)
+    val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 200)
     val subjects = historyEntities.map { it.userId }.distinct().toList()
     val factsEntities = memoryService.getFacts(currentBotId, groupId, subjects)
     val userProfiles = memoryService.getUserProfiles(currentBotId, groupId, subjects)
@@ -51,6 +51,7 @@ fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent)
     return prompt("群聊机器人") {
         system {
             markdown {
+                line { text("你是一个群聊群成员，名称叫 Erii，请按照下述设定进行对话。") }
                 header(2, "总体人格定位")
                 line { text("女性，参考《龙族》的上杉绘梨衣。") }
                 line { text("冷静理智、敏感细腻、忠诚可靠、内敛含蓄。") }
@@ -93,7 +94,7 @@ fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent)
                 }
                 horizontalRule()
                 line { text("发言模式: ${event.interruptionMode.value}") }
-                line { text("发言句子长度: ${flowGauge.mapToState().name}") }
+                line { text("发言句子长度: [${flowGauge.mapToState().name}]${flowGauge.mapToState().value}") }
             }
         }
         user {
@@ -127,8 +128,8 @@ fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent)
                     }
                 }
                 if (activeVocabulary.isNotEmpty()) {
+                    h2("群聊历史记录中的流行语")
                     for (learnedVocabEntity in activeVocabulary) {
-                        h2("群聊历史记录中的流行语")
                         bulleted {
                             item {
                                 line { text("word: ${learnedVocabEntity.word}") }
@@ -140,15 +141,15 @@ fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent)
                         }
                     }
                 }
+                if (historyEntities.isNotEmpty()) {
+                    h2("群聊历史记录")
+                    for (historyEntity in historyEntities) {
+                        historyEntity.content?.let { line { text(if (historyEntity.userId == currentBotId) "[自己]" else "[user_id:" + historyEntity.userId + "] -> " + it) } }
+                    }
+                }
             }
         }
-        for (historyEntity in historyEntities) {
-            if (historyEntity.userId == currentBotId) {
-                historyEntity.content?.let { assistant { text(it) } }
-            } else {
-                historyEntity.content?.let { user { text(historyEntity.userId + ": " + it) } }
-            }
-        }
+
     }
 }
 
@@ -158,7 +159,7 @@ class ChatToolSet(val sendMessage: suspend (String) -> Unit) : ToolSet {
 
     @LLMDescription("向群聊发送消息")
     @Tool
-    fun send(@LLMDescription("向群聊发送的多条句子") sentences: List<String>): String {
+    fun send(@LLMDescription("向群聊发送的1～3条句子") sentences: List<String>): String {
         scope.launch {
             for (sentence in sentences) {
                 delay(calcHumanTypingDelay(sentence))
@@ -225,20 +226,31 @@ object BotAgent {
                             )
                         }
 
+                        val logNode by node<String, String> {
+                            val messages = llm.prompt.messages
+
+                            log.info("llm send: \n" + messages.joinToString("\n"))
+
+                            it
+                        }
+
                         val nodeSendInput by nodeLLMRequest()
                         val nodeExecuteTool by nodeExecuteTool()
                         val nodeSendToolResult by nodeLLMSendToolResult()
 
                         edge(nodeStart forwardTo setupContext)
-                        edge(setupContext forwardTo nodeSendInput)
+                        edge(setupContext forwardTo logNode)
+                        edge(logNode forwardTo nodeSendInput)
+                        edge(nodeSendInput forwardTo logNode onAssistantMessage { true })
                         edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
+                        edge(logNode forwardTo nodeFinish)
                         edge(nodeExecuteTool forwardTo nodeSendToolResult)
                         edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
                         edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
-                        edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
                     }
                 )
-                aiAgent.run("参与聊天")
+                val result = aiAgent.run("")
+                log.info("llm result: $result")
             }
         }
 

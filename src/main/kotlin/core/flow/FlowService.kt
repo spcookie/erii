@@ -131,8 +131,8 @@ class FlowGauge(
     }
 }
 
-enum class FlowMeterState {
-    STANDBY,
-    GETTING_BETTER,
-    FLOW_BURST
+enum class FlowMeterState(val value: String) {
+    STANDBY("短"),
+    GETTING_BETTER("中"),
+    FLOW_BURST("长")
 }
