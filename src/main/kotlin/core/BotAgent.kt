@@ -9,6 +9,7 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.agents.core.tools.reflect.asTools
+import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.clients.google.GoogleModels
@@ -226,29 +227,31 @@ object BotAgent {
                             )
                         }
 
-                        val logNode by node<String, String> {
-                            val messages = llm.prompt.messages
-
-                            log.info("llm send: \n" + messages.joinToString("\n"))
-
-                            it
-                        }
-
                         val nodeSendInput by nodeLLMRequest()
                         val nodeExecuteTool by nodeExecuteTool()
                         val nodeSendToolResult by nodeLLMSendToolResult()
 
                         edge(nodeStart forwardTo setupContext)
-                        edge(setupContext forwardTo logNode)
-                        edge(logNode forwardTo nodeSendInput)
-                        edge(nodeSendInput forwardTo logNode onAssistantMessage { true })
+                        edge(setupContext forwardTo nodeSendInput)
+                        edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
                         edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
-                        edge(logNode forwardTo nodeFinish)
                         edge(nodeExecuteTool forwardTo nodeSendToolResult)
                         edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
                         edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
                     }
-                )
+                ) {
+                    handleEvents {
+                        onLLMCallStarting {
+                            log.info("onLLMCallStarting: ${it.prompt.messages}")
+                        }
+
+                        onLLMCallCompleted {
+                            for (response in it.responses) {
+                                log.info("onLLMCallCompleted: ${response.content}")
+                            }
+                        }
+                    }
+                }
                 val result = aiAgent.run("")
                 log.info("llm result: $result")
             }
