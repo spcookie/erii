@@ -9,7 +9,7 @@
 - **依赖注入**: Koin
 - **数据库 ORM**: Exposed
 - **数据库**: PostgreSQL
-- **AI 集成**: Koog
+- **AI 集成**: kotlin-Koog
 
 ### 1.2 设计目标
 - 跨对话维护持久化、结构化的记忆
