@@ -1,12 +1,22 @@
 <configuration>
+
+    <!-- Console 输出 -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %X{call-id} %-5level %logger{36} - %msg%n</pattern>
+            <pattern>
+                %date{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %gray([%thread]) %boldMagenta(%logger{50}) %msg%n
+            </pattern>
         </encoder>
     </appender>
+
+    <!-- 根日志 -->
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
+
+    <!-- Ktor 日志 -->
+    <logger name="io.ktor" level="INFO"/>
     <logger name="org.eclipse.jetty" level="INFO"/>
     <logger name="io.netty" level="INFO"/>
+
 </configuration>
