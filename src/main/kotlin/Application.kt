@@ -1,6 +1,7 @@
 package uesugi
 
 import io.ktor.server.application.*
+import uesugi.server.*
 
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
