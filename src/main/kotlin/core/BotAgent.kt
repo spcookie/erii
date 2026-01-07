@@ -1,16 +1,14 @@
 package uesugi.core
 
 import ai.koog.agents.core.agent.AIAgent
-import ai.koog.agents.core.agent.ToolCalls
 import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.dsl.extension.nodeAppendPrompt
+import ai.koog.agents.core.dsl.extension.*
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.agents.core.tools.reflect.asTools
-import ai.koog.agents.ext.agent.subgraphWithTask
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.clients.google.GoogleModels
@@ -28,6 +26,7 @@ import uesugi.core.evolution.VocabularyService
 import uesugi.core.flow.FlowGauge
 import uesugi.core.history.HistoryService
 import uesugi.core.memory.MemoryService
+import uesugi.core.volition.InterruptionMode
 import uesugi.core.volition.ProactiveSpeakEvent
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -82,13 +81,15 @@ fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent)
                     item("偶尔哲理或人生感悟，但要自然融入聊天。")
                 }
                 horizontalRule()
-                line { text("当前状态") }
-                bulleted {
-                    item("emotional tendencies: ${behaviorProfile.emotion}")
-                    item("tone: ${behaviorProfile.tone.value}")
-                    item("aggressiveness: ${behaviorProfile.aggressiveness.value}")
-                    item("verbosity: ${behaviorProfile.verbosity}")
-                    item("emojiLevel: ${behaviorProfile.emojiLevel}")
+                if (behaviorProfile != null) {
+                    line { text("当前状态") }
+                    bulleted {
+                        item("emotional tendencies: ${behaviorProfile.emotion}")
+                        item("tone: ${behaviorProfile.tone.value}")
+                        item("aggressiveness: ${behaviorProfile.aggressiveness.value}")
+                        item("verbosity: ${behaviorProfile.verbosity}")
+                        item("emojiLevel: ${behaviorProfile.emojiLevel}")
+                    }
                 }
                 horizontalRule()
                 line { text("发言模式: ${event.interruptionMode.value}") }
@@ -176,7 +177,7 @@ class ChatToolSet(val sendMessage: suspend (String) -> Unit) : ToolSet {
      */
     fun calcHumanTypingDelay(
         text: String,
-        cpm: Int = 80,
+        cpm: Int = 160,
         jitter: Double = 0.15
     ): Long {
         val charCount = text.count { !it.isWhitespace() }
@@ -200,13 +201,13 @@ object BotAgent {
 
     fun run() {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
-        val currentBot = BotProxy.currentBot
-        val sendMessage: suspend (String) -> Unit = { message ->
-            currentBot.getGroup(474270623)?.sendMessage(message)
-        }
         scope.launch {
             for (event in channel) {
                 log.info("BotAgent: $event")
+                val currentBot = BotProxy.currentBot
+                val sendMessage: suspend (String) -> Unit = { message ->
+                    currentBot.getGroup(474270623)?.sendMessage(message)
+                }
                 val aiAgent = AIAgent(
                     promptExecutor = promptExecutor,
                     llmModel = GoogleModels.Gemini2_5Pro,
@@ -215,17 +216,26 @@ object BotAgent {
                     },
                     strategy = strategy("聊天") {
                         val setupContext by nodeAppendPrompt<String>("setupContext") {
-                            messages(botPrompt(currentBot.id.toString(), "1053148332", event).messages)
+                            messages(
+                                botPrompt(
+                                    BotProxy.currentBot.id.toString(),
+                                    "1053148332",
+                                    ProactiveSpeakEvent(10.0, InterruptionMode.Interrupt)
+                                ).messages
+                            )
                         }
 
-                        val task by subgraphWithTask<String, String>(
-                            "主动聊天",
-                            runMode = ToolCalls.SEQUENTIAL
-                        ) { it }
+                        val nodeSendInput by nodeLLMRequest()
+                        val nodeExecuteTool by nodeExecuteTool()
+                        val nodeSendToolResult by nodeLLMSendToolResult()
 
                         edge(nodeStart forwardTo setupContext)
-                        edge(setupContext forwardTo task)
-                        edge(task forwardTo nodeFinish)
+                        edge(setupContext forwardTo nodeSendInput)
+                        edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
+                        edge(nodeExecuteTool forwardTo nodeSendToolResult)
+                        edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
+                        edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+                        edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
                     }
                 )
                 aiAgent.run("参与聊天")

@@ -2,6 +2,7 @@ package uesugi.core.emotion
 
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 object BehaviorMapper {
 
@@ -183,10 +184,12 @@ class BehaviorAnalysis(
 }
 
 class EmotionService {
-    fun getCurrentBehaviorProfile(botMark: String, groupId: String): BehaviorProfile {
-        return EmotionEntity.find {
-            EmotionTable.botMark eq botMark and
-                    (EmotionTable.groupId eq groupId)
-        }.firstOrNull()!!.behavior
+    fun getCurrentBehaviorProfile(botMark: String, groupId: String): BehaviorProfile? {
+        return transaction {
+            EmotionEntity.find {
+                EmotionTable.botMark eq botMark and
+                        (EmotionTable.groupId eq groupId)
+            }.firstOrNull()?.behavior
+        }
     }
 }
