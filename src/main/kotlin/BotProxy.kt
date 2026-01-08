@@ -24,7 +24,7 @@ private val log = BotProxy.logger()
 
 fun main() {
     installIoc()
-    installBot()
+    connectBot()
     runBotAgent()
     while (true) {
         val readLine = readlnOrNull()
@@ -35,7 +35,7 @@ fun main() {
     }
 }
 
-private fun installBot() {
+private fun connectBot() {
     runBlocking {
         val bot = BotBuilder.positive("ws://127.0.0.1:3001")
             .token("hG8dQqGk6jGC")

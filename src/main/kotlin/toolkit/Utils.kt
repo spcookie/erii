@@ -9,7 +9,9 @@ import java.sql.ResultSet
 
 inline fun <reified T : Any> T.logger() = LoggerFactory.getLogger(T::class.java)!!
 
-val JSON = Json { prettyPrint = true }
+val JSON = Json {
+    ignoreUnknownKeys = true
+}
 
 @OptIn(FormatStringsInDatetimeFormats::class)
 val DateTimeFormat = LocalDateTime.Format {

@@ -117,7 +117,7 @@ class FlowGauge(
     fun mapToState(): FlowMeterState {
         return when {
             state.value < 30 -> FlowMeterState.STANDBY
-            state.value < 70 -> FlowMeterState.FLOW_BURST
+            state.value < 70 -> FlowMeterState.GETTING_BETTER
             else -> FlowMeterState.FLOW_BURST
         }
     }
@@ -132,7 +132,7 @@ class FlowGauge(
 }
 
 enum class FlowMeterState(val value: String) {
-    STANDBY("短"),
-    GETTING_BETTER("中"),
-    FLOW_BURST("长")
+    STANDBY("短回复"),
+    GETTING_BETTER("中等回复"),
+    FLOW_BURST("长回复")
 }

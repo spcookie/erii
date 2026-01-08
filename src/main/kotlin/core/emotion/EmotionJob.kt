@@ -384,7 +384,7 @@ class EmotionJob {
             decay = decay
         )
 
-        log.info("群组 $groupId 行为表现: emotion=${behaviorProfile.emotion}, tone=${behaviorProfile.tone}, aggressiveness=${behaviorProfile.aggressiveness}, verbosity=${behaviorProfile.verbosity}, emojiLevel=${behaviorProfile.emojiLevel}")
+        log.info("群组 $groupId 行为表现: emotion=${behaviorProfile.emotion}, tone=${behaviorProfile.tone}, aggressiveness=${behaviorProfile.aggressiveness}, emojiLevel=${behaviorProfile.emojiLevel}")
 
         // 9. 保存新的情绪状态
         withContext(Dispatchers.IO) {

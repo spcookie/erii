@@ -17,44 +17,86 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.BotProxy
+import uesugi.core.emotion.BehaviorProfile
 import uesugi.core.emotion.EmotionService
+import uesugi.core.evolution.LearnedVocabEntity
 import uesugi.core.evolution.VocabularyService
 import uesugi.core.flow.FlowGauge
+import uesugi.core.flow.FlowMeterState
+import uesugi.core.history.HistoryEntity
+import uesugi.core.history.HistorySavedEvent
 import uesugi.core.history.HistoryService
+import uesugi.core.memory.FactsEntity
 import uesugi.core.memory.MemoryService
+import uesugi.core.memory.SummaryEntity
+import uesugi.core.memory.UserProfileEntity
 import uesugi.core.volition.InterruptionMode
 import uesugi.core.volition.ProactiveSpeakEvent
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.milliseconds
 
-fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent): Prompt {
+data class Context(
+    val currentBotId: String,
+    val behaviorProfile: BehaviorProfile?,
+    val impulse: Double,
+    val interruptionMode: InterruptionMode,
+    val flow: Double,
+    val flowState: FlowMeterState,
+    val facts: List<FactsEntity>,
+    val userProfiles: List<UserProfileEntity>,
+    val vocabulary: List<LearnedVocabEntity>,
+    val summary: SummaryEntity?,
+    val histories: List<HistoryEntity>
+)
+
+fun buildContext(currentBotId: String, groupId: String, event: ProactiveSpeakEvent): Context {
     val emotionService by GlobalContext.get().inject<EmotionService>()
     val memoryService by GlobalContext.get().inject<MemoryService>()
     val historyService by GlobalContext.get().inject<HistoryService>()
     val vocabularyService by GlobalContext.get().inject<VocabularyService>()
-
     val flowGauge by GlobalContext.get().inject<FlowGauge>()
+    return transaction {
+        val behaviorProfile = emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
+        val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 100, 1.days)
+        val subjects = historyEntities.map { it.userId }.distinct().toList()
+        val factsEntities = memoryService.getFacts(currentBotId, groupId, subjects)
+        val userProfiles = memoryService.getUserProfiles(currentBotId, groupId, subjects)
+        val summaryEntity = memoryService.getSummary(currentBotId, groupId)
+        val activeVocabulary = vocabularyService.getActiveVocabulary(currentBotId, groupId)
+        Context(
+            currentBotId = currentBotId,
+            behaviorProfile = behaviorProfile,
+            impulse = event.impulse,
+            interruptionMode = event.interruptionMode,
+            flow = flowGauge.getFlowMeter(),
+            flowState = flowGauge.mapToState(),
+            facts = factsEntities,
+            userProfiles = userProfiles,
+            vocabulary = activeVocabulary,
+            summary = summaryEntity,
+            histories = historyEntities
+        )
+    }
+}
 
-    val behaviorProfile = emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
-    val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 200)
-    val subjects = historyEntities.map { it.userId }.distinct().toList()
-    val factsEntities = memoryService.getFacts(currentBotId, groupId, subjects)
-    val userProfiles = memoryService.getUserProfiles(currentBotId, groupId, subjects)
-    val summaryEntity = memoryService.getSummary(currentBotId, groupId)
-    val activeVocabulary = vocabularyService.getActiveVocabulary(currentBotId, groupId)
-
+fun buildPrompt(context: Context): Prompt {
+    val (currentBotId, behaviorProfile, impulse, interruptionMode, flow, flowState, facts, userProfiles, vocabulary, summary, histories) = context
     return prompt("群聊机器人") {
         system {
             markdown {
-                line { text("你是一个群聊群成员，名称叫 Erii，请按照下述设定进行对话。") }
+                line { text("你是一个叫 Erii 的女性，请遵守下述设定完成对话任务。") }
                 header(2, "总体人格定位")
-                line { text("女性，参考《龙族》的上杉绘梨衣。") }
                 line { text("冷静理智、敏感细腻、忠诚可靠、内敛含蓄。") }
                 line { text("外表冷静，内心温暖，对朋友忠诚，对陌生人保持适度距离。") }
                 line { text("偶尔带文学气息或哲理感，偶尔用幽默毒舌调侃群友，但不伤感情。") }
@@ -86,66 +128,64 @@ fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent)
                 if (behaviorProfile != null) {
                     line { text("当前状态") }
                     bulleted {
-                        item("emotional tendencies: ${behaviorProfile.emotion}")
-                        item("tone: ${behaviorProfile.tone.value}")
-                        item("aggressiveness: ${behaviorProfile.aggressiveness.value}")
-                        item("verbosity: ${behaviorProfile.verbosity}")
-                        item("emojiLevel: ${behaviorProfile.emojiLevel}")
+                        item("情感倾向: ${behaviorProfile.emotion}")
+                        item("语气: ${behaviorProfile.tone.value}")
+                        item("调侃程度: ${behaviorProfile.aggressiveness.value}")
+                        item("表情使用强度: ${behaviorProfile.emojiLevel.value}")
                     }
                 }
-                horizontalRule()
-                line { text("发言模式: ${event.interruptionMode.value}") }
-                line { text("发言句子长度: [${flowGauge.mapToState().name}]${flowGauge.mapToState().value}") }
+                line { text("发言介入方式: [${impulse}]${interruptionMode.value}") }
+                line { text("当前心流状态: [${flow}]${flowState}") }
             }
         }
         user {
             markdown {
-                if (factsEntities.isNotEmpty()) {
+                if (facts.isNotEmpty()) {
                     h2("群聊事实记忆")
                     bulleted {
-                        for (factsEntity in factsEntities) {
-                            item("values: ${factsEntity.keyword}, description:${factsEntity.description}, values: ${factsEntity.values}, subjects: ${factsEntity.subjects}")
+                        for (factsEntity in facts) {
+                            item("关键词: ${factsEntity.keyword}, 描述:${factsEntity.description}, 值: ${factsEntity.values}, 主体: ${factsEntity.subjects}")
                         }
                     }
-                }
-                summaryEntity?.let { summary ->
-                    h2("群聊历史记录摘要")
-                    line { text(summary.content) }
-                    line { blockquote(summary.keyPoints) }
                 }
                 if (userProfiles.isNotEmpty()) {
                     for (userProfileEntity in userProfiles) {
                         h2("当前群聊会话用户画像")
                         numbered {
                             item {
-                                line { text("userId: ${userProfileEntity.userId}") }
+                                line { text("用户ID: ${userProfileEntity.userId}") }
                                 bulleted {
-                                    item { text("profile: ${userProfileEntity.profile}") }
-                                    item { text("preferences: ${userProfileEntity.preferences}") }
+                                    item { text("用户画像: ${userProfileEntity.profile}") }
+                                    item { text("用户偏好: ${userProfileEntity.preferences}") }
                                 }
                             }
                         }
 
                     }
                 }
-                if (activeVocabulary.isNotEmpty()) {
+                if (vocabulary.isNotEmpty()) {
                     h2("群聊历史记录中的流行语")
-                    for (learnedVocabEntity in activeVocabulary) {
+                    for (learnedVocabEntity in vocabulary) {
                         bulleted {
                             item {
-                                line { text("word: ${learnedVocabEntity.word}") }
-                                line { text("type: ${learnedVocabEntity.type}") }
-                                line { text("meaning: ${learnedVocabEntity.meaning}") }
-                                line { text("example: ${learnedVocabEntity.example}") }
-                                line { text("weight: ${learnedVocabEntity.weight}") }
+                                line { text("词: ${learnedVocabEntity.word}") }
+                                line { text("类型: ${learnedVocabEntity.type}") }
+                                line { text("含义: ${learnedVocabEntity.meaning}") }
+                                line { text("示例: ${learnedVocabEntity.example}") }
+                                line { text("权重: ${learnedVocabEntity.weight}") }
                             }
                         }
                     }
                 }
-                if (historyEntities.isNotEmpty()) {
+                summary?.let { summary ->
+                    h2("群聊历史记录摘要")
+                    line { text(summary.content) }
+                    line { blockquote(summary.keyPoints) }
+                }
+                if (histories.isNotEmpty()) {
                     h2("群聊历史记录")
-                    for (historyEntity in historyEntities) {
-                        historyEntity.content?.let { line { text(if (historyEntity.userId == currentBotId) "[自己]" else "[user_id:" + historyEntity.userId + "] -> " + it) } }
+                    for (historyEntity in histories) {
+                        historyEntity.content?.let { line { text(if (historyEntity.userId == currentBotId) "[自己]" else "[用户ID:" + historyEntity.userId + "] -> " + it) } }
                     }
                 }
             }
@@ -154,20 +194,37 @@ fun botPrompt(currentBotId: String, groupId: String, event: ProactiveSpeakEvent)
     }
 }
 
+@Suppress("unused")
 class ChatToolSet(val sendMessage: suspend (String) -> Unit) : ToolSet {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @LLMDescription("向群聊发送消息")
     @Tool
-    fun send(@LLMDescription("向群聊发送的1～3条句子") sentences: List<String>): String {
+    fun send(@LLMDescription("向群聊发送的1～5条任意长度的消息") sentences: List<String>): String {
+        val channel = Channel<HistorySavedEvent>(Channel.CONFLATED)
         scope.launch {
-            for (sentence in sentences) {
-                delay(calcHumanTypingDelay(sentence))
-                sendMessage(sentence)
+            for ((i, sentence) in sentences.withIndex()) {
+                if (i == 1) {
+                    sendMessage(sentence)
+                } else {
+                    select {
+                        channel.onReceiveCatching { event ->
+
+                        }
+
+                        onTimeout(calcHumanTypingDelay(sentence).milliseconds) {
+                            sendMessage(sentence)
+                        }
+                    }
+                }
             }
         }
-        return "Ok"
+        EventBus.subscribeOnceAsync<HistorySavedEvent>(scope) { event ->
+            channel.send(event)
+        }
+        return "OK"
     }
 
     /**
@@ -179,7 +236,7 @@ class ChatToolSet(val sendMessage: suspend (String) -> Unit) : ToolSet {
      */
     fun calcHumanTypingDelay(
         text: String,
-        cpm: Int = 160,
+        cpm: Int = 240,
         jitter: Double = 0.15
     ): Long {
         val charCount = text.count { !it.isWhitespace() }
@@ -210,6 +267,11 @@ object BotAgent {
                 val sendMessage: suspend (String) -> Unit = { message ->
                     currentBot.getGroup(474270623)?.sendMessage(message)
                 }
+                val context = buildContext(
+                    BotProxy.currentBot.id.toString(),
+                    "1053148332",
+                    ProactiveSpeakEvent(10.0, InterruptionMode.Interrupt)
+                )
                 val aiAgent = AIAgent(
                     promptExecutor = promptExecutor,
                     llmModel = GoogleModels.Gemini2_5Pro,
@@ -218,13 +280,7 @@ object BotAgent {
                     },
                     strategy = strategy("聊天") {
                         val setupContext by nodeAppendPrompt<String>("setupContext") {
-                            messages(
-                                botPrompt(
-                                    BotProxy.currentBot.id.toString(),
-                                    "1053148332",
-                                    ProactiveSpeakEvent(10.0, InterruptionMode.Interrupt)
-                                ).messages
-                            )
+                            messages(buildPrompt(context).messages)
                         }
 
                         val nodeSendInput by nodeLLMRequest()
@@ -236,8 +292,9 @@ object BotAgent {
                         edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
                         edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
                         edge(nodeExecuteTool forwardTo nodeSendToolResult)
-                        edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-                        edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+//            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
+//            edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
                     }
                 ) {
                     handleEvents {
@@ -246,13 +303,13 @@ object BotAgent {
                         }
 
                         onLLMCallCompleted {
-                            for (response in it.responses) {
-                                log.info("onLLMCallCompleted: ${response.content}")
-                            }
+//                            for (response in it.responses) {
+//                                log.info("onLLMCallCompleted: ${response.content}")
+//                            }
                         }
                     }
                 }
-                val result = aiAgent.run("")
+                val result = aiAgent.run("回复自然，有人格感，可以有（动作描述），参考《龙族》的上杉绘梨衣。")
                 log.info("llm result: $result")
             }
         }

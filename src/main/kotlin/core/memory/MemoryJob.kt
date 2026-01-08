@@ -32,15 +32,15 @@ class MemoryJob {
 
     /**
      * 开启定时触发
-     * 每 10 分钟执行一次记忆处理
+     * 每 5 分钟执行一次记忆处理
      */
     fun openTimingTriggerSignal() {
         BackgroundJob.scheduleRecurrently(
             "memory-job",
-            "*/5 * * * *",  // 每 10 分钟
+            "*/5 * * * *",  // 每 5 分钟
             ::doMemoryProcessing
         )
-        log.info("记忆任务定时器已启动, 执行周期: 每10分钟")
+        log.info("记忆任务定时器已启动, 执行周期: 每5分钟")
     }
 
     /**
@@ -190,7 +190,7 @@ class MemoryJob {
 
                 // 4.4 对话摘要生成
                 launch {
-                    if (messages.size >= 20) {  // 至少 20 条消息才生成摘要
+                    if (messages.size >= 100) {  // 至少 100 条消息才生成摘要
                         processSummary(botMark, groupId, messages)
                     }
                 }
@@ -219,18 +219,22 @@ class MemoryJob {
         try {
             log.info("开始处理用户画像, groupId=$groupId, userId=$userId")
 
-            val analysis = memoryAgent.analyzeUserProfile(messages)
 
-            // 保存到数据库
-            withContext(Dispatchers.IO) {
+            val existing = withContext(Dispatchers.IO) {
                 transaction {
                     // 查找或创建用户画像
-                    val existing = UserProfileEntity.find {
+                    UserProfileEntity.find {
                         (UserProfileTable.botMark eq botMark) and
                                 (UserProfileTable.groupId eq groupId) and
                                 (UserProfileTable.userId eq userId)
                     }.firstOrNull()
+                }
+            }
+            val analysis = memoryAgent.analyzeUserProfile(messages, existing)
 
+            // 保存到数据库
+            withContext(Dispatchers.IO) {
+                transaction {
                     if (existing != null) {
                         // 更新现有画像
                         existing.profile = analysis.profile

@@ -9,6 +9,8 @@ import org.jobrunr.scheduling.BackgroundJob
 import uesugi.BotProxy
 import uesugi.core.history.HistoryTable
 import uesugi.toolkit.logger
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 
 class EvolutionJob(
     private val vocabularyService: VocabularyService
@@ -23,15 +25,15 @@ class EvolutionJob(
     /**
      * 开启定时触发
      *
-     * 每天凌晨 4 点执行一次模因进化处理
+     * 每 1 小时执行一次模因进化处理
      */
     fun openTimingTriggerSignal() {
         BackgroundJob.scheduleRecurrently(
             "evolution-job",
-            "0 4 * * *",  // 每天凌晨 4 点
+            "0 */1 * * *",  // 每 1 小时一次
             ::doEvolutionProcessing
         )
-        log.info("模因进化任务定时器已启动, 执行周期: 每天凌晨 4 点")
+        log.info("模因进化任务定时器已启动, 执行周期: 每天小时")
     }
 
     /**
@@ -53,7 +55,7 @@ class EvolutionJob(
                     log.info("发现 ${groups.size} 个活跃群组需要处理")
 
                     for (groupId in groups) {
-                        processGroupEvolution(currentBotId, groupId)
+                        processGroupEvolution(currentBotId, groupId, 1.hours)
                     }
 
                     log.info("模因进化任务执行完成")
@@ -104,12 +106,12 @@ class EvolutionJob(
      * @param botMark 机器人标识
      * @param groupId 群组ID
      */
-    private suspend fun processGroupEvolution(botMark: String, groupId: String) {
+    private suspend fun processGroupEvolution(botMark: String, groupId: String, range: Duration) {
         log.info("开始处理群组模因进化, 群组ID: $groupId")
 
         try {
             // 步骤1: 捕获最近的消息
-            val recentMessages = vocabularyService.getMostActiveMessages(botMark, groupId, 500)
+            val recentMessages = vocabularyService.getMostActiveMessages(botMark, groupId, 500, range)
 
             if (recentMessages.isEmpty()) {
                 log.warn("群组 $groupId 没有最近的消息，跳过处理")

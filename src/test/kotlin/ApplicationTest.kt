@@ -4,7 +4,7 @@ import ai.koog.agents.core.agent.asMermaidDiagram
 import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
-import uesugi.core.botPrompt
+import uesugi.core.buildPrompt
 import uesugi.core.volition.InterruptionMode
 import uesugi.core.volition.ProactiveSpeakEvent
 import kotlin.test.Test
@@ -16,7 +16,7 @@ class ApplicationTest {
         val diagram = strategy("聊天") {
             val setupContext by nodeAppendPrompt<String>("setupContext") {
                 messages(
-                    botPrompt(
+                    buildPrompt(
                         BotProxy.currentBot.id.toString(),
                         "1053148332",
                         ProactiveSpeakEvent(10.0, InterruptionMode.Interrupt)
@@ -24,21 +24,18 @@ class ApplicationTest {
                 )
             }
 
-            val logNode by node<String, String> {
-                it
-            }
-
             val nodeSendInput by nodeLLMRequest()
             val nodeExecuteTool by nodeExecuteTool()
             val nodeSendToolResult by nodeLLMSendToolResult()
 
             edge(nodeStart forwardTo setupContext)
-            edge(setupContext forwardTo logNode)
-            edge(logNode forwardTo nodeSendInput)
+            edge(setupContext forwardTo nodeSendInput)
+            edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
             edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
             edge(nodeExecuteTool forwardTo nodeSendToolResult)
+//            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
+//            edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
             edge(nodeSendToolResult forwardTo nodeFinish)
-            edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
         }.asMermaidDiagram()
         println(diagram)
     }
