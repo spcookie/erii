@@ -15,7 +15,6 @@ object BehaviorMapper {
                     emotion = emotion,
                     tone = Tone.FRIENDLY,
                     aggressiveness = Aggressiveness.NONE,
-                    verbosity = Verbosity.LONG,
                     emojiLevel = EmojiLevel.HIGH,
                 )
 
@@ -25,7 +24,6 @@ object BehaviorMapper {
                     emotion = emotion,
                     tone = Tone.GENTLE,
                     aggressiveness = Aggressiveness.NONE,
-                    verbosity = Verbosity.MEDIUM,
                     emojiLevel = EmojiLevel.LOW,
                 )
 
@@ -34,7 +32,6 @@ object BehaviorMapper {
                     emotion = emotion,
                     tone = Tone.NEUTRAL,
                     aggressiveness = Aggressiveness.TEASING,
-                    verbosity = Verbosity.VERY_SHORT,
                     emojiLevel = EmojiLevel.NONE,
                 )
 
@@ -44,7 +41,6 @@ object BehaviorMapper {
                     emotion = emotion,
                     tone = Tone.LOW_ENERGY,
                     aggressiveness = Aggressiveness.NONE,
-                    verbosity = Verbosity.SHORT,
                     emojiLevel = EmojiLevel.LOW,
                 )
 
@@ -53,7 +49,6 @@ object BehaviorMapper {
                     emotion = emotion,
                     tone = Tone.NEUTRAL,
                     aggressiveness = Aggressiveness.NONE,
-                    verbosity = Verbosity.VERY_SHORT,
                     emojiLevel = EmojiLevel.NONE,
                 )
 
@@ -65,7 +60,6 @@ object BehaviorMapper {
                     emotion = emotion,
                     tone = Tone.IRONIC,
                     aggressiveness = Aggressiveness.ABSTRACT_SARCASM,
-                    verbosity = Verbosity.SHORT,
                     emojiLevel = EmojiLevel.LOW,
                 )
 
@@ -74,7 +68,6 @@ object BehaviorMapper {
                     emotion = emotion,
                     tone = Tone.FRIENDLY,
                     aggressiveness = Aggressiveness.NONE,
-                    verbosity = Verbosity.SHORT,
                     emojiLevel = EmojiLevel.MEDIUM,
                 )
 
@@ -83,7 +76,6 @@ object BehaviorMapper {
                     emotion = emotion,
                     tone = Tone.GENTLE,
                     aggressiveness = Aggressiveness.NONE,
-                    verbosity = Verbosity.MEDIUM,
                     emojiLevel = EmojiLevel.LOW,
                 )
 
@@ -111,7 +103,6 @@ object SafetyGate {
         // 连续负面 → 强制冷却
         if (recentNegativeCount >= 2) {
             result = result.copy(
-                verbosity = Verbosity.VERY_SHORT,
                 emojiLevel = EmojiLevel.NONE,
             )
         }

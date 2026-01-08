@@ -13,6 +13,7 @@ import uesugi.core.history.HistoryTable
 import uesugi.core.history.MessageType
 import uesugi.toolkit.logger
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
 
@@ -36,7 +37,7 @@ class VocabularyService {
     }
 
     /**
-     * 获取昨天最活跃的消息（用于每日分析）
+     * 获取6小时前最活跃的消息
      *
      * @param botMark 机器人标识
      * @param groupId 群组ID
@@ -47,11 +48,12 @@ class VocabularyService {
     fun getMostActiveMessages(
         botMark: String,
         groupId: String,
-        limit: Int = 500
+        limit: Int = 500,
+        range: Duration
     ): List<String> = transaction {
-        val yesterday = Clock.System.now().minus(1.days).toLocalDateTime(TimeZone.currentSystemDefault())
+        val yesterday = Clock.System.now().minus(range).toLocalDateTime(TimeZone.currentSystemDefault())
 
-        log.debug("开始获取昨日活跃消息, botMark=$botMark, groupId=$groupId, limit=$limit")
+        log.debug("开始获取6小时前活跃消息, botMark=$botMark, groupId=$groupId, limit=$limit")
 
         val messages = HistoryEntity.find {
             (HistoryTable.botMark eq botMark) and
@@ -66,7 +68,7 @@ class VocabularyService {
             }
             .take(limit)
 
-        log.info("获取昨日活跃消息完成, botMark=$botMark, groupId=$groupId, 消息数=${messages.size}")
+        log.info("获取6小时前活跃消息完成, botMark=$botMark, groupId=$groupId, 消息数=${messages.size}")
         messages
     }
 

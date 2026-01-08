@@ -243,7 +243,6 @@ data class BehaviorProfile(
     val emotion: EmotionalTendencies,
     val tone: Tone,
     val aggressiveness: Aggressiveness,
-    val verbosity: Verbosity,
     val emojiLevel: EmojiLevel
 )
 
@@ -261,19 +260,11 @@ enum class Aggressiveness(val value: String) {
     TEASING("轻度调侃")
 }
 
-
-enum class Verbosity {
-    VERY_SHORT,
-    SHORT,
-    MEDIUM,
-    LONG
-}
-
-enum class EmojiLevel {
-    NONE,
-    LOW,
-    MEDIUM,
-    HIGH
+enum class EmojiLevel(val value: String) {
+    NONE("不使用表情"),
+    LOW("偶尔使用"),
+    MEDIUM("正常频率"),
+    HIGH("高频使用")
 }
 
 fun EmotionEntity.Companion.findRequiredAnalysisHistoryGroupIds(botMark: String): List<String> {

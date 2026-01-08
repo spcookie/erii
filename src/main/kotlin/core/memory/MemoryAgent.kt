@@ -121,7 +121,10 @@ class MemoryAgent {
      * @param messages 用户的历史消息列表
      * @return 用户画像分析结果
      */
-    suspend fun analyzeUserProfile(messages: List<MemoryMessage>): UserProfileAnalysis {
+    suspend fun analyzeUserProfile(
+        messages: List<MemoryMessage>,
+        userProfileEntity: UserProfileEntity?
+    ): UserProfileAnalysis {
         log.info("开始分析用户画像, userId=${messages.firstOrNull()?.userId}, 消息数=${messages.size}")
 
         val prompt = prompt("分析用户画像和偏好") {
@@ -151,7 +154,7 @@ class MemoryAgent {
                    - 该字段输出空字符串 ""
                 
                 4. 使用**简洁、客观、中性**的语言  
-                   - 每一项控制在 50–100 字
+                   - 每一项控制在 50 字左右
                    - 不输出示例、不输出分析过程
                 
                 【需要输出的字段】
@@ -172,11 +175,10 @@ class MemoryAgent {
                 
                 4. keywords（关键词）  
                    - 提取该用户消息中**真实出现过的高频或高信息密度词汇**
-                   - 5–10 个
+                   - 0–10 个
                    - 只允许原文词汇，不得改写或抽象
                    - 按出现频率或重要性排序
                 
-                【输出格式（严格遵守）】
                 
                 仅输出一个 JSON 对象，不包含任何额外说明或注释
                 """.trimIndent()
@@ -184,14 +186,15 @@ class MemoryAgent {
 
             val msg = messages.joinToString("\n") { it.asLlmPrompt() }
             user(
-                """
-                用户ID: ${messages.firstOrNull()?.userId ?: "unknown"}
-                
-                历史消息:
-                $msg
-                
-                请分析该用户的画像和偏好。
-                """.trimIndent()
+                buildString {
+                    append("用户ID: ${messages.firstOrNull()?.userId ?: "unknown"}")
+                    if (userProfileEntity != null) {
+                        append("之前分析的用户画像信息: ${userProfileEntity.profile}")
+                        append("之前分析的用户偏好信息: ${userProfileEntity.preferences}")
+                    }
+                    append("历史消息:\n$msg")
+                    append("请分析该用户的画像和偏好。")
+                }
             )
         }
 
