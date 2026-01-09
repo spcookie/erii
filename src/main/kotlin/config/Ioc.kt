@@ -41,7 +41,7 @@ val configModule = module(createdAtStart = true) {
             }
         }
     }
-    single { JobRunrConfig() }
+    single { JobRunrConfig().apply { start() } }
 }
 
 val serviceModule = module {
