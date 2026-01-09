@@ -522,14 +522,14 @@ private suspend fun buildPrompt(context: Context): Prompt {
                 if (context.histories.isNotEmpty()) {
                     header(2, "最近群聊记录")
                     bulleted {
-                        val entities = if (context.histories.size > 20) {
-                            context.histories.takeLast(20)
+                        val entities = if (context.histories.size > 50) {
+                            context.histories.takeLast(50)
                         } else {
                             context.histories
                         }
                         for (history in entities) {
                             item {
-                                line { text("[${if (context.currentBotId == history.userId) "我" else ""}]${history.userId}：${history.content}") }
+                                line { text("${if (context.currentBotId == history.userId) "[我]" else ""}${history.userId}：${history.content}") }
                             }
                         }
                     }
