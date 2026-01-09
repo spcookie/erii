@@ -90,7 +90,7 @@ class VolitionHandler(
             }
         }
 
-        EventBus.subscribeAsync(HistorySavedEvent::class, scope) { event ->
+        EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
             val historyEntity = event.historyEntity
             val message = VolitionMessage(
                 id = historyEntity.id.value,

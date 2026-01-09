@@ -43,4 +43,8 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
+    testImplementation("io.ktor:ktor-client-core:3.3.2")
+    testImplementation("io.ktor:ktor-client-cio:3.3.2")
+    testImplementation("io.ktor:ktor-client-content-negotiation:3.3.2")
+    testImplementation("io.ktor:ktor-serialization-jackson:3.3.2")
 }

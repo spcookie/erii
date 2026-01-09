@@ -195,7 +195,11 @@ fun buildPrompt(context: Context): Prompt {
 }
 
 @Suppress("unused")
-class ChatToolSet(val sendMessage: suspend (String) -> Unit) : ToolSet {
+class ChatToolSet(
+    val currentBotId: String,
+    val groupId: String,
+    val sendMessage: suspend (String) -> Unit
+) : ToolSet {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
@@ -204,14 +208,30 @@ class ChatToolSet(val sendMessage: suspend (String) -> Unit) : ToolSet {
     @Tool
     fun send(@LLMDescription("向群聊发送的1～5条任意长度的消息") sentences: List<String>): String {
         val channel = Channel<HistorySavedEvent>(Channel.CONFLATED)
+        val job = EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
+            val entity = event.historyEntity
+            if (entity.groupId == groupId && entity.userId != currentBotId) {
+                channel.send(event)
+                channel.close()
+            }
+        }
         scope.launch {
+            var skip = false
             for ((i, sentence) in sentences.withIndex()) {
                 if (i == 1) {
                     sendMessage(sentence)
                 } else {
                     select {
-                        channel.onReceiveCatching { event ->
-
+                        channel.onReceiveCatching { result ->
+                            if (result.isSuccess) {
+                                EventBus.postAsync(
+                                    ProactiveSpeakEvent(
+                                        impulse = -1.0,
+                                        interruptionMode = InterruptionMode.Interrupt
+                                    )
+                                )
+                                skip = true
+                            }
                         }
 
                         onTimeout(calcHumanTypingDelay(sentence).milliseconds) {
@@ -219,10 +239,9 @@ class ChatToolSet(val sendMessage: suspend (String) -> Unit) : ToolSet {
                         }
                     }
                 }
+                if (skip) break
             }
-        }
-        EventBus.subscribeOnceAsync<HistorySavedEvent>(scope) { event ->
-            channel.send(event)
+            EventBus.unsubscribeAsync(job)
         }
         return "OK"
     }
@@ -267,8 +286,9 @@ object BotAgent {
                 val sendMessage: suspend (String) -> Unit = { message ->
                     currentBot.getGroup(474270623)?.sendMessage(message)
                 }
+                val currentBotId = BotProxy.currentBot.id.toString()
                 val context = buildContext(
-                    BotProxy.currentBot.id.toString(),
+                    currentBotId,
                     "1053148332",
                     ProactiveSpeakEvent(10.0, InterruptionMode.Interrupt)
                 )
@@ -276,7 +296,7 @@ object BotAgent {
                     promptExecutor = promptExecutor,
                     llmModel = GoogleModels.Gemini2_5Pro,
                     toolRegistry = ToolRegistry {
-                        tools(ChatToolSet(sendMessage).asTools())
+                        tools(ChatToolSet(currentBotId, "1053148332", sendMessage).asTools())
                     },
                     strategy = strategy("聊天") {
                         val setupContext by nodeAppendPrompt<String>("setupContext") {
@@ -314,7 +334,7 @@ object BotAgent {
             }
         }
 
-        EventBus.subscribeAsync(ProactiveSpeakEvent::class, scope) {
+        EventBus.subscribeAsync<ProactiveSpeakEvent>(scope) {
             channel.send(it)
         }
     }

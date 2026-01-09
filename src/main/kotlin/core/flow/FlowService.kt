@@ -53,7 +53,7 @@ class FlowGauge(
     }
 
     private fun subscribe() {
-        EventBus.subscribeAsync(FlowEvent::class, scope) { event ->
+        EventBus.subscribeAsync<FlowEvent>(scope) { event ->
             when (event) {
                 is CoreInterestEvent -> this.addEvent(baseCharge = 20.0, interest = event.interest)
                 is ContinuousInteractionEvent -> this.addEvent(baseCharge = 10.0, momentum = event.momentum)
@@ -69,7 +69,7 @@ class FlowGauge(
             log.info("收到心流事件, 当前心流值: ${this.state.value}")
         }
 
-        EventBus.subscribeAsync(EmotionChangeEvent::class, scope) { event ->
+        EventBus.subscribeAsync<EmotionChangeEvent>(scope) { event ->
             val (p, a, _) = event.pad.normalize()
             pleasure = p
             arousal = a
