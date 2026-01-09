@@ -375,7 +375,7 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>): List<C
             - 保持简短自然口语风格，每条一行  
             - 不输出字段名或原始消息内容  
             - 不要总结历史，只列出可接点  
-            - 输出 JSON 数组，每个元素是一个 ChatPoint 对象，例如：
+            - 输出 JSON
 
             最近聊天记录：
             $msg
