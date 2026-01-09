@@ -58,7 +58,7 @@ class FlowHandler(
             }
         }
 
-        EventBus.subscribeAsync(HistorySavedEvent::class, scope) { event ->
+        EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
             val historyEntity = event.historyEntity
             val message = FlowMessage(
                 id = historyEntity.id.value,

@@ -54,7 +54,7 @@ class VolitionGauge(
     fun getMood() = mood
 
     private fun subscribe() {
-        EventBus.subscribeAsync(VolitionEvent::class, scope) { event ->
+        EventBus.subscribeAsync<VolitionEvent>(scope) { event ->
             when (event) {
                 is ResetStimulusEvent -> resetStimulus(event.stimulus)
                 is KeywordHitEvent -> if (arousal > 0.3) addStimulus(event.stimulus)
@@ -64,7 +64,7 @@ class VolitionGauge(
             }
         }
 
-        EventBus.subscribeAsync(EmotionChangeEvent::class, scope) { event ->
+        EventBus.subscribeAsync<EmotionChangeEvent>(scope) { event ->
             mood = EmotionalTendencies.findClosest(event.pad)
             val (p, a, _) = event.pad.normalize()
             pleasure = p
@@ -72,7 +72,7 @@ class VolitionGauge(
             log.info("Volition收到情绪变更事件, P: $p , A: $a")
         }
 
-        EventBus.subscribeAsync(FlowChangeEvent::class, scope) { event ->
+        EventBus.subscribeAsync<FlowChangeEvent>(scope) { event ->
             flowValue = event.value
         }
     }
