@@ -53,7 +53,7 @@ class VocabularyService {
     ): List<String> = transaction {
         val yesterday = Clock.System.now().minus(range).toLocalDateTime(TimeZone.currentSystemDefault())
 
-        log.debug("开始获取6小时前活跃消息, botMark=$botMark, groupId=$groupId, limit=$limit")
+        log.debug("开始获取${range.inWholeHours}小时前活跃消息, botMark=$botMark, groupId=$groupId, limit=$limit")
 
         val messages = HistoryEntity.find {
             (HistoryTable.botMark eq botMark) and

@@ -57,7 +57,8 @@ class MemoryAgent {
         val description: String,    // 事实描述
         val values: List<String>,   // 相关值/属性
         val subjects: List<String>, // 涉及的主体(用户ID)
-        val scopeType: MemoryScopes // 范围类型: USER/GROUP
+        val scopeType: MemoryScopes, // 范围类型: USER/GROUP
+        val confidence: Double,     // 置信度, 范围是 0.0-1.0
     )
 
     @Serializable
@@ -169,17 +170,6 @@ class MemoryAgent {
                    - 基于其**主动参与和反复出现的话题**
                    - 可体现技术领域、讨论深度、偏向问题类型（设计 / 实现 / 排错）
                 
-                3. talkingStyle（说话风格）  
-                   - 基于语言形式本身，而非态度判断
-                   - 如：句子长度、是否结构化、是否常用代码/列表/标题、语气偏陈述或提问
-                
-                4. keywords（关键词）  
-                   - 提取该用户消息中**真实出现过的高频或高信息密度词汇**
-                   - 0–10 个
-                   - 只允许原文词汇，不得改写或抽象
-                   - 按出现频率或重要性排序
-                
-                
                 仅输出一个 JSON 对象，不包含任何额外说明或注释
                 """.trimIndent()
             )
@@ -189,11 +179,13 @@ class MemoryAgent {
                 buildString {
                     append("用户ID: ${messages.firstOrNull()?.userId ?: "unknown"}")
                     if (userProfileEntity != null) {
+                        append("参考：")
                         append("之前分析的用户画像信息: ${userProfileEntity.profile}")
                         append("之前分析的用户偏好信息: ${userProfileEntity.preferences}")
                     }
                     append("历史消息:\n$msg")
                     append("请分析该用户的画像和偏好。")
+                    append("只输出该用户当前最新的画像和偏好。")
                 }
             )
         }
@@ -264,7 +256,7 @@ class MemoryAgent {
                   - action: ADD 或 DEPRECATE
                   - reason: 简要说明判断原因
                   - keyword
-                  - description（20-50字）
+                  - description（20字左右）
                   - values
                   - subjects
                   - scopeType: USER 或 GROUP

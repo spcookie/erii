@@ -246,25 +246,25 @@ data class BehaviorProfile(
     val emojiLevel: EmojiLevel
 )
 
-enum class Tone(val value: String) {
-    FRIENDLY("友好"),
-    GENTLE("温和"),
-    NEUTRAL("中性"),
-    IRONIC("冷讽"),
-    LOW_ENERGY("低落")
+enum class Tone {
+    FRIENDLY,
+    GENTLE,
+    NEUTRAL,
+    IRONIC,
+    LOW_ENERGY
 }
 
-enum class Aggressiveness(val value: String) {
-    NONE("无"),
-    ABSTRACT_SARCASM("对事情/状态的讽刺"),
-    TEASING("轻度调侃")
+enum class Aggressiveness {
+    NONE,
+    ABSTRACT_SARCASM,
+    TEASING
 }
 
-enum class EmojiLevel(val value: String) {
-    NONE("不使用表情"),
-    LOW("偶尔使用"),
-    MEDIUM("正常频率"),
-    HIGH("高频使用")
+enum class EmojiLevel {
+    NONE,
+    LOW,
+    MEDIUM,
+    HIGH
 }
 
 fun EmotionEntity.Companion.findRequiredAnalysisHistoryGroupIds(botMark: String): List<String> {

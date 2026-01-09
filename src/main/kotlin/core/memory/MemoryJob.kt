@@ -219,7 +219,6 @@ class MemoryJob {
         try {
             log.info("开始处理用户画像, groupId=$groupId, userId=$userId")
 
-
             val existing = withContext(Dispatchers.IO) {
                 transaction {
                     // 查找或创建用户画像
@@ -302,6 +301,9 @@ class MemoryJob {
                 transaction {
                     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                     for (fact in factsList) {
+                        if (fact.confidence < 0.5) {
+                            continue
+                        }
                         when (fact.action) {
                             MemoryAgent.MemoryAction.ADD -> {
                                 FactsEntity.new {
