@@ -17,11 +17,9 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.datetime.format
@@ -36,6 +34,7 @@ import uesugi.core.evolution.VocabularyService
 import uesugi.core.flow.FlowGauge
 import uesugi.core.flow.FlowMeterState
 import uesugi.core.history.HistoryEntity
+import uesugi.core.history.HistoryRecord
 import uesugi.core.history.HistorySavedEvent
 import uesugi.core.history.HistoryService
 import uesugi.core.memory.FactsEntity
@@ -50,6 +49,7 @@ import uesugi.toolkit.logger
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 
 data class SpeechConstraints(
     val styleHints: MutableList<String> = mutableListOf(),
@@ -262,6 +262,7 @@ private fun applyFlowState(
 
 data class Context(
     val currentBotId: String,
+    val groupId: String,
     val behaviorProfile: BehaviorProfile?,
     val impulse: Double,
     val interruptionMode: InterruptionMode,
@@ -290,6 +291,7 @@ private fun buildContext(currentBotId: String, groupId: String, event: Proactive
         val activeVocabulary = vocabularyService.getActiveVocabulary(currentBotId, groupId)
         Context(
             currentBotId = currentBotId,
+            groupId = groupId,
             behaviorProfile = behaviorProfile,
             impulse = event.impulse,
             interruptionMode = event.interruptionMode,
@@ -542,41 +544,38 @@ private suspend fun buildPrompt(context: Context): Prompt {
 
 @Suppress("unused")
 class ChatToolSet(
-    val currentBotId: String,
-    val groupId: String,
+    val context: Context,
     val sendMessage: suspend (String) -> Unit
 ) : ToolSet {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    @LLMDescription("回复消息")
+    @LLMDescription("回复消息，返回群其他人的回复")
     @Tool
-    fun send(@LLMDescription("回复2～3 句为主，最多 5 句") sentences: List<String>): String {
+    fun send(@LLMDescription("回复 2～5 句为主，最多 5 句") sentences: List<String>): String? {
         val channel = Channel<HistorySavedEvent>(Channel.CONFLATED)
         val job = EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
-            val entity = event.historyEntity
-            if (entity.groupId == groupId && entity.userId != currentBotId) {
+            val record = event.historyRecord
+            if (record.groupId == context.groupId && record.userId != context.currentBotId) {
                 channel.send(event)
                 channel.close()
             }
         }
-        scope.launch {
+        val deferred = scope.async {
             var skip = false
+            var record: HistoryRecord? = null
             for ((i, sentence) in sentences.withIndex()) {
                 if (i == 1) {
                     sendMessage(sentence)
                 } else {
                     select {
-                        channel.onReceiveCatching { result ->
-                            if (result.isSuccess) {
-                                EventBus.postAsync(
-                                    ProactiveSpeakEvent(
-                                        impulse = -1.0,
-                                        interruptionMode = InterruptionMode.Interrupt
-                                    )
-                                )
-                                skip = true
+                        if (context.flow > 50) {
+                            channel.onReceiveCatching { result ->
+                                if (result.isSuccess) {
+                                    record = result.getOrThrow().historyRecord
+                                    skip = true
+                                }
                             }
                         }
 
@@ -587,9 +586,36 @@ class ChatToolSet(
                 }
                 if (skip) break
             }
+            if (!skip) {
+                select {
+                    if (context.flow > 50) {
+                        channel.onReceiveCatching { result ->
+                            if (result.isSuccess) {
+                                record = result.getOrThrow().historyRecord
+                                skip = true
+                            }
+                        }
+                    }
+
+                    onTimeout(5.minutes) {
+                    }
+                }
+            }
             EventBus.unsubscribeAsync(job)
+            Pair(record != null, record)
         }
-        return "OK"
+        return deferred.asCompletableFuture().get()?.let {
+            if (it.first) {
+                val second = it.second
+                if (second != null) {
+                    "${second.userId}: ${second.content}"
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+        }
     }
 
     /**
@@ -644,7 +670,7 @@ object BotAgent {
                     promptExecutor = promptExecutor,
                     llmModel = GoogleModels.Gemini2_5Pro,
                     toolRegistry = ToolRegistry {
-                        tools(ChatToolSet(currentBotId, "1053148332", sendMessage).asTools())
+                        tools(ChatToolSet(context.copy(groupId = "1053148332"), sendMessage).asTools())
                     },
                     strategy = strategy("聊天") {
                         val setupContext by nodeAppendPrompt<String>("setupContext") {
@@ -659,10 +685,11 @@ object BotAgent {
                         edge(setupContext forwardTo nodeSendInput)
                         edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
                         edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
-                        edge(nodeExecuteTool forwardTo nodeSendToolResult)
-//            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-//            edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
-                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
+                        edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition { it.result != null })
+                        edge(nodeExecuteTool forwardTo nodeFinish onCondition { it.result == null } transformed { it.content })
+                        edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
+                        edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+//                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
                     }
                 ) {
                     handleEvents {
@@ -682,33 +709,10 @@ object BotAgent {
                     """
                 【发言原则｜高优先级，必须遵守】
                 
-                1. 发言长度：
-                   - 2～3 句为主，最多 5 句
-                
-                2. 语言风格：
+                 语言风格：
                    - 禁止总结式、旁白式、鸡汤式表达
                    - 允许句子不完整、停顿、省略
                    - 避免抽象评价（如“这也未尝不是…”）
-                
-                3. 群聊互动：
-                   - 可偶尔使用 @人，但不要每次都用
-                   - @更像提醒或调侃，不是点名发言
-                
-                【动作描写规则｜低频】
-                
-                - 允许使用括号动作，仅用于辅助语气
-                - 动作必须极短（2～6 字），最多 1 行
-                - 禁止连续动作或复杂心理描写
-                  ✔（看了一眼）
-                  ❌（沉默良久，回忆起刚才的对话）
-                
-                
-                【情绪表达方式｜隐式】
-                
-                - 不直接说“我很难过 / 我很开心”
-                - 用句式、标点、省略号体现情绪
-                - 情绪应“藏在话里”，而不是说出来
-                
                 
                 【发言目标｜最高优先级】
                 
