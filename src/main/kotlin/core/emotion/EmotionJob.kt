@@ -19,15 +19,6 @@ import kotlin.math.exp
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-/**
- * 情绪任务 - 定时分析群聊消息并更新机器人情绪状态
- *
- * 核心功能:
- * 1. 定时扫描有新消息的群组
- * 2. 分析群聊氛围,计算情感刺激值
- * 3. 更新机器人的情绪(Emotion)和心情(Mood)
- * 4. 对无新消息的群组执行情绪衰减
- */
 class EmotionJob {
 
     companion object {
@@ -56,46 +47,48 @@ class EmotionJob {
         runBlocking {
             if (mutex.tryLock()) {
                 try {
-                    log.info("情绪任务开始执行")
-                    val currentBotId = BotProxy.currentBot.id.toString()
+                    log.debug("情绪任务开始执行")
+                    for (currentBotId in BotProxy.getAllBotIds()) {
+                        log.debug("开始执行的情绪分析, botMark=$currentBotId")
 
-                    // 1. 查找需要分析的群组(有新消息的群组)
-                    val groups = withContext(Dispatchers.IO) {
-                        transaction {
-                            EmotionEntity.findRequiredAnalysisHistoryGroupIds(currentBotId)
+                        // 1. 查找需要分析的群组(有新消息的群组)
+                        val groups = withContext(Dispatchers.IO) {
+                            transaction {
+                                EmotionEntity.findRequiredAnalysisHistoryGroupIds(currentBotId)
+                            }
+                        }
+                        log.debug("情绪任务发现 ${groups.size} 个群组有新消息需要分析")
+
+                        // 2. 对每个群组执行情绪分析
+                        for (group in groups) {
+                            emotionAnalysis(
+                                currentBotId,
+                                group,
+                                groupSize = 10,
+                                adminPresent = false
+                            )
+                        }
+
+                        // 3. 查找需要衰减的群组(无新消息的群组)
+                        val decayGroups = withContext(Dispatchers.IO) {
+                            transaction {
+                                EmotionEntity.findNotAnalysisHistoryGroupIds(currentBotId, groups)
+                            }
+                        }
+                        log.debug("情绪任务发现 ${decayGroups.size} 个群组需要执行情绪衰减")
+
+                        // 4. 对每个群组执行情绪衰减
+                        for (group in decayGroups) {
+                            decayEmotion(
+                                currentBotId,
+                                group,
+                                groupSize = 10,
+                                adminPresent = false
+                            )
                         }
                     }
-                    log.info("情绪任务发现 ${groups.size} 个群组有新消息需要分析")
 
-                    // 2. 对每个群组执行情绪分析
-                    for (group in groups) {
-                        emotionAnalysis(
-                            currentBotId,
-                            group,
-                            groupSize = 10,
-                            adminPresent = false
-                        )
-                    }
-
-                    // 3. 查找需要衰减的群组(无新消息的群组)
-                    val decayGroups = withContext(Dispatchers.IO) {
-                        transaction {
-                            EmotionEntity.findNotAnalysisHistoryGroupIds(currentBotId, groups)
-                        }
-                    }
-                    log.info("情绪任务发现 ${decayGroups.size} 个群组需要执行情绪衰减")
-
-                    // 4. 对每个群组执行情绪衰减
-                    for (group in decayGroups) {
-                        decayEmotion(
-                            currentBotId,
-                            group,
-                            groupSize = 10,
-                            adminPresent = false
-                        )
-                    }
-
-                    log.info("情绪任务执行完成")
+                    log.debug("情绪任务执行完成")
                 } catch (e: Exception) {
                     log.error("情绪任务执行失败", e)
                 } finally {
@@ -334,7 +327,7 @@ class EmotionJob {
 
         // 4. 调用 LLM 分析情感刺激值
         val stimulus = analyzeStimulus(gMessages)
-        log.info(
+        log.debug(
             "群组 $groupId 情感刺激值: P=${String.format("%.2f", stimulus.p)}, A=${
                 String.format(
                     "%.2f",

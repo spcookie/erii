@@ -25,13 +25,14 @@ import kotlinx.coroutines.selects.select
 import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.jsonNull
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.BotProxy
 import uesugi.core.emotion.*
 import uesugi.core.evolution.LearnedVocabEntity
 import uesugi.core.evolution.VocabularyService
-import uesugi.core.flow.FlowGauge
+import uesugi.core.flow.FlowGaugeManager
 import uesugi.core.flow.FlowMeterState
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryRecord
@@ -275,12 +276,15 @@ data class Context(
     val histories: List<HistoryEntity>
 )
 
-private fun buildContext(currentBotId: String, groupId: String, event: ProactiveSpeakEvent): Context {
+private fun buildContext(event: ProactiveSpeakEvent): Context {
+    val currentBotId = event.botMark
+    val groupId = event.groupId
     val emotionService by GlobalContext.get().inject<EmotionService>()
     val memoryService by GlobalContext.get().inject<MemoryService>()
     val historyService by GlobalContext.get().inject<HistoryService>()
     val vocabularyService by GlobalContext.get().inject<VocabularyService>()
-    val flowGauge by GlobalContext.get().inject<FlowGauge>()
+    val flowGaugeManager by GlobalContext.get().inject<FlowGaugeManager>()
+    val flowGauge = flowGaugeManager.get(currentBotId, groupId)
     return transaction {
         val behaviorProfile = emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
         val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 100, 1.days)
@@ -295,8 +299,8 @@ private fun buildContext(currentBotId: String, groupId: String, event: Proactive
             behaviorProfile = behaviorProfile,
             impulse = event.impulse,
             interruptionMode = event.interruptionMode,
-            flow = flowGauge.getFlowMeter(),
-            flowState = flowGauge.mapToState(),
+            flow = flowGauge?.getFlowMeter() ?: 0.0,
+            flowState = flowGauge?.mapToState() ?: FlowMeterState.STANDBY,
             facts = factsEntities,
             userProfiles = userProfiles,
             vocabulary = activeVocabulary,
@@ -570,7 +574,7 @@ class ChatToolSet(
                     sendMessage(sentence)
                 } else {
                     select {
-                        if (context.flow > 50) {
+                        if ((0..100).random() in 0..context.flow.toInt()) {
                             channel.onReceiveCatching { result ->
                                 if (result.isSuccess) {
                                     record = result.getOrThrow().historyRecord
@@ -588,7 +592,7 @@ class ChatToolSet(
             }
             if (!skip) {
                 select {
-                    if (context.flow > 50) {
+                    if ((0..100).random() in 0..context.flow.toInt()) {
                         channel.onReceiveCatching { result ->
                             if (result.isSuccess) {
                                 record = result.getOrThrow().historyRecord
@@ -653,17 +657,15 @@ object BotAgent {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         scope.launch {
             for (event in channel) {
-                log.info("BotAgent: $event")
-                val currentBot = BotProxy.currentBot
+                log.info("Bot agent received event: $event")
+                val currentBot = BotProxy.getBot(event.botMark)!!
+
                 val sendMessage: suspend (String) -> Unit = { message ->
-                    currentBot.getGroup(474270623)?.sendMessage(message)
+                    val groupId = event.debugGroupId ?: event.groupId
+                    currentBot.getGroup(groupId.toLong())?.sendMessage(message)
                 }
-                val currentBotId = BotProxy.currentBot.id.toString()
-                val context = buildContext(
-                    currentBotId,
-                    "1053148332",
-                    ProactiveSpeakEvent(10.0, InterruptionMode.Interrupt)
-                )
+
+                val context = buildContext(event)
                 val prompt = buildPrompt(context)
 
                 val aiAgent = AIAgent(
@@ -672,7 +674,7 @@ object BotAgent {
                     toolRegistry = ToolRegistry {
                         tools(ChatToolSet(context.copy(groupId = "1053148332"), sendMessage).asTools())
                     },
-                    strategy = strategy("聊天") {
+                    strategy = strategy("chat") {
                         val setupContext by nodeAppendPrompt<String>("setupContext") {
                             messages(prompt.messages)
                         }
@@ -685,8 +687,26 @@ object BotAgent {
                         edge(setupContext forwardTo nodeSendInput)
                         edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
                         edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
-                        edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition { it.result != null })
-                        edge(nodeExecuteTool forwardTo nodeFinish onCondition { it.result == null } transformed { it.content })
+                        edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
+                            try {
+                                val result = it.result
+                                if (result == null) return@onCondition false
+                                result.jsonNull
+                                false
+                            } catch (_: Exception) {
+                                true
+                            }
+                        })
+                        edge(nodeExecuteTool forwardTo nodeFinish onCondition {
+                            try {
+                                val result = it.result
+                                if (result == null) return@onCondition true
+                                result.jsonNull
+                                true
+                            } catch (_: Exception) {
+                                false
+                            }
+                        } transformed { it.content })
                         edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
                         edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
 //                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
@@ -694,13 +714,13 @@ object BotAgent {
                 ) {
                     handleEvents {
                         onLLMCallStarting {
-                            log.info("onLLMCallStarting: ${it.prompt.messages}")
+                            log.debug("onLLMCallStarting: {}", it.prompt.messages)
                         }
 
                         onLLMCallCompleted {
-//                            for (response in it.responses) {
-//                                log.info("onLLMCallCompleted: ${response.content}")
-//                            }
+                            for (response in it.responses) {
+                                log.debug("onLLMCallCompleted: ${response.content}")
+                            }
                         }
                     }
                 }
@@ -712,7 +732,7 @@ object BotAgent {
                  语言风格：
                    - 禁止总结式、旁白式、鸡汤式表达
                    - 允许句子不完整、停顿、省略
-                   - 避免抽象评价（如“这也未尝不是…”）
+                   - 避免抽象评价
                 
                 【发言目标｜最高优先级】
                 
@@ -721,7 +741,7 @@ object BotAgent {
                 而是在“参与群聊”。
                 """.trimIndent()
                 )
-                log.info("llm result: $result")
+                log.debug("llm result: $result")
             }
         }
 

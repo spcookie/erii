@@ -1,38 +1,43 @@
 package uesugi.core.flow
 
 import kotlinx.coroutines.*
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.core.emotion.EmotionChangeEvent
 import uesugi.core.emotion.EmotionalTendencies
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
+import java.util.concurrent.ConcurrentHashMap
 
-// ------------------------ 心流状态 ------------------------
 data class FlowState(
     var value: Double = 0.0,
     var lastUpdateTime: Long = System.currentTimeMillis()
 ) {
-    fun addCharge(amount: Double) {
+    fun addCharge(amount: Double, botMark: String, groupId: String) {
         value = (value + amount).coerceIn(0.0, 100.0)
         lastUpdateTime = System.currentTimeMillis()
-        EventBus.postAsync(FlowChangeEvent(value))
+        EventBus.postAsync(FlowChangeEvent(botMark, groupId, value))
     }
 
-    fun drain(amount: Double) {
+    fun drain(amount: Double, botMark: String, groupId: String) {
         value = (value - amount).coerceIn(0.0, 100.0)
         lastUpdateTime = System.currentTimeMillis()
-        EventBus.postAsync(FlowChangeEvent(value))
+        EventBus.postAsync(FlowChangeEvent(botMark, groupId, value))
     }
 }
 
-// ------------------------ 心流槽管理器 ------------------------
 class FlowGauge(
     mood: EmotionalTendencies,
-    private val decayIntervalMs: Long = 1000L
+    private val botMark: String,
+    private val groupId: String,
+    private val decayIntervalMs: Long = 1000 * 10L,
+    private val persistIntervalMs: Long = 1000 * 60L
 ) {
     val state = FlowState()
     private val scope = CoroutineScope(Dispatchers.Default)
 
-    // 心流衰减参数
     var pleasure: Double = mood.pad.normalize().p
     var arousal: Double = mood.pad.normalize().a
 
@@ -41,19 +46,69 @@ class FlowGauge(
     }
 
     init {
-        // 自动衰减协程
+        loadStateFromDB()
+        
         scope.launch {
             while (isActive) {
                 delay(decayIntervalMs)
                 decayFlow()
             }
         }
-        // 异步订阅事件
+
+        scope.launch {
+            while (isActive) {
+                delay(persistIntervalMs)
+                persistStateToDB()
+            }
+        }
+        
         subscribe()
+    }
+
+    private fun loadStateFromDB() {
+        try {
+            transaction {
+                val flowState = FlowStateEntity.find {
+                    (FlowStateTable.botMark eq botMark) and (FlowStateTable.groupId eq groupId)
+                }.orderBy(FlowStateTable.lastProcessedAt to SortOrder.DESC).firstOrNull()
+
+                if (flowState != null) {
+                    state.value = flowState.flowValue
+                    state.lastUpdateTime = flowState.lastUpdateTime
+                    log.debug("从数据库加载心流状态, botMark=$botMark, groupId=$groupId, value=${state.value}")
+                } else {
+                    log.info("群组 botMark=$botMark, groupId=$groupId 没有心流状态记录, 使用默认值")
+                }
+            }
+        } catch (e: Exception) {
+            log.error("加载心流状态失败, botMark=$botMark, groupId=$groupId", e)
+        }
+    }
+
+    private fun persistStateToDB() {
+        try {
+            transaction {
+                val flowState = FlowStateEntity.find {
+                    (FlowStateTable.botMark eq botMark) and (FlowStateTable.groupId eq groupId)
+                }.orderBy(FlowStateTable.lastProcessedAt to SortOrder.DESC).firstOrNull()
+
+                if (flowState != null) {
+                    flowState.flowValue = state.value
+                    flowState.lastUpdateTime = state.lastUpdateTime
+                    log.debug("持久化心流状态, botMark=$botMark, groupId=$groupId, value=${state.value}")
+                }
+            }
+        } catch (e: Exception) {
+            log.error("持久化心流状态失败, botMark=$botMark, groupId=$groupId", e)
+        }
     }
 
     private fun subscribe() {
         EventBus.subscribeAsync<FlowEvent>(scope) { event ->
+            if (event.botMark != botMark || event.groupId != groupId) {
+                return@subscribeAsync
+            }
+
             when (event) {
                 is CoreInterestEvent -> this.addEvent(baseCharge = 20.0, interest = event.interest)
                 is ContinuousInteractionEvent -> this.addEvent(baseCharge = 10.0, momentum = event.momentum)
@@ -66,7 +121,7 @@ class FlowGauge(
                 is RepeatTopicEvent -> this.drainEvent(baseDrain = event.penalty)
             }
 
-            log.info("收到心流事件, 当前心流值: ${this.state.value}")
+            log.debug("收到心流事件, botMark=$botMark, groupId=$groupId, 当前心流值: ${this.state.value}")
         }
 
         EventBus.subscribeAsync<EmotionChangeEvent>(scope) { event ->
@@ -74,11 +129,10 @@ class FlowGauge(
             pleasure = p
             arousal = a
 
-            log.info("收到情绪变更事件, 当前Emotion: P: ${event.pad.p}, A: ${event.pad.a}")
+            log.debug("收到情绪变更事件, 当前Emotion: P: ${event.pad.p}, A: ${event.pad.a}")
         }
     }
 
-    // ------------------------ 增量事件 ------------------------
     fun addEvent(
         baseCharge: Double = 10.0,
         interest: Double = 1.0,
@@ -87,10 +141,9 @@ class FlowGauge(
     ) {
         val emotionModifier = 1.0 + arousal * 0.5 + pleasure * 0.3
         val gain = baseCharge * interest * momentum * emotionModifier * (1.0 + globalArousal)
-        state.addCharge(gain)
+        state.addCharge(gain, botMark, groupId)
     }
 
-    // ------------------------ 消耗事件 ------------------------
     fun drainEvent(
         baseDrain: Double = 10.0,
         isNegative: Boolean = false,
@@ -98,22 +151,20 @@ class FlowGauge(
     ) {
         var drainAmount = baseDrain * decayFactor
         if (isNegative) {
-            drainAmount *= 1.2 // 负面事件加速衰减
-            pleasure -= 0.3    // 联动情绪
+            drainAmount *= 1.2
+            pleasure -= 0.3
         }
-        state.drain(drainAmount)
+        state.drain(drainAmount, botMark, groupId)
     }
 
-    // ------------------------ 时间衰减 ------------------------
     fun decayFlow() {
         val now = System.currentTimeMillis()
         val minutes = (now - state.lastUpdateTime) / 60000.0
         var drainAmount = 10.0 * minutes
         if (pleasure < -0.3) drainAmount = 15.0 * minutes
-        state.drain(drainAmount)
+        state.drain(drainAmount, botMark, groupId)
     }
 
-    // ------------------------ LLM参数映射 ------------------------
     fun mapToState(): FlowMeterState {
         return when {
             state.value < 30 -> FlowMeterState.STANDBY
@@ -127,7 +178,35 @@ class FlowGauge(
     }
 
     fun stop() {
+        persistStateToDB()
         scope.cancel()
+    }
+}
+
+class FlowGaugeManager {
+    private val gauges = ConcurrentHashMap<String, FlowGauge>()
+
+    companion object {
+        private val log = logger()
+    }
+
+    fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies): FlowGauge {
+        val key = "$botMark:$groupId"
+        return gauges.getOrPut(key) {
+            log.info("创建新的FlowGauge实例, botMark=$botMark, groupId=$groupId")
+            FlowGauge(mood, botMark, groupId)
+        }
+    }
+
+    fun get(botMark: String, groupId: String): FlowGauge? {
+        val key = "$botMark:$groupId"
+        return gauges[key]
+    }
+
+    fun stopAll() {
+        gauges.values.forEach { it.stop() }
+        gauges.clear()
+        log.info("所有FlowGauge实例已关闭")
     }
 }
 

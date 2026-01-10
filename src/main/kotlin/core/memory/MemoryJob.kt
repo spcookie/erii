@@ -50,24 +50,27 @@ class MemoryJob {
         runBlocking {
             if (mutex.tryLock()) {
                 try {
-                    log.info("记忆任务开始执行")
-                    val currentBotId = BotProxy.currentBot.id.toString()
+                    log.debug("记忆任务开始执行")
 
-                    // 查找需要处理的群组
-                    val groups = withContext(Dispatchers.IO) {
-                        transaction {
-                            findGroupsNeedProcessing(currentBotId)
+                    for (currentBotId in BotProxy.getAllBotIds()) {
+                        log.debug("开始处理机器人 $currentBotId 的记忆")
+
+                        // 查找需要处理的群组
+                        val groups = withContext(Dispatchers.IO) {
+                            transaction {
+                                findGroupsNeedProcessing(currentBotId)
+                            }
+                        }
+
+                        log.debug("记忆任务发现 ${groups.size} 个群组需要处理")
+
+                        // 逐个群组处理
+                        for (groupId in groups) {
+                            processGroupMemory(currentBotId, groupId)
                         }
                     }
 
-                    log.info("记忆任务发现 ${groups.size} 个群组需要处理")
-
-                    // 逐个群组处理
-                    for (groupId in groups) {
-                        processGroupMemory(currentBotId, groupId)
-                    }
-
-                    log.info("记忆任务执行完成")
+                    log.debug("记忆任务执行完成")
                 } catch (e: Exception) {
                     log.error("记忆任务执行失败", e)
                 } finally {
@@ -117,7 +120,7 @@ class MemoryJob {
      * 处理单个群组的记忆
      */
     private suspend fun processGroupMemory(botMark: String, groupId: String) {
-        log.info("开始处理群组记忆, groupId=$groupId")
+        log.debug("开始处理群组记忆, groupId=$groupId")
 
         try {
             // 1. 获取需要处理的历史消息
@@ -147,7 +150,7 @@ class MemoryJob {
                 return
             }
 
-            log.info("群组 $groupId 获取到 ${histories.size} 条新消息")
+            log.debug("群组 $groupId 获取到 ${histories.size} 条新消息")
 
             // 2. 转换为内存消息
             val messages = memoryAgent.convertToMemoryMessages(histories)
@@ -217,7 +220,7 @@ class MemoryJob {
         messages: List<MemoryAgent.MemoryMessage>
     ) {
         try {
-            log.info("开始处理用户画像, groupId=$groupId, userId=$userId")
+            log.debug("开始处理用户画像, groupId=$groupId, userId=$userId")
 
             val existing = withContext(Dispatchers.IO) {
                 transaction {
@@ -238,7 +241,7 @@ class MemoryJob {
                         // 更新现有画像
                         existing.profile = analysis.profile
                         existing.preferences = analysis.preferences
-                        log.info("用户画像已更新, groupId=$groupId, userId=$userId")
+                        log.debug("用户画像已更新, groupId=$groupId, userId=$userId")
                     } else {
                         // 创建新画像
                         UserProfileEntity.new {
@@ -248,7 +251,7 @@ class MemoryJob {
                             this.profile = analysis.profile
                             this.preferences = analysis.preferences
                         }
-                        log.info("用户画像已创建, groupId=$groupId, userId=$userId")
+                        log.debug("用户画像已创建, groupId=$groupId, userId=$userId")
                     }
                 }
             }
@@ -268,7 +271,7 @@ class MemoryJob {
         messages: List<MemoryAgent.MemoryMessage>
     ) {
         try {
-            log.info("开始提取事实记忆, groupId=$groupId")
+            log.debug("开始提取事实记忆, groupId=$groupId")
 
             val existFacts = withContext(Dispatchers.IO) {
                 transaction {
@@ -292,7 +295,7 @@ class MemoryJob {
                 )
             }
 
-            log.info("已存在 ${existFacts.size} 条事实记忆, groupId=$groupId")
+            log.debug("已存在 ${existFacts.size} 条事实记忆, groupId=$groupId")
 
             val factsList = memoryAgent.extractFacts(messages, existFacts)
 
@@ -363,7 +366,7 @@ class MemoryJob {
         messages: List<MemoryAgent.MemoryMessage>
     ) {
         try {
-            log.info("开始生成 Todo 事项, userId=$userId")
+            log.debug("开始生成 Todo 事项, userId=$userId")
 
             val todoList = memoryAgent.generateTodos(messages, userId)
 
@@ -407,7 +410,7 @@ class MemoryJob {
         messages: List<MemoryAgent.MemoryMessage>
     ) {
         try {
-            log.info("开始生成对话摘要, scopeId=$groupId")
+            log.debug("开始生成对话摘要, scopeId=$groupId")
 
             val summary = memoryAgent.generateSummary(messages, groupId)
 

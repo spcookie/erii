@@ -1,5 +1,6 @@
 package uesugi.config
 
+import ai.koog.prompt.executor.clients.google.GoogleClientSettings
 import ai.koog.prompt.executor.clients.google.GoogleLLMClient
 import ai.koog.prompt.executor.clients.retry.RetryConfig
 import ai.koog.prompt.executor.clients.retry.RetryingLLMClient
@@ -18,7 +19,11 @@ object LLMFactory {
                 engine {
                     proxy = ProxyBuilder.http("http://127.0.0.1:9674")
                 }
-            })
+            },
+            settings = GoogleClientSettings(
+
+            )
+        )
 
         val resilientClient = RetryingLLMClient(
             delegate = llmClient,

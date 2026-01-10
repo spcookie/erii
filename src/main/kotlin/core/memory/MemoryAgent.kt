@@ -126,7 +126,7 @@ class MemoryAgent {
         messages: List<MemoryMessage>,
         userProfileEntity: UserProfileEntity?
     ): UserProfileAnalysis {
-        log.info("开始分析用户画像, userId=${messages.firstOrNull()?.userId}, 消息数=${messages.size}")
+        log.debug("开始分析用户画像, userId=${messages.firstOrNull()?.userId}, 消息数=${messages.size}")
 
         val prompt = prompt("分析用户画像和偏好") {
             system(
@@ -213,7 +213,7 @@ class MemoryAgent {
      * @return 事实记忆列表
      */
     suspend fun extractFacts(messages: List<MemoryMessage>, facts: List<FactsAnalysisInput>): List<FactsAnalysis> {
-        log.info("开始提取事实记忆, 消息数=${messages.size}")
+        log.debug("开始提取事实记忆, 消息数=${messages.size}")
 
         val prompt = prompt("提取事实记忆") {
             system(
@@ -305,7 +305,7 @@ class MemoryAgent {
      * @return Todo 事项列表
      */
     suspend fun generateTodos(messages: List<MemoryMessage>, userId: String): List<TodoAnalysis> {
-        log.info("开始生成 Todo 事项, userId=$userId, 消息数=${messages.size}")
+        log.debug("开始生成 Todo 事项, userId=$userId, 消息数=${messages.size}")
 
         val prompt = prompt("生成 Todo 事项") {
             system(
@@ -409,7 +409,7 @@ class MemoryAgent {
      * @return 摘要分析结果
      */
     suspend fun generateSummary(messages: List<MemoryMessage>, groupId: String): SummaryAnalysis {
-        log.info("开始生成对话摘要, groupId=$groupId, 消息数=${messages.size}")
+        log.debug("开始生成对话摘要, groupId=$groupId, 消息数=${messages.size}")
 
         val prompt = prompt("生成对话摘要") {
             system(

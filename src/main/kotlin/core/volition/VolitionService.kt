@@ -1,11 +1,16 @@
 package uesugi.core.volition
 
 import kotlinx.coroutines.*
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.core.emotion.EmotionChangeEvent
 import uesugi.core.emotion.EmotionalTendencies
 import uesugi.core.flow.FlowChangeEvent
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
+import java.util.concurrent.ConcurrentHashMap
 
 data class VolitionState(
     var fatigue: Double = 0.0,
@@ -27,8 +32,11 @@ data class VolitionState(
 
 class VolitionGauge(
     private var mood: EmotionalTendencies,
+    private val botMark: String,
+    private val groupId: String,
     private val baseDesire: Double = 15.0,
-    private val decayIntervalMs: Long = 60000L
+    private val decayIntervalMs: Long = 1000 * 60L,
+    private val persistIntervalMs: Long = 1000 * 60 * 2L
 ) {
     val state = VolitionState()
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -42,19 +50,73 @@ class VolitionGauge(
     }
 
     init {
+        loadStateFromDB()
+
         scope.launch {
             while (isActive) {
                 delay(decayIntervalMs)
                 decayFatigue()
             }
         }
+
+        scope.launch {
+            while (isActive) {
+                delay(persistIntervalMs)
+                persistStateToDB()
+            }
+        }
+
         subscribe()
     }
 
     fun getMood() = mood
 
+    private fun loadStateFromDB() {
+        try {
+            transaction {
+                val volitionState = VolitionStateEntity.find {
+                    (VolitionStateTable.botMark eq botMark) and (VolitionStateTable.groupId eq groupId)
+                }.orderBy(VolitionStateTable.lastProcessedAt to SortOrder.DESC).firstOrNull()
+
+                if (volitionState != null) {
+                    state.fatigue = volitionState.fatigue
+                    state.stimulus = volitionState.stimulus
+                    state.lastActiveTime = volitionState.lastActiveTime
+                    log.debug("从数据库加载主动意愿状态, botMark=$botMark, groupId=$groupId, fatigue=${state.fatigue}, stimulus=${state.stimulus}")
+                } else {
+                    log.info("群组 botMark=$botMark, groupId=$groupId 没有主动意愿状态记录, 使用默认值")
+                }
+            }
+        } catch (e: Exception) {
+            log.error("加载主动意愿状态失败, botMark=$botMark, groupId=$groupId", e)
+        }
+    }
+
+    private fun persistStateToDB() {
+        try {
+            transaction {
+                val volitionState = VolitionStateEntity.find {
+                    (VolitionStateTable.botMark eq botMark) and (VolitionStateTable.groupId eq groupId)
+                }.orderBy(VolitionStateTable.lastProcessedAt to SortOrder.DESC).firstOrNull()
+
+                if (volitionState != null) {
+                    volitionState.fatigue = state.fatigue
+                    volitionState.stimulus = state.stimulus
+                    volitionState.lastActiveTime = state.lastActiveTime
+                    log.debug("持久化主动意愿状态, botMark=$botMark, groupId=$groupId, fatigue=${state.fatigue}, stimulus=${state.stimulus}")
+                }
+            }
+        } catch (e: Exception) {
+            log.error("持久化主动意愿状态失败, botMark=$botMark, groupId=$groupId", e)
+        }
+    }
+
     private fun subscribe() {
         EventBus.subscribeAsync<VolitionEvent>(scope) { event ->
+            if (event.botMark != botMark || event.groupId != groupId) {
+                return@subscribeAsync
+            }
+
             when (event) {
                 is ResetStimulusEvent -> resetStimulus(event.stimulus)
                 is KeywordHitEvent -> if (arousal > 0.3) addStimulus(event.stimulus)
@@ -69,10 +131,13 @@ class VolitionGauge(
             val (p, a, _) = event.pad.normalize()
             pleasure = p
             arousal = a
-            log.info("Volition收到情绪变更事件, P: $p , A: $a")
+            log.debug("Volition收到情绪变更事件, botMark=$botMark, groupId=$groupId, P: $p , A: $a")
         }
 
         EventBus.subscribeAsync<FlowChangeEvent>(scope) { event ->
+            if (event.botMark != botMark || event.groupId != groupId) {
+                return@subscribeAsync
+            }
             flowValue = event.value
         }
     }
@@ -89,17 +154,17 @@ class VolitionGauge(
 
     fun resetStimulus(amount: Double) {
         state.stimulus = amount
-        log.info("刺激值重置: $amount")
+        log.info("刺激值重置: $amount, botMark=$botMark, groupId=$groupId")
     }
 
     fun addStimulus(amount: Double) {
         state.addStimulus(amount)
-        log.info("刺激值增加: +$amount, 当前刺激值: ${state.stimulus}")
+        log.info("刺激值增加: +$amount, 当前刺激值: ${state.stimulus}, botMark=$botMark, groupId=$groupId")
     }
 
     fun addFatigue(amount: Double) {
         state.addFatigue(amount)
-        log.info("疲劳值增加: +$amount, 当前疲劳值: ${state.fatigue}")
+        log.info("疲劳值增加: +$amount, 当前疲劳值: ${state.fatigue}, botMark=$botMark, groupId=$groupId")
     }
 
     fun decayFatigue() {
@@ -116,6 +181,38 @@ class VolitionGauge(
     }
 
     fun stop() {
+        persistStateToDB()
         scope.cancel()
+    }
+}
+
+class VolitionGaugeManager {
+    private val gauges = ConcurrentHashMap<String, VolitionGauge>()
+
+    companion object {
+        private val log = logger()
+    }
+
+    fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies): VolitionGauge {
+        val key = "$botMark:$groupId"
+        return gauges.getOrPut(key) {
+            log.info("创建新的VolitionGauge实例, botMark=$botMark, groupId=$groupId")
+            VolitionGauge(mood, botMark, groupId)
+        }
+    }
+
+    fun get(botMark: String, groupId: String): VolitionGauge? {
+        val key = "$botMark:$groupId"
+        return gauges[key]
+    }
+
+    fun getAllGauges(): Map<String, VolitionGauge> {
+        return gauges.toMap()
+    }
+
+    fun stopAll() {
+        gauges.values.forEach { it.stop() }
+        gauges.clear()
+        log.info("所有VolitionGauge实例已关闭")
     }
 }
