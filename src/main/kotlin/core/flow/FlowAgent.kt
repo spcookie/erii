@@ -127,6 +127,7 @@ data class FlowAnalysisResult(
 
 data class FlowMessage(
     val id: Int,
+    val groupId: String,
     val userId: String,
     val time: LocalDateTime,
     val content: String

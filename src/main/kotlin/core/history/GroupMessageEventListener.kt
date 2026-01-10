@@ -27,7 +27,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
     suspend fun MessageEvent.onMessage() {
         if (this !is GroupMessageSyncEvent && this !is GroupMessageEvent) return
         val botId = bot.id.toString()
-        val groupId = group.id.toString()
+        val groupId = if (group.id.toString() == "474270623") "1053148332" else group.id.toString()
         val senderId = sender.id.toString()
         val msg = buildString {
             for (singleMessage in message) {
@@ -39,7 +39,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
             }
         }
         launch {
-            val historyEntity = withContext(Dispatchers.IO) {
+            val historyRecord = withContext(Dispatchers.IO) {
                 transaction {
                     HistoryEntity.new {
                         this.botMark = botId
@@ -47,10 +47,10 @@ object GroupMessageEventListener : SimpleListenerHost() {
                         this.userId = senderId
                         this.messageType = MessageType.TEXT
                         this.content = msg
-                    }
+                    }.toRecord()
                 }
             }
-            EventBus.postAsync(HistorySavedEvent(historyEntity))
+            EventBus.postAsync(HistorySavedEvent(historyRecord))
         }
         return
     }

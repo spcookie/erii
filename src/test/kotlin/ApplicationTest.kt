@@ -1,9 +1,5 @@
 package uesugi
 
-import ai.koog.agents.core.agent.asMermaidDiagram
-import ai.koog.agents.core.dsl.builder.forwardTo
-import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.dsl.extension.*
 import com.fasterxml.jackson.databind.JsonNode
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -19,48 +15,13 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.core.buildContext
-import uesugi.core.buildPrompt
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.MessageType
-import uesugi.core.volition.InterruptionMode
-import uesugi.core.volition.ProactiveSpeakEvent
 import kotlin.test.Test
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 class ApplicationTest {
-
-    @Test
-    fun testRoot() {
-        val diagram = strategy("聊天") {
-            val setupContext by nodeAppendPrompt<String>("setupContext") {
-                messages(
-                    buildPrompt(
-                        buildContext(
-                            BotProxy.currentBot.id.toString(),
-                            "1053148332",
-                            ProactiveSpeakEvent(10.0, InterruptionMode.Interrupt)
-                        )
-                    ).messages
-                )
-            }
-
-            val nodeSendInput by nodeLLMRequest()
-            val nodeExecuteTool by nodeExecuteTool()
-            val nodeSendToolResult by nodeLLMSendToolResult()
-
-            edge(nodeStart forwardTo setupContext)
-            edge(setupContext forwardTo nodeSendInput)
-            edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
-            edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
-            edge(nodeExecuteTool forwardTo nodeSendToolResult)
-//            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-//            edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
-            edge(nodeSendToolResult forwardTo nodeFinish)
-        }.asMermaidDiagram()
-        println(diagram)
-    }
 
     @OptIn(ExperimentalTime::class)
     @Test
@@ -73,7 +34,7 @@ class ApplicationTest {
         runBlocking {
             val response = client.post("http://127.0.0.1:6099/api/Debug/call/debug-primary") {
                 contentType(ContentType.Application.Json)
-                bearerAuth("\"eyJEYXRhIjp7IkNyZWF0ZWRUaW1lIjoxNzY3ODgxNDUzMzE5LCJIYXNoRW5jb2RlZCI6ImRlMmZiYTc5YjJhOGJhZDdlYzIxNzhiOGVlOWQ4NjlhNzBkZDFhOWI3ZDQzY2E5MGY1NzYzZDcyZjliMmRkZjEifSwiSG1hYyI6IjcwMjZjZjNiODFlOGJmNWViNmZkMWM4NjQzNTg4ZTBiNjE1NTAxMzAzYjM0ZDZlOTEzYTVmMDkwZDBmMTk5NjYifQ==\"")
+                bearerAuth("\"eyJEYXRhIjp7IkNyZWF0ZWRUaW1lIjoxNzY3OTY4MzIxMjI3LCJIYXNoRW5jb2RlZCI6ImRlMmZiYTc5YjJhOGJhZDdlYzIxNzhiOGVlOWQ4NjlhNzBkZDFhOWI3ZDQzY2E5MGY1NzYzZDcyZjliMmRkZjEifSwiSG1hYyI6IjQ1NDg2OWU3MGFlZmZjOTA2NjM5MzQ1NTNkNWEyM2NjMWRiMWNiY2YxMjNjMzJlNzExMmVjYjM4Nzg2MDJlZTYifQ==\"")
                 setBody(
                     mapOf(
                         "action" to "get_group_msg_history",
