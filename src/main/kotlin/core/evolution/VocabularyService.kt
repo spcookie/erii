@@ -68,7 +68,7 @@ class VocabularyService {
             }
             .take(limit)
 
-        log.info("获取6小时前活跃消息完成, botMark=$botMark, groupId=$groupId, 消息数=${messages.size}")
+        log.debug("获取6小时前活跃消息完成, botMark=$botMark, groupId=$groupId, 消息数=${messages.size}")
         messages
     }
 
@@ -297,7 +297,7 @@ class VocabularyService {
                     (LearnedVocabTable.word eq word)
         }.firstOrNull()?.apply {
             weight = (weight - WEIGHT_DECREASE_ON_NEGATIVE).coerceAtLeast(0)
-            log.warn("降低词汇热度（负面反馈）, word=$word, newWeight=$weight, groupId=$groupId")
+            log.info("降低词汇热度（负面反馈）, word=$word, newWeight=$weight, groupId=$groupId")
 
             if (weight < MIN_WEIGHT_THRESHOLD) {
                 log.info("词汇因负面反馈被遗忘, word=$word, groupId=$groupId")

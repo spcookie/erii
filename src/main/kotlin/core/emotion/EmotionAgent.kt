@@ -225,7 +225,7 @@ fun buildPrompt(history: List<GMessage>) = prompt(
 suspend fun analyzeStimulus(history: List<GMessage>): Stimulus {
     val log = LoggerFactory.getLogger("EmotionAgent")
 
-    log.info("开始分析情感刺激值, 消息数=${history.size}")
+    log.debug("开始分析情感刺激值, 消息数=${history.size}")
 
     // 构建 Prompt
     val prompt = buildPrompt(history)
@@ -253,7 +253,7 @@ suspend fun analyzeStimulus(history: List<GMessage>): Stimulus {
     // 转换为 PAD 三维值
     val stimulus = Stimulus.from(padScale12)
 
-    log.info(
+    log.debug(
         "情感刺激值分析完成, P=${String.format("%.2f", stimulus.p)}, A=${
             String.format(
                 "%.2f",

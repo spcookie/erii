@@ -37,11 +37,11 @@ class ExtractionAgent {
      */
     suspend fun extractSlangWords(messages: List<String>): List<SlangWord> {
         if (messages.isEmpty()) {
-            log.warn("消息列表为空，无法提取流行语")
+            log.debug("消息列表为空，无法提取流行语")
             return emptyList()
         }
 
-        log.info("开始提取流行语, 消息数=${messages.size}")
+        log.debug("开始提取流行语, 消息数=${messages.size}")
 
         val messagesText = messages.joinToString("\n")
 

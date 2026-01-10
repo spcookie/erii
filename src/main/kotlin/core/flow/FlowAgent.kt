@@ -6,10 +6,16 @@ import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
@@ -136,19 +142,20 @@ data class FlowMessage(
 }
 
 class FlowAgent(
-    private val botInterests: String,
-    private var currentTopic: String = ""
+    private val botInterests: String
 ) {
     companion object {
         private val log = logger()
     }
 
-    suspend fun analysis(messages: List<FlowMessage>) {
+    suspend fun analysis(messages: List<FlowMessage>, botMark: String, groupId: String) {
         if (messages.isEmpty()) return
 
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
 
         val messagesText = messages.joinToString("\n") { it.asLlmPrompt() }
+
+        val currentTopic = loadCurrentTopic(botMark, groupId)
 
         val prompt = prompt("心流分析") {
             system(
@@ -198,27 +205,44 @@ class FlowAgent(
 
             val result = response.getOrThrow().data
 
-            // TODO 持久化
+            persistAnalysisResult(botMark, groupId, result)
 
-            currentTopic = result.topicAnalysis.revisedTopic
+            triggerFlowEvents(result, botMark, groupId)
 
-            triggerFlowEvents(result)
-
-            log.info("心流分析完成: 当前话题=$currentTopic")
+            log.info("心流分析完成, groupId=$groupId, 当前话题=${result.topicAnalysis.revisedTopic}")
         } catch (e: Exception) {
-            log.error("心流分析失败", e)
+            log.error("心流分析失败, groupId=$groupId", e)
         }
     }
 
-    private fun triggerFlowEvents(result: FlowAnalysisResult) {
+    private fun triggerFlowEvents(result: FlowAnalysisResult, botMark: String, groupId: String) {
         result.flowSuggestions.shouldCharge
             .distinct()
             .forEach { eventType ->
                 when (eventType) {
-                    ChargeEventType.CoreInterest -> EventBus.postAsync(CoreInterestEvent(result.interestMatch.score))
-                    ChargeEventType.GroupResonance -> EventBus.postAsync(GroupResonanceEvent(result.groupResonance.arousal))
-                    ChargeEventType.DeepReply -> EventBus.postAsync(DeepReplyEvent())
-                    ChargeEventType.ContinuousInteraction -> EventBus.postAsync(ContinuousInteractionEvent())
+                    ChargeEventType.CoreInterest -> EventBus.postAsync(
+                        CoreInterestEvent(
+                            botMark,
+                            groupId,
+                            result.interestMatch.score
+                        )
+                    )
+
+                    ChargeEventType.GroupResonance -> EventBus.postAsync(
+                        GroupResonanceEvent(
+                            botMark,
+                            groupId,
+                            result.groupResonance.arousal
+                        )
+                    )
+
+                    ChargeEventType.DeepReply -> EventBus.postAsync(DeepReplyEvent(botMark, groupId))
+                    ChargeEventType.ContinuousInteraction -> EventBus.postAsync(
+                        ContinuousInteractionEvent(
+                            botMark,
+                            groupId
+                        )
+                    )
                 }
             }
 
@@ -226,23 +250,43 @@ class FlowAgent(
             .distinct()
             .forEach { eventType ->
                 when (eventType) {
-                    DrainEventType.TopicInterrupt -> EventBus.postAsync(TopicInterruptEvent())
-                    DrainEventType.Negative -> EventBus.postAsync(NegativeEvent())
-                    DrainEventType.RepeatTopic -> EventBus.postAsync(RepeatTopicEvent())
-                    DrainEventType.LowActivity -> EventBus.postAsync(LowActivityEvent())
+                    DrainEventType.TopicInterrupt -> EventBus.postAsync(TopicInterruptEvent(botMark, groupId))
+                    DrainEventType.Negative -> EventBus.postAsync(NegativeEvent(botMark, groupId))
+                    DrainEventType.RepeatTopic -> EventBus.postAsync(RepeatTopicEvent(botMark, groupId))
+                    DrainEventType.LowActivity -> EventBus.postAsync(LowActivityEvent(botMark, groupId))
                 }
             }
 
         if (!result.topicAnalysis.isOnTopic && result.topicAnalysis.topicDriftLevel > 0.6) {
-            EventBus.postAsync(TopicInterruptEvent())
+            EventBus.postAsync(TopicInterruptEvent(botMark, groupId))
         }
 
         if (result.negativeSignals.exists) {
-            EventBus.postAsync(NegativeEvent())
+            EventBus.postAsync(NegativeEvent(botMark, groupId))
         }
 
         if (result.repetition.exists && result.repetition.confidence > 0.7) {
-            EventBus.postAsync(RepeatTopicEvent())
+            EventBus.postAsync(RepeatTopicEvent(botMark, groupId))
+        }
+    }
+
+    private fun loadCurrentTopic(botMark: String, groupId: String): String {
+        return transaction {
+            FlowStateEntity.find {
+                (FlowStateTable.botMark eq botMark) and (FlowStateTable.groupId eq groupId)
+            }.firstOrNull()?.currentTopic ?: ""
+        }
+    }
+
+    private suspend fun persistAnalysisResult(botMark: String, groupId: String, result: FlowAnalysisResult) {
+        withContext(Dispatchers.IO) {
+            transaction {
+                val flowState = FlowStateEntity.find {
+                    (FlowStateTable.botMark eq botMark) and (FlowStateTable.groupId eq groupId)
+                }.orderBy(FlowStateTable.lastProcessedAt to SortOrder.DESC).firstOrNull()
+
+                flowState?.currentTopic = result.topicAnalysis.revisedTopic
+            }
         }
     }
 

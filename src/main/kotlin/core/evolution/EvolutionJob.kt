@@ -47,18 +47,20 @@ class EvolutionJob(
         runBlocking {
             if (mutex.tryLock()) {
                 try {
-                    log.info("模因进化任务开始执行")
-                    val currentBotId = BotProxy.currentBot.id.toString()
+                    log.debug("模因进化任务开始执行")
+                    for (currentBotId in BotProxy.getAllBotIds()) {
+                        log.debug("开始模因进化任务: currentBotId=$currentBotId")
 
-                    val groups = getActiveGroups(currentBotId)
+                        val groups = getActiveGroups(currentBotId)
 
-                    log.info("发现 ${groups.size} 个活跃群组需要处理")
+                        log.debug("发现 ${groups.size} 个活跃群组需要处理")
 
-                    for (groupId in groups) {
-                        processGroupEvolution(currentBotId, groupId, 1.hours)
+                        for (groupId in groups) {
+                            processGroupEvolution(currentBotId, groupId, 1.hours)
+                        }
                     }
 
-                    log.info("模因进化任务执行完成")
+                    log.debug("模因进化任务执行完成")
                 } catch (e: Exception) {
                     log.error("模因进化任务执行失败", e)
                 } finally {
@@ -107,7 +109,7 @@ class EvolutionJob(
      * @param groupId 群组ID
      */
     private suspend fun processGroupEvolution(botMark: String, groupId: String, range: Duration) {
-        log.info("开始处理群组模因进化, 群组ID: $groupId")
+        log.debug("开始处理群组模因进化, 群组ID: $groupId")
 
         try {
             // 步骤1: 捕获最近的消息

@@ -13,17 +13,18 @@ import org.koin.logger.SLF4JLogger
 import uesugi.core.emotion.EmotionJob
 import uesugi.core.emotion.EmotionService
 import uesugi.core.emotion.EmotionTable
-import uesugi.core.emotion.EmotionalTendencies
 import uesugi.core.evolution.EvolutionJob
 import uesugi.core.evolution.LearnedVocabTable
 import uesugi.core.evolution.VocabularyService
-import uesugi.core.flow.FlowGauge
-import uesugi.core.flow.FlowHandler
+import uesugi.core.flow.FlowGaugeManager
+import uesugi.core.flow.FlowJob
+import uesugi.core.flow.FlowStateTable
 import uesugi.core.history.HistoryService
 import uesugi.core.history.HistoryTable
 import uesugi.core.memory.*
-import uesugi.core.volition.VolitionGauge
-import uesugi.core.volition.VolitionHandler
+import uesugi.core.volition.VolitionGaugeManager
+import uesugi.core.volition.VolitionJob
+import uesugi.core.volition.VolitionStateTable
 
 
 val configModule = module(createdAtStart = true) {
@@ -38,6 +39,8 @@ val configModule = module(createdAtStart = true) {
                 SchemaUtils.create(SummaryTable)
                 SchemaUtils.create(MemoryStateTable)
                 SchemaUtils.create(LearnedVocabTable)
+                SchemaUtils.create(FlowStateTable)
+                SchemaUtils.create(VolitionStateTable)
             }
         }
     }
@@ -49,15 +52,15 @@ val serviceModule = module {
     singleOf(::EmotionService)
     singleOf(::MemoryService)
     singleOf(::HistoryService)
-    single { FlowGauge(EmotionalTendencies.BASE_LINE, 30 * 1000L) }
-    single { VolitionGauge(EmotionalTendencies.BASE_LINE) }
-    single { FlowHandler(get()).apply { start() } } onClose { it?.close() }
-    single { VolitionHandler(get()).apply { start() } } onClose { it?.close() }
+    single { FlowGaugeManager() } onClose { it?.stopAll() }
+    single { VolitionGaugeManager() } onClose { it?.stopAll() }
 }
 
 val jobModule = module(createdAtStart = true) {
     single { EmotionJob().apply { openTimingTriggerSignal() } }
     single { MemoryJob().apply { openTimingTriggerSignal() } }
+    single { FlowJob().apply { openTimingTriggerSignal() } }
+    single { VolitionJob().apply { openTimingTriggerSignal() } }
     single { EvolutionJob(get()).apply { openTimingTriggerSignal() } }
 }
 
@@ -71,7 +74,7 @@ val infrastructureModule = module {
     }
 }
 
-fun installIoc() {
+fun installIOC() {
     startKoin {
         logger(SLF4JLogger(Level.INFO))
         environmentProperties()
