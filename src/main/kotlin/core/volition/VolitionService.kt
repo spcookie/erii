@@ -127,6 +127,9 @@ class VolitionGauge(
         }
 
         EventBus.subscribeAsync<EmotionChangeEvent>(scope) { event ->
+            if (event.botMark != botMark || event.groupId != groupId) {
+                return@subscribeAsync
+            }
             mood = EmotionalTendencies.findClosest(event.pad)
             val (p, a, _) = event.pad.normalize()
             pleasure = p

@@ -112,7 +112,8 @@ object SafetyGate {
 }
 
 class BehaviorAnalysis(
-    private val currentEmotionEntity: EmotionEntity?
+    private val currentEmotionEntity: EmotionEntity?,
+    private val baseLine: EmotionalTendencies? = null
 ) {
 
     companion object {
@@ -124,7 +125,11 @@ class BehaviorAnalysis(
         decay: Decay,
     ): Emotion {
         return if (currentEmotionEntity == null) {
-            currentStimulus
+            if (baseLine != null) {
+                baseLine.pad * decay.decay + currentStimulus
+            } else {
+                currentStimulus
+            }
         } else {
             currentEmotionEntity.emotion * decay.decay + currentStimulus
         }
@@ -135,7 +140,11 @@ class BehaviorAnalysis(
         decay: Decay,
     ): Emotion {
         return if (currentEmotionEntity == null) {
-            currentStimulus * y
+            if (baseLine != null) {
+                baseLine.pad + currentStimulus * y
+            } else {
+                currentStimulus * y
+            }
         } else {
             val emotion = currentEmotionEntity.emotion * decay.decay + currentStimulus
             currentEmotionEntity.mood + emotion * y

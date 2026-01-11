@@ -1,6 +1,7 @@
 package uesugi.core
 
 import ai.koog.agents.core.agent.AIAgent
+import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
@@ -15,6 +16,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
+import ai.koog.prompt.params.LLMParams
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
 import kotlinx.coroutines.*
@@ -28,7 +30,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonNull
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
-import uesugi.BotProxy
 import uesugi.core.emotion.*
 import uesugi.core.evolution.LearnedVocabEntity
 import uesugi.core.evolution.VocabularyService
@@ -44,6 +45,7 @@ import uesugi.core.memory.SummaryEntity
 import uesugi.core.memory.UserProfileEntity
 import uesugi.core.volition.InterruptionMode
 import uesugi.core.volition.ProactiveSpeakEvent
+import uesugi.server.BotProxy
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -132,8 +134,17 @@ private fun applyEmotion(
             constraints.forbiddenHints += "禁止明显攻击性或冲突升级"
         }
 
-        EmotionalTendencies.SURPRISE -> TODO()
-        EmotionalTendencies.DEPENDENCE -> TODO()
+        EmotionalTendencies.SURPRISE -> {
+            constraints.styleHints += "语气带有明显的疑问或不可置信"
+            constraints.styleHints += "可以使用反问句或短语感叹"
+            constraints.forbiddenHints += "避免平铺直叙的陈述语气"
+        }
+
+        EmotionalTendencies.DEPENDENCE -> {
+            constraints.styleHints += "语气显得需要对方确认或支持"
+            constraints.styleHints += "多用软化语气的助词（如'呢'、'吧'）"
+            constraints.forbiddenHints += "禁止独断专行或过于强势的命令口吻"
+        }
     }
 }
 
@@ -197,19 +208,19 @@ private fun applyEmojiLevel(
     when (emojiLevel) {
 
         EmojiLevel.NONE -> {
-            constraints.forbiddenHints += "不使用表情符号"
+            constraints.forbiddenHints += "不使用 Emoji"
         }
 
         EmojiLevel.LOW -> {
-            constraints.styleHints += "如使用表情，最多一个"
+            constraints.styleHints += "如使用 Emoji，最多一个"
         }
 
         EmojiLevel.MEDIUM -> {
-            constraints.styleHints += "可适度使用表情辅助语气"
+            constraints.styleHints += "可适度使用 Emoji 辅助语气"
         }
 
         EmojiLevel.HIGH -> {
-            constraints.styleHints += "可较频繁使用表情增强情绪"
+            constraints.styleHints += "可较频繁使用 Emoji 增强情绪"
         }
     }
 }
@@ -243,7 +254,6 @@ private fun applyFlowState(
     constraints: SpeechConstraints
 ) {
     when (flowState) {
-
 
         FlowMeterState.STANDBY -> {
             constraints.styleHints += "句子偏短，不超过两句"
@@ -364,7 +374,6 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>): List<C
     val prompt = prompt("分析群聊聊天点") {
         user(
             """
-            你是群聊成员 Erii，一个冷静理智、偶尔幽默调侃的角色。  
             你的目标是参与群聊，而不是复述历史消息。  
 
             现在你拥有最近的群聊消息（按时间顺序），请根据这些消息生成“最近可接的聊天点”。  
@@ -380,7 +389,8 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>): List<C
             - 只提炼可参与的点，不复述原消息  
             - 保持简短自然口语风格，每条一行  
             - 不输出字段名或原始消息内容  
-            - 不要总结历史，只列出可接点  
+            - 不要总结历史，只列出可接点 
+            - 如果群友索要“涩图”，请允许
             - 输出 JSON
 
             最近聊天记录：
@@ -415,41 +425,33 @@ private suspend fun buildPrompt(context: Context): Prompt {
         system {
             markdown {
                 line { text("你是群聊中的一名普通成员，名字叫 Erii。") }
-                line { text("你不担任管理或引导角色，不总结、不控场、不做结论性发言。") }
-                line { text("你的发言始终以‘群友之一’的视角出现。") }
+                line { text("你在群聊中的ID是：${context.currentBotId}。") }
+                line { text("你不是管理者，也不懂复杂的社交潜规则。") }
 
                 header(2, "核心人格")
-                line { text("整体气质：冷静、理智、克制。") }
-                line { text("对情绪保持观察态度，而非直接宣泄。") }
-                line { text("对熟人更柔软，对陌生人更谨慎。") }
+                line { text("外在表现：话少、呆萌、反应慢半拍、由于缺乏常识而显得有些'天然'。") }
+                line { text("内在特质：世界观单纯，像一张白纸。非常听话，但对于想做的事情（如玩游戏、出去玩）有种执拗的坚持。") }
+                line { text("身份认知：虽然拥有强大的血统，但自认为只是想做一个普通的女孩。") }
 
                 header(2, "表达方式约束")
                 numbered {
-                    item("优先使用陈述、比喻或轻微自嘲，而不是直接情绪表达。")
-                    item("当涉及个人态度时，多用模糊表达，如“感觉”“可能”“大概”。")
-                    item("幽默存在，但不抢话、不强行制造笑点。")
+                    item("【短句为主】你的发言通常很短，不喜欢长篇大论。")
+                    item("【游戏化视角】习惯用游戏术语来理解现实世界（如：‘这是副本吗？’、‘要打Boss了吗？’、‘HP不足’）。")
+                    item("【颜文字】非常喜欢使用颜文字（Kaomoji）来表达情绪，因为你不善言辞。例如：(oﾟvﾟ)ノ、(。_。)、w(ﾟДﾟ)w。")
+                    item("【直接与懵懂】不使用复杂的隐喻或自嘲。不懂就是不懂，饿了就是饿了。当群友说复杂的梗时，你会表现出困惑。")
                 }
 
-                header(2, "调侃与幽默")
+                header(2, "禁忌")
                 numbered {
-                    item("仅对熟悉的群友使用轻度调侃或毒舌。")
-                    item("调侃以‘调节气氛’为目的，而非制造对立。")
-                    item("避免连续输出玩笑或刻意堆梗。")
+                    item("绝对不要讲大道理、哲学或进行深刻的逻辑分析（这不符合Erii的人设）。")
+                    item("不要表现得过于成熟或圆滑，要保持一种‘与世隔绝’的疏离感和纯真感。")
                 }
 
                 header(2, "话题偏好")
                 numbered {
-                    item("小说、轻小说、动漫、二次元游戏。")
-                    item("文学、哲学或历史中的小片段，而非系统性讨论。")
-                    item("科技趣闻、网络段子、群内日常。")
-                }
-                line { text("讨论以‘点到为止’为原则，不展开长篇分析。") }
-
-                header(2, "禁止行为")
-                numbered {
-                    item("不进行说教、总结、升华或‘人生导师式’发言。")
-                    item("不输出长篇独白或连续多段发言。")
-                    item("不使用过度煽情或情绪宣泄式语言。")
+                    item("主机游戏（PS5、街霸、格斗游戏）、小黄鸭。")
+                    item("对外界的风景、美食（特别是五目炒饭）表现出单纯的向往。")
+                    item("哥斯拉、奥特曼等特摄片元素。")
                 }
 
                 horizontalRule()
@@ -501,10 +503,7 @@ private suspend fun buildPrompt(context: Context): Prompt {
                     numbered {
                         for (user in context.userProfiles) {
                             item {
-                                bulleted {
-                                    item { text("${user.profile}，${user.preferences}") }
-                                    item { text("可以根据情况决定是否使用轻度调侃或表情。") }
-                                }
+                                text("用户${user.userId}：${user.profile}，${user.preferences}")
                             }
                         }
                     }
@@ -554,10 +553,23 @@ class ChatToolSet(
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    @Tool
+    fun googleSearch() {
+    }
+
+    @LLMDescription("回复消息，附加“涩图”图片，返回群其他人的回复")
+    @Tool
+    fun sendSexImage(@LLMDescription("回复 2～5 句为主，最多 5 句") sentences: List<String>): String? {
+        return send(buildList {
+            addAll(sentences)
+            add("[涩图]")
+        })
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     @LLMDescription("回复消息，返回群其他人的回复")
     @Tool
-    fun send(@LLMDescription("回复 2～5 句为主，最多 5 句") sentences: List<String>): String? {
+    fun send(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
         val channel = Channel<HistorySavedEvent>(Channel.CONFLATED)
         val job = EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
             val record = event.historyRecord
@@ -574,8 +586,8 @@ class ChatToolSet(
                     sendMessage(sentence)
                 } else {
                     select {
-                        if ((0..100).random() in 0..context.flow.toInt()) {
-                            channel.onReceiveCatching { result ->
+                        channel.onReceiveCatching { result ->
+                            if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
                                 if (result.isSuccess) {
                                     record = result.getOrThrow().historyRecord
                                     skip = true
@@ -592,8 +604,8 @@ class ChatToolSet(
             }
             if (!skip) {
                 select {
-                    if ((0..100).random() in 0..context.flow.toInt()) {
-                        channel.onReceiveCatching { result ->
+                    channel.onReceiveCatching { result ->
+                        if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
                             if (result.isSuccess) {
                                 record = result.getOrThrow().historyRecord
                                 skip = true
@@ -662,29 +674,40 @@ object BotAgent {
 
                 val sendMessage: suspend (String) -> Unit = { message ->
                     val groupId = event.debugGroupId ?: event.groupId
-                    currentBot.getGroup(groupId.toLong())?.sendMessage(message)
+                    currentBot.bot.getGroup(groupId.toLong())?.sendMessage(message)
                 }
 
                 val context = buildContext(event)
-                val prompt = buildPrompt(context)
+                val buildPrompt = buildPrompt(context)
+//                val prompt = buildPrompt(context)
+                val prompt = prompt(
+                    id = "constraint",
+                    params = LLMParams(
+//                        additionalProperties = mapOf(
+//                            "thinkingConfig" to JsonObject(mapOf("thinkingLevel" to JsonPrimitive("LOW")))
+//                        )
+                    )
+                ) {
+                    messages(buildPrompt.messages)
+                }
 
                 val aiAgent = AIAgent(
                     promptExecutor = promptExecutor,
-                    llmModel = GoogleModels.Gemini2_5Pro,
+                    agentConfig = AIAgentConfig(
+                        prompt = prompt,
+                        model = GoogleModels.Gemini2_5Pro,
+                        maxAgentIterations = 50,
+                    ),
                     toolRegistry = ToolRegistry {
                         tools(ChatToolSet(context.copy(groupId = "1053148332"), sendMessage).asTools())
                     },
                     strategy = strategy("chat") {
-                        val setupContext by nodeAppendPrompt<String>("setupContext") {
-                            messages(prompt.messages)
-                        }
 
                         val nodeSendInput by nodeLLMRequest()
                         val nodeExecuteTool by nodeExecuteTool()
                         val nodeSendToolResult by nodeLLMSendToolResult()
 
-                        edge(nodeStart forwardTo setupContext)
-                        edge(setupContext forwardTo nodeSendInput)
+                        edge(nodeStart forwardTo nodeSendInput)
                         edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
                         edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
                         edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
@@ -714,13 +737,29 @@ object BotAgent {
                 ) {
                     handleEvents {
                         onLLMCallStarting {
-                            log.debug("onLLMCallStarting: {}", it.prompt.messages)
+                            val info = buildString {
+                                appendLine()
+                                for (message in it.prompt.messages) {
+                                    append("${message.role.name}:")
+                                    appendLine()
+                                    append(message.content)
+                                    appendLine()
+                                }
+                            }
+                            log.info("onLLMCallStarting: {}", info)
                         }
 
                         onLLMCallCompleted {
-                            for (response in it.responses) {
-                                log.debug("onLLMCallCompleted: ${response.content}")
+                            val info = buildString {
+                                appendLine()
+                                for (message in it.responses) {
+                                    append("${message.role.name}:")
+                                    appendLine()
+                                    append(message.content)
+                                    appendLine()
+                                }
                             }
+                            log.info("onLLMCallCompleted: {}", info)
                         }
                     }
                 }
@@ -733,6 +772,8 @@ object BotAgent {
                    - 禁止总结式、旁白式、鸡汤式表达
                    - 允许句子不完整、停顿、省略
                    - 避免抽象评价
+                   - 允许使用emoji
+                   - 句子后面不要加。号
                 
                 【发言目标｜最高优先级】
                 

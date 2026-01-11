@@ -11,10 +11,9 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import org.koin.core.context.GlobalContext
-import uesugi.BotProxy
-import uesugi.core.emotion.EmotionalTendencies
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
+import uesugi.server.BotProxy
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.random.Random
@@ -97,7 +96,7 @@ class VolitionJob {
 
     private fun ensureVolitionGaugeExists(botMark: String, groupId: String) {
         val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
-        volitionGaugeManager.getOrCreate(botMark, groupId, EmotionalTendencies.BASE_LINE)
+        volitionGaugeManager.getOrCreate(botMark, groupId, BotProxy.getBot(botMark)!!.role.emoticon)
     }
 
     private fun findGroupsNeedProcessing(botMark: String): List<String> {
@@ -323,13 +322,12 @@ class VolitionJob {
 
     @OptIn(ExperimentalTime::class)
     private fun startSilentMonitor() {
+        val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
         scope.launch {
-            var lastCheckTime = System.currentTimeMillis()
             while (isActive) {
                 delay(10.minutes)
 
                 val now = System.currentTimeMillis()
-                val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
 
                 volitionGaugeManager.getAllGauges().forEach { (key, gauge) ->
                     val (botMark, groupId) = key.split(":")
@@ -351,8 +349,6 @@ class VolitionJob {
                         }
                     }
                 }
-
-                lastCheckTime = now
             }
         }
     }
@@ -389,9 +385,8 @@ class VolitionJob {
 
             if (delayMillis.isPositive()) {
                 delay(delayMillis)
+                task()
             }
-
-            task()
 
             delay(1.minutes)
         }

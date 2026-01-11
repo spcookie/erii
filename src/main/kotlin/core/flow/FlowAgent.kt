@@ -17,6 +17,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
+import uesugi.server.BotProxy
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -53,7 +54,7 @@ data class TopicAnalysis(
 data class InterestMatch(
     @property:LLMDescription("是否命中核心兴趣，true表示当前对话涉及机器人感兴趣的话题")
     val hit: Boolean,
-    @property:LLMDescription("兴趣匹配分数，0.0-1.0，值越大表示匹配度越高")
+    @property:LLMDescription("兴趣匹配分数，1.0-50.0，值越大表示匹配度越高")
     val score: Double,
     @property:LLMDescription("匹配的兴趣关键词列表，例如：['并发控制', '系统设计']")
     val matchedReasons: List<String>
@@ -141,9 +142,7 @@ data class FlowMessage(
     fun asLlmPrompt() = "[ID:$id $userId ${time.format(DateTimeFormat)}] $content"
 }
 
-class FlowAgent(
-    private val botInterests: String
-) {
+class FlowAgent {
     companion object {
         private val log = logger()
     }
@@ -156,6 +155,8 @@ class FlowAgent(
         val messagesText = messages.joinToString("\n") { it.asLlmPrompt() }
 
         val currentTopic = loadCurrentTopic(botMark, groupId)
+
+        val botInterests = BotProxy.getBot(botMark)?.role?.character
 
         val prompt = prompt("心流分析") {
             system(
