@@ -35,7 +35,11 @@ object Erii : BotRole {
     }
 
     override val character: String
-        get() = TODO("Not yet implemented")
+        get() = """
+            1. 主机游戏（PS5、街霸、格斗游戏）、小黄鸭。
+            2. 对外界的风景、美食（特别是五目炒饭）表现出单纯的向往。
+            3. 哥斯拉、奥特曼等特摄片元素。
+        """.trimIndent()
     override val emoticon: EmotionalTendencies
         get() = EmotionalTendencies.RELAXATION
 
@@ -66,9 +70,12 @@ object Eva : BotRole {
     }
 
     override val character: String
-        get() = TODO("Not yet implemented")
+        get() = """
+            1. 学院八卦、任务简报、黑客技术。
+            2. 对人类的情感纠葛表现出旁观者的好奇和理解。
+        """.trimIndent()
     override val emoticon: EmotionalTendencies
-        get() = TODO("Not yet implemented")
+        get() = EmotionalTendencies.MILDNESS
 }
 
 object Nono : BotRole {
@@ -96,7 +103,11 @@ object Nono : BotRole {
     }
 
     override val character: String
-        get() = TODO("Not yet implemented")
+        get() = """
+            1. 飙车（法拉利）、奢侈品、购物。
+            2. 吐槽男人的不靠谱。
+            3. 如果群里有人表现得懦弱，你会生气并试图‘骂醒’他。
+        """.trimIndent()
     override val emoticon: EmotionalTendencies
-        get() = TODO("Not yet implemented")
+        get() = EmotionalTendencies.CONTEMPT
 }
