@@ -47,7 +47,7 @@ class FlowGauge(
 
     init {
         loadStateFromDB()
-        
+
         scope.launch {
             while (isActive) {
                 delay(decayIntervalMs)
@@ -61,7 +61,7 @@ class FlowGauge(
                 persistStateToDB()
             }
         }
-        
+
         subscribe()
     }
 
@@ -125,6 +125,9 @@ class FlowGauge(
         }
 
         EventBus.subscribeAsync<EmotionChangeEvent>(scope) { event ->
+            if (event.botMark != botMark || event.groupId != groupId) {
+                return@subscribeAsync
+            }
             val (p, a, _) = event.pad.normalize()
             pleasure = p
             arousal = a
@@ -160,8 +163,8 @@ class FlowGauge(
     fun decayFlow() {
         val now = System.currentTimeMillis()
         val minutes = (now - state.lastUpdateTime) / 60000.0
-        var drainAmount = 10.0 * minutes
-        if (pleasure < -0.3) drainAmount = 15.0 * minutes
+        var drainAmount = minutes
+        if (pleasure < -0.3) drainAmount = 5.0 * minutes
         state.drain(drainAmount, botMark, groupId)
     }
 

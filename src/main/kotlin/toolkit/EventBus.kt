@@ -1,11 +1,13 @@
 package uesugi.toolkit
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.reflect.KClass
 
-@Suppress("UNCHECKED_CAST")
-@OptIn(DelicateCoroutinesApi::class)
+@Suppress("UNCHECKED_CAST", "UNUSED")
 object EventBus {
 
     /* ================= async ================= */
@@ -13,20 +15,18 @@ object EventBus {
     @PublishedApi
     internal object AsyncBus {
 
-        private val flows = mutableMapOf<KClass<*>, MutableSharedFlow<Any>>()
-        private val lock = Any()
-
-        private fun flowOf(kClass: KClass<*>): MutableSharedFlow<Any> =
-            synchronized(lock) {
-                flows.getOrPut(kClass) {
-                    MutableSharedFlow(extraBufferCapacity = 64)
-                }
-            }
+        // 优化：配置 BufferOverflow.DROP_OLDEST 防止缓冲区满时挂起导致内存泄漏或阻塞
+        // replay = 0 确保新订阅者不会收到旧消息
+        private val bus = MutableSharedFlow<Any>(
+            replay = 0,
+            extraBufferCapacity = 64,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
 
         fun post(event: Any) {
-            GlobalScope.launch {
-                flowOf(event::class).emit(event)
-            }
+            // 优化：tryEmit 是非阻塞的，配合 DROP_OLDEST 策略，比 launch { emit } 更高效
+            // 如果必须保证发送成功不丢失，可以使用 emit，但这里作为 EventBus，防止阻塞发送端通常更重要
+            bus.tryEmit(event)
         }
 
         fun <T : Any> subscribe(
@@ -35,15 +35,22 @@ object EventBus {
             once: Boolean = false,
             onEvent: suspend (T) -> Unit
         ): Job {
-            var f: Flow<T> = flowOf(kClass)
-                .filter { kClass.isInstance(it) }
-                .map { it as T }
+            val flow = bus
+                .filter { kClass.isInstance(it) } // 先过滤类型
+                .map { it as T }                  // 强转
 
-            if (once) {
-                f = f.take(1)
-            }
+            // 逻辑优化：如果是 once，使用 take(1) 自动结束流
+            val targetFlow = if (once) flow.take(1) else flow
 
-            return f.onEach(onEvent).launchIn(scope)
+            return targetFlow
+                .onEach {
+                    try {
+                        onEvent(it)
+                    } catch (e: Exception) {
+                        e.printStackTrace() // 防止消费者崩溃导致流终止
+                    }
+                }
+                .launchIn(scope)
         }
     }
 
@@ -52,14 +59,28 @@ object EventBus {
     @PublishedApi
     internal object SyncBus {
 
-        private val subscribers = mutableMapOf<KClass<*>, MutableList<(Any) -> Unit>>()
-        private val lock = Any()
+        private data class Subscriber(
+            val kClass: KClass<*>,
+            val once: Boolean,
+            val callback: (Any) -> Unit,
+            val originalRef: Any // 修复核心 Bug：保存原始 lambda 引用用于对比
+        )
+
+        // 优化：使用 CopyOnWriteArrayList 替代 synchronized 块 + ArrayList
+        // EventBus 场景通常是 "读多写少" (post 很多，subscribe/unsubscribe 相对少)，
+        // CopyOnWriteArrayList 允许在遍历时无需加锁，性能更好且避免 ConcurrentModificationException
+        private val subscribers = CopyOnWriteArrayList<Subscriber>()
 
         fun post(event: Any) {
-            val snapshot = synchronized(lock) {
-                subscribers[event::class]?.toList().orEmpty()
+            // CopyOnWriteArrayList 迭代是线程安全的，不需要 snapshot 副本
+            subscribers.forEach { sub ->
+                if (sub.kClass.isInstance(event)) {
+                    sub.callback(event)
+                    if (sub.once) {
+                        subscribers.remove(sub)
+                    }
+                }
             }
-            snapshot.forEach { it(event) }
         }
 
         fun <T : Any> subscribe(
@@ -67,45 +88,48 @@ object EventBus {
             once: Boolean = false,
             onEvent: (T) -> Unit
         ) {
-            val list = synchronized(lock) {
-                subscribers.getOrPut(kClass) { mutableListOf() }
-            }
-
-            if (!once) {
-                list.add(onEvent as (Any) -> Unit)
-                return
-            }
-
-            lateinit var wrapper: (Any) -> Unit
-            wrapper = { event ->
-                onEvent(event as T)
-                unsubscribe(kClass, wrapper as (T) -> Unit)
-            }
-
-            list.add(wrapper)
+            val subscriber = Subscriber(
+                kClass = kClass,
+                once = once,
+                callback = { event ->
+                    // 这里的 try-catch 防止回调报错中断整个 post 循环
+                    try {
+                        onEvent(event as T)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                },
+                originalRef = onEvent // 保存原始引用
+            )
+            subscribers.add(subscriber)
         }
 
         fun <T : Any> unsubscribe(
             kClass: KClass<T>,
             onEvent: (T) -> Unit
         ) {
-            synchronized(lock) {
-                subscribers[kClass]?.remove(onEvent as (Any) -> Unit)
+            // 修复：使用 originalRef 进行引用对比
+            subscribers.removeIf {
+                it.kClass == kClass && it.originalRef === onEvent
             }
         }
     }
+
+    /* ================= public api ================= */
 
     fun postAsync(event: Any) = AsyncBus.post(event)
 
     inline fun <reified T : Any> subscribeAsync(
         scope: CoroutineScope,
         noinline onEvent: suspend (T) -> Unit
-    ): Job = AsyncBus.subscribe(T::class, scope, once = false, onEvent)
+    ): Job =
+        AsyncBus.subscribe(T::class, scope, once = false, onEvent)
 
     inline fun <reified T : Any> subscribeOnceAsync(
         scope: CoroutineScope,
         noinline onEvent: suspend (T) -> Unit
-    ): Job = AsyncBus.subscribe(T::class, scope, once = true, onEvent)
+    ): Job =
+        AsyncBus.subscribe(T::class, scope, once = true, onEvent)
 
     fun unsubscribeAsync(job: Job) = job.cancel()
 
@@ -113,14 +137,16 @@ object EventBus {
 
     inline fun <reified T : Any> subscribeSync(
         noinline onEvent: (T) -> Unit
-    ) = SyncBus.subscribe(T::class, once = false, onEvent)
+    ) =
+        SyncBus.subscribe(T::class, once = false, onEvent)
 
     inline fun <reified T : Any> subscribeOnceSync(
         noinline onEvent: (T) -> Unit
-    ) = SyncBus.subscribe(T::class, once = true, onEvent)
+    ) =
+        SyncBus.subscribe(T::class, once = true, onEvent)
 
     inline fun <reified T : Any> unsubscribeSync(
         noinline onEvent: (T) -> Unit
-    ) = SyncBus.unsubscribe(T::class, onEvent)
-
+    ) =
+        SyncBus.unsubscribe(T::class, onEvent)
 }

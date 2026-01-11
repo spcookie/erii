@@ -2,14 +2,9 @@ package uesugi.config
 
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.koin.core.context.GlobalContext.loadKoinModules
-import org.koin.core.context.GlobalContext.startKoin
-import org.koin.core.logger.Level
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import org.koin.dsl.onClose
-import org.koin.environmentProperties
-import org.koin.logger.SLF4JLogger
 import uesugi.core.emotion.EmotionJob
 import uesugi.core.emotion.EmotionService
 import uesugi.core.emotion.EmotionTable
@@ -72,17 +67,4 @@ val infrastructureModule = module {
     single {
         LLMFactory.promptExecutor()
     }
-}
-
-fun installIOC() {
-    startKoin {
-        logger(SLF4JLogger(Level.INFO))
-        environmentProperties()
-        modules(configModule)
-        createEagerInstances()
-    }
-    loadKoinModules(
-        listOf(adapterModule, infrastructureModule, serviceModule),
-        true
-    )
 }

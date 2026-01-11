@@ -10,9 +10,9 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jobrunr.scheduling.BackgroundJob
-import uesugi.BotProxy
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
+import uesugi.server.BotProxy
 import uesugi.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
@@ -169,7 +169,7 @@ class MemoryJob {
                 // 4.1 用户画像和偏好 (按用户)
                 launch {
                     for ((userId, userMessages) in messagesByUser) {
-                        if (userMessages.size >= 5) {  // 至少 5 条消息才分析
+                        if (userId != botMark && userMessages.size >= 5) {  // 至少 5 条消息才分析
                             processUserProfile(botMark, groupId, userId, userMessages)
                         }
                     }
@@ -185,7 +185,7 @@ class MemoryJob {
                 // 4.3 待办事项生成 (按用户)
                 launch {
                     for ((userId, userMessages) in messagesByUser) {
-                        if (userMessages.size >= 3) {  // 至少 3 条消息才生成待办
+                        if (userId != botMark && userMessages.size >= 3) {  // 至少 3 条消息才生成待办
                             processTodos(botMark, groupId, userId, userMessages)
                         }
                     }

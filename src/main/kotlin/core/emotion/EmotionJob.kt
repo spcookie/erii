@@ -10,9 +10,9 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
-import uesugi.BotProxy
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
+import uesugi.server.BotProxy
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.math.exp
@@ -119,7 +119,7 @@ class EmotionJob {
     ) {
         withContext(Dispatchers.IO) {
             transaction {
-                log.info("开始执行情绪衰减, groupId=$groupId")
+                log.debug("开始执行情绪衰减, groupId=$groupId")
 
                 // 获取当前最新的情绪状态
                 val currentEmotionEntity = EmotionEntity.find {
@@ -157,40 +157,39 @@ class EmotionJob {
                 }
 
                 /**
-                 * 优势度衰减函数
-                 * 优势度使用更慢的衰减速率
-                 */
-                fun decayDominance(
-                    d: Double,
-                    deltaSeconds: Long
-                ): Double {
-                    val lambda = 0.00001  // 更小的衰减系数
-                    val factor = exp(-lambda * deltaSeconds)
-                    return d * factor
-                }
-
-                /**
-                 * 心情衰减函数
-                 * 心情会逐渐向基线(baseline)回归
+                 * 心情衰减函数 (修正版)
+                 * 使用指数衰减模型，让 Mood 平滑回归到 Baseline
+                 * 公式: V_new = V_base + (V_old - V_base) * e^(-λ * t)
                  */
                 fun decayMood(
                     mood: PAD,
                     baseline: PAD,
                     deltaSeconds: Long
                 ): PAD {
-                    val beta = 0.000005  // 回归速率(降低以避免数值溢出)
-                    val factor = (beta * deltaSeconds).coerceAtMost(1.0)  // 限制最大为1.0
+                    // P和A的衰减速率 (半衰期约 38.5小时)
+                    val lambdaPA = 0.000005
+                    // D的衰减速率 (半衰期约 19.2小时，维持原逻辑中 D 衰减更快的设定)
+                    val lambdaD = 0.00001
+
+                    // 计算衰减因子 (0.0 ~ 1.0)
+                    // deltaSeconds 越大，factor 越接近 0，结果越接近 baseline
+                    val factorPA = exp(-lambdaPA * deltaSeconds)
+                    val factorD = exp(-lambdaD * deltaSeconds)
 
                     return PAD(
-                        p = mood.p + (baseline.p - mood.p) * factor,
-                        a = mood.a + (baseline.a - mood.a) * factor,
-                        d = decayDominance(mood.d, deltaSeconds)
+                        // P 和 A 向 baseline 回归
+                        p = baseline.p + (mood.p - baseline.p) * factorPA,
+                        a = baseline.a + (mood.a - baseline.a) * factorPA,
+
+                        // D 也向 baseline.d 回归 (修复了之前无视 baseline.d 强制归零的bug)
+                        d = baseline.d + (mood.d - baseline.d) * factorD
                     )
                 }
 
                 // 计算衰减后的情绪和心情
                 val emotion = decayEmotion(currentEmotionEntity.emotion, seconds)
-                val mood = decayMood(currentEmotionEntity.mood, EmotionalTendencies.BASE_LINE.pad, seconds)
+                val mood =
+                    decayMood(currentEmotionEntity.mood, BotProxy.getBot(currentBotId)!!.role.emoticon.pad, seconds)
 
                 log.info(
                     "群组 $groupId 情绪衰减: emotion P=${
@@ -228,7 +227,13 @@ class EmotionJob {
                 currentEmotionEntity.behavior = behaviorProfile
                 currentEmotionEntity.updatedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
-                EventBus.postAsync(EmotionChangeEvent(mood))
+                EventBus.postAsync(
+                    EmotionChangeEvent(
+                        currentBotId,
+                        groupId,
+                        mood
+                    )
+                )
 
                 log.info("群组 $groupId 情绪衰减完成")
             }
@@ -337,7 +342,10 @@ class EmotionJob {
         )
 
         // 5. 创建行为分析器
-        val behaviorAnalysis = BehaviorAnalysis(currentEmotionEntity)
+        val behaviorAnalysis = BehaviorAnalysis(
+            currentEmotionEntity,
+            BotProxy.getBot(currentBotId)!!.role.emoticon
+        )
 
         // 6. 确定衰减等级(根据新消息数量)
         val decay = when {
@@ -393,7 +401,13 @@ class EmotionJob {
                     historyMessageProcessed = historyEntities.maxOf { it.id.value }
                 }
                 log.info("群组 $groupId 情绪状态已保存, 处理到 historyId=${historyEntities.maxOf { it.id.value }}")
-                EventBus.postAsync(EmotionChangeEvent(emotion))
+                EventBus.postAsync(
+                    EmotionChangeEvent(
+                        currentBotId,
+                        groupId,
+                        emotion
+                    )
+                )
             }
         }
     }

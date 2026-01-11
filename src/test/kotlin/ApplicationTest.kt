@@ -10,6 +10,9 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.jackson.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -17,6 +20,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.MessageType
+import uesugi.toolkit.EventBus
 import kotlin.test.Test
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -111,9 +115,30 @@ class ApplicationTest {
                     }
                 }
             }
-
-
         }
+    }
+
+    @Test
+    fun test_event_bus(): Unit = runBlocking {
+        open class EventTest(open val message: String)
+        data class EventTest_1(
+            val aaa: String,
+            override val message: String
+        ) : EventTest(message)
+
+        val scope = CoroutineScope(Dispatchers.Default)
+
+        EventBus.subscribeAsync<EventTest>(scope) {
+            println(it.message)
+            if (it is EventTest_1) {
+                println(it.aaa)
+            }
+        }
+        delay(1000)
+
+        EventBus.postAsync(EventTest_1("aaa", "bbb"))
+
+        delay(2000)
     }
 
 }

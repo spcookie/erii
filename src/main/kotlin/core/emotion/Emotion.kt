@@ -206,9 +206,6 @@ enum class EmotionalTendencies(val pad: PAD) {
 
     companion object {
 
-        val BASE_LINE = OPTIMISM
-
-
         /**
          * 计算两个PAD值之间的欧式距离
          *

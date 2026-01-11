@@ -10,7 +10,10 @@ fun main(args: Array<String>) {
 fun Application.module() {
     configureFrameworks()
     configureMonitoring()
-    configureSecurity()
     configureHTTP()
     configureRouting()
+
+    configureConnectBots()
+    configureBotAgent()
+    configureH2Console()
 }

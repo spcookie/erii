@@ -1,6 +1,6 @@
 package uesugi.core.volition
 
-import uesugi.DEBUG_GROUP_ID
+import uesugi.server.DEBUG_GROUP_ID
 
 sealed class VolitionEvent {
     abstract val botMark: String

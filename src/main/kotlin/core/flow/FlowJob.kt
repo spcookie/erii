@@ -14,10 +14,9 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import org.koin.core.context.GlobalContext
-import uesugi.BotProxy
-import uesugi.core.emotion.EmotionalTendencies
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
+import uesugi.server.BotProxy
 import uesugi.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -29,20 +28,8 @@ class FlowJob {
     }
 
     private val mutex = Mutex()
-    private val flowAgent = FlowAgent(
-        """
-            兴趣爱好：
-            小说、轻小说、动漫、二次元游戏
-            文学、哲学思考、历史趣闻
-            科技资讯、群聊段子
-            
-            常聊话题：
-            剧情分析或讨论
-            群友趣事、吐槽
-            网络梗、段子、轻幽默
-            偶尔哲理或人生感悟
-        """.trimIndent()
-    )
+
+    private val flowAgent = FlowAgent()
 
     fun openTimingTriggerSignal() {
         BackgroundJob.scheduleRecurrently(
@@ -90,7 +77,7 @@ class FlowJob {
 
     private fun ensureFlowGaugeExists(botMark: String, groupId: String) {
         val flowGaugeManager by GlobalContext.get().inject<FlowGaugeManager>()
-        flowGaugeManager.getOrCreate(botMark, groupId, EmotionalTendencies.BASE_LINE)
+        flowGaugeManager.getOrCreate(botMark, groupId, BotProxy.getBot(botMark)!!.role.emoticon)
     }
 
     private fun findGroupsNeedProcessing(botMark: String): List<String> {
@@ -115,7 +102,7 @@ class FlowJob {
                             (HistoryTable.id greater lastProcessedId)
                 )
 
-                newMessageCount > 5
+                newMessageCount > 3
             }
         }
     }
