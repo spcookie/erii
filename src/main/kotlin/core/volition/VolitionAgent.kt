@@ -44,23 +44,20 @@ data class VolitionMessage(
     fun asLlmPrompt() = "[ID:$id $userId ${time.format(DateTimeFormat)}] $content"
 }
 
-class VolitionAgent(
-    private val botInterests: String,
-    private val botMemoryKeywords: List<String> = emptyList()
-) {
+class VolitionAgent {
     companion object {
         private val log = logger()
     }
 
     suspend fun analysis(
         messages: List<VolitionMessage>,
+        botInterests: String,
         mood: EmotionalTendencies
     ): StimulusAnalysis? {
         if (messages.isEmpty()) return null
 
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         val messagesText = messages.joinToString("\n") { it.asLlmPrompt() }
-        val keywordsText = botMemoryKeywords.joinToString(", ")
 
         val prompt = prompt("主动行为分析") {
             system(
@@ -84,9 +81,6 @@ class VolitionAgent(
                 """
                 【我的核心兴趣领域】
                 $botInterests
-                
-                【我的记忆关键词】
-                $keywordsText
                 
                 【我的当前情绪】
                 mood: ${mood.name}
