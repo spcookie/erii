@@ -29,21 +29,7 @@ class VolitionJob {
     }
 
     private val mutex = Mutex()
-    private val volitionAgent = VolitionAgent(
-        """
-            兴趣爱好：
-            小说、轻小说、动漫、二次元游戏
-            文学、哲学思考、历史趣闻
-            科技资讯、群聊段子
-            
-            常聊话题：
-            剧情分析或讨论
-            群友趣事、吐槽
-            网络梗、段子、轻幽默
-            偶尔哲理或人生感悟
-        """.trimIndent(),
-        listOf("游戏", "动漫", "小说", "哲学", "段子")
-    )
+    private val volitionAgent = VolitionAgent()
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -198,7 +184,9 @@ class VolitionJob {
 
         val impulse = gauge.calculateImpulse()
 
-        val result = volitionAgent.analysis(messages, gauge.getMood()) ?: return
+        val botInterests = BotProxy.getBot(botMark)!!.role.character
+
+        val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
 
         EventBus.postAsync(ResetStimulusEvent(botMark, groupId))
 

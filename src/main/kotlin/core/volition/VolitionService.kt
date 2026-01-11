@@ -25,6 +25,10 @@ data class VolitionState(
         stimulus = (stimulus + amount).coerceIn(0.0, 100.0)
     }
 
+    fun minusStimulus(amount: Double) {
+        stimulus = (stimulus - amount).coerceIn(0.0, 100.0)
+    }
+
     fun decayFatigue(amount: Double) {
         fatigue = (fatigue - amount).coerceIn(0.0, 100.0)
     }
@@ -118,7 +122,7 @@ class VolitionGauge(
             }
 
             when (event) {
-                is ResetStimulusEvent -> resetStimulus(event.stimulus)
+                is ResetStimulusEvent -> minusStimulus(event.stimulus)
                 is KeywordHitEvent -> if (arousal > 0.3) addStimulus(event.stimulus)
                 is BusyGroupEvent -> addStimulus(event.stimulus)
                 is IndirectMentionEvent -> addStimulus(event.stimulus)
@@ -155,8 +159,8 @@ class VolitionGauge(
         return impulse.coerceIn(0.0, 100.0)
     }
 
-    fun resetStimulus(amount: Double) {
-        state.stimulus = amount
+    fun minusStimulus(amount: Double) {
+        state.minusStimulus(amount)
         log.info("刺激值重置: $amount, botMark=$botMark, groupId=$groupId")
     }
 
