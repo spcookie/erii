@@ -548,6 +548,7 @@ private suspend fun buildPrompt(context: Context): Prompt {
 @Suppress("unused")
 class ChatToolSet(
     val context: Context,
+    val promptExecutor: PromptExecutor,
     val sendMessage: suspend (String) -> Unit
 ) : ToolSet {
 
@@ -564,6 +565,34 @@ class ChatToolSet(
             addAll(sentences)
             add("[涩图]")
         })
+    }
+
+    @LLMDescription("回复消息")
+    @Serializable
+    data class Sentences(
+        @property:LLMDescription("回复 2～5 句为主，最多 5 句")
+        val sentences: List<String>
+    )
+
+    @LLMDescription("如果是知识类的回复，请求 Eva 帮忙回复消息，返回群其他人的回复")
+    @Tool
+    fun requestEva(@LLMDescription("告诉 Eva 需要回复什么") sentence: String): String? {
+        val prompt = prompt("Eva") {
+            system(Eva.personality(context.currentBotId))
+            user(sentence)
+
+        }
+        val s = scope.async {
+            val result = promptExecutor.executeStructured<Sentences>(
+                prompt = prompt,
+                model = GoogleModels.Gemini3_Pro_Preview
+            )
+            result.getOrNull()?.data?.sentences
+        }.asCompletableFuture().get()
+        if (s != null) {
+            return send(s)
+        }
+        return null
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -699,7 +728,13 @@ object BotAgent {
                         maxAgentIterations = 50,
                     ),
                     toolRegistry = ToolRegistry {
-                        tools(ChatToolSet(context.copy(groupId = "1053148332"), sendMessage).asTools())
+                        tools(
+                            ChatToolSet(
+                                context.copy(groupId = "1053148332"),
+                                promptExecutor,
+                                sendMessage
+                            ).asTools()
+                        )
                     },
                     strategy = strategy("chat") {
 
