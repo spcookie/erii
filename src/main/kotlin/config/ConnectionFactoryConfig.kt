@@ -26,7 +26,7 @@ class ConnectionFactoryConfig {
     )
 
     init {
-        TransactionManager.Companion.defaultDatabase = database
+        TransactionManager.defaultDatabase = database
     }
 
 }

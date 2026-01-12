@@ -296,7 +296,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
     val historyService by GlobalContext.get().inject<HistoryService>()
     val vocabularyService by GlobalContext.get().inject<VocabularyService>()
     val flowGaugeManager by GlobalContext.get().inject<FlowGaugeManager>()
-    val flowGauge = flowGaugeManager.get(currentBotId, groupId)
+    val flowGauge = flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId)!!.role.emoticon)
     return transaction {
         val behaviorProfile = emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
         val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 100, 1.days)
@@ -312,8 +312,8 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
             behaviorProfile = behaviorProfile,
             impulse = event.impulse,
             interruptionMode = event.interruptionMode,
-            flow = flowGauge?.getFlowMeter() ?: 0.0,
-            flowState = flowGauge?.mapToState() ?: FlowMeterState.STANDBY,
+            flow = flowGauge.getFlowMeter(),
+            flowState = flowGauge.mapToState(),
             facts = factsEntities,
             userProfiles = userProfiles,
             vocabulary = activeVocabulary,
@@ -343,6 +343,7 @@ data class ChatPoint(
 )
 
 
+@Suppress("unused")
 enum class ActionType {
     @LLMDescription("用户提问")
     QUESTION,
@@ -413,7 +414,7 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>): List<C
     return result.getOrThrow().data.chatPoints
 }
 
-private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>, requestEva: Boolean = false): Prompt {
+private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>): Prompt {
     val constraints = buildSpeechConstraints(
         context.behaviorProfile?.emotion,
         context.behaviorProfile?.tone,
@@ -430,9 +431,7 @@ private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>, requestEv
 
                 horizontalRule()
 
-                if (requestEva) {
-                    buildRequestEvaPrompt()
-                }
+                buildRequestEvaPrompt()
 
                 horizontalRule()
 
@@ -613,7 +612,7 @@ class ChatToolSet(
     @LLMDescription("请求 Eva 帮忙回复消息，返回群其他人的回复")
     @Tool
     fun requestEva(
-        @LLMDescription("这是**你（Erii）自己的发言列表**。请生成 2~3 句简短的话，表现出你的困惑、呆萌以及对他人的依赖。非必填") sentences: List<String>?,
+        @LLMDescription("这是你（Erii）自己的发言列表。请生成 2~3 句话，表现出你的困惑、呆萌以及对他人的依赖。非必填") sentences: List<String>?,
         @LLMDescription("告诉 Eva 需要回复什么") sentence: String
     ): String? {
         var eriiSendJob: Job? = null
@@ -772,7 +771,7 @@ object BotAgent {
 
                 val context = buildContext(event)
                 val chatPoints = buildChatPoint(context.histories)
-                val buildPrompt = buildPrompt(context, chatPoints, true)
+                val buildPrompt = buildPrompt(context, chatPoints)
 //                val prompt = buildPrompt(context)
                 val prompt = prompt(
                     id = "constraint",

@@ -33,6 +33,18 @@ class MemoryService {
         }
     }
 
+    fun getFactSize(
+        botMark: String,
+        groupId: String
+    ): Long {
+        return transaction {
+            FactsEntity.find {
+                (FactsTable.botMark eq botMark) and
+                        (FactsTable.groupId eq groupId)
+            }.count()
+        }
+    }
+
     fun getUserProfiles(
         botMark: String,
         groupId: String,
@@ -44,6 +56,18 @@ class MemoryService {
                         (UserProfileTable.groupId eq groupId) and
                         (UserProfileTable.userId inList userId)
             }.toList()
+        }
+    }
+
+    fun getUserProfileSize(
+        botMark: String,
+        groupId: String
+    ): Long {
+        return transaction {
+            UserProfileEntity.find {
+                (UserProfileTable.botMark eq botMark) and
+                        (UserProfileTable.groupId eq groupId)
+            }.count()
         }
     }
 

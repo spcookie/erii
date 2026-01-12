@@ -183,13 +183,13 @@ class MemoryJob {
                 }
 
                 // 4.3 待办事项生成 (按用户)
-                launch {
-                    for ((userId, userMessages) in messagesByUser) {
-                        if (userId != botMark && userMessages.size >= 3) {  // 至少 3 条消息才生成待办
-                            processTodos(botMark, groupId, userId, userMessages)
-                        }
-                    }
-                }
+//                launch {
+//                    for ((userId, userMessages) in messagesByUser) {
+//                        if (userId != botMark && userMessages.size >= 3) {  // 至少 3 条消息才生成待办
+//                            processTodos(botMark, groupId, userId, userMessages)
+//                        }
+//                    }
+//                }
 
                 // 4.4 对话摘要生成
                 launch {
