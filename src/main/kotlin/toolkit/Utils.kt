@@ -9,6 +9,8 @@ import java.sql.ResultSet
 
 inline fun <reified T : Any> T.logger() = LoggerFactory.getLogger(T::class.java)!!
 
+fun logger(name: String) = LoggerFactory.getLogger(name)!!
+
 val JSON = Json {
     ignoreUnknownKeys = true
 }

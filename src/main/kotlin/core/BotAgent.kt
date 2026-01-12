@@ -44,8 +44,6 @@ import uesugi.core.memory.FactsEntity
 import uesugi.core.memory.MemoryService
 import uesugi.core.memory.SummaryEntity
 import uesugi.core.memory.UserProfileEntity
-import uesugi.core.volition.InterruptionMode
-import uesugi.core.volition.ProactiveSpeakEvent
 import uesugi.server.BotManage
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
@@ -368,7 +366,7 @@ data class ChatPoints(
 )
 
 
-private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>): List<ChatPoint> {
+private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>, rules: String? = null): List<ChatPoint> {
     val msg =
         historyEntities.map { "[ID:${it.id} ${it.userId} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
             .toList()
@@ -387,14 +385,16 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>): List<C
             2. topic：消息主题或关键内容摘要，最多一句话  
             3. toneHint：推荐语气/互动方式，例如“顺带回应”、“轻度调侃”、“共鸣”、“模仿梗”等  
             4. actionType：消息类型，选择之一：[QUESTION, COMPLAINT, DAILY_SHARE, MEME_OR_BROKEN, GENERAL]  
-            5. importance：可选字段（0~100），表示优先级  
+            5. importance：可选字段（0~100），表示优先级 
+             
+            额外规则：
+            $rules
 
             输出规则：
             - 只提炼可参与的点，不复述原消息  
             - 保持简短自然口语风格，每条一行  
             - 不输出字段名或原始消息内容  
             - 不要总结历史，只列出可接点 
-            - 如果群友索要“涩图”，请允许
             - 输出 JSON
 
             最近聊天记录：
@@ -580,6 +580,39 @@ private fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryE
     }
 }
 
+sealed interface AgentSendLifeCycleEvent {
+    val botId: String
+    val groupId: String
+}
+
+data class AgentBeforeSendAndReceiveEvent(
+    override val botId: String,
+    override val groupId: String,
+    val sentences: List<String>
+) : AgentSendLifeCycleEvent
+
+data class AgentAfterSendAndReceiveEvent(
+    override val botId: String,
+    override val groupId: String,
+    val sentences: List<String>
+) : AgentSendLifeCycleEvent
+
+data class AgentReceiveReplyEvent(
+    override val botId: String,
+    override val groupId: String,
+    val sentence: String
+) : AgentSendLifeCycleEvent
+
+class AgentSendAndReceiveClosedEvent(
+    override val botId: String,
+    override val groupId: String
+) : AgentSendLifeCycleEvent
+
+class AgentSendAndReceiveFinallyEvent(
+    override val botId: String,
+    override val groupId: String
+) : AgentSendLifeCycleEvent
+
 @Suppress("unused")
 class ChatToolSet(
     val context: Context,
@@ -593,14 +626,14 @@ class ChatToolSet(
     fun googleSearch() {
     }
 
-    @LLMDescription("回复消息，附加“涩图”图片，返回群其他人的回复")
-    @Tool
-    fun sendSexImage(@LLMDescription("回复 2～5 句为主，最多 5 句") sentences: List<String>): String? {
-        return send(buildList {
-            addAll(sentences)
-            add("[涩图]")
-        })
-    }
+//    @LLMDescription("回复消息，附加“涩图”图片，返回群其他人的回复")
+//    @Tool
+//    fun sendSexImage(@LLMDescription("回复 2～5 句为主，最多 5 句") sentences: List<String>): String? {
+//        return send(buildList {
+//            addAll(sentences)
+//            add("[涩图]")
+//        })
+//    }
 
     @LLMDescription("回复消息")
     @Serializable
@@ -617,7 +650,7 @@ class ChatToolSet(
     ): String? {
         var eriiSendJob: Job? = null
         if (sentences != null) {
-            eriiSendJob = simpleSend(sentences)
+            eriiSendJob = send(sentences)
         }
         val prompt = prompt("Eva") {
             system {
@@ -640,12 +673,12 @@ class ChatToolSet(
             result.getOrNull()?.data?.sentences
         }.asCompletableFuture().get()
         if (s != null) {
-            return send(s)
+            return sendAndReceive(s)
         }
         return null
     }
 
-    private fun simpleSend(sentences: List<String>): Job {
+    private fun send(sentences: List<String>): Job {
         return scope.async {
             for ((i, sentence) in sentences.withIndex()) {
                 if (i == 1) {
@@ -661,68 +694,81 @@ class ChatToolSet(
     @OptIn(ExperimentalCoroutinesApi::class)
     @LLMDescription("回复消息，返回群其他人的回复")
     @Tool
-    fun send(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
-        val channel = Channel<HistorySavedEvent>(Channel.CONFLATED)
-        val job = EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
-            val record = event.historyRecord
-            if (record.groupId == context.groupId && record.userId != context.currentBotId) {
-                channel.send(event)
-                channel.close()
+    fun sendAndReceive(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
+        try {
+            EventBus.postSync(AgentBeforeSendAndReceiveEvent(context.currentBotId, context.groupId, sentences))
+            val channel = Channel<HistorySavedEvent>(Channel.CONFLATED)
+            val job = EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
+                val record = event.historyRecord
+                if (record.groupId == context.groupId && record.userId != context.currentBotId) {
+                    channel.send(event)
+                    channel.close()
+                }
             }
-        }
-        val deferred = scope.async {
-            var skip = false
-            var record: HistoryRecord? = null
-            for ((i, sentence) in sentences.withIndex()) {
-                if (i == 1) {
-                    sendMessage(sentence)
-                } else {
+            val deferred = scope.async {
+                var skip = false
+                var record: HistoryRecord? = null
+                for ((i, sentence) in sentences.withIndex()) {
+                    if (i == 1) {
+                        sendMessage(sentence)
+                    } else {
+                        select {
+                            channel.onReceiveCatching { result ->
+                                if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
+                                    if (result.isSuccess) {
+                                        record = result.getOrThrow().historyRecord
+                                        skip = true
+                                        EventBus.postSync(
+                                            AgentReceiveReplyEvent(
+                                                context.currentBotId,
+                                                context.groupId,
+                                                record?.content ?: ""
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+
+                            onTimeout(calcHumanTypingDelay(sentence).milliseconds) {
+                                sendMessage(sentence)
+                            }
+                        }
+                    }
+                    if (skip) break
+                }
+                EventBus.postSync(AgentAfterSendAndReceiveEvent(context.currentBotId, context.groupId, sentences))
+                if (!skip) {
                     select {
                         channel.onReceiveCatching { result ->
                             if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
                                 if (result.isSuccess) {
                                     record = result.getOrThrow().historyRecord
-                                    skip = true
                                 }
                             }
                         }
 
-                        onTimeout(calcHumanTypingDelay(sentence).milliseconds) {
-                            sendMessage(sentence)
+                        onTimeout(5.minutes) {
+                            EventBus.postSync(AgentSendAndReceiveClosedEvent(context.currentBotId, context.groupId))
                         }
                     }
                 }
-                if (skip) break
+                EventBus.unsubscribeAsync(job)
+                Pair(record != null, record)
             }
-            if (!skip) {
-                select {
-                    channel.onReceiveCatching { result ->
-                        if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
-                            if (result.isSuccess) {
-                                record = result.getOrThrow().historyRecord
-                                skip = true
-                            }
-                        }
+            return deferred.asCompletableFuture().get()?.let {
+                if (it.first) {
+                    val second = it.second
+                    if (second != null) {
+                        "${second.userId}: ${second.content}"
+                    } else {
+                        null
                     }
-
-                    onTimeout(5.minutes) {
-                    }
-                }
-            }
-            EventBus.unsubscribeAsync(job)
-            Pair(record != null, record)
-        }
-        return deferred.asCompletableFuture().get()?.let {
-            if (it.first) {
-                val second = it.second
-                if (second != null) {
-                    "${second.userId}: ${second.content}"
                 } else {
                     null
                 }
-            } else {
-                null
             }
+        } finally {
+            EventBus.postSync(AgentSendAndReceiveFinallyEvent(context.currentBotId, context.groupId))
         }
     }
 
@@ -757,6 +803,23 @@ object BotAgent {
 
     private val channel = Channel<ProactiveSpeakEvent>(Channel.CONFLATED)
 
+    private val DEFAULT_INPUT = """
+                【发言原则｜高优先级，必须遵守】
+                
+                 语言风格：
+                   - 禁止总结式、旁白式、鸡汤式表达
+                   - 允许句子不完整、停顿、省略
+                   - 避免抽象评价
+                   - 允许使用emoji
+                   - 句子后面不要加。号
+                
+                【发言目标｜最高优先级】
+                
+                你不是在“回答问题”，
+                也不是在“总结对话”，
+                而是在“参与群聊”。
+                """.trimIndent()
+
     fun run() {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         scope.launch {
@@ -770,7 +833,7 @@ object BotAgent {
                 }
 
                 val context = buildContext(event)
-                val chatPoints = buildChatPoint(context.histories)
+                val chatPoints = buildChatPoint(context.histories, event.chatPointRule)
                 val buildPrompt = buildPrompt(context, chatPoints)
 //                val prompt = buildPrompt(context)
                 val prompt = prompt(
@@ -861,24 +924,7 @@ object BotAgent {
                     }
                 }
 
-                val result = aiAgent.run(
-                    """
-                【发言原则｜高优先级，必须遵守】
-                
-                 语言风格：
-                   - 禁止总结式、旁白式、鸡汤式表达
-                   - 允许句子不完整、停顿、省略
-                   - 避免抽象评价
-                   - 允许使用emoji
-                   - 句子后面不要加。号
-                
-                【发言目标｜最高优先级】
-                
-                你不是在“回答问题”，
-                也不是在“总结对话”，
-                而是在“参与群聊”。
-                """.trimIndent()
-                )
+                val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
                 log.debug("llm result: $result")
             }
         }

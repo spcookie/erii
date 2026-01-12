@@ -1,7 +1,5 @@
 package uesugi.core.volition
 
-import uesugi.DEBUG_GROUP_ID
-
 
 sealed class VolitionEvent {
     abstract val botMark: String
@@ -37,17 +35,3 @@ data class EmotionalResonanceEvent(
     override val groupId: String,
     val stimulus: Double = 15.0
 ) : VolitionEvent()
-
-data class ProactiveSpeakEvent(
-    val botMark: String,
-    val groupId: String,
-    val impulse: Double,
-    val interruptionMode: InterruptionMode,
-    val debugGroupId: String? = DEBUG_GROUP_ID
-)
-
-enum class InterruptionMode {
-    Interrupt,
-    Icebreak,
-    Routine
-}

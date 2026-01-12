@@ -3,7 +3,6 @@ package uesugi.server
 import kotlinx.coroutines.runBlocking
 import net.mamoe.mirai.Bot
 import net.mamoe.mirai.event.globalEventChannel
-import org.h2.tools.Server
 import top.mrxiaom.overflow.BotBuilder
 import uesugi.core.BotAgent
 import uesugi.core.BotRole
@@ -47,7 +46,6 @@ private val log = BotManage.logger()
 
 fun configureConnectBots() {
     runBlocking {
-        // 连接第一个机器人
         val erii = BotBuilder.positive("ws://127.0.0.1:3001")
             .token("hG8dQqGk6jGC")
             .connect()
@@ -63,26 +61,7 @@ fun configureConnectBots() {
 
             log.info("机器人 erii 已连接: ${erii.id}")
         }
-
-        // 可以在这里添加更多机器人连接
-        // val bot2 = BotBuilder.positive("ws://127.0.0.1:3002")
-        //     .token("another_token")
-        //     .connect()
-        // if (bot2 != null) {
-        //     BotManage.registerBot(bot2)
-        //     bot2.globalEventChannel()
-        //         .exceptionHandler { log.error("Bot exception handler: {}", it.message, it) }
-        //         .registerListenerHost(GroupMessageEventListener)
-        // }
     }
 }
 
 fun configureBotAgent() = BotAgent.run()
-
-fun configureH2Console() {
-    val enabled = System.getProperty("h2.console.enabled", "true").toBoolean()
-    if (!enabled) return
-    val h2Console = Server.createWebServer("-web", "-webPort", "8082")
-    h2Console.start()
-    log.info("H2 console started at http://localhost:8082")
-}

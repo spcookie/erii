@@ -52,6 +52,8 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.client.serialization.jackson)
+    // 工具
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
