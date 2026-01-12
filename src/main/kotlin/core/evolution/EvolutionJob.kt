@@ -7,7 +7,7 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.core.history.HistoryTable
-import uesugi.server.BotProxy
+import uesugi.server.BotManage
 import uesugi.toolkit.logger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -48,7 +48,7 @@ class EvolutionJob(
             if (mutex.tryLock()) {
                 try {
                     log.debug("模因进化任务开始执行")
-                    for (currentBotId in BotProxy.getAllBotIds()) {
+                    for (currentBotId in BotManage.getAllBotIds()) {
                         log.debug("开始模因进化任务: currentBotId=$currentBotId")
 
                         val groups = getActiveGroups(currentBotId)

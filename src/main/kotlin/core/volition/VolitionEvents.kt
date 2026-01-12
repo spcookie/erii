@@ -1,6 +1,7 @@
 package uesugi.core.volition
 
-import uesugi.server.DEBUG_GROUP_ID
+import uesugi.DEBUG_GROUP_ID
+
 
 sealed class VolitionEvent {
     abstract val botMark: String
@@ -45,8 +46,8 @@ data class ProactiveSpeakEvent(
     val debugGroupId: String? = DEBUG_GROUP_ID
 )
 
-enum class InterruptionMode(val value: String) {
-    Interrupt("插话"),
-    Icebreak("打破安静发言"),
-    Routine("定时发言")
+enum class InterruptionMode {
+    Interrupt,
+    Icebreak,
+    Routine
 }

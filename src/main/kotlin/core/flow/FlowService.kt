@@ -32,8 +32,8 @@ class FlowGauge(
     mood: EmotionalTendencies,
     private val botMark: String,
     private val groupId: String,
-    private val decayIntervalMs: Long = 1000 * 10L,
-    private val persistIntervalMs: Long = 1000 * 60L
+    private val decayIntervalMs: Long = 1000 * 60L,
+    private val persistIntervalMs: Long = 1000 * 120L
 ) {
     val state = FlowState()
     private val scope = CoroutineScope(Dispatchers.Default)

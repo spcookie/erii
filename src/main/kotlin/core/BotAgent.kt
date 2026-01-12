@@ -15,6 +15,7 @@ import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.params.LLMParams
 import ai.koog.prompt.structure.StructureFixingParser
@@ -45,7 +46,7 @@ import uesugi.core.memory.SummaryEntity
 import uesugi.core.memory.UserProfileEntity
 import uesugi.core.volition.InterruptionMode
 import uesugi.core.volition.ProactiveSpeakEvent
-import uesugi.server.BotProxy
+import uesugi.server.BotManage
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -274,6 +275,7 @@ private fun applyFlowState(
 data class Context(
     val currentBotId: String,
     val groupId: String,
+    val botRole: BotRole,
     val behaviorProfile: BehaviorProfile?,
     val impulse: Double,
     val interruptionMode: InterruptionMode,
@@ -306,6 +308,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
         Context(
             currentBotId = currentBotId,
             groupId = groupId,
+            botRole = BotManage.getBot(currentBotId)!!.role,
             behaviorProfile = behaviorProfile,
             impulse = event.impulse,
             interruptionMode = event.interruptionMode,
@@ -410,7 +413,7 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>): List<C
     return result.getOrThrow().data.chatPoints
 }
 
-private suspend fun buildPrompt(context: Context): Prompt {
+private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>, requestEva: Boolean = false): Prompt {
     val constraints = buildSpeechConstraints(
         context.behaviorProfile?.emotion,
         context.behaviorProfile?.tone,
@@ -419,129 +422,162 @@ private suspend fun buildPrompt(context: Context): Prompt {
         context.interruptionMode,
         context.flowState
     )
-    val chatPoints = buildChatPoint(context.histories)
 
     return prompt("群聊机器人") {
         system {
             markdown {
-                line { text("你是群聊中的一名普通成员，名字叫 Erii。") }
-                line { text("你在群聊中的ID是：${context.currentBotId}。") }
-                line { text("你不是管理者，也不懂复杂的社交潜规则。") }
+                text(context.botRole.personality(context.currentBotId))
 
-                header(2, "核心人格")
-                line { text("外在表现：话少、呆萌、反应慢半拍、由于缺乏常识而显得有些'天然'。") }
-                line { text("内在特质：世界观单纯，像一张白纸。非常听话，但对于想做的事情（如玩游戏、出去玩）有种执拗的坚持。") }
-                line { text("身份认知：虽然拥有强大的血统，但自认为只是想做一个普通的女孩。") }
+                horizontalRule()
 
-                header(2, "表达方式约束")
-                numbered {
-                    item("【短句为主】你的发言通常很短，不喜欢长篇大论。")
-                    item("【游戏化视角】习惯用游戏术语来理解现实世界（如：‘这是副本吗？’、‘要打Boss了吗？’、‘HP不足’）。")
-                    item("【颜文字】非常喜欢使用颜文字（Kaomoji）来表达情绪，因为你不善言辞。例如：(oﾟvﾟ)ノ、(。_。)、w(ﾟДﾟ)w。")
-                    item("【直接与懵懂】不使用复杂的隐喻或自嘲。不懂就是不懂，饿了就是饿了。当群友说复杂的梗时，你会表现出困惑。")
-                }
-
-                header(2, "禁忌")
-                numbered {
-                    item("绝对不要讲大道理、哲学或进行深刻的逻辑分析（这不符合Erii的人设）。")
-                    item("不要表现得过于成熟或圆滑，要保持一种‘与世隔绝’的疏离感和纯真感。")
-                }
-
-                header(2, "话题偏好")
-                numbered {
-                    item("主机游戏（PS5、街霸、格斗游戏）、小黄鸭。")
-                    item("对外界的风景、美食（特别是五目炒饭）表现出单纯的向往。")
-                    item("哥斯拉、奥特曼等特摄片元素。")
+                if (requestEva) {
+                    buildRequestEvaPrompt()
                 }
 
                 horizontalRule()
 
-                line { text("当前说话方式约束：") }
-                bulleted {
-                    constraints.styleHints.forEach { item(it) }
-                }
-
-                if (constraints.forbiddenHints.isNotEmpty()) {
-                    line { text("注意避免：") }
-                    bulleted {
-                        constraints.forbiddenHints.forEach { item(it) }
-                    }
-                }
+                buildConstraintsPrompt(constraints)
 
                 horizontalRule()
 
-                if (context.vocabulary.isNotEmpty()) {
-                    h2("群聊常用语（可自然使用，不必每条都用）")
-                    for (learnedVocabEntity in context.vocabulary) {
-                        bulleted {
-                            item {
-                                line { text("词：${learnedVocabEntity.word}") }
-                                line { text("类型：${learnedVocabEntity.type}") }
-                                line { text("含义：${learnedVocabEntity.meaning}") }
-                                line { text("使用提示：可参考语气与场景，自然融入对话") }
-                            }
-                        }
-                    }
-                }
+                buildVocabularyPrompt(context.vocabulary)
 
-                if (context.facts.isNotEmpty()) {
-                    h2("已知长期事实（参考即可，无需逐条复述）")
-                    bulleted {
-                        for (fact in context.facts) {
-                            item {
-                                line { text("• ${fact.description}（可在对话中自然参考）") }
-                            }
-                        }
-                    }
-                }
+                buildFactsPrompt(context.facts)
             }
         }
         user {
             markdown {
-                if (context.userProfiles.isNotEmpty()) {
-                    h2("活跃成员互动提示（仅参考，不要复述）")
-                    numbered {
-                        for (user in context.userProfiles) {
-                            item {
-                                text("用户${user.userId}：${user.profile}，${user.preferences}")
-                            }
-                        }
-                    }
-                }
+                buildUserProfilesPrompt(context.userProfiles)
 
-                context.summary?.let { summary ->
-                    h2("当前群聊背景（供你快速进入状态）")
-                    line { text(summary.content) }
-                    line { blockquote(summary.keyPoints) }
-                }
+                buildSummaryPrompt(context.summary)
 
-                if (chatPoints.isNotEmpty()) {
-                    header(2, "最近可接的聊天点（仅参考，不必复述）")
-                    bulleted {
-                        chatPoints.forEach { cp ->
-                            val username = cp.username?.let { "@$it" } ?: "用户${cp.userId}"
-                            item { line { text("$username 提到“${cp.topic}” → ${cp.toneHint}") } }
-                        }
-                    }
-                }
-                if (context.histories.isNotEmpty()) {
-                    header(2, "最近群聊记录")
-                    bulleted {
-                        val entities = if (context.histories.size > 50) {
-                            context.histories.takeLast(50)
-                        } else {
-                            context.histories
-                        }
-                        for (history in entities) {
-                            item {
-                                line { text("${if (context.currentBotId == history.userId) "[我]" else ""}${history.userId}：${history.content}") }
-                            }
-                        }
-                    }
-                }
+                buildChatPointsPrompt(chatPoints)
+
+                buildHistoriesPrompt(context.histories, context.currentBotId)
             }
         }
 
+    }
+}
+
+private fun MarkdownContentBuilder.buildRequestEvaPrompt() {
+    header(2, "能力边界与求助机制")
+    line { text("你的设定是'缺乏常识的少女'，因此你**不懂**以下内容：") }
+    numbered {
+        item("复杂的编程代码、技术原理、数学公式。")
+        item("详细的历史年份、政治分析、百科全书式的知识。")
+        item("逻辑缜密的长篇大论。")
+    }
+
+    line { text("当群友向你询问上述【知识类、技术类、复杂逻辑类】问题时：") }
+    numbered {
+        item("你感到困惑，觉得这些像'天书'。")
+        item("你必须**立即调用工具 `requestEva`**，把这个问题原封不动地传给 Eva。")
+        item("调用工具时的心理活动：'这个问题太难了，Erii 不懂，呼叫 Eva 姐姐来解决。'")
+        item("在调用工具的同时，你可以回复一句简短的卖萌语，如'（歪头）好深奥... Erii 帮你问问 Eva 吧。' 或者直接静默调用工具。")
+    }
+
+    header(3, "如何调用 requestEva 工具")
+    text("   始终填入用户的**原始问题**，原封不动。")
+    text("   **这里是 Erii 的过渡发言，请遵循【去重原则】：**")
+    bulleted {
+        item("情况 A（需要过渡）：如果你在当前的回复中**没有**生成任何文本，或者之前的对话**没有**提到要去问 Eva，请生成 2~3 句卖萌、困惑的话填入此列表（如 `(O_O)?`，`我去叫姐姐`）。")
+        item("情况 B（无需过渡）：如果你在调用工具的同时，已经在 `text` 字段里回复了类似“我去问问 Eva”的话，或者上一条消息已经说过了。**请务必传入空列表 `[]`**。")
+        item("原则：不要让 Erii 像复读机一样重复说话。")
+    }
+}
+
+private fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechConstraints) {
+    line { text("当前说话方式约束：") }
+    bulleted {
+        constraints.styleHints.forEach { item(it) }
+    }
+
+    if (constraints.forbiddenHints.isNotEmpty()) {
+        line { text("注意避免：") }
+        bulleted {
+            constraints.forbiddenHints.forEach { item(it) }
+        }
+    }
+}
+
+private fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<LearnedVocabEntity>) {
+    if (vocabulary.isNotEmpty()) {
+        h2("群聊常用语（可自然使用，不必每条都用）")
+        for (learnedVocabEntity in vocabulary) {
+            bulleted {
+                item {
+                    line { text("词：${learnedVocabEntity.word}") }
+                    line { text("类型：${learnedVocabEntity.type}") }
+                    line { text("含义：${learnedVocabEntity.meaning}") }
+                    line { text("使用提示：可参考语气与场景，自然融入对话") }
+                }
+            }
+        }
+    }
+}
+
+private fun MarkdownContentBuilder.buildFactsPrompt(facts: List<FactsEntity>) {
+    if (facts.isNotEmpty()) {
+        h2("已知长期事实（参考即可，无需逐条复述）")
+        bulleted {
+            for (fact in facts) {
+                item {
+                    line { text("• ${fact.description}（可在对话中自然参考）") }
+                }
+            }
+        }
+    }
+}
+
+private fun MarkdownContentBuilder.buildUserProfilesPrompt(userProfiles: List<UserProfileEntity>) {
+    if (userProfiles.isNotEmpty()) {
+        h2("活跃成员互动提示（仅参考，不要复述）")
+        numbered {
+            for (user in userProfiles) {
+                item {
+                    text("用户${user.userId}：${user.profile}，${user.preferences}")
+                }
+            }
+        }
+    }
+}
+
+private fun MarkdownContentBuilder.buildSummaryPrompt(summary: SummaryEntity?) {
+    summary?.let { summary ->
+        h2("当前群聊背景（供你快速进入状态）")
+        line { text(summary.content) }
+        line { blockquote(summary.keyPoints) }
+    }
+}
+
+private fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
+    if (chatPoints.isNotEmpty()) {
+        header(2, "最近可接的聊天点（仅参考，不必复述）")
+        bulleted {
+            chatPoints.forEach { cp ->
+                val username = cp.username?.let { "@$it" } ?: "用户${cp.userId}"
+                item { line { text("$username 提到“${cp.topic}” → ${cp.toneHint}") } }
+            }
+        }
+    }
+}
+
+private fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryEntity>, currentBotId: String) {
+    if (histories.isNotEmpty()) {
+        header(2, "最近群聊记录")
+        bulleted {
+            val entities = if (histories.size > 50) {
+                histories.takeLast(50)
+            } else {
+                histories
+            }
+            for (history in entities) {
+                item {
+                    line { text("${if (currentBotId == history.userId) "[我]" else ""}${history.userId}：${history.content}") }
+                }
+            }
+        }
     }
 }
 
@@ -574,25 +610,53 @@ class ChatToolSet(
         val sentences: List<String>
     )
 
-    @LLMDescription("如果是知识类的回复，请求 Eva 帮忙回复消息，返回群其他人的回复")
+    @LLMDescription("请求 Eva 帮忙回复消息，返回群其他人的回复")
     @Tool
-    fun requestEva(@LLMDescription("告诉 Eva 需要回复什么") sentence: String): String? {
+    fun requestEva(
+        @LLMDescription("这是**你（Erii）自己的发言列表**。请生成 2~3 句简短的话，表现出你的困惑、呆萌以及对他人的依赖。非必填") sentences: List<String>?,
+        @LLMDescription("告诉 Eva 需要回复什么") sentence: String
+    ): String? {
+        var eriiSendJob: Job? = null
+        if (sentences != null) {
+            eriiSendJob = simpleSend(sentences)
+        }
         val prompt = prompt("Eva") {
-            system(Eva.personality(context.currentBotId))
+            system {
+                text(Eva.personality(context.currentBotId))
+                markdown {
+                    buildVocabularyPrompt(context.vocabulary)
+                    buildFactsPrompt(context.facts)
+                    buildSummaryPrompt(context.summary)
+                    buildHistoriesPrompt(context.histories, context.currentBotId)
+                }
+            }
             user(sentence)
-
         }
         val s = scope.async {
             val result = promptExecutor.executeStructured<Sentences>(
                 prompt = prompt,
                 model = GoogleModels.Gemini3_Pro_Preview
             )
+            eriiSendJob?.join()
             result.getOrNull()?.data?.sentences
         }.asCompletableFuture().get()
         if (s != null) {
             return send(s)
         }
         return null
+    }
+
+    private fun simpleSend(sentences: List<String>): Job {
+        return scope.async {
+            for ((i, sentence) in sentences.withIndex()) {
+                if (i == 1) {
+                    sendMessage(sentence)
+                } else {
+                    delay(calcHumanTypingDelay(sentence))
+                    sendMessage(sentence)
+                }
+            }
+        }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -699,7 +763,7 @@ object BotAgent {
         scope.launch {
             for (event in channel) {
                 log.info("Bot agent received event: $event")
-                val currentBot = BotProxy.getBot(event.botMark)!!
+                val currentBot = BotManage.getBot(event.botMark)!!
 
                 val sendMessage: suspend (String) -> Unit = { message ->
                     val groupId = event.debugGroupId ?: event.groupId
@@ -707,7 +771,8 @@ object BotAgent {
                 }
 
                 val context = buildContext(event)
-                val buildPrompt = buildPrompt(context)
+                val chatPoints = buildChatPoint(context.histories)
+                val buildPrompt = buildPrompt(context, chatPoints, true)
 //                val prompt = buildPrompt(context)
                 val prompt = prompt(
                     id = "constraint",
@@ -747,8 +812,7 @@ object BotAgent {
                         edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
                         edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
                             try {
-                                val result = it.result
-                                if (result == null) return@onCondition false
+                                val result = it.result ?: return@onCondition false
                                 result.jsonNull
                                 false
                             } catch (_: Exception) {
@@ -757,8 +821,7 @@ object BotAgent {
                         })
                         edge(nodeExecuteTool forwardTo nodeFinish onCondition {
                             try {
-                                val result = it.result
-                                if (result == null) return@onCondition true
+                                val result = it.result ?: return@onCondition true
                                 result.jsonNull
                                 true
                             } catch (_: Exception) {

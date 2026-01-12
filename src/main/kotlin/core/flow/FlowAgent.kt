@@ -17,7 +17,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
-import uesugi.server.BotProxy
+import uesugi.server.BotManage
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -156,7 +156,7 @@ class FlowAgent {
 
         val currentTopic = loadCurrentTopic(botMark, groupId)
 
-        val botInterests = BotProxy.getBot(botMark)?.role?.character
+        val botInterests = BotManage.getBot(botMark)?.role?.character
 
         val prompt = prompt("心流分析") {
             system(

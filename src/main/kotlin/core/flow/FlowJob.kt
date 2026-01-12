@@ -16,7 +16,7 @@ import org.jobrunr.scheduling.BackgroundJob
 import org.koin.core.context.GlobalContext
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
-import uesugi.server.BotProxy
+import uesugi.server.BotManage
 import uesugi.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -46,7 +46,7 @@ class FlowJob {
                 try {
                     log.debug("心流任务开始执行")
 
-                    for (currentBotId in BotProxy.getAllBotIds()) {
+                    for (currentBotId in BotManage.getAllBotIds()) {
                         log.debug("开始处理心流任务: currentBotId=$currentBotId")
 
                         val groups = withContext(Dispatchers.IO) {
@@ -77,7 +77,7 @@ class FlowJob {
 
     private fun ensureFlowGaugeExists(botMark: String, groupId: String) {
         val flowGaugeManager by GlobalContext.get().inject<FlowGaugeManager>()
-        flowGaugeManager.getOrCreate(botMark, groupId, BotProxy.getBot(botMark)!!.role.emoticon)
+        flowGaugeManager.getOrCreate(botMark, groupId, BotManage.getBot(botMark)!!.role.emoticon)
     }
 
     private fun findGroupsNeedProcessing(botMark: String): List<String> {

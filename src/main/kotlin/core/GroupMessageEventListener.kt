@@ -12,6 +12,8 @@ import net.mamoe.mirai.message.data.At
 import net.mamoe.mirai.message.data.MessageContent
 import net.mamoe.mirai.message.data.content
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.ENABLE_GROUPS
+import uesugi.MESSAGE_REDIRECT_GROUP_MAP
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistorySavedEvent
 import uesugi.core.history.MessageType
@@ -33,8 +35,10 @@ object GroupMessageEventListener : SimpleListenerHost() {
     @EventHandler
     suspend fun MessageEvent.onMessage() {
         if (this !is GroupMessageSyncEvent && this !is GroupMessageEvent) return
+        if (this.group.id.toString() !in ENABLE_GROUPS) return
         val botId = bot.id.toString()
-        val groupId = if (group.id.toString() == "474270623") "1053148332" else group.id.toString()
+        val groupId =
+            if (group.id.toString() in MESSAGE_REDIRECT_GROUP_MAP) MESSAGE_REDIRECT_GROUP_MAP.getValue(group.id.toString()) else group.id.toString()
         val senderId = sender.id.toString()
         var isAtBot = false
         val msg = buildString {
@@ -52,7 +56,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
         launch {
             val historyRecord = withContext(Dispatchers.IO) {
                 transaction {
-                    HistoryEntity.Companion.new {
+                    HistoryEntity.new {
                         this.botMark = botId
                         this.groupId = groupId
                         this.userId = senderId

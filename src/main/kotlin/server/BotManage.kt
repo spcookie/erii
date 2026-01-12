@@ -12,7 +12,7 @@ import uesugi.core.GroupMessageEventListener
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 
-object BotProxy {
+object BotManage {
 
     data class RoledBot(
         val bot: Bot,
@@ -43,9 +43,7 @@ object BotProxy {
 
 }
 
-private val log = BotProxy.logger()
-
-val DEBUG_GROUP_ID: String? = "474270623"
+private val log = BotManage.logger()
 
 fun configureConnectBots() {
     runBlocking {
@@ -57,7 +55,7 @@ fun configureConnectBots() {
         if (erii == null) {
             log.error("机器人 erii 连接失败")
         } else {
-            BotProxy.registerBot(erii, Erii)
+            BotManage.registerBot(erii, Erii)
 
             erii.globalEventChannel()
                 .exceptionHandler { log.error("Bot exception handler: {}", it.message, it) }
@@ -71,7 +69,7 @@ fun configureConnectBots() {
         //     .token("another_token")
         //     .connect()
         // if (bot2 != null) {
-        //     BotProxy.registerBot(bot2)
+        //     BotManage.registerBot(bot2)
         //     bot2.globalEventChannel()
         //         .exceptionHandler { log.error("Bot exception handler: {}", it.message, it) }
         //         .registerListenerHost(GroupMessageEventListener)

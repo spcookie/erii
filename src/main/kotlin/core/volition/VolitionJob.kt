@@ -13,7 +13,7 @@ import org.jobrunr.scheduling.BackgroundJob
 import org.koin.core.context.GlobalContext
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
-import uesugi.server.BotProxy
+import uesugi.server.BotManage
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.random.Random
@@ -51,7 +51,7 @@ class VolitionJob {
             if (mutex.tryLock()) {
                 try {
                     log.debug("主动意愿任务开始执行")
-                    for (currentBotId in BotProxy.getAllBotIds()) {
+                    for (currentBotId in BotManage.getAllBotIds()) {
                         log.debug("开始处理主动意愿: currentBotId=$currentBotId")
 
                         val groups = withContext(Dispatchers.IO) {
@@ -82,7 +82,7 @@ class VolitionJob {
 
     private fun ensureVolitionGaugeExists(botMark: String, groupId: String) {
         val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
-        volitionGaugeManager.getOrCreate(botMark, groupId, BotProxy.getBot(botMark)!!.role.emoticon)
+        volitionGaugeManager.getOrCreate(botMark, groupId, BotManage.getBot(botMark)!!.role.emoticon)
     }
 
     private fun findGroupsNeedProcessing(botMark: String): List<String> {
@@ -184,7 +184,7 @@ class VolitionJob {
 
         val impulse = gauge.calculateImpulse()
 
-        val botInterests = BotProxy.getBot(botMark)!!.role.character
+        val botInterests = BotManage.getBot(botMark)!!.role.character
 
         val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
 
