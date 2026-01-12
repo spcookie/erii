@@ -12,12 +12,17 @@ application {
 }
 
 dependencies {
+    // 聊天机器人
     implementation(libs.mirai.overflow)
+    // 定时任务
     implementation(libs.jobrunr)
+    // AI框架
     implementation(libs.koog.agents)
+    // 依赖注入
     implementation(libs.koin.core)
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger.slf4j)
+    // 数据库
     implementation(libs.h2)
     implementation(libs.hikari)
     implementation(libs.exposed.core)
@@ -25,6 +30,7 @@ dependencies {
     implementation(libs.exposed.dao)
     implementation(libs.exposed.json)
     implementation(libs.exposed.kotlin.datetime)
+    // 服务端
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.content.negotiation)
@@ -41,12 +47,12 @@ dependencies {
     implementation(libs.ktor.server.netty)
     implementation(libs.logback.classic)
     implementation(libs.ktor.server.config.yaml)
-    implementation("io.ktor:ktor-client-cio-jvm:3.3.2")
-    implementation("io.ktor:ktor-client-jetty:3.3.2")
+    // 客户端
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.client.serialization.jackson)
+    // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
-    testImplementation("io.ktor:ktor-client-core:3.3.2")
-    testImplementation("io.ktor:ktor-client-cio:3.3.2")
-    testImplementation("io.ktor:ktor-client-content-negotiation:3.3.2")
-    testImplementation("io.ktor:ktor-serialization-jackson:3.3.2")
 }
