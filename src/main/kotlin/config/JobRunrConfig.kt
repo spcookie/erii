@@ -2,15 +2,16 @@ package uesugi.config
 
 import org.jobrunr.configuration.JobRunr
 import org.jobrunr.server.JobActivator
-import org.jobrunr.storage.InMemoryStorageProvider
+import org.jobrunr.storage.sql.h2.H2StorageProvider
 import org.koin.core.context.GlobalContext
+import javax.sql.DataSource
 
 
 class JobRunrConfig {
-    fun start() {
+    fun start(dataSource: DataSource) {
         JobRunr.configure()
             .useJobActivator(Activator)
-            .useStorageProvider(InMemoryStorageProvider())
+            .useStorageProvider(H2StorageProvider(dataSource))
             .useBackgroundJobServer()
             .useDashboard()
             .initialize()
