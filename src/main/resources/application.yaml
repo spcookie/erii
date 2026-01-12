@@ -4,3 +4,6 @@ ktor:
             - uesugi.ApplicationKt.module
     deployment:
         port: 8080
+
+llm:
+    proxy: http://127.0.0.1:9674

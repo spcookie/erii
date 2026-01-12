@@ -8,15 +8,17 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import io.ktor.client.*
 import io.ktor.client.engine.*
 
-object LLMFactory {
+class LLMFactory(val httpProxy: String?) {
 
     fun promptExecutor(): PromptExecutor {
         //val llmClient = GoogleLLMClient(System.getenv("GOOGLE_API_KEY"))
         val llmClient = GoogleLLMClient(
-            apiKey = "AIzaSyB3nTHIEX6ah0ITALCMnfYYkIJsoGQI7OE",
+            apiKey = System.getenv("GOOGLE_API_KEY"),
             baseClient = HttpClient {
                 engine {
-                    proxy = ProxyBuilder.http("http://127.0.0.1:9674")
+                    if (httpProxy != null) {
+                        proxy = ProxyBuilder.http(httpProxy)
+                    }
                 }
 //                install(Logging) {
 //                    logger = Logger.DEFAULT

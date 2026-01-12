@@ -18,8 +18,6 @@ import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistorySavedEvent
 import uesugi.core.history.MessageType
 import uesugi.core.history.toRecord
-import uesugi.core.volition.InterruptionMode
-import uesugi.core.volition.ProactiveSpeakEvent
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.coroutines.CoroutineContext
