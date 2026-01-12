@@ -12,7 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
-import uesugi.server.BotProxy
+import uesugi.server.BotManage
 import uesugi.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
@@ -52,7 +52,7 @@ class MemoryJob {
                 try {
                     log.debug("记忆任务开始执行")
 
-                    for (currentBotId in BotProxy.getAllBotIds()) {
+                    for (currentBotId in BotManage.getAllBotIds()) {
                         log.debug("开始处理机器人 $currentBotId 的记忆")
 
                         // 查找需要处理的群组

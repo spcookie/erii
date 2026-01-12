@@ -12,7 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
-import uesugi.server.BotProxy
+import uesugi.server.BotManage
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.math.exp
@@ -48,7 +48,7 @@ class EmotionJob {
             if (mutex.tryLock()) {
                 try {
                     log.debug("情绪任务开始执行")
-                    for (currentBotId in BotProxy.getAllBotIds()) {
+                    for (currentBotId in BotManage.getAllBotIds()) {
                         log.debug("开始执行的情绪分析, botMark=$currentBotId")
 
                         // 1. 查找需要分析的群组(有新消息的群组)
@@ -189,7 +189,7 @@ class EmotionJob {
                 // 计算衰减后的情绪和心情
                 val emotion = decayEmotion(currentEmotionEntity.emotion, seconds)
                 val mood =
-                    decayMood(currentEmotionEntity.mood, BotProxy.getBot(currentBotId)!!.role.emoticon.pad, seconds)
+                    decayMood(currentEmotionEntity.mood, BotManage.getBot(currentBotId)!!.role.emoticon.pad, seconds)
 
                 log.info(
                     "群组 $groupId 情绪衰减: emotion P=${
@@ -344,7 +344,7 @@ class EmotionJob {
         // 5. 创建行为分析器
         val behaviorAnalysis = BehaviorAnalysis(
             currentEmotionEntity,
-            BotProxy.getBot(currentBotId)!!.role.emoticon
+            BotManage.getBot(currentBotId)!!.role.emoticon
         )
 
         // 6. 确定衰减等级(根据新消息数量)
