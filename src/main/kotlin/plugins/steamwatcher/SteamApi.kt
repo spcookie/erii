@@ -1,25 +1,18 @@
 package plugins.steamwatcher
 
 import io.ktor.client.*
-import io.ktor.client.engine.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
+import org.koin.core.context.GlobalContext
 import uesugi.toolkit.JSON
 import uesugi.toolkit.logger
 
 
 object SteamApi {
-    private val client = HttpClient(CIO) {
-        engine {
-            val httpProxy = System.getProperty("http.proxy")
-            if (httpProxy != null) {
-                proxy = ProxyBuilder.http(httpProxy)
-            }
-        }
-    }
+
+    val client by GlobalContext.get().inject<HttpClient>()
 
     private val log = logger()
 

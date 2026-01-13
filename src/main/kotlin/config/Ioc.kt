@@ -71,4 +71,7 @@ val infrastructureModule = module {
     single {
         LLMFactory().promptExecutor()
     }
+    single {
+        HttpClientFactory().createClient()
+    }
 }
