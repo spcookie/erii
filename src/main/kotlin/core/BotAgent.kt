@@ -34,6 +34,7 @@ import kotlinx.serialization.json.jsonNull
 import net.mamoe.mirai.utils.childScope
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
+import uesugi.BotManage
 import uesugi.DEBUG_GROUP_ID
 import uesugi.core.emotion.*
 import uesugi.core.evolution.LearnedVocabEntity
@@ -48,7 +49,6 @@ import uesugi.core.memory.FactsEntity
 import uesugi.core.memory.MemoryService
 import uesugi.core.memory.SummaryEntity
 import uesugi.core.memory.UserProfileEntity
-import uesugi.server.BotManage
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger

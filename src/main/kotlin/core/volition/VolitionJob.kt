@@ -11,11 +11,11 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import org.koin.core.context.GlobalContext
+import uesugi.BotManage
 import uesugi.core.InterruptionMode
 import uesugi.core.ProactiveSpeakEvent
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
-import uesugi.server.BotManage
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.random.Random

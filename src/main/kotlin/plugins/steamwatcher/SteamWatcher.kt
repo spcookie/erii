@@ -8,7 +8,7 @@ import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import plugins.Plugin
 import plugins.SendAgentState
 import plugins.sendAgent
-import uesugi.server.BotManage
+import uesugi.BotManage
 import uesugi.toolkit.logger
 
 

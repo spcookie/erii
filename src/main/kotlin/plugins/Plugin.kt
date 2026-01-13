@@ -2,9 +2,9 @@ package plugins
 
 import ai.koog.agents.core.tools.reflect.ToolSet
 import net.mamoe.mirai.contact.Group
+import uesugi.BotManage
 import uesugi.DEBUG_GROUP_ID
 import uesugi.core.*
-import uesugi.server.BotManage
 import uesugi.toolkit.EventBus
 
 interface Plugin {

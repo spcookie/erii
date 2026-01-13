@@ -1,4 +1,4 @@
-package uesugi.server
+package uesugi
 
 import kotlinx.coroutines.runBlocking
 import net.mamoe.mirai.Bot
