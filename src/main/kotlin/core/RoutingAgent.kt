@@ -10,11 +10,6 @@ import uesugi.core.history.HistoryService
 import uesugi.core.memory.MemoryService
 import kotlin.time.Duration
 
-enum class RouteRule(val title: String) {
-    REQUEST_R18_CONTENT("如果内容存在明显成人内容索取"),
-    CHAT("正常聊天")
-}
-
 
 object RoutingAgent {
     suspend fun route(botId: String, groupId: String, message: String): RouteRule {
