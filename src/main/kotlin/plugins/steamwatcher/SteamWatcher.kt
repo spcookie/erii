@@ -68,12 +68,6 @@ class SteamWatcher : Plugin {
         }
     }
 
-    suspend fun checkUpdatesOnce(groupId: Long, qq: Long, steamId: String) {
-        log.info("手动初始化检查：steamId=$steamId (qq=$qq, 群=$groupId)")
-        val singleBinding = Subscribers.Subscription(groupId, qq, steamId)
-        checkUserAndNotify(steamId, listOf(singleBinding), forceNotify = true)
-    }
-
     private suspend fun checkUserAndNotify(
         steamId: String,
         bindings: List<Subscribers.Subscription>,
