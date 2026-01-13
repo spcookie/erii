@@ -914,7 +914,7 @@ object BotAgent {
         EventBus.subscribeAsync<ProactiveSpeakEvent>(scope) {
             if (mutex.isLocked) {
                 if (it.flag has ProactiveSpeakFeature.GRAB) {
-                    if (flag has ProactiveSpeakFeature.IGRNORE_ITERRUPTION) {
+                    if (flag has ProactiveSpeakFeature.IGNORE_INTERRUPT) {
                         if (it.flag has ProactiveSpeakFeature.FALLBACK) {
                             EventBus.postAsync(
                                 AgentFallbackEvent(

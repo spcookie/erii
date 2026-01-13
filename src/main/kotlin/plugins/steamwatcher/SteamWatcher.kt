@@ -9,6 +9,8 @@ import plugins.Plugin
 import plugins.SendAgentState
 import plugins.sendAgent
 import uesugi.BotManage
+import uesugi.core.ProactiveSpeakEvent
+import uesugi.core.ProactiveSpeakFeature
 import uesugi.toolkit.logger
 
 
@@ -254,7 +256,7 @@ class SteamWatcher : Plugin {
                     bot.id.toString(),
                     group.id.toString(),
                     "你一直在观察群友的 Steam 状态，发现 ${summary.personaname} 的 Steam 状态已更新，请告知群友",
-                    null,
+                    ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK,
                     object : SendAgentState {
                         override fun after(
                             sentences: List<String>,
@@ -264,7 +266,18 @@ class SteamWatcher : Plugin {
                                 group.sendMessage(message)
                             }
                         }
-                    }
+
+                        override fun fallback(
+                            event: ProactiveSpeakEvent,
+                            group: Group,
+                            close: () -> Unit
+                        ) {
+                            close()
+                            this@SteamWatcher.scope.launch {
+                                group.sendMessage(message)
+                            }
+                        }
+                    },
                 )
 
             } finally {

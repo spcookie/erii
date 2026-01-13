@@ -28,7 +28,16 @@ fun sendAgent(
     groupId: String,
     input: String,
     state: SendAgentState
-) = sendAgent(botId, groupId, input, null, state)
+) = sendAgent(botId, groupId, input, null, null, state)
+
+fun sendAgent(
+    botId: String,
+    groupId: String,
+    input: String,
+    flag: ProactiveSpeakFeatureFlag,
+    state: SendAgentState
+) = sendAgent(botId, groupId, input, null, null, flag, state)
+
 
 fun sendAgent(
     botId: String,
@@ -42,8 +51,26 @@ fun sendAgent(
     botId: String,
     groupId: String,
     input: String,
+    toolSets: ToolSet? = null,
+    state: SendAgentState
+) = sendAgent(botId, groupId, input, null, toolSets, state)
+
+fun sendAgent(
+    botId: String,
+    groupId: String,
+    input: String,
     chatPointRule: String? = null,
     toolSets: ToolSet? = null,
+    state: SendAgentState
+) = sendAgent(botId, groupId, input, chatPointRule, toolSets, ProactiveSpeakFeature.NONE, state)
+
+fun sendAgent(
+    botId: String,
+    groupId: String,
+    input: String,
+    chatPointRule: String? = null,
+    toolSets: ToolSet? = null,
+    flag: ProactiveSpeakFeatureFlag,
     state: SendAgentState
 ) {
     val roledBot = BotManage.getBot(botId) ?: return
@@ -103,8 +130,8 @@ fun sendAgent(
             input,
             chatPointRule,
             toolSets,
+            flag
         )
     )
-
 
 }
