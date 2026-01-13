@@ -6,7 +6,6 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.koin.dsl.onClose
-import plugins.steamwatcher.SteamWatcher
 import uesugi.core.emotion.EmotionJob
 import uesugi.core.emotion.EmotionService
 import uesugi.core.emotion.EmotionTable
@@ -72,8 +71,4 @@ val infrastructureModule = module {
     single {
         LLMFactory().promptExecutor()
     }
-}
-
-val pluginModule = module(createdAtStart = true) {
-    single { SteamWatcher().apply { onLoad() } } onClose { it?.onUnload() }
 }

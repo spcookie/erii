@@ -5,7 +5,11 @@ import org.koin.core.context.GlobalContext.loadKoinModules
 import org.koin.environmentProperties
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
-import uesugi.config.*
+import uesugi.config.adapterModule
+import uesugi.config.configModule
+import uesugi.config.infrastructureModule
+import uesugi.config.serviceModule
+import uesugi.plugins.pluginModule
 
 fun Application.configureFrameworks() {
     install(Koin) {
@@ -15,7 +19,7 @@ fun Application.configureFrameworks() {
         createEagerInstances()
     }
     loadKoinModules(
-        listOf(adapterModule, infrastructureModule, serviceModule, pluginModule),
+        listOf(adapterModule, infrastructureModule, serviceModule, pluginModule()),
         true
     )
 }
