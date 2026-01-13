@@ -1,12 +1,12 @@
 package uesugi
 
-import com.bcz.Subscribers
 import io.ktor.server.application.*
 import org.h2.tools.Server
 import uesugi.server.*
 import uesugi.toolkit.logger
 
-const val DEBUG_GROUP_ID: String = "474270623"
+//val DEBUG_GROUP_ID: String? = "474270623"
+val DEBUG_GROUP_ID: String? = null
 
 val ENABLE_GROUPS = listOf(
     "1053148332", "474270623"
@@ -31,12 +31,6 @@ fun Application.module() {
     configureConnectBots()
     configureBotAgent()
     configureH2Console()
-
-    Subscribers.bindings += Subscribers.Subscription(
-        1053148332,
-        2697951448,
-        "76561198415512702"
-    )
 }
 
 fun configureH2Console() {

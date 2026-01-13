@@ -1,6 +1,6 @@
 package uesugi.core
 
-import uesugi.DEBUG_GROUP_ID
+import ai.koog.agents.core.tools.reflect.ToolSet
 
 data class ProactiveSpeakEvent(
     val botMark: String,
@@ -9,7 +9,7 @@ data class ProactiveSpeakEvent(
     val interruptionMode: InterruptionMode,
     val input: String? = null,
     val chatPointRule: String? = null,
-    val debugGroupId: String? = DEBUG_GROUP_ID
+    val toolSets: ToolSet? = null,
 )
 
 enum class InterruptionMode {

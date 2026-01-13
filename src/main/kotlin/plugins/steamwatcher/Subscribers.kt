@@ -1,4 +1,4 @@
-package com.bcz
+package plugins.steamwatcher
 
 import kotlinx.serialization.Serializable
 
@@ -24,4 +24,42 @@ object Subscribers {
     }
 
     val bindings: MutableSet<Subscription> = mutableSetOf()
+
+    init {
+        bindings.add(
+            Subscription(
+                1053148332,
+                2697951448,
+                "76561198415512702"
+            )
+        )
+        bindings.add(
+            Subscription(
+                1053148332,
+                1,
+                "76561199087375065"
+            )
+        )
+        bindings.add(
+            Subscription(
+                1053148332,
+                2,
+                "76561198308338531"
+            )
+        )
+        bindings.add(
+            Subscription(
+                1053148332,
+                3,
+                "76561199095098310"
+            )
+        )
+        bindings.add(
+            Subscription(
+                1053148332,
+                4,
+                "76561199083740317"
+            )
+        )
+    }
 }
