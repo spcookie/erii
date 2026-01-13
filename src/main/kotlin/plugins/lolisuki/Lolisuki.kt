@@ -33,7 +33,10 @@ class Lolisuki : Plugin {
 //        val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             if (event.hit == RouteRule.REQUEST_R18_CONTENT) {
-                client.get("https://lolisuki.cn/api/setu/v1")
+                client.get("https://lolisuki.cn/api/setu/v1") {
+                    parameter("r18", 1)
+                    parameter("level", 4)
+                }
             }
         }
         TODO("Not yet implemented")
