@@ -28,8 +28,8 @@ fun Application.module() {
     configureHTTP()
     configureRouting()
 
-    configureConnectBots()
     configureBotAgent()
+    configureConnectBots()
     configureH2Console()
 }
 

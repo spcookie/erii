@@ -67,14 +67,26 @@ object GroupMessageEventListener : SimpleListenerHost() {
             if (isAtBot) {
                 log.info("机器人【${botId}】被@, 触发主动发言")
                 val route = RoutingAgent.route(botId, groupId, msg)
-                EventBus.postAsync(
-                    ProactiveSpeakEvent(
-                        botMark = botId,
-                        groupId = groupId,
-                        impulse = 0.0,
-                        interruptionMode = InterruptionMode.Interrupt
+                if (route == RouteRule.CHAT) {
+                    EventBus.postAsync(
+                        ProactiveSpeakEvent(
+                            botMark = botId,
+                            groupId = groupId,
+                            impulse = 0.0,
+                            interruptionMode = InterruptionMode.Interrupt
+                        )
                     )
-                )
+                } else {
+                    EventBus.postAsync(
+                        RouteCallEvent(
+                            botId = botId,
+                            groupId = groupId,
+                            input = msg,
+                            hit = route
+                        )
+                    )
+                }
+
             }
         }
         return

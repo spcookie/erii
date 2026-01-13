@@ -19,6 +19,8 @@ interface SendAgentState {
     fun replay(sentence: String, group: Group) {}
     fun closed(group: Group) {}
     fun finally(group: Group) {}
+    fun reject(event: ProactiveSpeakEvent, group: Group, close: () -> Unit) {}
+    fun fallback(event: ProactiveSpeakEvent, group: Group, close: () -> Unit) {}
 }
 
 fun sendAgent(
@@ -49,9 +51,8 @@ fun sendAgent(
 
     state.init(group)
 
-    val ref = mutableListOf<(AgentSendLifeCycleEvent) -> Unit>()
-
-    val subscriber: (AgentSendLifeCycleEvent) -> Unit = { event ->
+    val lifeCycleRef = mutableListOf<(AgentSendLifeCycleEvent) -> Unit>()
+    val lifeCycleSubscriber: (AgentSendLifeCycleEvent) -> Unit = { event ->
         val lifeCycleEvent = event.takeIf { event.botId == botId && event.groupId == groupId }
         if (lifeCycleEvent != null) {
             when (lifeCycleEvent) {
@@ -63,16 +64,35 @@ fun sendAgent(
                     try {
                         state.finally(group)
                     } finally {
-                        ref.forEach { EventBus.unsubscribeSync<AgentSendLifeCycleEvent>(it) }
+                        lifeCycleRef.forEach { EventBus.unsubscribeSync<AgentSendLifeCycleEvent>(it) }
                     }
                 }
             }
         }
     }
+    lifeCycleRef += lifeCycleSubscriber
+    EventBus.subscribeSync<AgentSendLifeCycleEvent>(lifeCycleSubscriber)
 
-    ref += subscriber
+    val dispatchRef = mutableListOf<(AgentDispatchEvent) -> Unit>()
+    val dispatchRefClose = {
+        dispatchRef.forEach { EventBus.unsubscribeSync<AgentDispatchEvent>(it) }
+    }
+    val dispatchSubscriber: (AgentDispatchEvent) -> Unit = { event ->
+        val dispatchEvent = event.takeIf { event.botId == botId && event.groupId == groupId }
+        if (dispatchEvent != null) {
+            when (dispatchEvent) {
+                is AgentRejectGrabEvent -> {
+                    state.reject(dispatchEvent.speak, group, dispatchRefClose)
+                }
 
-    EventBus.subscribeSync<AgentSendLifeCycleEvent>(subscriber)
+                is AgentFallbackEvent -> {
+                    state.fallback(dispatchEvent.speak, group, dispatchRefClose)
+                }
+            }
+        }
+    }
+    dispatchRef += dispatchSubscriber
+    EventBus.subscribeSync<AgentDispatchEvent>(dispatchSubscriber)
 
     EventBus.postAsync(
         ProactiveSpeakEvent(

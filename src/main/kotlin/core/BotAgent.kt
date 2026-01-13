@@ -25,10 +25,13 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonNull
+import net.mamoe.mirai.utils.childScope
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.DEBUG_GROUP_ID
@@ -581,60 +584,18 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryEntity>, 
     }
 }
 
-sealed interface AgentSendLifeCycleEvent {
-    val botId: String
-    val groupId: String
-}
-
-data class AgentBeforeSendAndReceiveEvent(
-    override val botId: String,
-    override val groupId: String,
-    val sentences: List<String>
-) : AgentSendLifeCycleEvent
-
-data class AgentAfterSendAndReceiveEvent(
-    override val botId: String,
-    override val groupId: String,
-    val sentences: List<String>
-) : AgentSendLifeCycleEvent
-
-data class AgentReceiveReplyEvent(
-    override val botId: String,
-    override val groupId: String,
-    val sentence: String
-) : AgentSendLifeCycleEvent
-
-class AgentSendAndReceiveClosedEvent(
-    override val botId: String,
-    override val groupId: String
-) : AgentSendLifeCycleEvent
-
-class AgentSendAndReceiveFinallyEvent(
-    override val botId: String,
-    override val groupId: String
-) : AgentSendLifeCycleEvent
-
 @Suppress("unused")
 class ChatToolSet(
     val context: Context,
+    val flag: ProactiveSpeakFeatureFlag,
     val promptExecutor: PromptExecutor,
+    private val scope: CoroutineScope,
     val sendMessage: suspend (String) -> Unit
 ) : ToolSet {
-
-    private val scope = CoroutineScope(Dispatchers.IO)
 
     @Tool
     fun googleSearch() {
     }
-
-//    @LLMDescription("回复消息，附加“涩图”图片，返回群其他人的回复")
-//    @Tool
-//    fun sendSexImage(@LLMDescription("回复 2～5 句为主，最多 5 句") sentences: List<String>): String? {
-//        return send(buildList {
-//            addAll(sentences)
-//            add("[涩图]")
-//        })
-//    }
 
     @LLMDescription("回复消息")
     @Serializable
@@ -698,6 +659,7 @@ class ChatToolSet(
     fun sendAndReceive(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
         try {
             EventBus.postSync(AgentBeforeSendAndReceiveEvent(context.currentBotId, context.groupId, sentences))
+
             val channel = Channel<HistorySavedEvent>(Channel.CONFLATED)
             val job = EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
                 val record = event.historyRecord
@@ -706,6 +668,7 @@ class ChatToolSet(
                     channel.close()
                 }
             }
+
             val deferred = scope.async {
                 var skip = false
                 var record: HistoryRecord? = null
@@ -800,7 +763,9 @@ object BotAgent {
 
     private val log = logger()
 
-    private val scope = CoroutineScope(Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e ->
+        log.error("BotAgent error", e)
+    })
 
     private val channel = Channel<ProactiveSpeakEvent>(Channel.CONFLATED)
 
@@ -823,116 +788,167 @@ object BotAgent {
 
     fun run() {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
+        val mutex = Mutex()
+        var flag: ProactiveSpeakFeatureFlag? = null
+        var cancel: (() -> Unit)? = null
         scope.launch {
             for (event in channel) {
                 log.info("Bot agent received event: $event")
-                val currentBot = BotManage.getBot(event.botMark)!!
+                val job = scope.launch {
+                    mutex.withLock {
+                        flag = event.flag
 
-                val sendMessage: suspend (String) -> Unit = { message ->
-                    val groupId = DEBUG_GROUP_ID ?: event.groupId
-                    currentBot.bot.getGroup(groupId.toLong())?.sendMessage(message)
-                }
+                        val currentBot = BotManage.getBot(event.botMark)!!
 
-                val context = buildContext(event)
-                val chatPoints = buildChatPoint(context.histories, event.chatPointRule)
-                val buildPrompt = buildPrompt(context, chatPoints)
+                        val sendMessage: suspend (String) -> Unit = { message ->
+                            val groupId = DEBUG_GROUP_ID ?: event.groupId
+                            currentBot.bot.getGroup(groupId.toLong())?.sendMessage(message)
+                        }
+
+                        val context = buildContext(event)
+                        val chatPoints = buildChatPoint(context.histories, event.chatPointRule)
+                        val buildPrompt = buildPrompt(context, chatPoints)
 //                val prompt = buildPrompt(context)
-                val prompt = prompt(
-                    id = "constraint",
-                    params = LLMParams(
+                        val prompt = prompt(
+                            id = "constraint",
+                            params = LLMParams(
 //                        additionalProperties = mapOf(
 //                            "thinkingConfig" to JsonObject(mapOf("thinkingLevel" to JsonPrimitive("LOW")))
 //                        )
-                    )
-                ) {
-                    messages(buildPrompt.messages)
-                }
+                            )
+                        ) {
+                            messages(buildPrompt.messages)
+                        }
 
-                val aiAgent = AIAgent(
-                    promptExecutor = promptExecutor,
-                    agentConfig = AIAgentConfig(
-                        prompt = prompt,
-                        model = GoogleModels.Gemini2_5Pro,
-                        maxAgentIterations = 50,
-                    ),
-                    toolRegistry = ToolRegistry {
-                        tools(
-                            ChatToolSet(
-                                context.copy(groupId = "1053148332"),
-                                promptExecutor,
-                                sendMessage
-                            ).asTools(),
+                        val chatToolSet = ChatToolSet(
+                            context,
+                            event.flag,
+                            promptExecutor,
+                            childScope(Dispatchers.IO),
+                            sendMessage
                         )
-                        event.toolSets?.let { tools(it.asTools()) }
-                    },
-                    strategy = strategy("chat") {
 
-                        val nodeSendInput by nodeLLMRequest()
-                        val nodeExecuteTool by nodeExecuteTool()
-                        val nodeSendToolResult by nodeLLMSendToolResult()
+                        val aiAgent = AIAgent(
+                            promptExecutor = promptExecutor,
+                            agentConfig = AIAgentConfig(
+                                prompt = prompt,
+                                model = GoogleModels.Gemini2_5Pro,
+                                maxAgentIterations = 50,
+                            ),
+                            toolRegistry = ToolRegistry {
+                                tools(chatToolSet.asTools())
+                                event.toolSets?.let { tools(it.asTools()) }
+                            },
+                            strategy = strategy("chat") {
 
-                        edge(nodeStart forwardTo nodeSendInput)
-                        edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
-                        edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
-                        edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
-                            try {
-                                val result = it.result ?: return@onCondition false
-                                result.jsonNull
-                                false
-                            } catch (_: Exception) {
-                                true
-                            }
-                        })
-                        edge(nodeExecuteTool forwardTo nodeFinish onCondition {
-                            try {
-                                val result = it.result ?: return@onCondition true
-                                result.jsonNull
-                                true
-                            } catch (_: Exception) {
-                                false
-                            }
-                        } transformed { it.content })
-                        edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-                        edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+                                val nodeSendInput by nodeLLMRequest()
+                                val nodeExecuteTool by nodeExecuteTool()
+                                val nodeSendToolResult by nodeLLMSendToolResult()
+
+                                edge(nodeStart forwardTo nodeSendInput)
+                                edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
+                                edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
+                                edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
+                                    try {
+                                        val result = it.result ?: return@onCondition false
+                                        result.jsonNull
+                                        false
+                                    } catch (_: Exception) {
+                                        true
+                                    }
+                                })
+                                edge(nodeExecuteTool forwardTo nodeFinish onCondition {
+                                    try {
+                                        val result = it.result ?: return@onCondition true
+                                        result.jsonNull
+                                        true
+                                    } catch (_: Exception) {
+                                        false
+                                    }
+                                } transformed { it.content })
+                                edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
+                                edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
 //                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
-                    }
-                ) {
-                    handleEvents {
-                        onLLMCallStarting {
-                            val info = buildString {
-                                appendLine()
-                                for (message in it.prompt.messages) {
-                                    append("${message.role.name}:")
-                                    appendLine()
-                                    append(message.content)
-                                    appendLine()
+                            }
+                        ) {
+                            handleEvents {
+                                onLLMCallStarting {
+                                    val info = buildString {
+                                        appendLine()
+                                        for (message in it.prompt.messages) {
+                                            append("${message.role.name}:")
+                                            appendLine()
+                                            append(message.content)
+                                            appendLine()
+                                        }
+                                    }
+                                    log.info("onLLMCallStarting: {}", info)
+                                }
+
+                                onLLMCallCompleted {
+                                    val info = buildString {
+                                        appendLine()
+                                        for (message in it.responses) {
+                                            append("${message.role.name}:")
+                                            appendLine()
+                                            append(message.content)
+                                            appendLine()
+                                        }
+                                    }
+                                    log.info("onLLMCallCompleted: {}", info)
                                 }
                             }
-                            log.info("onLLMCallStarting: {}", info)
                         }
 
-                        onLLMCallCompleted {
-                            val info = buildString {
-                                appendLine()
-                                for (message in it.responses) {
-                                    append("${message.role.name}:")
-                                    appendLine()
-                                    append(message.content)
-                                    appendLine()
-                                }
-                            }
-                            log.info("onLLMCallCompleted: {}", info)
-                        }
+                        val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
+                        log.debug("llm result: $result")
                     }
                 }
-
-                val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
-                log.debug("llm result: $result")
+                cancel = {
+                    job.cancel()
+                }
+                job.join()
             }
         }
 
         EventBus.subscribeAsync<ProactiveSpeakEvent>(scope) {
-            channel.send(it)
+            if (mutex.isLocked) {
+                if (it.flag has ProactiveSpeakFeature.GRAB) {
+                    if (flag has ProactiveSpeakFeature.IGRNORE_ITERRUPTION) {
+                        if (it.flag has ProactiveSpeakFeature.FALLBACK) {
+                            EventBus.postAsync(
+                                AgentFallbackEvent(
+                                    it.botMark,
+                                    it.groupId,
+                                    it
+                                )
+                            )
+                        } else {
+                            EventBus.postAsync(
+                                AgentRejectGrabEvent(
+                                    it.botMark,
+                                    it.groupId,
+                                    it
+                                )
+                            )
+                        }
+                    } else {
+                        cancel?.invoke()
+                    }
+                } else if (it.flag has ProactiveSpeakFeature.FALLBACK) {
+                    EventBus.postAsync(
+                        AgentFallbackEvent(
+                            it.botMark,
+                            it.groupId,
+                            it
+                        )
+                    )
+                } else {
+                    channel.send(it)
+                }
+            } else {
+                channel.send(it)
+            }
         }
     }
 
