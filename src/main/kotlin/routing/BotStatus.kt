@@ -4,6 +4,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
+import uesugi.BotManage
 import uesugi.ENABLE_GROUPS
 import uesugi.core.emotion.BehaviorProfile
 import uesugi.core.emotion.EmotionService
@@ -12,7 +13,6 @@ import uesugi.core.flow.FlowGaugeManager
 import uesugi.core.flow.FlowMeterState
 import uesugi.core.memory.MemoryService
 import uesugi.core.volition.VolitionGaugeManager
-import uesugi.server.BotManage
 
 fun Routing.configureBotStatus() {
     get("/bots") {

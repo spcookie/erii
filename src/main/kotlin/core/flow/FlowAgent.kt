@@ -17,7 +17,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
-import uesugi.server.BotManage
+import uesugi.BotManage
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
