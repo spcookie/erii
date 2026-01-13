@@ -51,7 +51,7 @@ fun sendAgent(
     botId: String,
     groupId: String,
     input: String,
-    toolSets: ToolSet? = null,
+    toolSets: ((ChatToolSet) -> ToolSet)? = null,
     state: SendAgentState
 ) = sendAgent(botId, groupId, input, null, toolSets, state)
 
@@ -60,7 +60,7 @@ fun sendAgent(
     groupId: String,
     input: String,
     chatPointRule: String? = null,
-    toolSets: ToolSet? = null,
+    toolSets: ((ChatToolSet) -> ToolSet)? = null,
     state: SendAgentState
 ) = sendAgent(botId, groupId, input, chatPointRule, toolSets, ProactiveSpeakFeature.NONE, state)
 
@@ -69,7 +69,7 @@ fun sendAgent(
     groupId: String,
     input: String,
     chatPointRule: String? = null,
-    toolSets: ToolSet? = null,
+    toolSets: ((ChatToolSet) -> ToolSet)? = null,
     flag: ProactiveSpeakFeatureFlag,
     state: SendAgentState
 ) {

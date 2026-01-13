@@ -10,7 +10,7 @@ data class ProactiveSpeakEvent(
     val interruptionMode: InterruptionMode,
     val input: String? = null,
     val chatPointRule: String? = null,
-    val toolSets: ToolSet? = null,
+    val toolSets: ((ChatToolSet) -> ToolSet)? = null,
     val flag: ProactiveSpeakFeatureFlag = NONE,
 )
 

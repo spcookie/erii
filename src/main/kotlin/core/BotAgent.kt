@@ -369,7 +369,6 @@ data class ChatPoints(
     val chatPoints: List<ChatPoint>
 )
 
-
 private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>, rules: String? = null): List<ChatPoint> {
     val msg =
         historyEntities.map { "[ID:${it.id} ${it.userId} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
@@ -640,7 +639,7 @@ class ChatToolSet(
         return null
     }
 
-    private fun send(sentences: List<String>): Job {
+    fun send(sentences: List<String>): Job {
         return scope.async {
             for ((i, sentence) in sentences.withIndex()) {
                 if (i == 1) {
@@ -828,6 +827,8 @@ object BotAgent {
                             sendMessage
                         )
 
+                        val toolSet = event.toolSets?.invoke(chatToolSet)
+
                         val aiAgent = AIAgent(
                             promptExecutor = promptExecutor,
                             agentConfig = AIAgentConfig(
@@ -837,7 +838,7 @@ object BotAgent {
                             ),
                             toolRegistry = ToolRegistry {
                                 tools(chatToolSet.asTools())
-                                event.toolSets?.let { tools(it.asTools()) }
+                                toolSet?.let { tools(it.asTools()) }
                             },
                             strategy = strategy("chat") {
 
