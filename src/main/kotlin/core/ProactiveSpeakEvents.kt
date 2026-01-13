@@ -22,7 +22,7 @@ enum class InterruptionMode {
 
 object ProactiveSpeakFeature {
     const val NONE = 0x0
-    const val IGRNORE_ITERRUPTION = 0x1
+    const val IGNORE_INTERRUPT = 0x1
     const val GRAB = 0x2
     const val FALLBACK = 0x4
 }
