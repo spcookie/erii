@@ -2,7 +2,10 @@ package uesugi
 
 import io.ktor.server.application.*
 import org.h2.tools.Server
-import uesugi.server.*
+import uesugi.server.configureFrameworks
+import uesugi.server.configureHTTP
+import uesugi.server.configureMonitoring
+import uesugi.server.configureRouting
 import uesugi.toolkit.logger
 
 //val DEBUG_GROUP_ID: String? = "474270623"
@@ -13,7 +16,7 @@ val ENABLE_GROUPS = listOf(
 )
 
 val MESSAGE_REDIRECT_GROUP_MAP = mapOf(
-    "474270623" to "1053148332"
+    "1053148332——" to "474270623"
 )
 
 internal val LOG = logger("uesugi")
