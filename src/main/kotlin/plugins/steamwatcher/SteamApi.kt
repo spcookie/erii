@@ -1,6 +1,7 @@
 package plugins.steamwatcher
 
 import io.ktor.client.*
+import io.ktor.client.engine.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -11,7 +12,14 @@ import uesugi.toolkit.logger
 
 
 object SteamApi {
-    private val client = HttpClient(CIO)
+    private val client = HttpClient(CIO) {
+        engine {
+            val httpProxy = System.getProperty("http.proxy")
+            if (httpProxy != null) {
+                proxy = ProxyBuilder.http(httpProxy)
+            }
+        }
+    }
 
     private val log = logger()
 

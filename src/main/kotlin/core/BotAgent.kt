@@ -31,6 +31,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonNull
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
+import uesugi.DEBUG_GROUP_ID
 import uesugi.core.emotion.*
 import uesugi.core.evolution.LearnedVocabEntity
 import uesugi.core.evolution.VocabularyService
@@ -459,7 +460,7 @@ private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>): Prompt {
     }
 }
 
-private fun MarkdownContentBuilder.buildRequestEvaPrompt() {
+fun MarkdownContentBuilder.buildRequestEvaPrompt() {
     header(2, "能力边界与求助机制")
     line { text("你的设定是'缺乏常识的少女'，因此你**不懂**以下内容：") }
     numbered {
@@ -486,7 +487,7 @@ private fun MarkdownContentBuilder.buildRequestEvaPrompt() {
     }
 }
 
-private fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechConstraints) {
+fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechConstraints) {
     line { text("当前说话方式约束：") }
     bulleted {
         constraints.styleHints.forEach { item(it) }
@@ -500,7 +501,7 @@ private fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechCon
     }
 }
 
-private fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<LearnedVocabEntity>) {
+fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<LearnedVocabEntity>) {
     if (vocabulary.isNotEmpty()) {
         h2("群聊常用语（可自然使用，不必每条都用）")
         for (learnedVocabEntity in vocabulary) {
@@ -516,7 +517,7 @@ private fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<Learne
     }
 }
 
-private fun MarkdownContentBuilder.buildFactsPrompt(facts: List<FactsEntity>) {
+fun MarkdownContentBuilder.buildFactsPrompt(facts: List<FactsEntity>) {
     if (facts.isNotEmpty()) {
         h2("已知长期事实（参考即可，无需逐条复述）")
         bulleted {
@@ -529,7 +530,7 @@ private fun MarkdownContentBuilder.buildFactsPrompt(facts: List<FactsEntity>) {
     }
 }
 
-private fun MarkdownContentBuilder.buildUserProfilesPrompt(userProfiles: List<UserProfileEntity>) {
+fun MarkdownContentBuilder.buildUserProfilesPrompt(userProfiles: List<UserProfileEntity>) {
     if (userProfiles.isNotEmpty()) {
         h2("活跃成员互动提示（仅参考，不要复述）")
         numbered {
@@ -542,7 +543,7 @@ private fun MarkdownContentBuilder.buildUserProfilesPrompt(userProfiles: List<Us
     }
 }
 
-private fun MarkdownContentBuilder.buildSummaryPrompt(summary: SummaryEntity?) {
+fun MarkdownContentBuilder.buildSummaryPrompt(summary: SummaryEntity?) {
     summary?.let { summary ->
         h2("当前群聊背景（供你快速进入状态）")
         line { text(summary.content) }
@@ -550,7 +551,7 @@ private fun MarkdownContentBuilder.buildSummaryPrompt(summary: SummaryEntity?) {
     }
 }
 
-private fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
+fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
     if (chatPoints.isNotEmpty()) {
         header(2, "最近可接的聊天点（仅参考，不必复述）")
         bulleted {
@@ -562,7 +563,7 @@ private fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPo
     }
 }
 
-private fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryEntity>, currentBotId: String) {
+fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryEntity>, currentBotId: String) {
     if (histories.isNotEmpty()) {
         header(2, "最近群聊记录")
         bulleted {
@@ -828,7 +829,7 @@ object BotAgent {
                 val currentBot = BotManage.getBot(event.botMark)!!
 
                 val sendMessage: suspend (String) -> Unit = { message ->
-                    val groupId = event.debugGroupId ?: event.groupId
+                    val groupId = DEBUG_GROUP_ID ?: event.groupId
                     currentBot.bot.getGroup(groupId.toLong())?.sendMessage(message)
                 }
 
@@ -860,8 +861,9 @@ object BotAgent {
                                 context.copy(groupId = "1053148332"),
                                 promptExecutor,
                                 sendMessage
-                            ).asTools()
+                            ).asTools(),
                         )
+                        event.toolSets?.let { tools(it.asTools()) }
                     },
                     strategy = strategy("chat") {
 

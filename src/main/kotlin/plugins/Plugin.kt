@@ -1,6 +1,8 @@
 package plugins
 
+import ai.koog.agents.core.tools.reflect.ToolSet
 import net.mamoe.mirai.contact.Group
+import uesugi.DEBUG_GROUP_ID
 import uesugi.core.*
 import uesugi.server.BotManage
 import uesugi.toolkit.EventBus
@@ -32,9 +34,18 @@ fun sendAgent(
     input: String,
     chatPointRule: String? = null,
     state: SendAgentState
+) = sendAgent(botId, groupId, input, chatPointRule, null, state)
+
+fun sendAgent(
+    botId: String,
+    groupId: String,
+    input: String,
+    chatPointRule: String? = null,
+    toolSets: ToolSet? = null,
+    state: SendAgentState
 ) {
     val roledBot = BotManage.getBot(botId) ?: return
-    val group = roledBot.bot.getGroup(groupId.toLong()) ?: return
+    val group = roledBot.bot.getGroup(DEBUG_GROUP_ID?.toLong() ?: groupId.toLong()) ?: return
 
     state.init(group)
 
@@ -70,7 +81,8 @@ fun sendAgent(
             0.0,
             InterruptionMode.Interrupt,
             input,
-            chatPointRule
+            chatPointRule,
+            toolSets,
         )
     )
 

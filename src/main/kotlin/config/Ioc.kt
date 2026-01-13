@@ -70,10 +70,25 @@ val adapterModule = module {
 
 val infrastructureModule = module {
     single {
-        LLMFactory(getProperty("llm.proxy")).promptExecutor()
+        LLMFactory().promptExecutor()
     }
 }
 
 val pluginModule = module(createdAtStart = true) {
+//    Subscribers.bindings.add(
+//        Subscribers.Subscription(
+//            1053148332,
+//            2697951448,
+//            "76561198415512702"
+//        )
+//    )
+//
+//    Subscribers.bindings.add(
+//        Subscribers.Subscription(
+//            1053148332,
+//            1307083930,
+//            "76561199087375065"
+//        )
+//    )
     single { SteamWatcher().apply { onLoad() } } onClose { it?.onUnload() }
 }

@@ -66,6 +66,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
             EventBus.postAsync(HistorySavedEvent(historyRecord))
             if (isAtBot) {
                 log.info("机器人【${botId}】被@, 触发主动发言")
+                val route = RoutingAgent.route(botId, groupId, msg)
                 EventBus.postAsync(
                     ProactiveSpeakEvent(
                         botMark = botId,

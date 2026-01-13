@@ -1,6 +1,5 @@
 package plugins.steamwatcher
 
-import com.bcz.Subscribers
 import kotlinx.coroutines.*
 import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.message.data.Image
