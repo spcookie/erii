@@ -1,8 +1,6 @@
 package uesugi.core
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import net.mamoe.mirai.event.EventHandler
 import net.mamoe.mirai.event.SimpleListenerHost
 import net.mamoe.mirai.event.events.GroupMessageEvent
@@ -25,6 +23,8 @@ import kotlin.coroutines.CoroutineContext
 object GroupMessageEventListener : SimpleListenerHost() {
 
     private val log = logger()
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun handleException(context: CoroutineContext, exception: Throwable) {
         log.error("History exception", exception)
@@ -65,29 +65,30 @@ object GroupMessageEventListener : SimpleListenerHost() {
             }
             EventBus.postAsync(HistorySavedEvent(historyRecord))
             if (isAtBot) {
-                log.info("机器人【${botId}】被@, 触发主动发言")
-                val route = RoutingAgent.route(botId, groupId, msg)
-                log.info("路由结果：{}", route)
-                if (route == RouteRule.CHAT) {
-                    EventBus.postAsync(
-                        ProactiveSpeakEvent(
-                            botMark = botId,
-                            groupId = groupId,
-                            impulse = 0.0,
-                            interruptionMode = InterruptionMode.Interrupt
+                scope.launch {
+                    log.info("机器人【${botId}】被@, 触发主动发言")
+                    val route = RoutingAgent.route(botId, groupId, msg)
+                    log.info("路由结果：{}", route)
+                    if (route == RouteRule.CHAT) {
+                        EventBus.postAsync(
+                            ProactiveSpeakEvent(
+                                botMark = botId,
+                                groupId = groupId,
+                                impulse = 0.0,
+                                interruptionMode = InterruptionMode.Interrupt
+                            )
                         )
-                    )
-                } else {
-                    EventBus.postAsync(
-                        RouteCallEvent(
-                            botId = botId,
-                            groupId = groupId,
-                            input = msg,
-                            hit = route
+                    } else {
+                        EventBus.postAsync(
+                            RouteCallEvent(
+                                botId = botId,
+                                groupId = groupId,
+                                input = msg,
+                                hit = route
+                            )
                         )
-                    )
+                    }
                 }
-
             }
         }
         return
