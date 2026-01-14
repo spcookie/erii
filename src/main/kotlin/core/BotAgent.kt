@@ -819,7 +819,36 @@ object BotAgent {
             log.error("BotAgent error", e)
         })
 
-    private val channel = Channel<ProactiveSpeakEvent>(Channel.CONFLATED)
+    private data class BotGroupKey(val botId: String, val groupId: String)
+    private data class BotGroupState(
+        val flag: ProactiveSpeakFeatureFlag?,
+        val cancel: (() -> Unit)?
+    )
+
+    private val channels = mutableMapOf<BotGroupKey, Channel<ProactiveSpeakEvent>>()
+    private val mutexes = mutableMapOf<BotGroupKey, Mutex>()
+    private val states = mutableMapOf<BotGroupKey, BotGroupState>()
+    private val channelsLock = Mutex()
+
+    private suspend fun getChannel(botId: String, groupId: String): Channel<ProactiveSpeakEvent> {
+        val key = BotGroupKey(botId, groupId)
+        return channelsLock.withLock {
+            channels.getOrPut(key) {
+                Channel<ProactiveSpeakEvent>(Channel.CONFLATED).also { channel ->
+                    scope.launch {
+                        processChannel(key, channel)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun getMutex(botId: String, groupId: String): Mutex {
+        val key = BotGroupKey(botId, groupId)
+        return channelsLock.withLock {
+            mutexes.getOrPut(key) { Mutex() }
+        }
+    }
 
     private val DEFAULT_INPUT = """
                 【发言原则｜高优先级，必须遵守】
@@ -839,37 +868,84 @@ object BotAgent {
                 """.trimIndent()
 
     fun run() {
-        val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
-        val mutex = Mutex()
-        var flag: ProactiveSpeakFeatureFlag? = null
-        var cancel: (() -> Unit)? = null
-        scope.launch {
-            for (event in channel) {
-                log.info("Bot agent received event: $event")
-                try {
-                    val toolScope = CoroutineScope(
-                        SupervisorJob()
-                                + Dispatchers.IO
-                                + CoroutineName("BotAgentTool")
-                                + CoroutineExceptionHandler { _, e ->
-                            log.error("BotAgentTool error", e)
-                        })
+        EventBus.subscribeAsync<ProactiveSpeakEvent>(scope) {
+            val channel = getChannel(it.botId, it.groupId)
+            val mutex = getMutex(it.botId, it.groupId)
+            val key = BotGroupKey(it.botId, it.groupId)
 
-                    val job = launch {
-                        mutex.withLock {
-                            var error: Throwable? = null
-                            try {
-                                EventBus.postAsync(
-                                    AgentCallStartEvent(
-                                        event.botId,
-                                        event.groupId,
-                                        event
-                                    )
+            if (mutex.isLocked) {
+                val state = channelsLock.withLock { states[key] }
+                if (it.flag has ProactiveSpeakFeature.GRAB) {
+                    if (state?.flag has ProactiveSpeakFeature.IGNORE_INTERRUPT) {
+                        if (it.flag has ProactiveSpeakFeature.FALLBACK) {
+                            EventBus.postAsync(
+                                AgentFallbackEvent(
+                                    it.botId,
+                                    it.groupId,
+                                    it
                                 )
+                            )
+                        } else {
+                            EventBus.postAsync(
+                                AgentRejectGrabEvent(
+                                    it.botId,
+                                    it.groupId,
+                                    it
+                                )
+                            )
+                        }
+                    } else {
+                        state?.cancel?.invoke()
+                    }
+                } else if (it.flag has ProactiveSpeakFeature.FALLBACK) {
+                    EventBus.postAsync(
+                        AgentFallbackEvent(
+                            it.botId,
+                            it.groupId,
+                            it
+                        )
+                    )
+                } else {
+                    channel.send(it)
+                }
+            } else {
+                channel.send(it)
+            }
+        }
+    }
 
-                                flag = event.flag
+    private suspend fun processChannel(key: BotGroupKey, channel: Channel<ProactiveSpeakEvent>) {
+        val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
 
-                                val currentBot = BotManage.getBot(event.botId)!!
+        for (event in channel) {
+            log.info("Bot agent received event: $event")
+            try {
+                val toolScope = CoroutineScope(
+                    SupervisorJob()
+                            + Dispatchers.IO
+                            + CoroutineName("BotAgentTool-${key.botId}-${key.groupId}")
+                            + CoroutineExceptionHandler { _, e ->
+                        log.error("BotAgentTool error", e)
+                    })
+
+                val mutex = getMutex(key.botId, key.groupId)
+                val job = scope.launch {
+                    mutex.withLock {
+                        var error: Throwable? = null
+                        try {
+                            EventBus.postAsync(
+                                AgentCallStartEvent(
+                                    event.botId,
+                                    event.groupId,
+                                    event
+                                )
+                            )
+
+                            channelsLock.withLock {
+                                states[key] = BotGroupState(event.flag, null)
+                            }
+
+                            val currentBot = BotManage.getBot(event.botId)!!
 
                                 val sendMessage: suspend (String) -> Unit = { message ->
                                     val groupId = DEBUG_GROUP_ID ?: event.groupId
@@ -952,29 +1028,36 @@ object BotAgent {
                                 ) {
                                     handleEvents {
                                         onLLMCallStarting {
-                                            val info = buildString {
-                                                appendLine()
-                                                for (message in it.prompt.messages) {
-                                                    append("${message.role.name}:")
+                                            if (log.isDebugEnabled) {
+                                                val info = buildString {
                                                     appendLine()
-                                                    append(message.content)
-                                                    appendLine()
+                                                    for (message in it.prompt.messages) {
+                                                        append("${message.role.name}:")
+                                                        appendLine()
+                                                        append(message.content)
+                                                        appendLine()
+                                                    }
                                                 }
+                                                log.debug("Bot agent onLLMCallStarting: {}", info)
+                                            } else {
+                                                log.info("Bot agent onLLMCallStarting")
                                             }
-                                            log.info("Bot agent onLLMCallStarting: {}", info)
                                         }
 
                                         onLLMCallCompleted {
-                                            val info = buildString {
-                                                appendLine()
-                                                for (message in it.responses) {
-                                                    append("${message.role.name}:")
+                                            if (log.isDebugEnabled) {
+                                                val info = buildString {
                                                     appendLine()
-                                                    append(message.content)
-                                                    appendLine()
+                                                    for (message in it.responses) {
+                                                        append("${message.role.name}:")
+                                                        appendLine()
+                                                        append(message.content)
+                                                        appendLine()
+                                                    }
                                                 }
+                                                log.debug("Bot agent onLLMCallCompleted: {}", info)
                                             }
-                                            log.info("Bot agent onLLMCallCompleted: {}", info)
+                                            log.info("Bot agent onLLMCallCompleted")
                                         }
                                     }
                                 }
@@ -996,9 +1079,14 @@ object BotAgent {
                             }
                         }
                     }
-                    cancel = {
+
+                val cancelFunc = {
                         toolScope.cancel()
                         job.cancel()
+                }
+
+                channelsLock.withLock {
+                    states[key] = states[key]?.copy(cancel = cancelFunc) ?: BotGroupState(null, cancelFunc)
                     }
 
                     job.join()
@@ -1009,46 +1097,5 @@ object BotAgent {
                 }
             }
         }
-
-        EventBus.subscribeAsync<ProactiveSpeakEvent>(scope) {
-            if (mutex.isLocked) {
-                if (it.flag has ProactiveSpeakFeature.GRAB) {
-                    if (flag has ProactiveSpeakFeature.IGNORE_INTERRUPT) {
-                        if (it.flag has ProactiveSpeakFeature.FALLBACK) {
-                            EventBus.postAsync(
-                                AgentFallbackEvent(
-                                    it.botId,
-                                    it.groupId,
-                                    it
-                                )
-                            )
-                        } else {
-                            EventBus.postAsync(
-                                AgentRejectGrabEvent(
-                                    it.botId,
-                                    it.groupId,
-                                    it
-                                )
-                            )
-                        }
-                    } else {
-                        cancel?.invoke()
-                    }
-                } else if (it.flag has ProactiveSpeakFeature.FALLBACK) {
-                    EventBus.postAsync(
-                        AgentFallbackEvent(
-                            it.botId,
-                            it.groupId,
-                            it
-                        )
-                    )
-                } else {
-                    channel.send(it)
-                }
-            } else {
-                channel.send(it)
-            }
-        }
-    }
 
 }
