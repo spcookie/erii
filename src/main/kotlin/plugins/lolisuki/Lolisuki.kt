@@ -157,7 +157,7 @@ class Lolisuki : Plugin {
                     sendAgent(
                         botId = event.botId,
                         groupId = event.groupId,
-                        input = "加入群聊天，如果群友向你索要涩图，你需要发送一张涩图给群友。",
+                        input = "加入群聊天，如果群友向你索要涩图，你需要调用工具发送一张涩图给群友。",
                         toolSets = { ImageTool(image, group, it) },
                         chatPointRule = "如果群友索要涩图，请发送。",
                         state = object : SendAgentState {}
