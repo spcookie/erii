@@ -87,7 +87,7 @@ class ExtractionAgent {
             )
 
             val slangWords = result.getOrThrow().data.words
-            log.info("流行语提取成功, 提取数量=${slangWords.size}, 词汇=${slangWords.joinToString(", ") { word -> word.word }}")
+            log.debug("流行语提取成功, 提取数量=${slangWords.size}, 词汇=${slangWords.joinToString(", ") { word -> word.word }}")
             slangWords
         } catch (e: Exception) {
             log.error("提取流行语失败", e)

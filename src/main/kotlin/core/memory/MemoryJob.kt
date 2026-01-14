@@ -203,7 +203,7 @@ class MemoryJob {
             val maxHistoryId = histories.maxOf { it.id.value }
             updateMemoryState(botMark, groupId, maxHistoryId)
 
-            log.info("群组 $groupId 记忆处理完成, 最大 historyId=$maxHistoryId")
+            log.debug("群组 $groupId 记忆处理完成, 最大 historyId=$maxHistoryId")
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 记忆失败", e)
@@ -348,7 +348,7 @@ class MemoryJob {
                         }
                     }
                 }
-                log.info("事实记忆已保存, groupId=$groupId, 数量=${factsList.size}")
+                log.debug("事实记忆已保存, groupId=$groupId, 数量=${factsList.size}")
             }
         } catch (e: Exception) {
             log.error("提取事实记忆失败, groupId=$groupId", e)
@@ -392,7 +392,7 @@ class MemoryJob {
                             }
                         }
                     }
-                    log.info("Todo 事项已保存, userId=$userId, 数量=${todoList.size}")
+                    log.debug("Todo 事项已保存, userId=$userId, 数量=${todoList.size}")
                 }
             }
 
@@ -427,7 +427,7 @@ class MemoryJob {
                         participantCount = summary.participantIds.distinct().size
                         messageCount = summary.messageCount
                     }
-                    log.info("对话摘要已保存, groupId=$groupId")
+                    log.debug("对话摘要已保存, groupId=$groupId")
                 }
             }
 

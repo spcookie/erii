@@ -88,7 +88,7 @@ class VolitionGauge(
                     state.lastActiveTime = volitionState.lastActiveTime
                     log.debug("从数据库加载主动意愿状态, botMark=$botMark, groupId=$groupId, fatigue=${state.fatigue}, stimulus=${state.stimulus}")
                 } else {
-                    log.info("群组 botMark=$botMark, groupId=$groupId 没有主动意愿状态记录, 使用默认值")
+                    log.debug("群组 botMark=$botMark, groupId=$groupId 没有主动意愿状态记录, 使用默认值")
                 }
             }
         } catch (e: Exception) {
@@ -161,17 +161,17 @@ class VolitionGauge(
 
     fun minusStimulus(amount: Double) {
         state.minusStimulus(amount)
-        log.info("刺激值重置: $amount, botMark=$botMark, groupId=$groupId")
+        log.debug("刺激值重置: $amount, botMark=$botMark, groupId=$groupId")
     }
 
     fun addStimulus(amount: Double) {
         state.addStimulus(amount)
-        log.info("刺激值增加: +$amount, 当前刺激值: ${state.stimulus}, botMark=$botMark, groupId=$groupId")
+        log.debug("刺激值增加: +$amount, 当前刺激值: ${state.stimulus}, botMark=$botMark, groupId=$groupId")
     }
 
     fun addFatigue(amount: Double) {
         state.addFatigue(amount)
-        log.info("疲劳值增加: +$amount, 当前疲劳值: ${state.fatigue}, botMark=$botMark, groupId=$groupId")
+        log.debug("疲劳值增加: +$amount, 当前疲劳值: ${state.fatigue}, botMark=$botMark, groupId=$groupId")
     }
 
     fun decayFatigue() {
@@ -203,7 +203,7 @@ class VolitionGaugeManager {
     fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies): VolitionGauge {
         val key = "$botMark:$groupId"
         return gauges.getOrPut(key) {
-            log.info("创建新的VolitionGauge实例, botMark=$botMark, groupId=$groupId")
+            log.debug("创建新的VolitionGauge实例, botMark=$botMark, groupId=$groupId")
             VolitionGauge(mood, botMark, groupId)
         }
     }
@@ -220,6 +220,6 @@ class VolitionGaugeManager {
     fun stopAll() {
         gauges.values.forEach { it.stop() }
         gauges.clear()
-        log.info("所有VolitionGauge实例已关闭")
+        log.debug("所有VolitionGauge实例已关闭")
     }
 }

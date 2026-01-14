@@ -3,11 +3,16 @@ package uesugi.plugins.lolisuki
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
+import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.executor.clients.google.GoogleModels
+import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.structure.executeStructured
 import com.fasterxml.jackson.databind.JsonNode
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import kotlinx.coroutines.*
+import kotlinx.serialization.Serializable
 import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.message.data.Image
 import net.mamoe.mirai.message.data.MessageChainBuilder
@@ -35,13 +40,68 @@ class Lolisuki : Plugin {
     private lateinit var job: Job
 
     override fun onLoad() {
-//        val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
+        val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             if (event.hit == RouteRule.REQUEST_R18_CONTENT) {
+
+                @Serializable
+                @LLMDescription("标签")
+                data class Tag(val values: List<String>)
+
+                @Serializable
+                @LLMDescription("标签组")
+                data class TagGroup(val groups: List<Tag>)
+
+                val prompt = prompt("提取标题、关键词") {
+                    user(
+                        """
+                            请根据以下规则提取下面内容中索要图片的关键词、标签(Tag)
+                            
+                            规则：
+                                - 可以提取多个关键词
+                                - 多个关键词如果是 AND 语义，则是一个“标签组”，OR 语义，则是多个“标签组”
+                                - 如果没有关键词、标签可以提取，不要捏造，返回空
+                                
+                            内容：
+                            ${event.input}
+                        """.trimIndent()
+                    )
+                }
+
+                log.info("用户输入：${event.input}，开始提取关键词")
+
+                val result = promptExecutor.executeStructured<TagGroup>(
+                    prompt,
+                    GoogleModels.Gemini2_5FlashLite
+                )
+
+                var tags: List<String>? = null
+                if (result.isSuccess) {
+                    tags = result.getOrNull()?.data?.run {
+                        buildList {
+                            for (group in groups) {
+                                add(group.values.joinToString("|"))
+                            }
+                        }
+                    }
+                }
+
+                if (tags == null) {
+                    log.info("未提取到关键词、标签")
+                } else {
+                    log.info("提取到关键词、标签: ${tags.joinToString("&")}")
+                }
+
                 val node: JsonNode = client.get("https://lolisuki.cn/api/setu/v1") {
                     parameter("r18", 1)
                     parameter("level", 4)
                     parameter("num", 4)
+                    if (tags != null) {
+                        for (tag in tags) {
+                            parameter("tag", tag)
+                        }
+                    }
+                    log.info("开始获取图片连接: $url")
                 }.body()
                 if (node.get("code").asInt() != 0) {
                     log.error("Lolisuki error: ${node.get("message").asText()}")
@@ -53,6 +113,7 @@ class Lolisuki : Plugin {
                     var image: Image? = null
                     for (i in 0 until 4) {
                         val url = node.get("data")[i].get("urls").get("regular").asText()
+                        log.info("开始获取图片: $url")
                         try {
                             val connection = URL(url).openConnection()
                                 .apply {
@@ -66,10 +127,12 @@ class Lolisuki : Plugin {
                             }
                             break
                         } catch (_: Exception) {
-                            // ignore
+                            log.info("图片: $url 获取失败，开始获取下一张图片")
                         }
                     }
-                    if (image == null) throw RuntimeException("Lolisuki error: 无法获取图片")
+                    if (image == null) {
+                        log.warn("未获取到图片")
+                    }
                     sendAgent(
                         botId = event.botId,
                         groupId = event.groupId,
@@ -89,7 +152,7 @@ class Lolisuki : Plugin {
         }
     }
 
-    class ImageTool(val image: Image, val group: Group, val chatToolSet: ChatToolSet) : ToolSet {
+    class ImageTool(val image: Image?, val group: Group, val chatToolSet: ChatToolSet) : ToolSet {
 
         private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -98,9 +161,11 @@ class Lolisuki : Plugin {
         fun sendMessageAndImage(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
             scope.launch {
                 val job = chatToolSet.send(sentences)
-                job.join()
-                val message = MessageChainBuilder().append(image).build()
-                group.sendMessage(message)
+                if (image != null) {
+                    job.join()
+                    val message = MessageChainBuilder().append(image).build()
+                    group.sendMessage(message)
+                }
             }
             return null
         }

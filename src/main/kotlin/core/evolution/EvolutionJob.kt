@@ -91,7 +91,7 @@ class EvolutionJob(
                 .map { it[HistoryTable.groupId] }
                 .distinct()
 
-            log.info("查询到活跃群组数量: ${groups.size}")
+            log.debug("查询到活跃群组数量: ${groups.size}")
             groups
         }
     }
@@ -120,7 +120,7 @@ class EvolutionJob(
                 return
             }
 
-            log.info("消息捕获完成, 消息数=${recentMessages.size}")
+            log.debug("消息捕获完成, 消息数=${recentMessages.size}")
 
             // 步骤2: 使用 LLM 提取流行语
             val slangWords = extractionAgent.extractSlangWords(recentMessages)
@@ -128,9 +128,9 @@ class EvolutionJob(
             if (slangWords.isEmpty()) {
                 log.warn("未提取到流行语，可能消息内容过于日常")
             } else {
-                log.info("流行语提取完成, 提取数量=${slangWords.size}")
+                log.debug("流行语提取完成, 提取数量=${slangWords.size}")
                 slangWords.forEachIndexed { index, slang ->
-                    log.info("  ${index + 1}. ${slang.word} (${slang.type}) - ${slang.meaning}")
+                    log.debug("  ${index + 1}. ${slang.word} (${slang.type}) - ${slang.meaning}")
                 }
             }
 
@@ -138,13 +138,13 @@ class EvolutionJob(
             for (slangWord in slangWords) {
                 vocabularyService.addOrUpdateWord(botMark, groupId, slangWord)
             }
-            log.info("词汇库更新完成")
+            log.debug("词汇库更新完成")
 
             // 步骤4: 热度衰减
             vocabularyService.decayOldWords(botMark, groupId, recentMessages)
-            log.info("热度衰减完成")
+            log.debug("热度衰减完成")
 
-            log.info("群组 $groupId 模因进化处理完成")
+            log.debug("群组 $groupId 模因进化处理完成")
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 模因进化失败", e)

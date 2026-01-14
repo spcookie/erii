@@ -131,7 +131,7 @@ class EmotionJob {
                     .firstOrNull()
 
                 if (currentEmotionEntity == null) {
-                    log.info("群组 $groupId 没有情绪记录, 跳过衰减")
+                    log.debug("群组 $groupId 没有情绪记录, 跳过衰减")
                     return@transaction
                 }
 
@@ -141,7 +141,7 @@ class EmotionJob {
                 val instant = currentEmotionEntity.updatedAt.toInstant(tz)
                 val seconds = (now - instant).inWholeSeconds.coerceAtLeast(0)
 
-                log.info("群组 $groupId 距离上次更新已过 $seconds 秒")
+                log.debug("群组 $groupId 距离上次更新已过 $seconds 秒")
 
                 /**
                  * 情绪衰减函数
@@ -191,7 +191,7 @@ class EmotionJob {
                 val mood =
                     decayMood(currentEmotionEntity.mood, BotManage.getBot(currentBotId)!!.role.emoticon.pad, seconds)
 
-                log.info(
+                log.debug(
                     "群组 $groupId 情绪衰减: emotion P=${
                         String.format(
                             "%.2f",
@@ -199,7 +199,7 @@ class EmotionJob {
                         )
                     }, A=${String.format("%.2f", emotion.a)}, D=${String.format("%.2f", emotion.d)}"
                 )
-                log.info(
+                log.debug(
                     "群组 $groupId 心情衰减: mood P=${String.format("%.2f", mood.p)}, A=${
                         String.format(
                             "%.2f",
@@ -235,7 +235,7 @@ class EmotionJob {
                     )
                 )
 
-                log.info("群组 $groupId 情绪衰减完成")
+                log.debug("群组 $groupId 情绪衰减完成")
             }
         }
     }
@@ -256,7 +256,7 @@ class EmotionJob {
         groupSize: Int,
         adminPresent: Boolean
     ) {
-        log.info("开始分析群组情绪, groupId=$groupId")
+        log.debug("开始分析群组情绪, groupId=$groupId")
 
         var historyEntities: List<HistoryEntity> = emptyList()
         var contextHistories: List<HistoryEntity> = emptyList()
@@ -314,7 +314,7 @@ class EmotionJob {
             return
         }
 
-        log.info("群组 $groupId 获取到 ${historyEntities.size} 条新消息, ${contextHistories.size} 条上下文消息, 开始情感分析")
+        log.debug("群组 $groupId 获取到 ${historyEntities.size} 条新消息, ${contextHistories.size} 条上下文消息, 开始情感分析")
 
         // 3. 合并上下文和新消息,转换为 GMessage 格式
         val allHistories = contextHistories + historyEntities
@@ -359,7 +359,7 @@ class EmotionJob {
         val emotion = behaviorAnalysis.decideEmotion(stimulus, decay)
         val mood = behaviorAnalysis.decideMood(stimulus, decay)
 
-        log.info(
+        log.debug(
             "群组 $groupId 新情绪状态: emotion P=${String.format("%.2f", emotion.p)}, A=${
                 String.format(
                     "%.2f",
@@ -367,7 +367,7 @@ class EmotionJob {
                 )
             }, D=${String.format("%.2f", emotion.d)}"
         )
-        log.info(
+        log.debug(
             "群组 $groupId 新心情状态: mood P=${String.format("%.2f", mood.p)}, A=${
                 String.format(
                     "%.2f",
@@ -385,7 +385,14 @@ class EmotionJob {
             decay = decay
         )
 
-        log.info("群组 $groupId 行为表现: emotion=${behaviorProfile.emotion}, tone=${behaviorProfile.tone}, aggressiveness=${behaviorProfile.aggressiveness}, emojiLevel=${behaviorProfile.emojiLevel}")
+        log.debug(
+            "群组 {} 行为表现: emotion={}, tone={}, aggressiveness={}, emojiLevel={}",
+            groupId,
+            behaviorProfile.emotion,
+            behaviorProfile.tone,
+            behaviorProfile.aggressiveness,
+            behaviorProfile.emojiLevel
+        )
 
         // 9. 保存新的情绪状态
         withContext(Dispatchers.IO) {
@@ -400,7 +407,7 @@ class EmotionJob {
                     behavior = behaviorProfile
                     historyMessageProcessed = historyEntities.maxOf { it.id.value }
                 }
-                log.info("群组 $groupId 情绪状态已保存, 处理到 historyId=${historyEntities.maxOf { it.id.value }}")
+                log.debug("群组 $groupId 情绪状态已保存, 处理到 historyId=${historyEntities.maxOf { it.id.value }}")
                 EventBus.postAsync(
                     EmotionChangeEvent(
                         currentBotId,
