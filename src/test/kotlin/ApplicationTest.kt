@@ -1,5 +1,9 @@
 package uesugi
 
+import ai.koog.agents.core.agent.asMermaidDiagram
+import ai.koog.agents.core.dsl.builder.forwardTo
+import ai.koog.agents.core.dsl.builder.strategy
+import ai.koog.agents.core.dsl.extension.*
 import com.fasterxml.jackson.databind.JsonNode
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -139,6 +143,28 @@ class ApplicationTest {
         EventBus.postAsync(EventTest_1("aaa", "bbb"))
 
         delay(2000)
+    }
+
+    @Test
+    fun test_edge() {
+        println(strategy("chat") {
+
+            val nodeSendInput by nodeLLMRequest()
+            val nodeExecuteTool by nodeExecuteTool()
+            val nodeSendToolResult by nodeLLMSendToolResult()
+
+            edge(nodeStart forwardTo nodeSendInput)
+            edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
+            edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
+            edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
+                it.content != "null"
+            })
+            edge(nodeExecuteTool forwardTo nodeFinish onCondition {
+                it.content == "null"
+            } transformed { it.content })
+            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
+            edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+        }.asMermaidDiagram())
     }
 
 }

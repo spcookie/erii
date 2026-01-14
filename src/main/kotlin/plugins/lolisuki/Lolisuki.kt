@@ -131,7 +131,7 @@ class Lolisuki : Plugin {
                     log.info("开始获取图片连接: $url")
                 }.body()
                 if (node.get("code").asInt() != 0) {
-                    log.error("获取图片连接失败: ${node.get("message").asText()}")
+                    log.error("获取图片连接失败: $node")
                 } else {
                     val roledBot = BotManage.getBot(event.botId)!!
                     val bot = roledBot.bot
@@ -209,7 +209,6 @@ class Lolisuki : Plugin {
         val chatToolSet: ChatToolSet,
         val state: AtomicBoolean
     ) : ToolSet {
-
 
         @LLMDescription("回复消息，并发送涩图，返回群其他人的回复")
         @Tool

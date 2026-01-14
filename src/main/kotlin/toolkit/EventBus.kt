@@ -15,7 +15,6 @@ object EventBus {
     @PublishedApi
     internal object AsyncBus {
 
-        // 优化：配置 BufferOverflow.DROP_OLDEST 防止缓冲区满时挂起导致内存泄漏或阻塞
         // replay = 0 确保新订阅者不会收到旧消息
         private val bus = MutableSharedFlow<Any>(
             replay = 0,
@@ -24,7 +23,6 @@ object EventBus {
         )
 
         fun post(event: Any) {
-            // 优化：tryEmit 是非阻塞的，配合 DROP_OLDEST 策略，比 launch { emit } 更高效
             // 如果必须保证发送成功不丢失，可以使用 emit，但这里作为 EventBus，防止阻塞发送端通常更重要
             bus.tryEmit(event)
         }
@@ -39,7 +37,6 @@ object EventBus {
                 .filter { kClass.isInstance(it) } // 先过滤类型
                 .map { it as T }                  // 强转
 
-            // 逻辑优化：如果是 once，使用 take(1) 自动结束流
             val targetFlow = if (once) flow.take(1) else flow
 
             return targetFlow
@@ -66,8 +63,6 @@ object EventBus {
             val originalRef: Any // 修复核心 Bug：保存原始 lambda 引用用于对比
         )
 
-        // 优化：使用 CopyOnWriteArrayList 替代 synchronized 块 + ArrayList
-        // EventBus 场景通常是 "读多写少" (post 很多，subscribe/unsubscribe 相对少)，
         // CopyOnWriteArrayList 允许在遍历时无需加锁，性能更好且避免 ConcurrentModificationException
         private val subscribers = CopyOnWriteArrayList<Subscriber>()
 

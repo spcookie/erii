@@ -22,7 +22,6 @@ import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
@@ -31,7 +30,6 @@ import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonNull
-import net.mamoe.mirai.utils.childScope
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
@@ -607,7 +605,7 @@ class ChatToolSet(
 
     @LLMDescription("请求 Eva 帮忙回复消息，返回群其他人的回复")
     @Tool
-    fun requestEva(
+    suspend fun requestEva(
         @LLMDescription("这是你（Erii）自己的发言列表。请生成 2~3 句话，表现出你的困惑、呆萌以及对他人的依赖。非必填") sentences: List<String>?,
         @LLMDescription("告诉 Eva 需要回复什么") sentence: String
     ): String? {
@@ -634,7 +632,7 @@ class ChatToolSet(
             )
             eriiSendJob?.join()
             result.getOrNull()?.data?.sentences
-        }.asCompletableFuture().get()
+        }.await()
         if (s != null) {
             return sendAndReceive(s)
         }
@@ -657,7 +655,7 @@ class ChatToolSet(
     @OptIn(ExperimentalCoroutinesApi::class)
     @LLMDescription("回复消息，返回群其他人的回复")
     @Tool
-    fun sendAndReceive(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
+    suspend fun sendAndReceive(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
         try {
             EventBus.postSync(AgentBeforeSendAndReceiveEvent(context.currentBotId, context.groupId, sentences))
 
@@ -720,7 +718,7 @@ class ChatToolSet(
                 EventBus.unsubscribeAsync(job)
                 Pair(record != null, record)
             }
-            return deferred.asCompletableFuture().get()?.let {
+            return deferred.await().let {
                 if (it.first) {
                     val second = it.second
                     if (second != null) {
@@ -764,9 +762,13 @@ object BotAgent {
 
     private val log = logger()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e ->
-        log.error("BotAgent error", e)
-    })
+    private val scope = CoroutineScope(
+        SupervisorJob()
+                + Dispatchers.Default
+                + CoroutineName("BotAgent")
+                + CoroutineExceptionHandler { _, e ->
+            log.error("BotAgent error", e)
+        })
 
     private val channel = Channel<ProactiveSpeakEvent>(Channel.CONFLATED)
 
@@ -796,7 +798,15 @@ object BotAgent {
             for (event in channel) {
                 log.info("Bot agent received event: $event")
                 try {
-                    val job = scope.launch {
+                    val toolScope = CoroutineScope(
+                        SupervisorJob()
+                                + Dispatchers.IO
+                                + CoroutineName("BotAgentTool")
+                                + CoroutineExceptionHandler { _, e ->
+                            log.error("BotAgentTool error", e)
+                        })
+
+                    val job = launch {
                         mutex.withLock {
                             var error: Throwable? = null
                             try {
@@ -812,14 +822,18 @@ object BotAgent {
 
                                 val currentBot = BotManage.getBot(event.botMark)!!
 
-                                val sendMessage: suspend (String) -> Unit = { message ->
+                                val sendMessage: (String) -> Unit = { message ->
                                     val groupId = DEBUG_GROUP_ID ?: event.groupId
-                                    currentBot.bot.getGroup(groupId.toLong())?.sendMessage(message)
+                                    val bot = currentBot.bot
+                                    bot.launch {
+                                        bot.getGroup(groupId.toLong())?.sendMessage(message)
+                                    }
                                 }
 
                                 val context = buildContext(event)
                                 var chatPoints: List<ChatPoint>? = null
                                 if (event.chatPointRule != null) {
+                                    log.info("Bot agent build chat point rule")
                                     chatPoints = buildChatPoint(context.histories, event.chatPointRule)
                                 }
                                 val buildPrompt = buildPrompt(context, chatPoints)
@@ -839,7 +853,7 @@ object BotAgent {
                                     context,
                                     event.flag,
                                     promptExecutor,
-                                    childScope(Dispatchers.IO),
+                                    toolScope,
                                     sendMessage
                                 )
 
@@ -857,7 +871,6 @@ object BotAgent {
                                         toolSet?.let { tools(it.asTools()) }
                                     },
                                     strategy = strategy("chat") {
-
                                         val nodeSendInput by nodeLLMRequest()
                                         val nodeExecuteTool by nodeExecuteTool()
                                         val nodeSendToolResult by nodeLLMSendToolResult()
@@ -899,7 +912,7 @@ object BotAgent {
                                                     appendLine()
                                                 }
                                             }
-                                            log.info("onLLMCallStarting: {}", info)
+                                            log.info("Bot agent onLLMCallStarting: {}", info)
                                         }
 
                                         onLLMCallCompleted {
@@ -912,13 +925,13 @@ object BotAgent {
                                                     appendLine()
                                                 }
                                             }
-                                            log.info("onLLMCallCompleted: {}", info)
+                                            log.info("Bot agent onLLMCallCompleted: {}", info)
                                         }
                                     }
                                 }
 
                                 val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
-                                log.info("llm result: $result")
+                                log.info("Bot agent result: $result")
                             } catch (e: Exception) {
                                 error = e
                                 throw e
@@ -935,9 +948,13 @@ object BotAgent {
                         }
                     }
                     cancel = {
+                        toolScope.cancel()
                         job.cancel()
                     }
+
                     job.join()
+                } catch (e: CancellationException) {
+                    log.warn("Bot agent sub job cancelled", e)
                 } catch (e: Exception) {
                     log.error("Bot agent sub job error", e)
                 }
