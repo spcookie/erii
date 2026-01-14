@@ -50,7 +50,7 @@ class Lolisuki : Plugin {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
 
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
-            if (event.hit == RouteRule.REQUEST_R18_CONTENT) {
+            if (event hit RouteRule.REQUEST_R18_IMAGE) {
 
                 @Serializable
                 @LLMDescription("标签")

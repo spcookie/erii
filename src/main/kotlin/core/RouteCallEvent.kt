@@ -5,4 +5,8 @@ data class RouteCallEvent(
     val groupId: String,
     val input: String,
     val hit: RouteRule
-)
+) {
+    infix fun hit(rule: RouteRule): Boolean {
+        return this.hit == rule
+    }
+}
