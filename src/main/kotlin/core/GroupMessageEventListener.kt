@@ -8,6 +8,7 @@ import net.mamoe.mirai.event.events.GroupMessageSyncEvent
 import net.mamoe.mirai.event.events.MessageEvent
 import net.mamoe.mirai.message.data.At
 import net.mamoe.mirai.message.data.MessageContent
+import net.mamoe.mirai.message.data.MessageSource
 import net.mamoe.mirai.message.data.content
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.ENABLE_GROUPS
@@ -47,7 +48,11 @@ object GroupMessageEventListener : SimpleListenerHost() {
                         isAtBot = true
                     }
                 } else {
-                    log.warn("Unsupported message type: {}", singleMessage)
+                    if (singleMessage is MessageSource) {
+                        // ignore
+                    } else {
+                        log.warn("Unsupported message type: {}", singleMessage)
+                    }
                 }
             }
         }
