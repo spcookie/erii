@@ -179,13 +179,15 @@ class Lolisuki : Plugin {
                                 group: Group
                             ) {
                                 if (!state.value) {
-                                    log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
                                     if (image != null) {
+                                        log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
                                         scope.launch {
                                             val message = MessageChainBuilder().append(image).build()
                                             group.sendMessage(message)
                                             log.info("图片直接发送成功")
                                         }
+                                    } else {
+                                        log.warn("未获取到图片，直接发送失败")
                                     }
                                 }
                             }
