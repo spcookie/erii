@@ -139,9 +139,10 @@ class Lolisuki : Plugin {
 
                     var image: Image? = null
                     for (i in 0 until 4) {
-                        val url = node.get("data")[i].get("urls").get("regular").asText()
-                        log.info("开始获取图片: $url")
+                        var url: String? = null
                         try {
+                            url = node.get("data")[i].get("urls").get("regular").asText()
+                            log.info("开始获取图片: $url")
                             val connection = URL(url).openConnection()
                                 .apply {
                                     connectTimeout = 20_000
@@ -168,9 +169,8 @@ class Lolisuki : Plugin {
                     sendAgent(
                         botId = event.botId,
                         groupId = event.groupId,
-                        input = "加入群聊天，如果群友向你索要涩图，你需要调用工具发送一张涩图给群友。",
+                        input = "加入群聊天，你需要调用工具发送一张涩图给群友。",
                         toolSets = { ImageTool(image, group, it, state) },
-                        chatPointRule = "如果群友索要涩图，请发送。",
                         state = object : SendAgentState {
                             override val scope: CoroutineScope
                                 get() = this@Lolisuki.scope
@@ -180,11 +180,12 @@ class Lolisuki : Plugin {
                                 group: Group
                             ) {
                                 if (!state.value) {
-                                    log.info("由于图片未使用 Agent Tool 发送，手动发送")
+                                    log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
                                     if (image != null) {
                                         scope.launch {
                                             val message = MessageChainBuilder().append(image).build()
                                             group.sendMessage(message)
+                                            log.info("图片直接发送成功")
                                         }
                                     }
                                 }

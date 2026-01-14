@@ -78,7 +78,8 @@ fun sendAgent(
     state: SendAgentState
 ) {
     val roledBot = BotManage.getBot(botId) ?: return
-    val group = roledBot.bot.getGroup(DEBUG_GROUP_ID?.toLong() ?: groupId.toLong()) ?: return
+    val group = roledBot.bot.getGroup(DEBUG_GROUP_ID?.toLong() ?: groupId.toLong())
+        ?: throw IllegalArgumentException("Group not found")
 
     state.init(group)
 

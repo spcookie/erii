@@ -918,7 +918,7 @@ object BotAgent {
                                 }
 
                                 val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
-                                log.debug("llm result: $result")
+                                log.info("llm result: $result")
                             } catch (e: Exception) {
                                 error = e
                                 throw e
