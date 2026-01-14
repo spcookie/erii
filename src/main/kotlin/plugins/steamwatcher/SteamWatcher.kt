@@ -252,6 +252,9 @@ class SteamWatcher : Plugin {
                     "你一直在观察群友的 Steam 状态，发现 ${summary.personaname} 的 Steam 状态已更新，请告知群友",
                     ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK,
                     object : SendAgentState {
+                        override val scope: CoroutineScope
+                            get() = this@SteamWatcher.scope
+
                         override fun after(
                             sentences: List<String>,
                             group: Group
@@ -263,10 +266,8 @@ class SteamWatcher : Plugin {
 
                         override fun fallback(
                             event: ProactiveSpeakEvent,
-                            group: Group,
-                            close: () -> Unit
+                            group: Group
                         ) {
-                            close()
                             this@SteamWatcher.scope.launch {
                                 group.sendMessage(message)
                             }

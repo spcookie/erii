@@ -1,6 +1,7 @@
 package plugins
 
 import ai.koog.agents.core.tools.reflect.ToolSet
+import kotlinx.coroutines.CoroutineScope
 import net.mamoe.mirai.contact.Group
 import uesugi.BotManage
 import uesugi.DEBUG_GROUP_ID
@@ -13,14 +14,17 @@ interface Plugin {
 }
 
 interface SendAgentState {
+    val scope: CoroutineScope
     fun init(group: Group) {}
     fun before(sentences: List<String>, group: Group) {}
     fun after(sentences: List<String>, group: Group) {}
     fun replay(sentence: String, group: Group) {}
     fun closed(group: Group) {}
     fun finally(group: Group) {}
-    fun reject(event: ProactiveSpeakEvent, group: Group, close: () -> Unit) {}
-    fun fallback(event: ProactiveSpeakEvent, group: Group, close: () -> Unit) {}
+    fun reject(event: ProactiveSpeakEvent, group: Group) {}
+    fun fallback(event: ProactiveSpeakEvent, group: Group) {}
+    fun callStart(event: AgentCallStartEvent, group: Group) {}
+    fun callCompletion(event: AgentCallCompletionEvent, group: Group) {}
 }
 
 fun sendAgent(
@@ -101,25 +105,34 @@ fun sendAgent(
     EventBus.subscribeSync<AgentSendLifeCycleEvent>(lifeCycleSubscriber)
 
     val dispatchRef = mutableListOf<(AgentDispatchEvent) -> Unit>()
-    val dispatchRefClose = {
-        dispatchRef.forEach { EventBus.unsubscribeSync<AgentDispatchEvent>(it) }
-    }
     val dispatchSubscriber: (AgentDispatchEvent) -> Unit = { event ->
         val dispatchEvent = event.takeIf { event.botId == botId && event.groupId == groupId }
         if (dispatchEvent != null) {
             when (dispatchEvent) {
                 is AgentRejectGrabEvent -> {
-                    state.reject(dispatchEvent.speak, group, dispatchRefClose)
+                    state.reject(dispatchEvent.speak, group)
                 }
 
                 is AgentFallbackEvent -> {
-                    state.fallback(dispatchEvent.speak, group, dispatchRefClose)
+                    state.fallback(dispatchEvent.speak, group)
+                }
+
+                is AgentCallStartEvent -> {
+                    state.callStart(dispatchEvent, group)
+                }
+
+                is AgentCallCompletionEvent -> {
+                    try {
+                        state.callCompletion(dispatchEvent, group)
+                    } finally {
+                        dispatchRef.forEach { EventBus.unsubscribeSync<AgentDispatchEvent>(it) }
+                    }
                 }
             }
         }
     }
     dispatchRef += dispatchSubscriber
-    EventBus.subscribeSync<AgentDispatchEvent>(dispatchSubscriber)
+    EventBus.subscribeAsync<AgentDispatchEvent>(state.scope, dispatchSubscriber)
 
     EventBus.postAsync(
         ProactiveSpeakEvent(

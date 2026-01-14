@@ -51,3 +51,17 @@ class AgentRejectGrabEvent(
     override val groupId: String,
     override val speak: ProactiveSpeakEvent
 ) : AgentDispatchEvent
+
+
+class AgentCallStartEvent(
+    override val botId: String,
+    override val groupId: String,
+    override val speak: ProactiveSpeakEvent
+) : AgentDispatchEvent
+
+class AgentCallCompletionEvent(
+    val throwable: Throwable?,
+    override val botId: String,
+    override val groupId: String,
+    override val speak: ProactiveSpeakEvent
+) : AgentDispatchEvent

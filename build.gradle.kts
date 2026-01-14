@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.ktor.client.serialization.jackson)
     // 工具
     implementation(libs.caffeine)
+    implementation(libs.atomicfu)
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
