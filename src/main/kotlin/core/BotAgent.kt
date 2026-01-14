@@ -793,122 +793,149 @@ object BotAgent {
         scope.launch {
             for (event in channel) {
                 log.info("Bot agent received event: $event")
-                val job = scope.launch {
-                    mutex.withLock {
-                        flag = event.flag
+                try {
+                    val job = scope.launch {
+                        mutex.withLock {
+                            var error: Throwable? = null
+                            try {
+                                EventBus.postAsync(
+                                    AgentCallStartEvent(
+                                        event.botMark,
+                                        event.groupId,
+                                        event
+                                    )
+                                )
 
-                        val currentBot = BotManage.getBot(event.botMark)!!
+                                flag = event.flag
 
-                        val sendMessage: suspend (String) -> Unit = { message ->
-                            val groupId = DEBUG_GROUP_ID ?: event.groupId
-                            currentBot.bot.getGroup(groupId.toLong())?.sendMessage(message)
-                        }
+                                val currentBot = BotManage.getBot(event.botMark)!!
 
-                        val context = buildContext(event)
-                        val chatPoints = buildChatPoint(context.histories, event.chatPointRule)
-                        val buildPrompt = buildPrompt(context, chatPoints)
+                                val sendMessage: suspend (String) -> Unit = { message ->
+                                    val groupId = DEBUG_GROUP_ID ?: event.groupId
+                                    currentBot.bot.getGroup(groupId.toLong())?.sendMessage(message)
+                                }
+
+                                val context = buildContext(event)
+                                val chatPoints = buildChatPoint(context.histories, event.chatPointRule)
+                                val buildPrompt = buildPrompt(context, chatPoints)
 //                val prompt = buildPrompt(context)
-                        val prompt = prompt(
-                            id = "constraint",
-                            params = LLMParams(
+                                val prompt = prompt(
+                                    id = "constraint",
+                                    params = LLMParams(
 //                        additionalProperties = mapOf(
 //                            "thinkingConfig" to JsonObject(mapOf("thinkingLevel" to JsonPrimitive("LOW")))
 //                        )
-                            )
-                        ) {
-                            messages(buildPrompt.messages)
-                        }
+                                    )
+                                ) {
+                                    messages(buildPrompt.messages)
+                                }
 
-                        val chatToolSet = ChatToolSet(
-                            context,
-                            event.flag,
-                            promptExecutor,
-                            childScope(Dispatchers.IO),
-                            sendMessage
-                        )
+                                val chatToolSet = ChatToolSet(
+                                    context,
+                                    event.flag,
+                                    promptExecutor,
+                                    childScope(Dispatchers.IO),
+                                    sendMessage
+                                )
 
-                        val toolSet = event.toolSets?.invoke(chatToolSet)
+                                val toolSet = event.toolSets?.invoke(chatToolSet)
 
-                        val aiAgent = AIAgent(
-                            promptExecutor = promptExecutor,
-                            agentConfig = AIAgentConfig(
-                                prompt = prompt,
-                                model = GoogleModels.Gemini2_5Pro,
-                                maxAgentIterations = 50,
-                            ),
-                            toolRegistry = ToolRegistry {
-                                tools(chatToolSet.asTools())
-                                toolSet?.let { tools(it.asTools()) }
-                            },
-                            strategy = strategy("chat") {
+                                val aiAgent = AIAgent(
+                                    promptExecutor = promptExecutor,
+                                    agentConfig = AIAgentConfig(
+                                        prompt = prompt,
+                                        model = GoogleModels.Gemini2_5Pro,
+                                        maxAgentIterations = 50,
+                                    ),
+                                    toolRegistry = ToolRegistry {
+                                        tools(chatToolSet.asTools())
+                                        toolSet?.let { tools(it.asTools()) }
+                                    },
+                                    strategy = strategy("chat") {
 
-                                val nodeSendInput by nodeLLMRequest()
-                                val nodeExecuteTool by nodeExecuteTool()
-                                val nodeSendToolResult by nodeLLMSendToolResult()
+                                        val nodeSendInput by nodeLLMRequest()
+                                        val nodeExecuteTool by nodeExecuteTool()
+                                        val nodeSendToolResult by nodeLLMSendToolResult()
 
-                                edge(nodeStart forwardTo nodeSendInput)
-                                edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
-                                edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
-                                edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
-                                    try {
-                                        val result = it.result ?: return@onCondition false
-                                        result.jsonNull
-                                        false
-                                    } catch (_: Exception) {
-                                        true
-                                    }
-                                })
-                                edge(nodeExecuteTool forwardTo nodeFinish onCondition {
-                                    try {
-                                        val result = it.result ?: return@onCondition true
-                                        result.jsonNull
-                                        true
-                                    } catch (_: Exception) {
-                                        false
-                                    }
-                                } transformed { it.content })
-                                edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-                                edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+                                        edge(nodeStart forwardTo nodeSendInput)
+                                        edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
+                                        edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
+                                        edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
+                                            try {
+                                                val result = it.result ?: return@onCondition false
+                                                result.jsonNull
+                                                false
+                                            } catch (_: Exception) {
+                                                true
+                                            }
+                                        })
+                                        edge(nodeExecuteTool forwardTo nodeFinish onCondition {
+                                            try {
+                                                val result = it.result ?: return@onCondition true
+                                                result.jsonNull
+                                                true
+                                            } catch (_: Exception) {
+                                                false
+                                            }
+                                        } transformed { it.content })
+                                        edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
+                                        edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
 //                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
-                            }
-                        ) {
-                            handleEvents {
-                                onLLMCallStarting {
-                                    val info = buildString {
-                                        appendLine()
-                                        for (message in it.prompt.messages) {
-                                            append("${message.role.name}:")
-                                            appendLine()
-                                            append(message.content)
-                                            appendLine()
+                                    }
+                                ) {
+                                    handleEvents {
+                                        onLLMCallStarting {
+                                            val info = buildString {
+                                                appendLine()
+                                                for (message in it.prompt.messages) {
+                                                    append("${message.role.name}:")
+                                                    appendLine()
+                                                    append(message.content)
+                                                    appendLine()
+                                                }
+                                            }
+                                            log.info("onLLMCallStarting: {}", info)
+                                        }
+
+                                        onLLMCallCompleted {
+                                            val info = buildString {
+                                                appendLine()
+                                                for (message in it.responses) {
+                                                    append("${message.role.name}:")
+                                                    appendLine()
+                                                    append(message.content)
+                                                    appendLine()
+                                                }
+                                            }
+                                            log.info("onLLMCallCompleted: {}", info)
                                         }
                                     }
-                                    log.info("onLLMCallStarting: {}", info)
                                 }
 
-                                onLLMCallCompleted {
-                                    val info = buildString {
-                                        appendLine()
-                                        for (message in it.responses) {
-                                            append("${message.role.name}:")
-                                            appendLine()
-                                            append(message.content)
-                                            appendLine()
-                                        }
-                                    }
-                                    log.info("onLLMCallCompleted: {}", info)
-                                }
+                                val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
+                                log.debug("llm result: $result")
+                            } catch (e: Exception) {
+                                error = e
+                                throw e
+                            } finally {
+                                EventBus.postAsync(
+                                    AgentCallCompletionEvent(
+                                        error,
+                                        event.botMark,
+                                        event.groupId,
+                                        event
+                                    )
+                                )
                             }
                         }
-
-                        val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
-                        log.debug("llm result: $result")
                     }
+                    cancel = {
+                        job.cancel()
+                    }
+                    job.join()
+                } catch (e: Exception) {
+                    log.error("Bot agent sub job error", e)
                 }
-                cancel = {
-                    job.cancel()
-                }
-                job.join()
             }
         }
 
