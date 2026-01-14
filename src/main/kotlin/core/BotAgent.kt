@@ -417,7 +417,7 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>, rules: 
     return result.getOrThrow().data.chatPoints
 }
 
-private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>): Prompt {
+private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?): Prompt {
     val constraints = buildSpeechConstraints(
         context.behaviorProfile?.emotion,
         context.behaviorProfile?.tone,
@@ -453,7 +453,9 @@ private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>): Prompt {
 
                 buildSummaryPrompt(context.summary)
 
-                buildChatPointsPrompt(chatPoints)
+                if (!chatPoints.isNullOrEmpty()) {
+                    buildChatPointsPrompt(chatPoints)
+                }
 
                 buildHistoriesPrompt(context.histories, context.currentBotId)
             }
@@ -816,7 +818,10 @@ object BotAgent {
                                 }
 
                                 val context = buildContext(event)
-                                val chatPoints = buildChatPoint(context.histories, event.chatPointRule)
+                                var chatPoints: List<ChatPoint>? = null
+                                if (event.chatPointRule != null) {
+                                    chatPoints = buildChatPoint(context.histories, event.chatPointRule)
+                                }
                                 val buildPrompt = buildPrompt(context, chatPoints)
 //                val prompt = buildPrompt(context)
                                 val prompt = prompt(
