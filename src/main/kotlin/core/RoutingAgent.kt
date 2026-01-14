@@ -27,7 +27,7 @@ object RoutingAgent {
         val latestHistory = historyService.getLatestHistory(botId, groupId, 50, 24.hours)
 
         val prompt = prompt("RoutingAgent") {
-            user {
+            system {
                 markdown {
                     h1("你是一个【消息路由判定器】，负责根据用户的输入内容，判断应当使用哪一条处理规则。")
 
@@ -44,14 +44,17 @@ object RoutingAgent {
                         item { text("群聊上下文仅用于消歧，不可过度联想") }
                         item { text("无法确定时，默认选择 CHAT（宁可保守）") }
                     }
-
+                }
+            }
+            user {
+                markdown {
                     text("【群聊消息摘要】")
                     buildSummaryPrompt(summaryEntity)
 
                     text("【最近的聊天记录】")
                     buildHistoriesPrompt(latestHistory, botId)
 
-                    header(3, "用户输入")
+                    header(3, "当前用户消息")
                     text(message)
                 }
             }

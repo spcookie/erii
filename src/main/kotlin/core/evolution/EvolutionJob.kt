@@ -82,7 +82,7 @@ class EvolutionJob(
      */
     private fun getActiveGroups(botMark: String): List<String> {
         return transaction {
-            log.debug("开始查询活跃群组, botMark=$botMark")
+            log.debug("开始查询活跃群组, botId=$botMark")
 
             val groups = HistoryTable
                 .select(HistoryTable.groupId)

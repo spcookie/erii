@@ -42,7 +42,7 @@ fun Routing.configureBotStatus() {
                         flowGaugeManager.getOrCreate(id, groupId, emoticon).let { it.state.value to it.mapToState() }
                     val volitionState = volitionGaugeManager.getOrCreate(id, groupId, emoticon)
                         .let { Triple(it.state.stimulus, it.state.fatigue, it.shouldSpeak()) }
-                    val vocabularies = vocabularyService.getActiveVocabulary(id, groupId).map { it.word }
+                    val vocabularies = vocabularyService.getActiveVocabulary(id, groupId, 999).map { it.word }
                     val summary = memoryService.getSummary(id, groupId)?.content
                     val factSize = memoryService.getFactSize(id, groupId)
                     val userProfileSize = memoryService.getUserProfileSize(id, groupId)

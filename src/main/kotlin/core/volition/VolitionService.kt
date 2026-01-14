@@ -86,13 +86,13 @@ class VolitionGauge(
                     state.fatigue = volitionState.fatigue
                     state.stimulus = volitionState.stimulus
                     state.lastActiveTime = volitionState.lastActiveTime
-                    log.debug("从数据库加载主动意愿状态, botMark=$botMark, groupId=$groupId, fatigue=${state.fatigue}, stimulus=${state.stimulus}")
+                    log.debug("从数据库加载主动意愿状态, botId=$botMark, groupId=$groupId, fatigue=${state.fatigue}, stimulus=${state.stimulus}")
                 } else {
-                    log.debug("群组 botMark=$botMark, groupId=$groupId 没有主动意愿状态记录, 使用默认值")
+                    log.debug("群组 botId=$botMark, groupId=$groupId 没有主动意愿状态记录, 使用默认值")
                 }
             }
         } catch (e: Exception) {
-            log.error("加载主动意愿状态失败, botMark=$botMark, groupId=$groupId", e)
+            log.error("加载主动意愿状态失败, botId=$botMark, groupId=$groupId", e)
         }
     }
 
@@ -107,11 +107,11 @@ class VolitionGauge(
                     volitionState.fatigue = state.fatigue
                     volitionState.stimulus = state.stimulus
                     volitionState.lastActiveTime = state.lastActiveTime
-                    log.debug("持久化主动意愿状态, botMark=$botMark, groupId=$groupId, fatigue=${state.fatigue}, stimulus=${state.stimulus}")
+                    log.debug("持久化主动意愿状态, botId=$botMark, groupId=$groupId, fatigue=${state.fatigue}, stimulus=${state.stimulus}")
                 }
             }
         } catch (e: Exception) {
-            log.error("持久化主动意愿状态失败, botMark=$botMark, groupId=$groupId", e)
+            log.error("持久化主动意愿状态失败, botId=$botMark, groupId=$groupId", e)
         }
     }
 
@@ -138,7 +138,7 @@ class VolitionGauge(
             val (p, a, _) = event.pad.normalize()
             pleasure = p
             arousal = a
-            log.debug("Volition收到情绪变更事件, botMark=$botMark, groupId=$groupId, P: $p , A: $a")
+            log.debug("Volition收到情绪变更事件, botId=$botMark, groupId=$groupId, P: $p , A: $a")
         }
 
         EventBus.subscribeAsync<FlowChangeEvent>(scope) { event ->
@@ -161,17 +161,17 @@ class VolitionGauge(
 
     fun minusStimulus(amount: Double) {
         state.minusStimulus(amount)
-        log.debug("刺激值重置: $amount, botMark=$botMark, groupId=$groupId")
+        log.debug("刺激值重置: $amount, botId=$botMark, groupId=$groupId")
     }
 
     fun addStimulus(amount: Double) {
         state.addStimulus(amount)
-        log.debug("刺激值增加: +$amount, 当前刺激值: ${state.stimulus}, botMark=$botMark, groupId=$groupId")
+        log.debug("刺激值增加: +$amount, 当前刺激值: ${state.stimulus}, botId=$botMark, groupId=$groupId")
     }
 
     fun addFatigue(amount: Double) {
         state.addFatigue(amount)
-        log.debug("疲劳值增加: +$amount, 当前疲劳值: ${state.fatigue}, botMark=$botMark, groupId=$groupId")
+        log.debug("疲劳值增加: +$amount, 当前疲劳值: ${state.fatigue}, botId=$botMark, groupId=$groupId")
     }
 
     fun decayFatigue() {
@@ -203,7 +203,7 @@ class VolitionGaugeManager {
     fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies): VolitionGauge {
         val key = "$botMark:$groupId"
         return gauges.getOrPut(key) {
-            log.debug("创建新的VolitionGauge实例, botMark=$botMark, groupId=$groupId")
+            log.debug("创建新的VolitionGauge实例, botId=$botMark, groupId=$groupId")
             VolitionGauge(mood, botMark, groupId)
         }
     }

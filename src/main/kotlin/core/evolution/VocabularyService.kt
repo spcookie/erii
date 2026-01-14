@@ -53,7 +53,7 @@ class VocabularyService {
     ): List<String> = transaction {
         val yesterday = Clock.System.now().minus(range).toLocalDateTime(TimeZone.currentSystemDefault())
 
-        log.debug("开始获取${range.inWholeHours}小时前活跃消息, botMark=$botMark, groupId=$groupId, limit=$limit")
+        log.debug("开始获取${range.inWholeHours}小时前活跃消息, botId=$botMark, groupId=$groupId, limit=$limit")
 
         val messages = HistoryEntity.find {
             (HistoryTable.botMark eq botMark) and
@@ -68,7 +68,7 @@ class VocabularyService {
             }
             .take(limit)
 
-        log.debug("获取6小时前活跃消息完成, botMark=$botMark, groupId=$groupId, 消息数=${messages.size}")
+        log.debug("获取6小时前活跃消息完成, botId=$botMark, groupId=$groupId, 消息数=${messages.size}")
         messages
     }
 
@@ -165,13 +165,15 @@ class VocabularyService {
      */
     fun getActiveVocabulary(
         botMark: String,
-        groupId: String
+        groupId: String,
+        limit: Int = 10
     ): List<LearnedVocabEntity> = transaction {
         val vocabs = LearnedVocabEntity.find {
             (LearnedVocabTable.botMark eq botMark) and
                     (LearnedVocabTable.groupId eq groupId) and
                     (LearnedVocabTable.weight greaterEq ACTIVE_WEIGHT_THRESHOLD)
         }
+            .limit(limit)
             .sortedByDescending { it.weight }
             .toList()
 

@@ -75,13 +75,13 @@ class FlowGauge(
                 if (flowState != null) {
                     state.value = flowState.flowValue
                     state.lastUpdateTime = flowState.lastUpdateTime
-                    log.debug("从数据库加载心流状态, botMark=$botMark, groupId=$groupId, value=${state.value}")
+                    log.debug("从数据库加载心流状态, botId=$botMark, groupId=$groupId, value=${state.value}")
                 } else {
-                    log.debug("群组 botMark=$botMark, groupId=$groupId 没有心流状态记录, 使用默认值")
+                    log.debug("群组 botId=$botMark, groupId=$groupId 没有心流状态记录, 使用默认值")
                 }
             }
         } catch (e: Exception) {
-            log.error("加载心流状态失败, botMark=$botMark, groupId=$groupId", e)
+            log.error("加载心流状态失败, botId=$botMark, groupId=$groupId", e)
         }
     }
 
@@ -95,11 +95,11 @@ class FlowGauge(
                 if (flowState != null) {
                     flowState.flowValue = state.value
                     flowState.lastUpdateTime = state.lastUpdateTime
-                    log.debug("持久化心流状态, botMark=$botMark, groupId=$groupId, value=${state.value}")
+                    log.debug("持久化心流状态, botId=$botMark, groupId=$groupId, value=${state.value}")
                 }
             }
         } catch (e: Exception) {
-            log.error("持久化心流状态失败, botMark=$botMark, groupId=$groupId", e)
+            log.error("持久化心流状态失败, botId=$botMark, groupId=$groupId", e)
         }
     }
 
@@ -121,7 +121,7 @@ class FlowGauge(
                 is RepeatTopicEvent -> this.drainEvent(baseDrain = event.penalty)
             }
 
-            log.debug("收到心流事件, botMark=$botMark, groupId=$groupId, 当前心流值: ${this.state.value}")
+            log.debug("收到心流事件, botId=$botMark, groupId=$groupId, 当前心流值: ${this.state.value}")
         }
 
         EventBus.subscribeAsync<EmotionChangeEvent>(scope) { event ->
@@ -196,7 +196,7 @@ class FlowGaugeManager {
     fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies): FlowGauge {
         val key = "$botMark:$groupId"
         return gauges.getOrPut(key) {
-            log.debug("创建新的FlowGauge实例, botMark=$botMark, groupId=$groupId")
+            log.debug("创建新的FlowGauge实例, botId=$botMark, groupId=$groupId")
             FlowGauge(mood, botMark, groupId)
         }
     }

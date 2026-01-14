@@ -4,7 +4,7 @@ import ai.koog.agents.core.tools.reflect.ToolSet
 import uesugi.core.ProactiveSpeakFeature.NONE
 
 data class ProactiveSpeakEvent(
-    val botMark: String,
+    val botId: String,
     val groupId: String,
     val impulse: Double = 0.0,
     val interruptionMode: InterruptionMode,

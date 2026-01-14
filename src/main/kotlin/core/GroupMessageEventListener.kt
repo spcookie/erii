@@ -77,10 +77,11 @@ object GroupMessageEventListener : SimpleListenerHost() {
                     if (route == RouteRule.CHAT) {
                         EventBus.postAsync(
                             ProactiveSpeakEvent(
-                                botMark = botId,
+                                botId = botId,
                                 groupId = groupId,
                                 impulse = 0.0,
-                                interruptionMode = InterruptionMode.Interrupt
+                                interruptionMode = InterruptionMode.Interrupt,
+                                flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.IGNORE_INTERRUPT
                             )
                         )
                     } else {
