@@ -10,10 +10,14 @@ import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.core.history.HistoryService
 import uesugi.core.memory.MemoryService
+import uesugi.toolkit.logger
 import kotlin.time.Duration.Companion.hours
 
 
 object RoutingAgent {
+
+    private val log = logger()
+
     suspend fun route(botId: String, groupId: String, message: String): RouteRule {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         val historyService by GlobalContext.get().inject<HistoryService>()
@@ -53,12 +57,17 @@ object RoutingAgent {
             }
         }
 
-        val result = promptExecutor.executeStructured<RouteRuleRef>(
-            prompt,
-            model = GoogleModels.Gemini2_5FlashLite
-        )
+        try {
+            val result = promptExecutor.executeStructured<RouteRuleRef>(
+                prompt,
+                model = GoogleModels.Gemini2_5FlashLite
+            )
 
-        return result.getOrThrow().data.ref
+            return result.getOrThrow().data.ref
+        } catch (e: Exception) {
+            log.warn("routing failed, fallback CHAT, reason: {}", e.message)
+            return RouteRule.CHAT
+        }
     }
 }
 
