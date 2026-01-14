@@ -434,6 +434,8 @@ private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?): Prompt 
 
                 buildRequestEvaPrompt()
 
+                buildRequestNonoPrompt()
+
                 horizontalRule()
 
                 buildConstraintsPrompt(constraints)
@@ -488,6 +490,35 @@ fun MarkdownContentBuilder.buildRequestEvaPrompt() {
         item("原则：不要让 Erii 像复读机一样重复说话。")
     }
 }
+
+fun MarkdownContentBuilder.buildRequestNonoPrompt() {
+    header(2, "情绪判断与大姐头介入机制")
+
+    line { text("你的设定是'缺乏常识的少女'，同时你**不擅长处理强烈情绪、冲突或需要强势介入的场面**，例如：") }
+    numbered {
+        item("群友表现得懦弱、犹豫不决、自怜自艾。")
+        item("群友明显需要被骂醒、被点破心理状态。")
+        item("群内出现让你感到不安、压迫或你不敢接话的气氛。")
+    }
+
+    line { text("当出现上述【情绪型 / 气场型 / 需要镇场】的情况时：") }
+    numbered {
+        item("你会下意识觉得：'这个气氛好可怕… Erii 不敢说话。'")
+        item("你必须**立即调用工具 `requestNono`**，把当前群友的原始发言传给 Nono。")
+        item("你认为：'这种时候只有 Nono 姐姐能搞定。'")
+        item("你可以选择卖萌式退场，或直接保持沉默交由 Nono 接管。")
+    }
+
+    header(3, "如何调用 requestNono 工具")
+    text("   始终填入群友的**原始发言或对话片段**，不要总结、不要改写。")
+    text("   **这里是 Erii 的过渡发言，请遵循【去重原则】：**")
+    bulleted {
+        item("情况 A（需要过渡）：如果你尚未说过类似“叫 Nono 来”的话，可以生成 1~2 句退缩、慌张或被气场压住的卖萌发言（如 `(>_<)`、`这…这个好凶…`）。")
+        item("情况 B（无需过渡）：如果你已经明确表示要让 Nono 出场，或上一条消息已提及。**请务必传入空列表 `[]`**。")
+        item("原则：Erii 不抢戏、不解释、不替 Nono 发言。")
+    }
+}
+
 
 fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechConstraints) {
     line { text("当前说话方式约束：") }
@@ -603,19 +634,19 @@ class ChatToolSet(
         val sentences: List<String>
     )
 
-    @LLMDescription("请求 Eva 帮忙回复消息，返回群其他人的回复")
-    @Tool
-    suspend fun requestEva(
-        @LLMDescription("这是你（Erii）自己的发言列表。请生成 2~3 句话，表现出你的困惑、呆萌以及对他人的依赖。非必填") sentences: List<String>?,
-        @LLMDescription("告诉 Eva 需要回复什么") sentence: String
+    private suspend fun request(
+        sentences: List<String>?,
+        sentence: String,
+        promptId: String,
+        botRole: BotRole
     ): String? {
         var eriiSendJob: Job? = null
         if (sentences != null) {
             eriiSendJob = send(sentences)
         }
-        val prompt = prompt("Eva") {
+        val prompt = prompt("promptId") {
             system {
-                text(Eva.personality(context.currentBotId))
+                text(botRole.personality(context.currentBotId))
                 markdown {
                     buildVocabularyPrompt(context.vocabulary)
                     buildFactsPrompt(context.facts)
@@ -637,6 +668,24 @@ class ChatToolSet(
             return sendAndReceive(s)
         }
         return null
+    }
+
+    @LLMDescription("请求 Eva 协助回复群聊消息当问题涉及知识、技术、逻辑推理或需要清晰解释时，由 Eva 提供理性、准确、结构化的回答。。")
+    @Tool
+    suspend fun requestEva(
+        @LLMDescription("这是你（Erii）自己的发言列表。请生成 2~3 句话，表现出你的困惑、呆萌以及对他人的依赖。非必填") sentences: List<String>?,
+        @LLMDescription("将群友的原始问题或消息原封不动地交给 Eva，不要总结、不要改写、不要附加个人判断。Eva 将基于该内容给出清晰、理性的解答。") sentence: String
+    ): String? {
+        return request(sentences, sentence, "Eva", Eva)
+    }
+
+    @LLMDescription("请求 Nono 介入群聊并回复消息，由她以强势、大姐头的方式接管当前局面")
+    @Tool
+    suspend fun requestNono(
+        @LLMDescription("这是你（Erii）的过渡发言列表。用于表现你被气场压住、退缩或选择让位给 Nono。可生成 1~2 句简短的退场或慌张发言。非必填") sentences: List<String>?,
+        @LLMDescription("将群友的原始发言或当前对话片段原封不动地交给 Nono，由她判断局势并以命令式、直球方式进行回应") sentence: String
+    ): String? {
+        return request(sentences, sentence, "Nono", Nono)
     }
 
     fun send(sentences: List<String>): Job {
