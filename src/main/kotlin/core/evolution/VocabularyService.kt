@@ -138,7 +138,7 @@ class VocabularyService {
                 weight = (weight + WEIGHT_INCREASE_ON_USE).coerceAtMost(100)
                 lastSeen = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }
-            log.info("更新词汇成功, word=${slangWord.word}, newWeight=${existing.weight}, groupId=$groupId")
+            log.debug("更新词汇成功, word=${slangWord.word}, newWeight=${existing.weight}, groupId=$groupId")
         } else {
             LearnedVocabEntity.new {
                 this.botMark = botMark
@@ -150,7 +150,7 @@ class VocabularyService {
                 weight = DEFAULT_WEIGHT
                 lastSeen = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }
-            log.info("新增词汇成功, word=${slangWord.word}, weight=$DEFAULT_WEIGHT, groupId=$groupId")
+            log.debug("新增词汇成功, word=${slangWord.word}, weight=$DEFAULT_WEIGHT, groupId=$groupId")
         }
     }
 
@@ -244,13 +244,13 @@ class VocabularyService {
             }
 
             if (vocab.weight < MIN_WEIGHT_THRESHOLD) {
-                log.info("词汇热度过低，执行遗忘, word=${vocab.word}, weight=${vocab.weight}")
+                log.debug("词汇热度过低，执行遗忘, word=${vocab.word}, weight=${vocab.weight}")
                 vocab.delete()
                 deletedCount++
             }
         }
 
-        log.info("词汇热度衰减完成, groupId=$groupId, 衰减=$decayedCount, 强化=$reinforcedCount, 遗忘=$deletedCount")
+        log.debug("词汇热度衰减完成, groupId=$groupId, 衰减=$decayedCount, 强化=$reinforcedCount, 遗忘=$deletedCount")
     }
 
     /**
@@ -273,7 +273,7 @@ class VocabularyService {
                     (LearnedVocabTable.word eq word)
         }.firstOrNull()?.apply {
             weight = (weight + WEIGHT_INCREASE_ON_USE).coerceAtMost(100)
-            log.info("增加词汇热度（正向反馈）, word=$word, newWeight=$weight, groupId=$groupId")
+            log.debug("增加词汇热度（正向反馈）, word=$word, newWeight=$weight, groupId=$groupId")
         }
     }
 
@@ -297,10 +297,10 @@ class VocabularyService {
                     (LearnedVocabTable.word eq word)
         }.firstOrNull()?.apply {
             weight = (weight - WEIGHT_DECREASE_ON_NEGATIVE).coerceAtLeast(0)
-            log.info("降低词汇热度（负面反馈）, word=$word, newWeight=$weight, groupId=$groupId")
+            log.debug("降低词汇热度（负面反馈）, word=$word, newWeight=$weight, groupId=$groupId")
 
             if (weight < MIN_WEIGHT_THRESHOLD) {
-                log.info("词汇因负面反馈被遗忘, word=$word, groupId=$groupId")
+                log.debug("词汇因负面反馈被遗忘, word=$word, groupId=$groupId")
                 delete()
             }
         }

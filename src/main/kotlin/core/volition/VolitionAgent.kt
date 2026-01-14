@@ -104,7 +104,7 @@ class VolitionAgent {
 
             val result = response.getOrThrow().data
 
-            log.info("主动行为分析完成: stimulus analysis ${JSON.encodeToString(result)}")
+            log.debug("主动行为分析完成: stimulus analysis ${JSON.encodeToString(result)}")
 
             result
         } catch (e: Exception) {

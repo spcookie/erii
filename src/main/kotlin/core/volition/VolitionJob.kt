@@ -169,7 +169,7 @@ class VolitionJob {
             val maxHistoryId = histories.maxOf { it.id.value }
             updateVolitionState(botMark, groupId, maxHistoryId)
 
-            log.info("群组 $groupId 主动意愿处理完成, 最大 historyId=$maxHistoryId")
+            log.debug("群组 $groupId 主动意愿处理完成, 最大 historyId=$maxHistoryId")
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 主动意愿失败", e)

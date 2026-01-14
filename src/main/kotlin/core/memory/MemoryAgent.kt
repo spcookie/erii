@@ -202,7 +202,7 @@ class MemoryAgent {
         )
 
         return result.getOrThrow().data.also {
-            log.info("用户画像分析完成, userId=${it.userId}")
+            log.debug("用户画像分析完成, userId=${it.userId}")
         }
     }
 
@@ -293,7 +293,7 @@ class MemoryAgent {
         )
 
         return result.getOrThrow().data.facts.also {
-            log.info("事实记忆提取完成, 提取数量=${it.size}")
+            log.debug("事实记忆提取完成, 提取数量=${it.size}")
         }
     }
 
@@ -397,7 +397,7 @@ class MemoryAgent {
         )
 
         return result.getOrThrow().data.todos.also {
-            log.info("Todo 事项生成完成, 数量=${it.size}")
+            log.debug("Todo 事项生成完成, 数量=${it.size}")
         }
     }
 
@@ -470,7 +470,7 @@ class MemoryAgent {
         )
 
         return result.getOrThrow().data.also {
-            log.info("对话摘要生成完成, groupId=$groupId")
+            log.debug("对话摘要生成完成, groupId=$groupId")
         }
     }
 

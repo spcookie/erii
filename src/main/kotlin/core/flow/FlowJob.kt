@@ -161,7 +161,7 @@ class FlowJob {
             val maxHistoryId = histories.maxOf { it.id.value }
             updateFlowState(botMark, groupId, maxHistoryId)
 
-            log.info("群组 $groupId 心流处理完成, 最大 historyId=$maxHistoryId")
+            log.debug("群组 $groupId 心流处理完成, 最大 historyId=$maxHistoryId")
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 心流失败", e)

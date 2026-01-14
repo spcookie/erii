@@ -77,7 +77,7 @@ class FlowGauge(
                     state.lastUpdateTime = flowState.lastUpdateTime
                     log.debug("从数据库加载心流状态, botMark=$botMark, groupId=$groupId, value=${state.value}")
                 } else {
-                    log.info("群组 botMark=$botMark, groupId=$groupId 没有心流状态记录, 使用默认值")
+                    log.debug("群组 botMark=$botMark, groupId=$groupId 没有心流状态记录, 使用默认值")
                 }
             }
         } catch (e: Exception) {
@@ -196,7 +196,7 @@ class FlowGaugeManager {
     fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies): FlowGauge {
         val key = "$botMark:$groupId"
         return gauges.getOrPut(key) {
-            log.info("创建新的FlowGauge实例, botMark=$botMark, groupId=$groupId")
+            log.debug("创建新的FlowGauge实例, botMark=$botMark, groupId=$groupId")
             FlowGauge(mood, botMark, groupId)
         }
     }
@@ -209,7 +209,7 @@ class FlowGaugeManager {
     fun stopAll() {
         gauges.values.forEach { it.stop() }
         gauges.clear()
-        log.info("所有FlowGauge实例已关闭")
+        log.debug("所有FlowGauge实例已关闭")
     }
 }
 
