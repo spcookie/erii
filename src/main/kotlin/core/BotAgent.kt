@@ -871,12 +871,12 @@ object BotAgent {
 
                                 val currentBot = BotManage.getBot(event.botId)!!
 
-                                val sendMessage: (String) -> Unit = { message ->
+                                val sendMessage: suspend (String) -> Unit = { message ->
                                     val groupId = DEBUG_GROUP_ID ?: event.groupId
                                     val bot = currentBot.bot
                                     bot.launch {
-                                        bot.getGroup(groupId.toLong())?.sendMessage(message)
                                     }
+                                    bot.getGroup(groupId.toLong())?.sendMessage(message)
                                 }
 
                                 val context = buildContext(event)
