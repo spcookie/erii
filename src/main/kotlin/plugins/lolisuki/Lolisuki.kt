@@ -15,9 +15,9 @@ import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
+import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.contact.Group
-import net.mamoe.mirai.message.data.Image
-import net.mamoe.mirai.message.data.MessageChainBuilder
+import net.mamoe.mirai.utils.ExternalResource
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
@@ -135,7 +135,7 @@ class Lolisuki : Plugin {
                     val bot = roledBot.bot
                     val group = bot.getGroup(event.groupId.toLong())!!
 
-                    var image: Image? = null
+                    var image: ExternalResource? = null
                     for (i in 0 until 4) {
                         var url: String? = null
                         try {
@@ -147,11 +147,7 @@ class Lolisuki : Plugin {
                                     readTimeout = 60_000
                                 }
                             image = connection.getInputStream().use { input ->
-                                input.toExternalResource().use {
-                                    val uploadImage = group.uploadImage(it)
-                                    log.info("图片上传成功")
-                                    uploadImage
-                                }
+                                input.toExternalResource()
                             }
                             break
                         } catch (_: Exception) {
@@ -181,9 +177,8 @@ class Lolisuki : Plugin {
                                 if (!state.value) {
                                     if (image != null) {
                                         log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
-                                        scope.launch {
-                                            val message = MessageChainBuilder().append(image).build()
-                                            group.sendMessage(message)
+                                        bot.launch {
+                                            group.sendImage(image)
                                             log.info("图片直接发送成功")
                                         }
                                     } else {
@@ -212,7 +207,7 @@ class Lolisuki : Plugin {
     }
 
     inner class ImageTool(
-        val image: Image?,
+        val image: ExternalResource?,
         val group: Group,
         val chatToolSet: ChatToolSet,
         val state: AtomicBoolean
@@ -226,8 +221,7 @@ class Lolisuki : Plugin {
                 val job = chatToolSet.send(sentences)
                 if (image != null) {
                     job.join()
-                    val message = MessageChainBuilder().append(image).build()
-                    group.sendMessage(message)
+                    group.sendImage(image)
                 }
             }
             return null
