@@ -150,7 +150,7 @@ class Lolisuki : Plugin {
                             image = connection.getInputStream().use { input ->
                                 input.toExternalResource().use {
                                     val uploadImage = group.uploadImage(it)
-                                    log.info("图片上传成功: ${uploadImage.imageId}")
+                                    log.info("图片上传成功")
                                     uploadImage
                                 }
                             }
