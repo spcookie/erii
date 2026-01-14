@@ -25,10 +25,7 @@ import plugins.Plugin
 import plugins.SendAgentState
 import plugins.sendAgent
 import uesugi.BotManage
-import uesugi.core.AgentCallCompletionEvent
-import uesugi.core.ChatToolSet
-import uesugi.core.RouteCallEvent
-import uesugi.core.RouteRule
+import uesugi.core.*
 import uesugi.core.history.HistoryService
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -171,6 +168,7 @@ class Lolisuki : Plugin {
                         groupId = event.groupId,
                         input = "加入群聊天，你需要调用工具发送一张涩图给群友。",
                         toolSets = { ImageTool(image, group, it, state) },
+                        flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK,
                         state = object : SendAgentState {
                             override val scope: CoroutineScope
                                 get() = this@Lolisuki.scope
@@ -189,6 +187,13 @@ class Lolisuki : Plugin {
                                         }
                                     }
                                 }
+                            }
+
+                            override fun fallback(
+                                event: ProactiveSpeakEvent,
+                                group: Group
+                            ) {
+                                callCompletion(AgentCallCompletionEvent(null, event.botId, event.groupId, event), group)
                             }
                         }
                     )

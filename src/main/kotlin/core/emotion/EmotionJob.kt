@@ -49,7 +49,7 @@ class EmotionJob {
                 try {
                     log.debug("情绪任务开始执行")
                     for (currentBotId in BotManage.getAllBotIds()) {
-                        log.debug("开始执行的情绪分析, botMark=$currentBotId")
+                        log.debug("开始执行的情绪分析, botId=$currentBotId")
 
                         // 1. 查找需要分析的群组(有新消息的群组)
                         val groups = withContext(Dispatchers.IO) {

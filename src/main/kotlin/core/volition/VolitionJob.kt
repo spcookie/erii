@@ -213,7 +213,7 @@ class VolitionJob {
 
             EventBus.postAsync(
                 ProactiveSpeakEvent(
-                    botMark = botMark,
+                    botId = botMark,
                     groupId = groupId,
                     impulse = impulse,
                     interruptionMode = InterruptionMode.Interrupt,
@@ -301,7 +301,7 @@ class VolitionJob {
             val (botMark, groupId) = key.split(":")
             EventBus.postAsync(
                 ProactiveSpeakEvent(
-                    botMark = botMark,
+                    botId = botMark,
                     groupId = groupId,
                     impulse = gauge.calculateImpulse(),
                     interruptionMode = mode
@@ -330,7 +330,7 @@ class VolitionJob {
                         if (inRange) {
                             EventBus.postAsync(
                                 ProactiveSpeakEvent(
-                                    botMark = botMark,
+                                    botId = botMark,
                                     groupId = groupId,
                                     impulse = gauge.calculateImpulse(),
                                     interruptionMode = InterruptionMode.Icebreak

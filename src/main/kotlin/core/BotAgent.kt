@@ -289,7 +289,7 @@ data class Context(
 )
 
 private fun buildContext(event: ProactiveSpeakEvent): Context {
-    val currentBotId = event.botMark
+    val currentBotId = event.botId
     val groupId = event.groupId
     val emotionService by GlobalContext.get().inject<EmotionService>()
     val memoryService by GlobalContext.get().inject<MemoryService>()
@@ -299,7 +299,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
     val flowGauge = flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId)!!.role.emoticon)
     return transaction {
         val behaviorProfile = emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
-        val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 100, 1.days)
+        val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 25, 1.days)
         val subjects = historyEntities.map { it.userId }.distinct().toList()
         val factsEntities = memoryService.getFacts(currentBotId, groupId, subjects)
         val userProfiles = memoryService.getUserProfiles(currentBotId, groupId, subjects)
@@ -512,10 +512,10 @@ fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<LearnedVocabEn
                     line { text("词：${learnedVocabEntity.word}") }
                     line { text("类型：${learnedVocabEntity.type}") }
                     line { text("含义：${learnedVocabEntity.meaning}") }
-                    line { text("使用提示：可参考语气与场景，自然融入对话") }
                 }
             }
         }
+        line { text("使用提示：可参考语气与场景，自然融入对话") }
     }
 }
 
@@ -628,7 +628,7 @@ class ChatToolSet(
         val s = scope.async {
             val result = promptExecutor.executeStructured<Sentences>(
                 prompt = prompt,
-                model = GoogleModels.Gemini3_Pro_Preview
+                model = GoogleModels.Gemini2_5Pro
             )
             eriiSendJob?.join()
             result.getOrNull()?.data?.sentences
@@ -812,7 +812,7 @@ object BotAgent {
                             try {
                                 EventBus.postAsync(
                                     AgentCallStartEvent(
-                                        event.botMark,
+                                        event.botId,
                                         event.groupId,
                                         event
                                     )
@@ -820,7 +820,7 @@ object BotAgent {
 
                                 flag = event.flag
 
-                                val currentBot = BotManage.getBot(event.botMark)!!
+                                val currentBot = BotManage.getBot(event.botId)!!
 
                                 val sendMessage: (String) -> Unit = { message ->
                                     val groupId = DEBUG_GROUP_ID ?: event.groupId
@@ -939,7 +939,7 @@ object BotAgent {
                                 EventBus.postAsync(
                                     AgentCallCompletionEvent(
                                         error,
-                                        event.botMark,
+                                        event.botId,
                                         event.groupId,
                                         event
                                     )
@@ -968,7 +968,7 @@ object BotAgent {
                         if (it.flag has ProactiveSpeakFeature.FALLBACK) {
                             EventBus.postAsync(
                                 AgentFallbackEvent(
-                                    it.botMark,
+                                    it.botId,
                                     it.groupId,
                                     it
                                 )
@@ -976,7 +976,7 @@ object BotAgent {
                         } else {
                             EventBus.postAsync(
                                 AgentRejectGrabEvent(
-                                    it.botMark,
+                                    it.botId,
                                     it.groupId,
                                     it
                                 )
@@ -988,7 +988,7 @@ object BotAgent {
                 } else if (it.flag has ProactiveSpeakFeature.FALLBACK) {
                     EventBus.postAsync(
                         AgentFallbackEvent(
-                            it.botMark,
+                            it.botId,
                             it.groupId,
                             it
                         )
