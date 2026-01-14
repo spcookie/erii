@@ -17,6 +17,7 @@ import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.message.data.Image
 import net.mamoe.mirai.message.data.MessageChainBuilder
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import plugins.Plugin
 import plugins.SendAgentState
@@ -25,9 +26,11 @@ import uesugi.BotManage
 import uesugi.core.ChatToolSet
 import uesugi.core.RouteCallEvent
 import uesugi.core.RouteRule
+import uesugi.core.history.HistoryService
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import java.net.URL
+import kotlin.time.Duration.Companion.days
 
 class Lolisuki : Plugin {
 
@@ -40,7 +43,9 @@ class Lolisuki : Plugin {
     private lateinit var job: Job
 
     override fun onLoad() {
+        val historyService by GlobalContext.get().inject<HistoryService>()
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
+
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             if (event.hit == RouteRule.REQUEST_R18_CONTENT) {
 
@@ -52,17 +57,33 @@ class Lolisuki : Plugin {
                 @LLMDescription("标签组")
                 data class TagGroup(val groups: List<Tag>)
 
+                val ctx = withContext(Dispatchers.IO) {
+                    transaction {
+                        val history = historyService.getLatestHistory(event.botId, event.groupId, 10, 1.days)
+                        buildString {
+                            for (entity in history) {
+                                appendLine("${entity.userId}: ${entity.content}")
+                            }
+                        }
+                    }
+                }
+
                 val prompt = prompt("提取标题、关键词") {
                     user(
                         """
                             请根据以下规则提取下面内容中索要图片的关键词、标签(Tag)
                             
                             规则：
+                                - 历史上下文提供给你参考，连接用户意图
+                                - 只提取“当前内容”中的关键词、标签
                                 - 可以提取多个关键词
                                 - 多个关键词如果是 AND 语义，则是一个“标签组”，OR 语义，则是多个“标签组”
                                 - 如果没有关键词、标签可以提取，不要捏造，返回空
                                 
-                            内容：
+                            历史上下文：
+                            $ctx
+                                
+                            当前内容：
                             ${event.input}
                         """.trimIndent()
                     )
