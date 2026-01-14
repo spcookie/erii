@@ -86,7 +86,7 @@ class Lolisuki : Plugin {
                     }
                 }
 
-                if (tags == null) {
+                if (tags.isNullOrEmpty()) {
                     log.info("未提取到关键词、标签")
                 } else {
                     log.info("提取到关键词、标签: ${tags.joinToString("&")}")
