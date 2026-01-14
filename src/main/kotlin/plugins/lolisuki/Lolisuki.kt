@@ -41,7 +41,10 @@ class Lolisuki : Plugin {
 
     private val log = logger()
 
-    internal val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    val scope =
+        CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineName("Lolisuki") + CoroutineExceptionHandler { _, exception ->
+            log.error("Lolisuki error: {}", exception.message, exception)
+        })
 
     private lateinit var job: Job
 
@@ -128,7 +131,7 @@ class Lolisuki : Plugin {
                     log.info("开始获取图片连接: $url")
                 }.body()
                 if (node.get("code").asInt() != 0) {
-                    log.error("Lolisuki error: ${node.get("message").asText()}")
+                    log.error("获取图片连接失败: ${node.get("message").asText()}")
                 } else {
                     val roledBot = BotManage.getBot(event.botId)!!
                     val bot = roledBot.bot
@@ -199,14 +202,13 @@ class Lolisuki : Plugin {
         }
     }
 
-    class ImageTool(
+    inner class ImageTool(
         val image: Image?,
         val group: Group,
         val chatToolSet: ChatToolSet,
         val state: AtomicBoolean
     ) : ToolSet {
 
-        private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         @LLMDescription("回复消息，并发送涩图，返回群其他人的回复")
         @Tool
