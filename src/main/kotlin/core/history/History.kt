@@ -16,6 +16,7 @@ object HistoryTable : IntIdTable("chat_history") {
     val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)
     val groupId = varchar("group_id", length = DEFAULT_LENGTH)
     val userId = varchar("user_id", length = DEFAULT_LENGTH)
+    val nick = varchar("nick", length = DEFAULT_LENGTH)
     val messageType = enumeration("message_type", MessageType::class)
     val content = text("content").nullable()
 
@@ -38,6 +39,7 @@ class HistoryEntity(id: EntityID<Int>) : IntEntity(id) {
     var botMark by HistoryTable.botMark
     var groupId by HistoryTable.groupId
     var userId by HistoryTable.userId
+    var nick by HistoryTable.nick
     var messageType by HistoryTable.messageType
     var content by HistoryTable.content
     var createdAt by HistoryTable.createdAt
@@ -50,6 +52,7 @@ data class HistoryRecord(
     val botMark: String,
     val groupId: String,
     val userId: String,
+    val nick: String,
     val messageType: MessageType,
     val content: String?,
     val createdAt: LocalDateTime
@@ -61,6 +64,7 @@ fun HistoryEntity.toRecord(): HistoryRecord {
         botMark = botMark,
         groupId = groupId,
         userId = userId,
+        nick = nick,
         messageType = messageType,
         content = content,
         createdAt = createdAt

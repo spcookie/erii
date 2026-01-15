@@ -1,6 +1,7 @@
 package uesugi.core
 
 import kotlinx.coroutines.*
+import net.mamoe.mirai.contact.nameCardOrNick
 import net.mamoe.mirai.event.EventHandler
 import net.mamoe.mirai.event.SimpleListenerHost
 import net.mamoe.mirai.event.events.GroupMessageEvent
@@ -39,6 +40,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
         val groupId =
             if (group.id.toString() in MESSAGE_REDIRECT_GROUP_MAP) MESSAGE_REDIRECT_GROUP_MAP.getValue(group.id.toString()) else group.id.toString()
         val senderId = sender.id.toString()
+        val senderNick = sender.nameCardOrNick
         var isAtBot = false
         val msg = buildString {
             for (singleMessage in message) {
@@ -63,6 +65,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
                         this.botMark = botId
                         this.groupId = groupId
                         this.userId = senderId
+                        this.nick = senderNick
                         this.messageType = MessageType.TEXT
                         this.content = msg
                     }.toRecord()

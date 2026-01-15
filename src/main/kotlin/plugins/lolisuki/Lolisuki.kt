@@ -65,7 +65,7 @@ class Lolisuki : Plugin {
                         val history = historyService.getLatestHistory(event.botId, event.groupId, 10, 1.days)
                         buildString {
                             for (entity in history) {
-                                appendLine("${entity.userId}: ${entity.content}")
+                                appendLine("${entity.nick}: ${entity.content}")
                             }
                         }
                     }
