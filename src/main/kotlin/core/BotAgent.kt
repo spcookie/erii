@@ -371,7 +371,7 @@ data class ChatPoints(
 
 private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>, rules: String? = null): List<ChatPoint> {
     val msg =
-        historyEntities.map { "[ID:${it.id} ${it.userId} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
+        historyEntities.map { "[id:${it.id} userId:${it.userId} username:${it.nick} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
             .toList()
 
     val promptExecutor: PromptExecutor by GlobalContext.get().inject()
@@ -384,11 +384,12 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>, rules: 
             现在你拥有最近的群聊消息（按时间顺序），请根据这些消息生成“最近可接的聊天点”。  
             每条聊天点需要包含以下信息：
 
-            1. userId（内部参考，可选 username）  
-            2. topic：消息主题或关键内容摘要，最多一句话  
-            3. toneHint：推荐语气/互动方式，例如“顺带回应”、“轻度调侃”、“共鸣”、“模仿梗”等  
-            4. actionType：消息类型，选择之一：[QUESTION, COMPLAINT, DAILY_SHARE, MEME_OR_BROKEN, GENERAL]  
-            5. importance：可选字段（0~100），表示优先级 
+            1. userId（内部参考）  
+            2. username：用户名/昵称  
+            3. topic：消息主题或关键内容摘要，最多一句话  
+            4. toneHint：推荐语气/互动方式，例如“顺带回应”、“轻度调侃”、“共鸣”、“模仿梗”等  
+            5. actionType：消息类型，选择之一：[QUESTION, COMPLAINT, DAILY_SHARE, MEME_OR_BROKEN, GENERAL]  
+            6. importance：可选字段（0~100），表示优先级 
              
             额外规则：
             $rules
@@ -609,7 +610,7 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryEntity>, 
             }
             for (history in entities) {
                 item {
-                    line { text("${if (currentBotId == history.userId) "[我]" else ""}${history.userId}：${history.content}") }
+                    line { text("${if (currentBotId == history.userId) "[我]" else ""}${history.nick}：${history.content}") }
                 }
             }
         }
