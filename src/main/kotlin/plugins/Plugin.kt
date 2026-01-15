@@ -2,6 +2,7 @@ package plugins
 
 import ai.koog.agents.core.tools.reflect.ToolSet
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import net.mamoe.mirai.contact.Group
 import uesugi.BotManage
 import uesugi.DEBUG_GROUP_ID
@@ -105,8 +106,8 @@ fun sendAgent(
     lifeCycleRef += lifeCycleSubscriber
     EventBus.subscribeSync<AgentSendLifeCycleEvent>(lifeCycleSubscriber)
 
-    val dispatchRef = mutableListOf<(AgentDispatchEvent) -> Unit>()
-    val dispatchSubscriber: (AgentDispatchEvent) -> Unit = { event ->
+    val dispatchRef = mutableListOf<Job>()
+    val dispatchSubscriber: suspend (AgentDispatchEvent) -> Unit = { event ->
         val dispatchEvent = event.takeIf { event.botId == botId && event.groupId == groupId }
         if (dispatchEvent != null) {
             when (dispatchEvent) {
@@ -126,14 +127,13 @@ fun sendAgent(
                     try {
                         state.callCompletion(dispatchEvent, group)
                     } finally {
-                        dispatchRef.forEach { EventBus.unsubscribeSync<AgentDispatchEvent>(it) }
+                        dispatchRef.forEach { EventBus.unsubscribeAsync(it) }
                     }
                 }
             }
         }
     }
-    dispatchRef += dispatchSubscriber
-    EventBus.subscribeAsync<AgentDispatchEvent>(state.scope, dispatchSubscriber)
+    dispatchRef += EventBus.subscribeAsync<AgentDispatchEvent>(state.scope, dispatchSubscriber)
 
     EventBus.postAsync(
         ProactiveSpeakEvent(
