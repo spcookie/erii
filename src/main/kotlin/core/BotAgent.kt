@@ -39,10 +39,10 @@ import uesugi.core.evolution.LearnedVocabEntity
 import uesugi.core.evolution.VocabularyService
 import uesugi.core.flow.FlowGaugeManager
 import uesugi.core.flow.FlowMeterState
-import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryRecord
 import uesugi.core.history.HistorySavedEvent
 import uesugi.core.history.HistoryService
+import uesugi.core.history.toRecord
 import uesugi.core.memory.FactsEntity
 import uesugi.core.memory.MemoryService
 import uesugi.core.memory.SummaryEntity
@@ -276,18 +276,44 @@ data class Context(
     val currentBotId: String,
     val groupId: String,
     val botRole: BotRole,
-    val behaviorProfile: BehaviorProfile?,
     val impulse: Double,
     val interruptionMode: InterruptionMode,
-    val flow: Double,
-    val flowState: FlowMeterState,
-    val facts: List<FactsEntity>,
-    val userProfiles: List<UserProfileEntity>,
-    val vocabulary: List<LearnedVocabEntity>,
-    val summary: SummaryEntity?,
-    val histories: List<HistoryEntity>,
-    val moreHistories: List<HistoryEntity>
-)
+    val behaviorProfile: suspend () -> BehaviorProfile?,
+    val flow: () -> Double,
+    val flowState: () -> FlowMeterState,
+    val facts: suspend () -> List<FactsEntity>,
+    val userProfiles: suspend () -> List<UserProfileEntity>,
+    val vocabulary: suspend () -> List<LearnedVocabEntity>,
+    val summary: suspend () -> SummaryEntity?,
+    val histories: suspend () -> List<HistoryRecord>,
+    val moreHistories: suspend () -> List<HistoryRecord>
+) {
+
+    data class Transient(
+        val behaviorProfile: BehaviorProfile?,
+        val flow: Double,
+        val flowState: FlowMeterState,
+        val facts: List<FactsEntity>,
+        val userProfiles: List<UserProfileEntity>,
+        val vocabulary: List<LearnedVocabEntity>,
+        val summary: SummaryEntity?,
+        val histories: List<HistoryRecord>,
+        val moreHistories: List<HistoryRecord>
+    )
+
+    suspend fun toTransient() = Transient(
+        behaviorProfile = behaviorProfile(),
+        flow = flow(),
+        flowState = flowState(),
+        facts = facts(),
+        userProfiles = userProfiles(),
+        vocabulary = vocabulary(),
+        summary = summary(),
+        histories = histories(),
+        moreHistories = moreHistories()
+    )
+
+}
 
 private fun buildContext(event: ProactiveSpeakEvent): Context {
     val currentBotId = event.botId
@@ -297,30 +323,76 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
     val historyService by GlobalContext.get().inject<HistoryService>()
     val vocabularyService by GlobalContext.get().inject<VocabularyService>()
     val flowGaugeManager by GlobalContext.get().inject<FlowGaugeManager>()
-    val flowGauge = flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId)!!.role.emoticon)
     return transaction {
-        val behaviorProfile = emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
-        val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 65, 1.days)
-        val subjects = historyEntities.map { it.userId }.distinct().toList()
-        val factsEntities = memoryService.getFacts(currentBotId, groupId, subjects)
-        val userProfiles = memoryService.getUserProfiles(currentBotId, groupId, subjects)
-        val summaryEntity = memoryService.getSummary(currentBotId, groupId)
-        val activeVocabulary = vocabularyService.getActiveVocabulary(currentBotId, groupId)
         Context(
             currentBotId = currentBotId,
             groupId = groupId,
             botRole = BotManage.getBot(currentBotId)!!.role,
-            behaviorProfile = behaviorProfile,
+            behaviorProfile = {
+                withContext(Dispatchers.IO) {
+                    emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
+                }
+            },
             impulse = event.impulse,
             interruptionMode = event.interruptionMode,
-            flow = flowGauge.getFlowMeter(),
-            flowState = flowGauge.mapToState(),
-            facts = factsEntities,
-            userProfiles = userProfiles,
-            vocabulary = activeVocabulary,
-            summary = summaryEntity,
-            histories = historyEntities.take(25),
-            moreHistories = historyEntities
+            flow = {
+                val flowGauge =
+                    flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId)!!.role.emoticon)
+                flowGauge.getFlowMeter()
+            },
+            flowState = {
+                val flowGauge =
+                    flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId)!!.role.emoticon)
+                flowGauge.mapToState()
+            },
+            facts = {
+                withContext(Dispatchers.IO) {
+                    transaction {
+                        val records =
+                            historyService.getLatestHistory(currentBotId, groupId, 20, 1.days).map { it.toRecord() }
+                        val subjects = records.map { it.userId }.distinct().toList()
+                        memoryService.getFacts(currentBotId, groupId, subjects)
+                    }
+                }
+            },
+            userProfiles = {
+                withContext(Dispatchers.IO) {
+                    transaction {
+                        val records =
+                            historyService.getLatestHistory(currentBotId, groupId, 20, 1.days).map { it.toRecord() }
+                        val subjects = records.map { it.userId }.distinct().toList()
+                        memoryService.getUserProfiles(currentBotId, groupId, subjects)
+                    }
+                }
+            },
+            vocabulary = {
+                withContext(Dispatchers.IO) {
+                    transaction {
+                        vocabularyService.getActiveVocabulary(currentBotId, groupId)
+                    }
+                }
+            },
+            summary = {
+                withContext(Dispatchers.IO) {
+                    transaction {
+                        memoryService.getSummary(currentBotId, groupId)
+                    }
+                }
+            },
+            histories = {
+                withContext(Dispatchers.IO) {
+                    transaction {
+                        historyService.getLatestHistory(currentBotId, groupId, 25, 1.days).map { it.toRecord() }
+                    }
+                }
+            },
+            moreHistories = {
+                withContext(Dispatchers.IO) {
+                    transaction {
+                        historyService.getLatestHistory(currentBotId, groupId, 65, 1.days).map { it.toRecord() }
+                    }
+                }
+            }
         )
     }
 }
@@ -369,7 +441,7 @@ data class ChatPoints(
     val chatPoints: List<ChatPoint>
 )
 
-private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>, rules: String? = null): List<ChatPoint> {
+private suspend fun buildChatPoint(historyEntities: List<HistoryRecord>, rules: String? = null): List<ChatPoint> {
     val msg =
         historyEntities.map { "[id:${it.id} userId:${it.userId} username:${it.nick} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
             .toList()
@@ -418,14 +490,16 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryEntity>, rules: 
     return result.getOrThrow().data.chatPoints
 }
 
-private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?): Prompt {
+private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?): Prompt {
+    val transient = context.toTransient()
+    val behaviorProfile = transient.behaviorProfile
     val constraints = buildSpeechConstraints(
-        context.behaviorProfile?.emotion,
-        context.behaviorProfile?.tone,
-        context.behaviorProfile?.aggressiveness,
-        context.behaviorProfile?.emojiLevel,
+        behaviorProfile?.emotion,
+        behaviorProfile?.tone,
+        behaviorProfile?.aggressiveness,
+        behaviorProfile?.emojiLevel,
         context.interruptionMode,
-        context.flowState
+        transient.flowState
     )
 
     return prompt("群聊机器人") {
@@ -445,22 +519,22 @@ private fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?): Prompt 
 
                 horizontalRule()
 
-                buildVocabularyPrompt(context.vocabulary)
+                buildVocabularyPrompt(transient.vocabulary)
 
-                buildFactsPrompt(context.facts)
+                buildFactsPrompt(transient.facts)
             }
         }
         user {
             markdown {
-                buildUserProfilesPrompt(context.userProfiles)
+                buildUserProfilesPrompt(transient.userProfiles)
 
-                buildSummaryPrompt(context.summary)
+                buildSummaryPrompt(transient.summary)
 
                 if (!chatPoints.isNullOrEmpty()) {
                     buildChatPointsPrompt(chatPoints)
                 }
 
-                buildHistoriesPrompt(context.histories, context.currentBotId)
+                buildHistoriesPrompt(transient.histories, context.currentBotId)
             }
         }
 
@@ -599,7 +673,7 @@ fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
     }
 }
 
-fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryEntity>, currentBotId: String) {
+fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, currentBotId: String) {
     if (histories.isNotEmpty()) {
         header(2, "最近群聊记录")
         bulleted {
@@ -647,14 +721,17 @@ class ChatToolSet(
         if (sentences != null) {
             eriiSendJob = send(sentences)
         }
+
+        val transient = context.toTransient()
+
         val prompt = prompt("promptId") {
             system {
                 text(botRole.personality(context.currentBotId))
                 markdown {
-                    buildVocabularyPrompt(context.vocabulary)
-                    buildFactsPrompt(context.facts)
-                    buildSummaryPrompt(context.summary)
-                    buildHistoriesPrompt(context.moreHistories, context.currentBotId)
+                    buildVocabularyPrompt(transient.vocabulary)
+                    buildFactsPrompt(transient.facts)
+                    buildSummaryPrompt(transient.summary)
+                    buildHistoriesPrompt(transient.moreHistories, context.currentBotId)
                 }
             }
             user(sentence)
@@ -718,7 +795,8 @@ class ChatToolSet(
                 val record = event.historyRecord
                 if (record.groupId == context.groupId && record.userId != context.currentBotId) {
                     currentRecord = record
-                    if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
+                    val transient = context.toTransient()
+                    if ((0..100).random() in 0..(transient.flow.toInt() + 50)) {
                         historyChannel.send(event)
                         historyChannel.close()
                     }
@@ -782,7 +860,8 @@ class ChatToolSet(
                 if (!skip) {
                     select {
                         historyChannel.onReceiveCatching { result ->
-                            if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
+                            val transient = context.toTransient()
+                            if ((0..100).random() in 0..(transient.flow.toInt() + 50)) {
                                 if (result.isSuccess) {
                                     record = result.getOrThrow().historyRecord
                                 }
@@ -919,7 +998,10 @@ object BotAgent {
 
             if (mutex.isLocked) {
                 val state = channelsLock.withLock { states[key] }
-                if (it.flag has ProactiveSpeakFeature.GRAB) {
+                if (it.flag has ProactiveSpeakFeature.CHAT_URGENT) {
+                    log.info("BotAgent: Chat urgent, {}", it)
+                    EventBus.postAsync(ChatUrgentEvent(it))
+                } else if (it.flag has ProactiveSpeakFeature.GRAB) {
                     if (state?.flag has ProactiveSpeakFeature.IGNORE_INTERRUPT) {
                         if (it.flag has ProactiveSpeakFeature.FALLBACK) {
                             log.warn("BotAgent: Reject grab and fallback, {}", it)
@@ -943,8 +1025,6 @@ object BotAgent {
                     } else {
                         state?.cancel?.invoke()
                     }
-                } else if (it.flag has ProactiveSpeakFeature.CHAT_URGENT) {
-                    EventBus.postAsync(ChatUrgentEvent(it))
                 } else if (it.flag has ProactiveSpeakFeature.FALLBACK) {
                     log.warn("BotAgent: Fallback, {}", it)
                     EventBus.postAsync(
@@ -1008,7 +1088,7 @@ object BotAgent {
                             var chatPoints: List<ChatPoint>? = null
                             if (event.chatPointRule != null) {
                                 log.info("Bot agent build chat point rule")
-                                chatPoints = buildChatPoint(context.histories, event.chatPointRule)
+                                chatPoints = buildChatPoint(context.histories(), event.chatPointRule)
                             }
                             val buildPrompt = buildPrompt(context, chatPoints)
 //                val prompt = buildPrompt(context)
