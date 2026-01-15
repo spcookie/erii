@@ -879,7 +879,7 @@ object BotAgent {
                 if (it.flag has ProactiveSpeakFeature.GRAB) {
                     if (state?.flag has ProactiveSpeakFeature.IGNORE_INTERRUPT) {
                         if (it.flag has ProactiveSpeakFeature.FALLBACK) {
-                            log.info("BotAgent: Fallback, {}", it)
+                            log.warn("BotAgent: Reject grab and fallback, {}", it)
                             EventBus.postAsync(
                                 AgentFallbackEvent(
                                     it.botId,
@@ -888,7 +888,7 @@ object BotAgent {
                                 )
                             )
                         } else {
-                            log.info("BotAgent: Reject grab, {}", it)
+                            log.warn("BotAgent: Reject grab, {}", it)
                             EventBus.postAsync(
                                 AgentRejectGrabEvent(
                                     it.botId,
@@ -901,6 +901,7 @@ object BotAgent {
                         state?.cancel?.invoke()
                     }
                 } else if (it.flag has ProactiveSpeakFeature.FALLBACK) {
+                    log.warn("BotAgent: Fallback, {}", it)
                     EventBus.postAsync(
                         AgentFallbackEvent(
                             it.botId,
