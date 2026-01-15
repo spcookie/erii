@@ -84,7 +84,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
                                 groupId = groupId,
                                 impulse = 0.0,
                                 interruptionMode = InterruptionMode.Interrupt,
-                                flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.IGNORE_INTERRUPT
+                                flag = ProactiveSpeakFeature.CHAT_URGENT or ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.IGNORE_INTERRUPT
                             )
                         )
                     } else {

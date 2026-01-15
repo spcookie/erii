@@ -42,7 +42,7 @@ object RoutingAgent {
                     numbered {
                         item { text("只关注【当前用户消息】的真实意图") }
                         item { text("群聊上下文仅用于消歧，不可过度联想") }
-                        item { text("无法确定时，默认选择 CHAT（宁可保守）") }
+                        item { text("无法确定时，默认选择 CHAT_URGENT（宁可保守）") }
                     }
                 }
             }
@@ -68,7 +68,7 @@ object RoutingAgent {
 
             return result.getOrThrow().data.ref
         } catch (e: Exception) {
-            log.warn("routing failed, fallback CHAT, reason: {}", e.message)
+            log.warn("routing failed, fallback CHAT_URGENT, reason: {}", e.message)
             return RouteRule.CHAT
         }
     }

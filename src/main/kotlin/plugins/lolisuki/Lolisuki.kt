@@ -178,7 +178,9 @@ class Lolisuki : Plugin {
                                     if (image != null) {
                                         log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
                                         bot.launch {
-                                            group.sendImage(image)
+                                            image.use {
+                                                group.sendImage(image)
+                                            }
                                             log.info("图片直接发送成功")
                                         }
                                     } else {
@@ -222,7 +224,9 @@ class Lolisuki : Plugin {
                 val job = chatToolSet.send(sentences)
                 if (image != null) {
                     job.join()
-                    group.sendImage(image)
+                    image.use {
+                        group.sendImage(image)
+                    }
                 }
             }
             return null

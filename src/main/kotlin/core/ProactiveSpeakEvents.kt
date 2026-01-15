@@ -25,6 +25,7 @@ object ProactiveSpeakFeature {
     const val IGNORE_INTERRUPT = 0x1
     const val GRAB = 0x2
     const val FALLBACK = 0x4
+    const val CHAT_URGENT = 0x8
 }
 
 typealias ProactiveSpeakFeatureFlag = Int
