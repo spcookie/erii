@@ -249,7 +249,7 @@ class SteamWatcher : Plugin {
                 sendAgent(
                     bot.id.toString(),
                     group.id.toString(),
-                    "你一直在观察群友的 Steam 状态，发现 ${summary.personaname} 的 Steam 状态已更新，请告知群友",
+                    "你一直在观察群友的 Steam 状态，发现 ${summary.personaname} 的 Steam 状态已更新，${text}，请告知群友",
                     ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK,
                     object : SendAgentState {
                         override val scope: CoroutineScope
