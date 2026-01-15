@@ -711,12 +711,26 @@ class ChatToolSet(
         try {
             EventBus.postSync(AgentBeforeSendAndReceiveEvent(context.currentBotId, context.groupId, sentences))
 
-            val channel = Channel<HistorySavedEvent>(Channel.CONFLATED)
-            val job = EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
+            var currentRecord: HistoryRecord? = null
+
+            val historyChannel = Channel<HistorySavedEvent>(Channel.CONFLATED)
+            val historyJob = EventBus.subscribeAsync<HistorySavedEvent>(scope) { event ->
                 val record = event.historyRecord
                 if (record.groupId == context.groupId && record.userId != context.currentBotId) {
-                    channel.send(event)
-                    channel.close()
+                    currentRecord = record
+                    if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
+                        historyChannel.send(event)
+                        historyChannel.close()
+                    }
+                }
+            }
+
+            val chatChannel = Channel<ChatUrgentEvent>(Channel.CONFLATED)
+            val chatUrgentJob = EventBus.subscribeAsync<ChatUrgentEvent>(scope) { event ->
+                val speak = event.urgent
+                if (speak.groupId == context.groupId && speak.botId == context.currentBotId) {
+                    chatChannel.send(event)
+                    chatChannel.close()
                 }
             }
 
@@ -728,21 +742,34 @@ class ChatToolSet(
                         sendMessage(sentence)
                     } else {
                         select {
-                            channel.onReceiveCatching { result ->
-                                if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
-                                    if (result.isSuccess) {
-                                        record = result.getOrThrow().historyRecord
-                                        skip = true
-                                        EventBus.postSync(
-                                            AgentReceiveReplyEvent(
-                                                context.currentBotId,
-                                                context.groupId,
-                                                record?.content ?: ""
-                                            )
+                            historyChannel.onReceiveCatching { result ->
+                                if (result.isSuccess) {
+                                    record = result.getOrThrow().historyRecord
+                                    skip = true
+                                    EventBus.postSync(
+                                        AgentReceiveReplyEvent(
+                                            context.currentBotId,
+                                            context.groupId,
+                                            record?.content ?: ""
                                         )
-                                    }
+                                    )
                                 }
                             }
+
+                            chatChannel.onReceiveCatching { result ->
+                                if (result.isSuccess) {
+                                    record = currentRecord
+                                    skip = true
+                                    EventBus.postSync(
+                                        AgentReceiveReplyEvent(
+                                            context.currentBotId,
+                                            context.groupId,
+                                            record?.content ?: ""
+                                        )
+                                    )
+                                }
+                            }
+
 
                             onTimeout(calcHumanTypingDelay(sentence).milliseconds) {
                                 sendMessage(sentence)
@@ -754,11 +781,25 @@ class ChatToolSet(
                 EventBus.postSync(AgentAfterSendAndReceiveEvent(context.currentBotId, context.groupId, sentences))
                 if (!skip) {
                     select {
-                        channel.onReceiveCatching { result ->
+                        historyChannel.onReceiveCatching { result ->
                             if ((0..100).random() in 0..(context.flow.toInt() + 50)) {
                                 if (result.isSuccess) {
                                     record = result.getOrThrow().historyRecord
                                 }
+                            }
+                        }
+
+                        chatChannel.onReceiveCatching { result ->
+                            if (result.isSuccess) {
+                                record = currentRecord
+                                skip = true
+                                EventBus.postSync(
+                                    AgentReceiveReplyEvent(
+                                        context.currentBotId,
+                                        context.groupId,
+                                        record?.content ?: ""
+                                    )
+                                )
                             }
                         }
 
@@ -767,7 +808,8 @@ class ChatToolSet(
                         }
                     }
                 }
-                EventBus.unsubscribeAsync(job)
+                EventBus.unsubscribeAsync(historyJob)
+                EventBus.unsubscribeAsync(chatUrgentJob)
                 Pair(record != null, record)
             }
             return deferred.await().let {
@@ -901,6 +943,8 @@ object BotAgent {
                     } else {
                         state?.cancel?.invoke()
                     }
+                } else if (it.flag has ProactiveSpeakFeature.CHAT_URGENT) {
+                    EventBus.postAsync(ChatUrgentEvent(it))
                 } else if (it.flag has ProactiveSpeakFeature.FALLBACK) {
                     log.warn("BotAgent: Fallback, {}", it)
                     EventBus.postAsync(
@@ -952,155 +996,157 @@ object BotAgent {
 
                             val currentBot = BotManage.getBot(event.botId)!!
 
-                                val sendMessage: suspend (String) -> Unit = { message ->
-                                    val groupId = DEBUG_GROUP_ID ?: event.groupId
-                                    val bot = currentBot.bot
-                                    bot.launch {
-                                    }
-                                    bot.getGroup(groupId.toLong())?.sendMessage(message)
+                            val sendMessage: suspend (String) -> Unit = { message ->
+                                val groupId = DEBUG_GROUP_ID ?: event.groupId
+                                val bot = currentBot.bot
+                                bot.launch {
                                 }
+                                bot.getGroup(groupId.toLong())?.sendMessage(message)
+                            }
 
-                                val context = buildContext(event)
-                                var chatPoints: List<ChatPoint>? = null
-                                if (event.chatPointRule != null) {
-                                    log.info("Bot agent build chat point rule")
-                                    chatPoints = buildChatPoint(context.histories, event.chatPointRule)
-                                }
-                                val buildPrompt = buildPrompt(context, chatPoints)
+                            val context = buildContext(event)
+                            var chatPoints: List<ChatPoint>? = null
+                            if (event.chatPointRule != null) {
+                                log.info("Bot agent build chat point rule")
+                                chatPoints = buildChatPoint(context.histories, event.chatPointRule)
+                            }
+                            val buildPrompt = buildPrompt(context, chatPoints)
 //                val prompt = buildPrompt(context)
-                                val prompt = prompt(
-                                    id = "constraint",
-                                    params = LLMParams(
+                            val prompt = prompt(
+                                id = "constraint",
+                                params = LLMParams(
 //                        additionalProperties = mapOf(
 //                            "thinkingConfig" to JsonObject(mapOf("thinkingLevel" to JsonPrimitive("LOW")))
 //                        )
-                                    )
-                                ) {
-                                    messages(buildPrompt.messages)
-                                }
-
-                                val chatToolSet = ChatToolSet(
-                                    context,
-                                    event.flag,
-                                    promptExecutor,
-                                    toolScope,
-                                    sendMessage
                                 )
-
-                                val toolSet = event.toolSets?.invoke(chatToolSet)
-
-                                val aiAgent = AIAgent(
-                                    promptExecutor = promptExecutor,
-                                    agentConfig = AIAgentConfig(
-                                        prompt = prompt,
-                                        model = GoogleModels.Gemini2_5Pro,
-                                        maxAgentIterations = 50,
-                                    ),
-                                    toolRegistry = ToolRegistry {
-                                        tools(chatToolSet.asTools())
-                                        toolSet?.let { tools(it.asTools()) }
-                                    },
-                                    strategy = strategy("chat") {
-                                        val nodeSendInput by nodeLLMRequest()
-                                        val nodeExecuteTool by nodeExecuteTool()
-                                        val nodeSendToolResult by nodeLLMSendToolResult()
-
-                                        edge(nodeStart forwardTo nodeSendInput)
-                                        edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
-                                        edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
-                                        edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
-                                            try {
-                                                val result = it.result ?: return@onCondition false
-                                                result.jsonNull
-                                                false
-                                            } catch (_: Exception) {
-                                                true
-                                            }
-                                        })
-                                        edge(nodeExecuteTool forwardTo nodeFinish onCondition {
-                                            try {
-                                                val result = it.result ?: return@onCondition true
-                                                result.jsonNull
-                                                true
-                                            } catch (_: Exception) {
-                                                false
-                                            }
-                                        } transformed { it.content })
-                                        edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-                                        edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
-//                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
-                                    }
-                                ) {
-                                    handleEvents {
-                                        onLLMCallStarting {
-                                            if (log.isDebugEnabled) {
-                                                val info = buildString {
-                                                    appendLine()
-                                                    for (message in it.prompt.messages) {
-                                                        append("${message.role.name}:")
-                                                        appendLine()
-                                                        append(message.content)
-                                                        appendLine()
-                                                    }
-                                                }
-                                                log.debug("Bot agent onLLMCallStarting: {}", info)
-                                            } else {
-                                                log.info("Bot agent onLLMCallStarting")
-                                            }
-                                        }
-
-                                        onLLMCallCompleted {
-                                            if (log.isDebugEnabled) {
-                                                val info = buildString {
-                                                    appendLine()
-                                                    for (message in it.responses) {
-                                                        append("${message.role.name}:")
-                                                        appendLine()
-                                                        append(message.content)
-                                                        appendLine()
-                                                    }
-                                                }
-                                                log.debug("Bot agent onLLMCallCompleted: {}", info)
-                                            }
-                                            log.info("Bot agent onLLMCallCompleted")
-                                        }
-                                    }
-                                }
-
-                                val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
-                                log.info("Bot agent result: $result")
-                            } catch (e: Exception) {
-                                error = e
-                                throw e
-                            } finally {
-                                EventBus.postAsync(
-                                    AgentCallCompletionEvent(
-                                        error,
-                                        event.botId,
-                                        event.groupId,
-                                        event
-                                    )
-                                )
+                            ) {
+                                messages(buildPrompt.messages)
                             }
+
+                            val chatToolSet = ChatToolSet(
+                                context,
+                                event.flag,
+                                promptExecutor,
+                                toolScope,
+                                sendMessage
+                            )
+
+                            val toolSet = event.toolSets?.invoke(chatToolSet)
+
+                            val aiAgent = AIAgent(
+                                promptExecutor = promptExecutor,
+                                agentConfig = AIAgentConfig(
+                                    prompt = prompt,
+                                    model = GoogleModels.Gemini2_5Pro,
+                                    maxAgentIterations = 50,
+                                ),
+                                toolRegistry = ToolRegistry {
+                                    tools(chatToolSet.asTools())
+                                    toolSet?.let { tools(it.asTools()) }
+                                },
+                                strategy = strategy("chat") {
+                                    val nodeSendInput by nodeLLMRequest()
+                                    val nodeExecuteTool by nodeExecuteTool()
+                                    val nodeSendToolResult by nodeLLMSendToolResult()
+
+                                    edge(nodeStart forwardTo nodeSendInput)
+                                    edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
+                                    edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
+                                    edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
+                                        try {
+                                            val result = it.result ?: return@onCondition false
+                                            result.jsonNull
+                                            false
+                                        } catch (_: Exception) {
+                                            true
+                                        }
+                                    })
+                                    edge(nodeExecuteTool forwardTo nodeFinish onCondition {
+                                        try {
+                                            val result = it.result ?: return@onCondition true
+                                            result.jsonNull
+                                            true
+                                        } catch (_: Exception) {
+                                            false
+                                        }
+                                    } transformed { it.content })
+                                    edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
+                                    edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+//                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
+                                }
+                            ) {
+                                handleEvents {
+                                    onLLMCallStarting {
+                                        if (log.isDebugEnabled) {
+                                            val info = buildString {
+                                                appendLine()
+                                                for (message in it.prompt.messages) {
+                                                    append("${message.role.name}:")
+                                                    appendLine()
+                                                    append(message.content)
+                                                    appendLine()
+                                                }
+                                            }
+                                            log.debug("Bot agent onLLMCallStarting: {}", info)
+                                        } else {
+                                            log.info("Bot agent onLLMCallStarting")
+                                        }
+                                    }
+
+                                    onLLMCallCompleted {
+                                        if (log.isDebugEnabled) {
+                                            val info = buildString {
+                                                appendLine()
+                                                for (message in it.responses) {
+                                                    append("${message.role.name}:")
+                                                    appendLine()
+                                                    append(message.content)
+                                                    appendLine()
+                                                }
+                                            }
+                                            log.debug("Bot agent onLLMCallCompleted: {}", info)
+                                        }
+                                        log.info("Bot agent onLLMCallCompleted")
+                                    }
+                                }
+                            }
+
+                            val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
+                            log.info("Bot agent result: $result")
+                        } catch (e: Exception) {
+                            error = e
+                            throw e
+                        } finally {
+                            EventBus.postAsync(
+                                AgentCallCompletionEvent(
+                                    error,
+                                    event.botId,
+                                    event.groupId,
+                                    event
+                                )
+                            )
                         }
                     }
+                }
 
                 val cancelFunc = {
-                        toolScope.cancel()
-                        job.cancel()
+                    toolScope.cancel()
+                    job.cancel()
                 }
 
                 channelsLock.withLock {
                     states[key] = states[key]?.copy(cancel = cancelFunc) ?: BotGroupState(null, cancelFunc)
-                    }
-
-                    job.join()
-                } catch (e: CancellationException) {
-                    log.warn("Bot agent sub job cancelled", e)
-                } catch (e: Exception) {
-                    log.error("Bot agent sub job error", e)
                 }
+
+                job.join()
+            } catch (e: CancellationException) {
+                log.warn("Bot agent sub job cancelled", e)
+            } catch (e: Exception) {
+                log.error("Bot agent sub job error", e)
             }
         }
+    }
 
 }
+
+data class ChatUrgentEvent(val urgent: ProactiveSpeakEvent)
