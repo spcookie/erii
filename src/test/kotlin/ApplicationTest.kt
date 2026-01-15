@@ -42,7 +42,7 @@ class ApplicationTest {
         runBlocking {
             val response = client.post("http://127.0.0.1:6099/api/Debug/call/debug-primary") {
                 contentType(ContentType.Application.Json)
-                bearerAuth("\"eyJEYXRhIjp7IkNyZWF0ZWRUaW1lIjoxNzY3OTY4MzIxMjI3LCJIYXNoRW5jb2RlZCI6ImRlMmZiYTc5YjJhOGJhZDdlYzIxNzhiOGVlOWQ4NjlhNzBkZDFhOWI3ZDQzY2E5MGY1NzYzZDcyZjliMmRkZjEifSwiSG1hYyI6IjQ1NDg2OWU3MGFlZmZjOTA2NjM5MzQ1NTNkNWEyM2NjMWRiMWNiY2YxMjNjMzJlNzExMmVjYjM4Nzg2MDJlZTYifQ==\"")
+                bearerAuth("\"eyJEYXRhIjp7IkNyZWF0ZWRUaW1lIjoxNzY4NDUzMTc1NjU0LCJIYXNoRW5jb2RlZCI6ImIxNzNkMTU1NjU0YTcxNDRkNjBkNmNhNDg4NWY2YmI0MzNkYjE5Yzc3ODlhNmU2OGQ1M2I0YTI5MGM0NjBlZmQifSwiSG1hYyI6IjJkZWY1MjdlYmU1ZjA2N2NhZjcyMDZjMTJmNmYyYTNiOGM5YmUyZGNiZjg4ZDM5YjA0M2ExOTgwNDc5MDYzOGMifQ==\"")
                 setBody(
                     mapOf(
                         "action" to "get_group_msg_history",
@@ -68,6 +68,7 @@ class ApplicationTest {
             transaction(database) {
                 for (message in nodes) {
                     val userId = message.get("user_id").asText()
+                    val card = message.get("sender").get("card").asText()
                     val content = buildList {
                         message.get("message").forEach { msg ->
                             val type = msg.get("type").asText()
@@ -114,6 +115,7 @@ class ApplicationTest {
                         groupId = "1053148332"
                         this.userId = userId
                         this.content = content
+                        this.nick = card
                         messageType = MessageType.TEXT
                         createdAt = localDateTime
                     }
