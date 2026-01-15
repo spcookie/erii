@@ -28,8 +28,6 @@ class ChatQA : Plugin {
             logger.error("ChatQA Coroutine exception", exception)
         })
 
-    private val punctuationRegex: Regex = "(?<=[。！？?!.；：…]|\\.\\.\\.)".toRegex()
-
     private lateinit var job: Job
 
     override fun onLoad() {
@@ -60,6 +58,7 @@ class ChatQA : Plugin {
                         2. 直接输出文本答案，不要多余前缀、标题或注释。
                         3. 如果问题可以简短回答就直接回答，不要冗长。
                         4. 对于复杂问题，也尽量保持回答直截了当、可理解。
+                        5. 回答的句子末尾需要换行。
                     """.trimIndent()
                     )
 
@@ -86,7 +85,11 @@ class ChatQA : Plugin {
                 ).filterTextOnly()
                     .collect { chunk ->
                         buffer.append(chunk)
-                        val parts = buffer.toString().split(punctuationRegex)
+                        val parts = buffer.toString()
+                            .lineSequence()
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .toList()
                         parts.dropLast(1).forEach { msg ->
                             msg.trim().takeIf { it.isNotEmpty() }?.let { group.sendMessage(it) }
                         }
