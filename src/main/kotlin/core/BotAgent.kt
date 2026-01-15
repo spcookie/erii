@@ -285,7 +285,8 @@ data class Context(
     val userProfiles: List<UserProfileEntity>,
     val vocabulary: List<LearnedVocabEntity>,
     val summary: SummaryEntity?,
-    val histories: List<HistoryEntity>
+    val histories: List<HistoryEntity>,
+    val moreHistories: List<HistoryEntity>
 )
 
 private fun buildContext(event: ProactiveSpeakEvent): Context {
@@ -299,7 +300,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
     val flowGauge = flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId)!!.role.emoticon)
     return transaction {
         val behaviorProfile = emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
-        val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 25, 1.days)
+        val historyEntities = historyService.getLatestHistory(currentBotId, groupId, 65, 1.days)
         val subjects = historyEntities.map { it.userId }.distinct().toList()
         val factsEntities = memoryService.getFacts(currentBotId, groupId, subjects)
         val userProfiles = memoryService.getUserProfiles(currentBotId, groupId, subjects)
@@ -318,7 +319,8 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
             userProfiles = userProfiles,
             vocabulary = activeVocabulary,
             summary = summaryEntity,
-            histories = historyEntities
+            histories = historyEntities.take(25),
+            moreHistories = historyEntities
         )
     }
 }
@@ -651,7 +653,7 @@ class ChatToolSet(
                     buildVocabularyPrompt(context.vocabulary)
                     buildFactsPrompt(context.facts)
                     buildSummaryPrompt(context.summary)
-                    buildHistoriesPrompt(context.histories, context.currentBotId)
+                    buildHistoriesPrompt(context.moreHistories, context.currentBotId)
                 }
             }
             user(sentence)
@@ -793,7 +795,7 @@ class ChatToolSet(
      */
     fun calcHumanTypingDelay(
         text: String,
-        cpm: Int = 240,
+        cpm: Int = 160,
         jitter: Double = 0.15
     ): Long {
         val charCount = text.count { !it.isWhitespace() }
