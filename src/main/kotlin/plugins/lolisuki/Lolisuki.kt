@@ -206,6 +206,7 @@ class Lolisuki : Plugin {
         }
     }
 
+    @Suppress("unused")
     inner class ImageTool(
         val image: ExternalResource?,
         val group: Group,
