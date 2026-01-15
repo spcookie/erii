@@ -227,6 +227,8 @@ class Lolisuki : Plugin {
                     image.use {
                         group.sendImage(image)
                     }
+                } else {
+
                 }
             }
             return null

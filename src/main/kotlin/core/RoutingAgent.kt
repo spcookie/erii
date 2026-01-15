@@ -9,6 +9,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.core.history.HistoryService
+import uesugi.core.history.toRecord
 import uesugi.core.memory.MemoryService
 import uesugi.toolkit.logger
 import kotlin.time.Duration.Companion.hours
@@ -24,7 +25,7 @@ object RoutingAgent {
         val memoryService by GlobalContext.get().inject<MemoryService>()
 
         val summaryEntity = memoryService.getSummary(botId, groupId)
-        val latestHistory = historyService.getLatestHistory(botId, groupId, 50, 24.hours)
+        val latestHistory = historyService.getLatestHistory(botId, groupId, 50, 24.hours).map { it.toRecord() }
 
         val prompt = prompt("RoutingAgent") {
             system {
