@@ -69,7 +69,7 @@ object RoutingAgent {
 
             return result.getOrThrow().data.ref
         } catch (e: Exception) {
-            log.warn("routing failed, fallback CHAT_URGENT, reason: {}", e.message)
+            log.warn("routing failed, dispatchFallback CHAT_URGENT, reason: {}", e.message)
             return RouteRule.CHAT
         }
     }

@@ -3,11 +3,10 @@ package plugins
 import ai.koog.agents.core.tools.reflect.ToolSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import net.mamoe.mirai.contact.Group
-import uesugi.BotManage
-import uesugi.DEBUG_GROUP_ID
 import uesugi.core.*
 import uesugi.toolkit.EventBus
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 interface Plugin {
     fun onLoad()
@@ -16,90 +15,50 @@ interface Plugin {
 
 interface SendAgentState {
     val scope: CoroutineScope
-    fun init(group: Group) {}
-    fun before(sentences: List<String>, group: Group) {}
-    fun after(sentences: List<String>, group: Group) {}
-    fun replay(sentence: String, group: Group) {}
-    fun closed(group: Group) {}
-    fun finally(group: Group) {}
-    fun reject(event: ProactiveSpeakEvent, group: Group) {}
-    fun fallback(event: ProactiveSpeakEvent, group: Group) {}
-    fun callStart(event: AgentCallStartEvent, group: Group) {}
-    fun callCompletion(event: AgentCallCompletionEvent, group: Group) {}
+    fun sendBefore(sentences: List<String>) {}
+    fun sendAfter(sentences: List<String>) {}
+    fun sendReplay(sentence: String) {}
+    fun sendClosed() {}
+    fun sendFinally() {}
+    fun dispatchReject() {}
+    fun dispatchFallback() {}
+    fun callStart() {}
+    fun callCompletion() {}
 }
 
+@OptIn(ExperimentalUuidApi::class)
+data class SendAgentConf(
+    val chatPointRule: String? = null,
+    val toolSets: ((ChatToolSet) -> ToolSet)? = null,
+    val flag: ProactiveSpeakFeatureFlag = ProactiveSpeakFeature.NONE,
+    val echo: String = Uuid.random().toHexString(),
+)
+
 fun sendAgent(
     botId: String,
     groupId: String,
     input: String,
     state: SendAgentState
-) = sendAgent(botId, groupId, input, null, null, state)
+) = sendAgent(botId, groupId, input, SendAgentConf(), state)
 
 fun sendAgent(
     botId: String,
     groupId: String,
     input: String,
-    flag: ProactiveSpeakFeatureFlag,
-    state: SendAgentState
-) = sendAgent(botId, groupId, input, null, null, flag, state)
-
-
-fun sendAgent(
-    botId: String,
-    groupId: String,
-    input: String,
-    chatPointRule: String? = null,
-    state: SendAgentState
-) = sendAgent(botId, groupId, input, chatPointRule, null, state)
-
-fun sendAgent(
-    botId: String,
-    groupId: String,
-    input: String,
-    toolSets: ((ChatToolSet) -> ToolSet)? = null,
-    state: SendAgentState
-) = sendAgent(botId, groupId, input, null, toolSets, state)
-
-fun sendAgent(
-    botId: String,
-    groupId: String,
-    input: String,
-    chatPointRule: String? = null,
-    toolSets: ((ChatToolSet) -> ToolSet)? = null,
-    state: SendAgentState
-) = sendAgent(botId, groupId, input, chatPointRule, toolSets, ProactiveSpeakFeature.NONE, state)
-
-fun sendAgent(
-    botId: String,
-    groupId: String,
-    input: String,
-    chatPointRule: String? = null,
-    toolSets: ((ChatToolSet) -> ToolSet)? = null,
-    flag: ProactiveSpeakFeatureFlag,
+    conf: SendAgentConf = SendAgentConf(),
     state: SendAgentState
 ) {
-    val roledBot = BotManage.getBot(botId) ?: return
-    val group = roledBot.bot.getGroup(DEBUG_GROUP_ID?.toLong() ?: groupId.toLong())
-        ?: throw IllegalArgumentException("Group not found")
-
-    state.init(group)
-
+    val (chatPointRule, toolSets, flag, echo) = conf
     val lifeCycleRef = mutableListOf<(AgentSendLifeCycleEvent) -> Unit>()
     val lifeCycleSubscriber: (AgentSendLifeCycleEvent) -> Unit = { event ->
-        val lifeCycleEvent = event.takeIf { event.botId == botId && event.groupId == groupId }
+        val lifeCycleEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
         if (lifeCycleEvent != null) {
             when (lifeCycleEvent) {
-                is AgentBeforeSendAndReceiveEvent -> state.before(lifeCycleEvent.sentences, group)
-                is AgentAfterSendAndReceiveEvent -> state.after(lifeCycleEvent.sentences, group)
-                is AgentReceiveReplyEvent -> state.replay(lifeCycleEvent.sentence, group)
-                is AgentSendAndReceiveClosedEvent -> state.closed(group)
-                is AgentSendAndReceiveFinallyEvent -> {
-                    try {
-                        state.finally(group)
-                    } finally {
-                        lifeCycleRef.forEach { EventBus.unsubscribeSync<AgentSendLifeCycleEvent>(it) }
-                    }
-                }
+                is AgentBeforeSendAndReceiveEvent -> state.sendBefore(lifeCycleEvent.sentences)
+                is AgentAfterSendAndReceiveEvent -> state.sendAfter(lifeCycleEvent.sentences)
+                is AgentReceiveReplyEvent -> state.sendReplay(lifeCycleEvent.sentence)
+                is AgentSendAndReceiveClosedEvent -> state.sendClosed()
+                is AgentSendAndReceiveFinallyEvent -> state.sendFinally()
             }
         }
     }
@@ -108,26 +67,27 @@ fun sendAgent(
 
     val dispatchRef = mutableListOf<Job>()
     val dispatchSubscriber: suspend (AgentDispatchEvent) -> Unit = { event ->
-        val dispatchEvent = event.takeIf { event.botId == botId && event.groupId == groupId }
+        val dispatchEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
         if (dispatchEvent != null) {
             when (dispatchEvent) {
                 is AgentRejectGrabEvent -> {
-                    state.reject(dispatchEvent.speak, group)
+                    state.dispatchReject()
                 }
 
                 is AgentFallbackEvent -> {
-                    state.fallback(dispatchEvent.speak, group)
+                    state.dispatchFallback()
                 }
 
                 is AgentCallStartEvent -> {
-                    state.callStart(dispatchEvent, group)
+                    state.callStart()
                 }
 
                 is AgentCallCompletionEvent -> {
                     try {
-                        state.callCompletion(dispatchEvent, group)
+                        state.callCompletion()
                     } finally {
                         dispatchRef.forEach { EventBus.unsubscribeAsync(it) }
+                        lifeCycleRef.forEach { EventBus.unsubscribeSync<AgentSendLifeCycleEvent>(it) }
                     }
                 }
             }
@@ -144,7 +104,8 @@ fun sendAgent(
             input,
             chatPointRule,
             toolSets,
-            flag
+            flag,
+            echo
         )
     )
 

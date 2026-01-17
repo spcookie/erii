@@ -1,15 +1,14 @@
 package plugins.steamwatcher
 
 import kotlinx.coroutines.*
-import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.message.data.Image
 import net.mamoe.mirai.message.data.MessageChainBuilder
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import plugins.Plugin
+import plugins.SendAgentConf
 import plugins.SendAgentState
 import plugins.sendAgent
 import uesugi.BotManage
-import uesugi.core.ProactiveSpeakEvent
 import uesugi.core.ProactiveSpeakFeature
 import uesugi.toolkit.logger
 
@@ -250,24 +249,20 @@ class SteamWatcher : Plugin {
                     bot.id.toString(),
                     group.id.toString(),
                     "你一直在观察群友的 Steam 状态，发现 ${summary.personaname} 的 Steam 状态已更新，${text}，请告知群友",
-                    ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK,
+                    SendAgentConf(
+                        flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
+                    ),
                     object : SendAgentState {
                         override val scope: CoroutineScope
                             get() = this@SteamWatcher.scope
 
-                        override fun after(
-                            sentences: List<String>,
-                            group: Group
-                        ) {
+                        override fun sendAfter(sentences: List<String>) {
                             this@SteamWatcher.scope.launch {
                                 group.sendMessage(message)
                             }
                         }
 
-                        override fun fallback(
-                            event: ProactiveSpeakEvent,
-                            group: Group
-                        ) {
+                        override fun dispatchFallback() {
                             this@SteamWatcher.scope.launch {
                                 group.sendMessage(message)
                             }
