@@ -2,7 +2,10 @@ package uesugi.core
 
 import ai.koog.agents.core.tools.reflect.ToolSet
 import uesugi.core.ProactiveSpeakFeature.NONE
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalUuidApi::class)
 data class ProactiveSpeakEvent(
     val botId: String,
     val groupId: String,
@@ -12,12 +15,11 @@ data class ProactiveSpeakEvent(
     val chatPointRule: String? = null,
     val toolSets: ((ChatToolSet) -> ToolSet)? = null,
     val flag: ProactiveSpeakFeatureFlag = NONE,
+    val echo: String = Uuid.random().toHexString(),
 )
 
 enum class InterruptionMode {
-    Interrupt,
-    Icebreak,
-    Routine
+    Interrupt, Icebreak, Routine
 }
 
 object ProactiveSpeakFeature {

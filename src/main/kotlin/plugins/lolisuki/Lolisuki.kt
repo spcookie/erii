@@ -22,10 +22,14 @@ import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import plugins.Plugin
+import plugins.SendAgentConf
 import plugins.SendAgentState
 import plugins.sendAgent
 import uesugi.BotManage
-import uesugi.core.*
+import uesugi.core.ChatToolSet
+import uesugi.core.ProactiveSpeakFeature
+import uesugi.core.RouteCallEvent
+import uesugi.core.RouteRule
 import uesugi.core.history.HistoryService
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -136,8 +140,8 @@ class Lolisuki : Plugin {
                     val group = bot.getGroup(event.groupId.toLong())!!
 
                     var image: ExternalResource? = null
+                    var url: String? = null
                     for (i in 0 until 4) {
-                        var url: String? = null
                         try {
                             url = node.get("data")[i].get("urls").get("regular").asText()
                             log.info("开始获取图片: $url")
@@ -164,22 +168,31 @@ class Lolisuki : Plugin {
                         botId = event.botId,
                         groupId = event.groupId,
                         input = "加入群聊天，你需要调用工具发送一张涩图给群友。",
-                        toolSets = { ImageTool(image, group, it, state) },
-                        flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK,
+                        SendAgentConf(
+                            toolSets = { ImageTool(image, url, group, it, state) },
+                            flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
+                        ),
                         state = object : SendAgentState {
                             override val scope: CoroutineScope
                                 get() = this@Lolisuki.scope
 
-                            override fun callCompletion(
-                                event: AgentCallCompletionEvent,
-                                group: Group
-                            ) {
+                            override fun sendAfter(sentences: List<String>) {
+                                send()
+                            }
+
+                            override fun callCompletion() {
+                                send()
+                            }
+
+                            private fun send() {
                                 if (!state.value) {
+                                    state.value = true
                                     if (image != null) {
                                         log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
                                         bot.launch {
                                             image.use {
                                                 group.sendImage(image)
+                                                group.sendMessage(url ?: "")
                                             }
                                             log.info("图片直接发送成功")
                                         }
@@ -189,12 +202,10 @@ class Lolisuki : Plugin {
                                 }
                             }
 
-                            override fun fallback(
-                                event: ProactiveSpeakEvent,
-                                group: Group
-                            ) {
-                                callCompletion(AgentCallCompletionEvent(null, event.botId, event.groupId, event), group)
+                            override fun dispatchFallback() {
+                                callCompletion()
                             }
+
                         }
                     )
                 }
@@ -211,6 +222,7 @@ class Lolisuki : Plugin {
     @Suppress("unused")
     inner class ImageTool(
         val image: ExternalResource?,
+        val url: String?,
         val group: Group,
         val chatToolSet: ChatToolSet,
         val state: AtomicBoolean
@@ -226,6 +238,7 @@ class Lolisuki : Plugin {
                     job.join()
                     image.use {
                         group.sendImage(image)
+                        group.sendMessage(url ?: "")
                     }
                 }
             }

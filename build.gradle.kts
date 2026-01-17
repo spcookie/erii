@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.jobrunr)
     // AI框架
     implementation(libs.koog.agents)
+    implementation(libs.google.genai)
     // 依赖注入
     implementation(libs.koin.core)
     implementation(libs.koin.ktor)

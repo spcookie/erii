@@ -15,7 +15,7 @@ object EventBus {
     @PublishedApi
     internal object AsyncBus {
 
-        // replay = 0 确保新订阅者不会收到旧消息
+        // sendReplay = 0 确保新订阅者不会收到旧消息
         private val bus = MutableSharedFlow<Any>(
             replay = 0,
             extraBufferCapacity = 64,

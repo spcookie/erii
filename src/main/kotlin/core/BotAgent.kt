@@ -33,7 +33,6 @@ import kotlinx.serialization.json.jsonNull
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
-import uesugi.DEBUG_GROUP_ID
 import uesugi.core.emotion.*
 import uesugi.core.evolution.LearnedVocabEntity
 import uesugi.core.evolution.VocabularyService
@@ -275,6 +274,7 @@ private fun applyFlowState(
 data class Context(
     val currentBotId: String,
     val groupId: String,
+    val echo: String,
     val botRole: BotRole,
     val impulse: Double,
     val interruptionMode: InterruptionMode,
@@ -318,6 +318,7 @@ data class Context(
 private fun buildContext(event: ProactiveSpeakEvent): Context {
     val currentBotId = event.botId
     val groupId = event.groupId
+    val echo = event.echo
     val emotionService by GlobalContext.get().inject<EmotionService>()
     val memoryService by GlobalContext.get().inject<MemoryService>()
     val historyService by GlobalContext.get().inject<HistoryService>()
@@ -327,6 +328,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
         Context(
             currentBotId = currentBotId,
             groupId = groupId,
+            echo = echo,
             botRole = BotManage.getBot(currentBotId)!!.role,
             behaviorProfile = {
                 withContext(Dispatchers.IO) {
@@ -697,12 +699,8 @@ class ChatToolSet(
     val flag: ProactiveSpeakFeatureFlag,
     val promptExecutor: PromptExecutor,
     private val scope: CoroutineScope,
-    val sendMessage: suspend (String) -> Unit
+    private val sendMessage: suspend (String) -> Unit
 ) : ToolSet {
-
-    @Tool
-    fun googleSearch() {
-    }
 
     @LLMDescription("回复消息")
     @Serializable
@@ -752,7 +750,7 @@ class ChatToolSet(
 
     @LLMDescription("请求 Eva 协助回复群聊消息当问题涉及知识、技术、逻辑推理或需要清晰解释时，由 Eva 提供理性、准确、结构化的回答。。")
     @Tool
-    suspend fun requestEva(
+    internal suspend fun requestEva(
         @LLMDescription("这是你（Erii）自己的发言列表。请生成 2~3 句话，表现出你的困惑、呆萌以及对他人的依赖。非必填") sentences: List<String>?,
         @LLMDescription("将群友的原始问题或消息原封不动地交给 Eva，不要总结、不要改写、不要附加个人判断。Eva 将基于该内容给出清晰、理性的解答。") sentence: String
     ): String? {
@@ -761,7 +759,7 @@ class ChatToolSet(
 
     @LLMDescription("请求 Nono 介入群聊并回复消息，由她以强势、大姐头的方式接管当前局面")
     @Tool
-    suspend fun requestNono(
+    internal suspend fun requestNono(
         @LLMDescription("这是你（Erii）的过渡发言列表。用于表现你被气场压住、退缩或选择让位给 Nono。可生成 1~2 句简短的退场或慌张发言。非必填") sentences: List<String>?,
         @LLMDescription("将群友的原始发言或当前对话片段原封不动地交给 Nono，由她判断局势并以命令式、直球方式进行回应") sentence: String
     ): String? {
@@ -784,9 +782,16 @@ class ChatToolSet(
     @OptIn(ExperimentalCoroutinesApi::class)
     @LLMDescription("回复消息，返回群其他人的回复")
     @Tool
-    suspend fun sendAndReceive(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
+    internal suspend fun sendAndReceive(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
         try {
-            EventBus.postSync(AgentBeforeSendAndReceiveEvent(context.currentBotId, context.groupId, sentences))
+            EventBus.postSync(
+                AgentBeforeSendAndReceiveEvent(
+                    context.currentBotId,
+                    context.groupId,
+                    context.echo,
+                    sentences
+                )
+            )
 
             var currentRecord: HistoryRecord? = null
 
@@ -828,6 +833,7 @@ class ChatToolSet(
                                         AgentReceiveReplyEvent(
                                             context.currentBotId,
                                             context.groupId,
+                                            echo = context.echo,
                                             record?.content ?: ""
                                         )
                                     )
@@ -842,6 +848,7 @@ class ChatToolSet(
                                         AgentReceiveReplyEvent(
                                             context.currentBotId,
                                             context.groupId,
+                                            context.echo,
                                             record?.content ?: ""
                                         )
                                     )
@@ -856,7 +863,14 @@ class ChatToolSet(
                     }
                     if (skip) break
                 }
-                EventBus.postSync(AgentAfterSendAndReceiveEvent(context.currentBotId, context.groupId, sentences))
+                EventBus.postSync(
+                    AgentAfterSendAndReceiveEvent(
+                        context.currentBotId,
+                        context.groupId,
+                        context.echo,
+                        sentences
+                    )
+                )
                 if (!skip) {
                     select {
                         historyChannel.onReceiveCatching { result ->
@@ -876,6 +890,7 @@ class ChatToolSet(
                                     AgentReceiveReplyEvent(
                                         context.currentBotId,
                                         context.groupId,
+                                        context.echo,
                                         record?.content ?: ""
                                     )
                                 )
@@ -883,7 +898,13 @@ class ChatToolSet(
                         }
 
                         onTimeout(5.minutes) {
-                            EventBus.postSync(AgentSendAndReceiveClosedEvent(context.currentBotId, context.groupId))
+                            EventBus.postSync(
+                                AgentSendAndReceiveClosedEvent(
+                                    context.currentBotId,
+                                    context.groupId,
+                                    context.echo
+                                )
+                            )
                         }
                     }
                 }
@@ -904,7 +925,7 @@ class ChatToolSet(
                 }
             }
         } finally {
-            EventBus.postSync(AgentSendAndReceiveFinallyEvent(context.currentBotId, context.groupId))
+            EventBus.postSync(AgentSendAndReceiveFinallyEvent(context.currentBotId, context.groupId, context.echo))
         }
     }
 
@@ -1004,12 +1025,12 @@ object BotAgent {
                 } else if (it.flag has ProactiveSpeakFeature.GRAB) {
                     if (state?.flag has ProactiveSpeakFeature.IGNORE_INTERRUPT) {
                         if (it.flag has ProactiveSpeakFeature.FALLBACK) {
-                            log.warn("BotAgent: Reject grab and fallback, {}", it)
+                            log.warn("BotAgent: Reject grab and dispatchFallback, {}", it)
                             EventBus.postAsync(
                                 AgentFallbackEvent(
                                     it.botId,
                                     it.groupId,
-                                    it
+                                    it.echo
                                 )
                             )
                         } else {
@@ -1018,7 +1039,7 @@ object BotAgent {
                                 AgentRejectGrabEvent(
                                     it.botId,
                                     it.groupId,
-                                    it
+                                    it.echo
                                 )
                             )
                         }
@@ -1031,7 +1052,7 @@ object BotAgent {
                         AgentFallbackEvent(
                             it.botId,
                             it.groupId,
-                            it
+                            it.echo
                         )
                     )
                 } else {
@@ -1066,7 +1087,7 @@ object BotAgent {
                                 AgentCallStartEvent(
                                     event.botId,
                                     event.groupId,
-                                    event
+                                    event.echo
                                 )
                             )
 
@@ -1077,7 +1098,7 @@ object BotAgent {
                             val currentBot = BotManage.getBot(event.botId)!!
 
                             val sendMessage: suspend (String) -> Unit = { message ->
-                                val groupId = DEBUG_GROUP_ID ?: event.groupId
+                                val groupId = event.groupId
                                 val bot = currentBot.bot
                                 bot.launch {
                                 }
@@ -1202,7 +1223,7 @@ object BotAgent {
                                     error,
                                     event.botId,
                                     event.groupId,
-                                    event
+                                    event.echo
                                 )
                             )
                         }
