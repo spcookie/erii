@@ -26,40 +26,24 @@ object Subscribers {
     val bindings: MutableSet<Subscription> = mutableSetOf()
 
     init {
-        bindings.add(
-            Subscription(
-                1053148332,
-                2697951448,
-                "76561198415512702"
-            )
-        )
-        bindings.add(
-            Subscription(
-                1053148332,
-                1,
-                "76561199087375065"
-            )
-        )
-        bindings.add(
-            Subscription(
-                1053148332,
-                2,
-                "76561198308338531"
-            )
-        )
-        bindings.add(
-            Subscription(
-                1053148332,
-                3,
-                "76561199095098310"
-            )
-        )
-        bindings.add(
-            Subscription(
-                1053148332,
-                4,
-                "76561199083740317"
-            )
-        )
+        loadSubscriptionsFromEnv()
+    }
+
+    private fun loadSubscriptionsFromEnv() {
+        val subscriptionsEnv = System.getenv("STEAM_SUBSCRIPTIONS") ?: return
+
+        subscriptionsEnv.split(";").forEach { entry ->
+            val parts = entry.trim().split(",")
+            if (parts.size == 3) {
+                try {
+                    val groupId = parts[0].trim().toLong()
+                    val qqId = parts[1].trim().toLong()
+                    val steamId = parts[2].trim()
+                    bindings.add(Subscription(groupId, qqId, steamId))
+                } catch (_: NumberFormatException) {
+                    println("Invalid subscription entry: $entry")
+                }
+            }
+        }
     }
 }
