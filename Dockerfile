@@ -1,5 +1,9 @@
 FROM amazoncorretto:17
 
+EXPOSE 8080
+EXPOSE 8082
+EXPOSE 8000
+
 ENV TZ=Asia/Shanghai
 ENV JAVA_OPTS=""
 
