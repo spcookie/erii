@@ -11,21 +11,15 @@ import io.ktor.client.engine.*
 class LLMFactory {
 
     fun promptExecutor(): PromptExecutor {
-        //val llmClient = GoogleLLMClient(System.getenv("GOOGLE_API_KEY"))
         val llmClient = GoogleLLMClient(
             apiKey = System.getenv("GOOGLE_API_KEY"),
             baseClient = HttpClient {
                 engine {
-                    val httpProxy = System.getProperty("http.proxy")
+                    val httpProxy = System.getenv("HTTP_PROXY")
                     if (httpProxy != null) {
                         proxy = ProxyBuilder.http(httpProxy)
                     }
                 }
-//                install(Logging) {
-//                    logger = Logger.DEFAULT
-//                    level = LogLevel.ALL
-//                    sanitizeHeader { header -> header == HttpHeaders.Authorization }
-//                }
             }
         )
 

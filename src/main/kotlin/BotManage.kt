@@ -46,8 +46,8 @@ private val log = BotManage.logger()
 
 fun configureConnectBots() {
     runBlocking {
-        val erii = BotBuilder.positive("ws://127.0.0.1:3001")
-            .token("hG8dQqGk6jGC")
+        val erii = BotBuilder.positive(System.getenv("NAPCAT_WS"))
+            .token(System.getenv("NAPCAT_TOKEN"))
             .connect()
 
         if (erii == null) {

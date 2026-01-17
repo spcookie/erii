@@ -81,7 +81,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
                         EventBus.postAsync(
                             ProactiveSpeakEvent(
                                 botId = botId,
-                                groupId = groupId,
+                                _groupId = groupId,
                                 impulse = 0.0,
                                 interruptionMode = InterruptionMode.Interrupt,
                                 flag = ProactiveSpeakFeature.CHAT_URGENT or ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.IGNORE_INTERRUPT,
