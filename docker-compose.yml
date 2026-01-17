@@ -19,7 +19,9 @@ services:
       retries: 10
 
   erii:
-    image: erii:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: erii
     restart: always
     depends_on:
@@ -27,4 +29,10 @@ services:
         condition: service_healthy
     environment:
       - JAVA_OPTS=-XX:+UseZGC -Xms512m -Xmx512m -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai
+    env_file:
+      - .env.local
+    ports:
+      - "8080:8080"
+      - "8082:8082"
+      - "8000:8000"
 
