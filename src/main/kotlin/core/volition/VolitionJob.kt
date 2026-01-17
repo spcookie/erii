@@ -214,7 +214,7 @@ class VolitionJob {
             EventBus.postAsync(
                 ProactiveSpeakEvent(
                     botId = botMark,
-                    groupId = groupId,
+                    _groupId = groupId,
                     impulse = impulse,
                     interruptionMode = InterruptionMode.Interrupt,
                 )
@@ -302,7 +302,7 @@ class VolitionJob {
             EventBus.postAsync(
                 ProactiveSpeakEvent(
                     botId = botMark,
-                    groupId = groupId,
+                    _groupId = groupId,
                     impulse = gauge.calculateImpulse(),
                     interruptionMode = mode
                 )
@@ -331,7 +331,7 @@ class VolitionJob {
                             EventBus.postAsync(
                                 ProactiveSpeakEvent(
                                     botId = botMark,
-                                    groupId = groupId,
+                                    _groupId = groupId,
                                     impulse = gauge.calculateImpulse(),
                                     interruptionMode = InterruptionMode.Icebreak
                                 )
