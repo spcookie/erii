@@ -1,0 +1,38 @@
+{
+  "network": {
+    "httpServers": [
+      {
+        "enable": true,
+        "name": "Erii-HTTP",
+        "host": "0.0.0.0",
+        "port": 3000,
+        "enableCors": true,
+        "enableWebsocket": false,
+        "messagePostFormat": "array",
+        "token": "xxx",
+        "debug": true
+      }
+    ],
+    "httpSseServers": [],
+    "httpClients": [],
+    "websocketServers": [
+      {
+        "enable": true,
+        "name": "Erii-WS",
+        "host": "0.0.0.0",
+        "port": 3001,
+        "reportSelfMessage": true,
+        "enableForcePushEvent": true,
+        "messagePostFormat": "array",
+        "token": "xxx",
+        "debug": true,
+        "heartInterval": 30000
+      }
+    ],
+    "websocketClients": [],
+    "plugins": []
+  },
+  "musicSignUrl": "",
+  "enableLocalFile2Url": false,
+  "parseMultMsg": false
+}

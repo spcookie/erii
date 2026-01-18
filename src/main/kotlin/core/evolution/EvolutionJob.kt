@@ -126,7 +126,7 @@ class EvolutionJob(
             val slangWords = extractionAgent.extractSlangWords(recentMessages)
 
             if (slangWords.isEmpty()) {
-                log.warn("未提取到流行语，可能消息内容过于日常")
+                log.warn("未提取到流行语")
             } else {
                 log.debug("流行语提取完成, 提取数量=${slangWords.size}")
                 slangWords.forEachIndexed { index, slang ->
