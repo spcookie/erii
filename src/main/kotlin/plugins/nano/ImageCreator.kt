@@ -49,7 +49,7 @@ class ImageCreator : Plugin {
                         0.98f,
                         "1K",
                         "AUTO",
-                        "BASIC"
+                        "PRO"
                     ).first
                 }
 
@@ -126,6 +126,8 @@ class ImageCreator : Plugin {
                     group.sendImage(input)
                 }
             }
+        } else {
+            log.warn("未生成图片")
         }
     }
 

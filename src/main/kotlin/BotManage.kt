@@ -11,6 +11,23 @@ import uesugi.core.GroupMessageEventListener
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 
+val DEBUG_GROUP_ID: String? = System.getenv("DEBUG_GROUP_ID")
+
+val ENABLE_GROUPS: List<String> = System.getenv("ENABLE_GROUPS")
+    ?.split(",")
+    ?.map { it.trim() }
+    ?.filter { it.isNotEmpty() }
+    ?: emptyList()
+
+val MESSAGE_REDIRECT_GROUP_MAP: Map<String, String> = System.getenv("MESSAGE_REDIRECT_MAP")
+    ?.split(",")
+    ?.mapNotNull { entry ->
+        val parts = entry.trim().split(":")
+        if (parts.size == 2) parts[0] to parts[1] else null
+    }
+    ?.toMap()
+    ?: emptyMap()
+
 object BotManage {
 
     data class RoledBot(
