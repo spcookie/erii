@@ -16,9 +16,6 @@ class ImageClient : Closeable {
     private var client = Client.builder()
         .httpOptions(
             HttpOptions.builder()
-//                .baseUrl(String.format("https://%s-aiplatform.googleapis.com", "us-central1"))
-//                .baseUrl("https://aiplatform.googleapis.com")
-//                .apiVersion("v1alpha")
                 .timeout(5.minutes.toInt(DurationUnit.MILLISECONDS))
                 .build()
         )
@@ -27,15 +24,13 @@ class ImageClient : Closeable {
         .build()
 
     fun generate(
-        text: String,
-        imageRefs: List<String>? = null,
+        contentParts: List<ContentPart>,
         aspectRatio: String? = null,
         system: String? = null,
         temperature: Float = 1f,
         maxOutputTokens: Int = 32768,
         topP: Float = 1f,
         imageSize: String = "1K",
-        mediaResolution: String = "AUTO",
         modelType: String = "BASIC",
     ): Pair<Pair<String?, BufferedImage?>, GenerateContentResponseUsageMetadata> {
         val contentConfig = GenerateContentConfig.builder()
@@ -52,25 +47,6 @@ class ImageClient : Closeable {
                             .build()
                     )
                 }
-//                if (images != null) {
-//                    when (mediaResolution) {
-//                        "AUTO" -> {
-//                            mediaResolution(MediaResolution.Known.MEDIA_RESOLUTION_UNSPECIFIED)
-//                        }
-//
-//                        "LOW" -> {
-//                            mediaResolution(MediaResolution.Known.MEDIA_RESOLUTION_LOW)
-//                        }
-//
-//                        "MEDIUM" -> {
-//                            mediaResolution(MediaResolution.Known.MEDIA_RESOLUTION_MEDIUM)
-//                        }
-//
-//                        "HIGH" -> {
-//                            mediaResolution(MediaResolution.Known.MEDIA_RESOLUTION_HIGH)
-//                        }
-//                    }
-//                }
             }
             .temperature(temperature)
             .topP(topP)
@@ -99,18 +75,28 @@ class ImageClient : Closeable {
             .build()
         val contentParts: List<Part> = try {
             val parts = buildList {
-                add(Part.fromText(text))
-                if (imageRefs != null && imageRefs.isNotEmpty()) {
-                    imageRefs.forEach { ref ->
-                        val file = client.files.get(ref, GetFileConfig.builder().build())
-                        add(Part.fromUri(file.uri().get(), file.mimeType().get()))
+                for ((content, type) in contentParts) {
+                    when (type) {
+                        ContentPart.Type.TEXT -> {
+                            add(Part.fromText(content))
+                        }
+
+                        ContentPart.Type.IMAGE -> {
+                            val file = client.files.get(content, GetFileConfig.builder().build())
+                            add(Part.fromUri(file.uri().get(), file.mimeType().get()))
+                        }
                     }
                 }
+
             }
             parts
         } catch (_: Exception) {
             buildList {
-                add(Part.builder().text(text).build())
+                for ((content, type) in contentParts) {
+                    if (type == ContentPart.Type.TEXT) {
+                        add(Part.builder().text(content).build())
+                    }
+                }
             }
         }
         val response: GenerateContentResponse = try {

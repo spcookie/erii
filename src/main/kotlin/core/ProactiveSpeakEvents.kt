@@ -10,6 +10,7 @@ import kotlin.uuid.Uuid
 data class ProactiveSpeakEvent(
     val botId: String,
     private val _groupId: String,
+    val atFromId: String? = null,
     val impulse: Double = 0.0,
     val interruptionMode: InterruptionMode,
     val input: String? = null,

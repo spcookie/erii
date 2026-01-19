@@ -26,4 +26,17 @@ class HistoryService {
                 .toList()
         }
     }
+
+    fun saveHistory(history: HistoryRecord): HistoryRecord {
+        return transaction {
+            HistoryEntity.new {
+                this.botMark = history.botMark
+                this.groupId = history.groupId
+                this.userId = history.userId
+                this.nick = history.nick
+                this.messageType = MessageType.TEXT
+                this.content = history.content
+            }.toRecord()
+        }
+    }
 }
