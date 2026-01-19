@@ -7,6 +7,9 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
 import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.contact.Group
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import plugins.Plugin
 import plugins.SendAgentConf
 import plugins.SendAgentState
@@ -15,6 +18,8 @@ import uesugi.BotManage
 import uesugi.core.ProactiveSpeakFeature
 import uesugi.core.RouteCallEvent
 import uesugi.core.RouteRule
+import uesugi.core.history.HistoryEntity
+import uesugi.core.history.HistoryTable
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import java.awt.image.BufferedImage
@@ -38,6 +43,16 @@ class ImageCreator : Plugin {
     override fun onLoad() {
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             if (event hit RouteRule.IMAGE_CREATE) {
+
+                withContext(Dispatchers.IO) {
+                    transaction {
+                        HistoryEntity.find {
+                            HistoryTable.groupId eq event.groupId and
+                                    (HistoryTable.userId eq event.atFromId)
+                        }
+                    }
+                }
+
                 val deferred = scope.async(Dispatchers.IO) {
                     imageClient.generate(
                         event.input,

@@ -1,26 +1,27 @@
 package uesugi.core
 
 import kotlinx.coroutines.*
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import net.mamoe.mirai.contact.nameCardOrNick
 import net.mamoe.mirai.event.EventHandler
 import net.mamoe.mirai.event.SimpleListenerHost
 import net.mamoe.mirai.event.events.GroupMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageSyncEvent
 import net.mamoe.mirai.event.events.MessageEvent
-import net.mamoe.mirai.message.data.At
-import net.mamoe.mirai.message.data.MessageContent
-import net.mamoe.mirai.message.data.MessageSource
-import net.mamoe.mirai.message.data.content
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import net.mamoe.mirai.message.data.*
+import org.koin.core.context.GlobalContext
 import uesugi.ENABLE_GROUPS
 import uesugi.MESSAGE_REDIRECT_GROUP_MAP
-import uesugi.core.history.HistoryEntity
+import uesugi.core.history.HistoryRecord
 import uesugi.core.history.HistorySavedEvent
+import uesugi.core.history.HistoryService
 import uesugi.core.history.MessageType
-import uesugi.core.history.toRecord
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 object GroupMessageEventListener : SimpleListenerHost() {
 
@@ -32,6 +33,9 @@ object GroupMessageEventListener : SimpleListenerHost() {
         log.error("History exception", exception)
     }
 
+    private val historyService by GlobalContext.get().inject<HistoryService>()
+
+    @OptIn(ExperimentalTime::class)
     @EventHandler
     suspend fun MessageEvent.onMessage() {
         if (this !is GroupMessageSyncEvent && this !is GroupMessageEvent) return
@@ -49,6 +53,15 @@ object GroupMessageEventListener : SimpleListenerHost() {
                     if (singleMessage is At) {
                         isAtBot = true
                     }
+                    when (singleMessage) {
+                        is At -> {
+                            isAtBot = true
+                        }
+
+                        is Image -> {
+
+                        }
+                    }
                 } else {
                     if (singleMessage is MessageSource) {
                         // ignore
@@ -57,19 +70,21 @@ object GroupMessageEventListener : SimpleListenerHost() {
                     }
                 }
             }
+            deleteAt(length - 1)
         }
         launch {
             val historyRecord = withContext(Dispatchers.IO) {
-                transaction {
-                    HistoryEntity.new {
-                        this.botMark = botId
-                        this.groupId = groupId
-                        this.userId = senderId
-                        this.nick = senderNick
-                        this.messageType = MessageType.TEXT
-                        this.content = msg
-                    }.toRecord()
-                }
+                historyService.saveHistory(
+                    HistoryRecord(
+                        botMark = botId,
+                        groupId = groupId,
+                        userId = senderId,
+                        nick = senderNick,
+                        messageType = MessageType.TEXT,
+                        content = msg,
+                        createdAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                    )
+                )
             }
             EventBus.postAsync(HistorySavedEvent(historyRecord))
             if (isAtBot) {
@@ -82,6 +97,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
                             ProactiveSpeakEvent(
                                 botId = botId,
                                 _groupId = groupId,
+                                atFromId = senderId,
                                 impulse = 0.0,
                                 interruptionMode = InterruptionMode.Interrupt,
                                 flag = ProactiveSpeakFeature.CHAT_URGENT or ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.IGNORE_INTERRUPT,
@@ -92,6 +108,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
                             RouteCallEvent(
                                 botId = botId,
                                 groupId = groupId,
+                                atFromId = senderId,
                                 input = msg,
                                 hit = route
                             )

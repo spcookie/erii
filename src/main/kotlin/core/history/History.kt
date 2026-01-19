@@ -8,6 +8,9 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
+import uesugi.core.resource.ResourceEntity
+import uesugi.core.resource.ResourceRecord
+import uesugi.core.resource.ResourceTable
 
 
 object HistoryTable : IntIdTable("chat_history") {
@@ -20,9 +23,11 @@ object HistoryTable : IntIdTable("chat_history") {
     val messageType = enumeration("message_type", MessageType::class)
     val content = text("content").nullable()
 
-    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
+    val resourceId = optReference("id", ResourceTable)
 
+    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
 }
+
 
 enum class MessageType {
     TEXT,
@@ -42,21 +47,38 @@ class HistoryEntity(id: EntityID<Int>) : IntEntity(id) {
     var nick by HistoryTable.nick
     var messageType by HistoryTable.messageType
     var content by HistoryTable.content
-    var createdAt by HistoryTable.createdAt
 
+    var resource by ResourceEntity optionalReferencedOn HistoryTable.resourceId
+
+    var createdAt by HistoryTable.createdAt
 }
+
 
 @Serializable
 data class HistoryRecord(
-    val id: Int,
+    val id: Int? = null,
     val botMark: String,
     val groupId: String,
     val userId: String,
     val nick: String,
     val messageType: MessageType,
-    val content: String?,
+    val content: String? = null,
+    val resource: ResourceRecord? = null,
     val createdAt: LocalDateTime
 )
+
+fun ResourceEntity.toRecord(): ResourceRecord {
+    return ResourceRecord(
+        id = id.value,
+        botMark = botMark,
+        groupId = groupId,
+        resourceType = resourceType,
+        url = url,
+        fileName = fileName,
+        size = size,
+        createdAt = createdAt
+    )
+}
 
 fun HistoryEntity.toRecord(): HistoryRecord {
     return HistoryRecord(
@@ -67,6 +89,7 @@ fun HistoryEntity.toRecord(): HistoryRecord {
         nick = nick,
         messageType = messageType,
         content = content,
+        resource = resource?.toRecord(),
         createdAt = createdAt
     )
 }
