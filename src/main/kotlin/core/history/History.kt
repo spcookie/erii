@@ -72,7 +72,6 @@ fun ResourceEntity.toRecord(): ResourceRecord {
         id = id.value,
         botMark = botMark,
         groupId = groupId,
-        resourceType = resourceType,
         url = url,
         fileName = fileName,
         size = size,

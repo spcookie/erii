@@ -31,6 +31,8 @@ dependencies {
     implementation(libs.exposed.dao)
     implementation(libs.exposed.json)
     implementation(libs.exposed.kotlin.datetime)
+    implementation(libs.exposed.migration.core)
+    implementation(libs.exposed.migration.jdbc)
     // 服务端
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.serialization.kotlinx.json)
@@ -46,6 +48,7 @@ dependencies {
     implementation(libs.ktor.server.default.headers)
     implementation(libs.ktor.server.compression)
     implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.di)
     implementation(libs.logback.classic)
     implementation(libs.ktor.server.config.yaml)
     // 客户端

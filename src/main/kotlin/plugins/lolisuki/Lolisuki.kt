@@ -136,7 +136,7 @@ class Lolisuki : Plugin {
                     log.error("获取图片连接失败: $node")
                 } else {
                     val roledBot = BotManage.getBot(event.botId)!!
-                    val bot = roledBot.bot
+                    val bot = roledBot.refBot
                     val group = bot.getGroup(event.groupId.toLong())!!
 
                     var image: ExternalResource? = null

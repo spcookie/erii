@@ -31,7 +31,7 @@ val MESSAGE_REDIRECT_GROUP_MAP: Map<String, String> = System.getenv("MESSAGE_RED
 object BotManage {
 
     data class RoledBot(
-        val bot: Bot,
+        val refBot: Bot,
         val role: BotRole,
     )
 
@@ -45,8 +45,8 @@ object BotManage {
         log.info("机器人已注册: botId=$botId")
     }
 
-    fun getBot(botId: String): RoledBot? {
-        return bots[botId]
+    fun getBot(botId: String): RoledBot {
+        return bots.getValue(botId)
     }
 
     fun getAllBots(): Collection<RoledBot> {

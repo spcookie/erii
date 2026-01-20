@@ -75,7 +75,7 @@ class ChatQA : Plugin {
                     )
                 }
 
-                val bot = BotManage.getBot(event.botId)!!.bot
+                val bot = BotManage.getBot(event.botId)!!.refBot
                 val group = bot.getGroup(event.groupId.toLong())!!
 
                 val buffer = StringBuilder()

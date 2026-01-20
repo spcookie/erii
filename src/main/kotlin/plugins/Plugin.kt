@@ -97,15 +97,15 @@ fun sendAgent(
 
     EventBus.postAsync(
         ProactiveSpeakEvent(
-            botId,
-            groupId,
-            0.0,
-            InterruptionMode.Interrupt,
-            input,
-            chatPointRule,
-            toolSets,
-            flag,
-            echo
+            botId = botId,
+            _groupId = groupId,
+            impulse = 0.0,
+            interruptionMode = InterruptionMode.Interrupt,
+            input = input,
+            chatPointRule = chatPointRule,
+            toolSets = toolSets,
+            flag = flag,
+            echo = echo
         )
     )
 
