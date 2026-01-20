@@ -1,22 +1,29 @@
 package uesugi.server
 
 import io.ktor.server.application.*
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.koin.core.context.loadKoinModules
 import org.koin.environmentProperties
+import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
+import org.koin.ktor.plugin.koin
 import org.koin.logger.slf4jLogger
 import uesugi.config.*
 import uesugi.plugins.pluginModule
 
 fun Application.configureFrameworks() {
-    configBaseModule()
-    configModule()
     install(Koin) {
         slf4jLogger()
-        modules(adapterModule, infrastructureModule, serviceModule)
         environmentProperties()
-        createEagerInstances()
     }
 
-    loadKoinModules(listOf(pluginModule()))
+    configBaseModule()
+
+    loadKoinModules(listOf(infrastructureModule, serviceModule, adapterModule))
+    loadKoinModules(pluginModule())
+
+    koin().createEagerInstances()
+
+    migration(inject<Database>().value)
+
 }

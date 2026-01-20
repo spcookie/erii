@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
 import uesugi.core.history.HistoryEntity
+import uesugi.core.history.HistoryRecord
 import uesugi.core.history.HistoryTable
 
 object ResourceTable : IntIdTable("chat_resource") {
@@ -37,9 +38,9 @@ class ResourceEntity(id: EntityID<Int>) : IntEntity(id) {
     var fileName by ResourceTable.fileName
     var size by ResourceTable.size
     var md5 by ResourceTable.md5
+    val histories by HistoryEntity optionalReferrersOn HistoryTable.resourceId
     var createdAt by ResourceTable.createdAt
 
-    val histories by HistoryEntity optionalReferrersOn HistoryTable.resourceId
 }
 
 @Serializable
@@ -51,5 +52,6 @@ data class ResourceRecord(
     val fileName: String? = null,
     val size: Long? = null,
     val md5: String? = null,
+    val histories: List<HistoryRecord>? = null,
     val createdAt: LocalDateTime
 )

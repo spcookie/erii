@@ -9,9 +9,11 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jobrunr.scheduling.BackgroundJob
+import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
+import uesugi.ENABLE_GROUPS
+import uesugi.MESSAGE_REDIRECT_GROUP_MAP
 import uesugi.core.InterruptionMode
 import uesugi.core.ProactiveSpeakEvent
 import uesugi.core.history.HistoryEntity
@@ -24,7 +26,9 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
-class VolitionJob {
+class VolitionJob(
+    val jobScheduler: JobScheduler
+) {
 
     companion object {
         private val log = logger()
@@ -36,7 +40,7 @@ class VolitionJob {
     private val scope = CoroutineScope(Dispatchers.Default)
 
     fun openTimingTriggerSignal() {
-        BackgroundJob.scheduleRecurrently(
+        jobScheduler.scheduleRecurrently(
             "volition-job",
             "*/2 * * * *",
             ::doVolitionAnalysis
@@ -299,14 +303,22 @@ class VolitionJob {
         val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
         volitionGaugeManager.getAllGauges().forEach { (key, gauge) ->
             val (botMark, groupId) = key.split(":")
-            EventBus.postAsync(
-                ProactiveSpeakEvent(
-                    botId = botMark,
-                    _groupId = groupId,
-                    impulse = gauge.calculateImpulse(),
-                    interruptionMode = mode
+            if (ENABLE_GROUPS.contains(groupId)) {
+                val groupId =
+                    if (groupId in MESSAGE_REDIRECT_GROUP_MAP) {
+                        MESSAGE_REDIRECT_GROUP_MAP.getValue(groupId)
+                    } else {
+                        groupId
+                    }
+                EventBus.postAsync(
+                    ProactiveSpeakEvent(
+                        botId = botMark,
+                        _groupId = groupId,
+                        impulse = gauge.calculateImpulse(),
+                        interruptionMode = mode
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -321,21 +333,29 @@ class VolitionJob {
 
                 volitionGaugeManager.getAllGauges().forEach { (key, gauge) ->
                     val (botMark, groupId) = key.split(":")
-                    if (now - gauge.state.lastActiveTime > 4.hours.inWholeMilliseconds) {
-                        gauge.state.lastActiveTime = now
+                    if (ENABLE_GROUPS.contains(groupId)) {
+                        val groupId =
+                            if (groupId in MESSAGE_REDIRECT_GROUP_MAP) {
+                                MESSAGE_REDIRECT_GROUP_MAP.getValue(groupId)
+                            } else {
+                                groupId
+                            }
+                        if (now - gauge.state.lastActiveTime > 4.hours.inWholeMilliseconds) {
+                            gauge.state.lastActiveTime = now
 
-                        val dateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                        val hour = dateTime.hour
-                        val inRange = hour in 8 until 22
-                        if (inRange) {
-                            EventBus.postAsync(
-                                ProactiveSpeakEvent(
-                                    botId = botMark,
-                                    _groupId = groupId,
-                                    impulse = gauge.calculateImpulse(),
-                                    interruptionMode = InterruptionMode.Icebreak
+                            val dateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                            val hour = dateTime.hour
+                            val inRange = hour in 8 until 22
+                            if (inRange) {
+                                EventBus.postAsync(
+                                    ProactiveSpeakEvent(
+                                        botId = botMark,
+                                        _groupId = groupId,
+                                        impulse = gauge.calculateImpulse(),
+                                        interruptionMode = InterruptionMode.Icebreak
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }

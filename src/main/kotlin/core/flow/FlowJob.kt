@@ -12,7 +12,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jobrunr.scheduling.BackgroundJob
+import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
 import uesugi.core.history.HistoryEntity
@@ -21,7 +21,9 @@ import uesugi.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-class FlowJob {
+class FlowJob(
+    val jobScheduler: JobScheduler
+) {
 
     companion object {
         private val log = logger()
@@ -32,7 +34,7 @@ class FlowJob {
     private val flowAgent = FlowAgent()
 
     fun openTimingTriggerSignal() {
-        BackgroundJob.scheduleRecurrently(
+        jobScheduler.scheduleRecurrently(
             "flow-job",
             "*/1 * * * *",
             ::doFlowAnalysis
