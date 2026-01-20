@@ -48,7 +48,6 @@ dependencies {
     implementation(libs.ktor.server.default.headers)
     implementation(libs.ktor.server.compression)
     implementation(libs.ktor.server.netty)
-    implementation(libs.ktor.server.di)
     implementation(libs.logback.classic)
     implementation(libs.ktor.server.config.yaml)
     // 客户端

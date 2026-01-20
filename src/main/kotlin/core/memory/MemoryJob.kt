@@ -9,7 +9,7 @@ import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import org.jobrunr.scheduling.BackgroundJob
+import org.jobrunr.scheduling.JobScheduler
 import uesugi.BotManage
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
@@ -21,7 +21,9 @@ import kotlin.time.ExperimentalTime
 /**
  * 记忆任务 - 定时从历史消息中提取和生成各类记忆数据
  */
-class MemoryJob {
+class MemoryJob(
+    val jobScheduler: JobScheduler
+) {
 
     companion object {
         private val log = logger()
@@ -35,7 +37,7 @@ class MemoryJob {
      * 每 5 分钟执行一次记忆处理
      */
     fun openTimingTriggerSignal() {
-        BackgroundJob.scheduleRecurrently(
+        jobScheduler.scheduleRecurrently(
             "memory-job",
             "*/5 * * * *",  // 每 5 分钟
             ::doMemoryProcessing

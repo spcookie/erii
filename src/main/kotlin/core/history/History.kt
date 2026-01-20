@@ -23,7 +23,7 @@ object HistoryTable : IntIdTable("chat_history") {
     val messageType = enumeration("message_type", MessageType::class)
     val content = text("content").nullable()
 
-    val resourceId = optReference("id", ResourceTable)
+    val resourceId = optReference("resource_id", ResourceTable)
 
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
 }

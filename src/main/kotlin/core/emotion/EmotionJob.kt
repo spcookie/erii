@@ -9,7 +9,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jobrunr.scheduling.BackgroundJob
+import org.jobrunr.scheduling.JobScheduler
 import uesugi.BotManage
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
@@ -19,7 +19,9 @@ import kotlin.math.exp
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-class EmotionJob {
+class EmotionJob(
+    val jobScheduler: JobScheduler
+) {
 
     companion object {
         private val log = logger()
@@ -32,7 +34,7 @@ class EmotionJob {
      * 每分钟执行一次情绪分析
      */
     fun openTimingTriggerSignal() {
-        BackgroundJob.scheduleRecurrently(
+        jobScheduler.scheduleRecurrently(
             "emotion-job",
             "* * * * *",  // 每分钟
             ::doAnalysis
