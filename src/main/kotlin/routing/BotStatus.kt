@@ -25,9 +25,10 @@ fun Routing.configureBotStatus() {
         } else {
             val roledBot = BotManage.getBot(id)
             if (roledBot == null) {
-                call.respond(mapOf("error" to "bot not exist"))
+                call.respond(mapOf("error" to "refBot not exist"))
             } else {
-                val groups = roledBot.bot.groups.map { it.id.toString() }.filter { ENABLE_GROUPS.contains(it) }.toList()
+                val groups =
+                    roledBot.refBot.groups.map { it.id.toString() }.filter { ENABLE_GROUPS.contains(it) }.toList()
 
                 val emotionService by inject<EmotionService>()
                 val flowGaugeManager by inject<FlowGaugeManager>()

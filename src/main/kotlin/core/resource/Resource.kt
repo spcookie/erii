@@ -17,8 +17,6 @@ object ResourceTable : IntIdTable("chat_resource") {
     val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)
     val groupId = varchar("group_id", length = DEFAULT_LENGTH)
 
-    val resourceType = enumeration("resource_type", ResourceType::class)
-
     val url = varchar("url", length = 1024)
 
     val fileName = varchar("file_name", length = DEFAULT_LENGTH).nullable()
@@ -30,20 +28,11 @@ object ResourceTable : IntIdTable("chat_resource") {
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
 }
 
-enum class ResourceType {
-    IMAGE,
-    AUDIO,
-    VIDEO,
-    FILE,
-    UNKNOWN
-}
-
 class ResourceEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<ResourceEntity>(ResourceTable)
 
     var botMark by ResourceTable.botMark
     var groupId by ResourceTable.groupId
-    var resourceType by ResourceTable.resourceType
     var url by ResourceTable.url
     var fileName by ResourceTable.fileName
     var size by ResourceTable.size
@@ -58,7 +47,6 @@ data class ResourceRecord(
     val id: Int? = null,
     val botMark: String,
     val groupId: String,
-    val resourceType: ResourceType,
     val url: String,
     val fileName: String? = null,
     val size: Long? = null,

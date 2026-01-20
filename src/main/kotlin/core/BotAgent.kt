@@ -26,7 +26,9 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonNull
@@ -50,9 +52,11 @@ import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.random.Random
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.ExperimentalTime
 
 data class SpeechConstraints(
     val styleHints: MutableList<String> = mutableListOf(),
@@ -524,6 +528,10 @@ private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?):
                 buildVocabularyPrompt(transient.vocabulary)
 
                 buildFactsPrompt(transient.facts)
+
+                horizontalRule()
+
+                buildMetadataPrompt()
             }
         }
         user {
@@ -540,6 +548,16 @@ private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?):
             }
         }
 
+    }
+}
+
+@OptIn(ExperimentalTime::class)
+fun MarkdownContentBuilder.buildMetadataPrompt() {
+    header(2, "元数据")
+    line {
+        val instant = Clock.System.now()
+        val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+        text("当前日期时间: ${DateTimeFormat.format(localDateTime)}")
     }
 }
 
@@ -1099,7 +1117,7 @@ object BotAgent {
 
                             val sendMessage: suspend (String) -> Unit = { message ->
                                 val groupId = event.groupId
-                                val bot = currentBot.bot
+                                val bot = currentBot.refBot
                                 bot.launch {
                                 }
                                 bot.getGroup(groupId.toLong())?.sendMessage(message)

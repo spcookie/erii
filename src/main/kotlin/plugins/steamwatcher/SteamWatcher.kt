@@ -227,7 +227,7 @@ class SteamWatcher : Plugin {
             val imageBytes = ImageRenderer.render(finalSummary, achievement)
 
             val roledBot = BotManage.getAllBots().firstOrNull() ?: return
-            val bot = roledBot.bot
+            val bot = roledBot.refBot
             val group = bot.getGroup(groupId) ?: return
 
             log.debug("sendUpdate: 正在上传图片到群 $groupId...")

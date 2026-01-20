@@ -7,8 +7,10 @@ import org.koin.core.context.GlobalContext
 import javax.sql.DataSource
 
 
-class JobRunrConfig {
-    fun start(dataSource: DataSource) {
+class JobRunrConfig(
+    val dataSource: DataSource
+) {
+    fun start() {
         JobRunr.configure()
             .useJobActivator(Activator)
             .useStorageProvider(H2StorageProvider(dataSource))

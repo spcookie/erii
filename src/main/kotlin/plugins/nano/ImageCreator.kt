@@ -55,21 +55,19 @@ class ImageCreator : Plugin {
 
                 val deferred = scope.async(Dispatchers.IO) {
                     imageClient.generate(
-                        event.input,
-                        null,
-                        null,
+                        listOf(ContentPart(event.input, ContentPart.Type.TEXT)),
+                        "AUTO",
                         null,
                         1f,
                         32768,
                         0.98f,
                         "1K",
-                        "AUTO",
                         "PRO"
                     ).first
                 }
 
-                val roledBot = BotManage.getBot(event.botId)!!
-                val group = roledBot.bot.getGroup(event.groupId.toLong())!!
+                val roledBot = BotManage.getBot(event.botId)
+                val group = roledBot.refBot.getGroup(event.groupId.toLong())!!
 
                 val state = atomic(false)
 
