@@ -11,22 +11,24 @@ import net.mamoe.mirai.event.events.GroupMessageSyncEvent
 import net.mamoe.mirai.event.events.MessageEvent
 import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.data.Image.Key.queryUrl
+import net.mamoe.mirai.utils.MiraiInternalApi
 import okio.Buffer
 import okio.Path.Companion.toPath
 import okio.buffer
 import okio.source
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.ENABLE_GROUPS
 import uesugi.MESSAGE_REDIRECT_GROUP_MAP
 import uesugi.core.ProactiveSpeakFeature.CHAT_URGENT
 import uesugi.core.ProactiveSpeakFeature.GRAB
 import uesugi.core.ProactiveSpeakFeature.IGNORE_INTERRUPT
-import uesugi.core.history.HistoryRecord
-import uesugi.core.history.HistorySavedEvent
-import uesugi.core.history.HistoryService
-import uesugi.core.history.MessageType
+import uesugi.core.history.*
+import uesugi.core.resource.ResourceEntity
 import uesugi.core.resource.ResourceRecord
 import uesugi.core.resource.ResourceService
+import uesugi.core.resource.ResourceTable
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.Storage
 import uesugi.toolkit.logger
@@ -53,7 +55,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
     private val storage by GlobalContext.get().inject<Storage>()
 
-    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
+    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, MiraiInternalApi::class)
     @EventHandler
     suspend fun MessageEvent.onMessage() {
         if (this !is GroupMessageSyncEvent && this !is GroupMessageEvent) return
@@ -70,22 +72,29 @@ object GroupMessageEventListener : SimpleListenerHost() {
         var isAtBot = false
         var url: String? = null
         var messageType = MessageType.TEXT
+        var format: String? = null
         val msg = buildString {
             for (singleMessage in message) {
                 if (singleMessage is MessageContent) {
-                    appendLine(singleMessage.content)
                     when (singleMessage) {
                         is At -> {
                             if (!isAtBot) {
                                 isAtBot = singleMessage.target == botId.toLong()
                             }
+                            appendLine(singleMessage.content)
+                        }
+
+                        is PlainText -> {
+                            appendLine(singleMessage.content)
                         }
 
                         is Image -> {
                             if (url == null) {
                                 messageType = MessageType.IMAGE
                                 url = singleMessage.queryUrl()
+                                format = singleMessage.imageType.formatName
                             }
+                            appendLine(singleMessage.content)
                         }
 
                         else -> {
@@ -97,6 +106,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
                         // ignore
                     } else {
                         log.warn("Unsupported message type: {}", singleMessage)
+                        appendLine(singleMessage.content)
                     }
                 }
             }
@@ -116,14 +126,22 @@ object GroupMessageEventListener : SimpleListenerHost() {
                         size = buffer.size.toLong()
                         md5 = buffer.md5().hex()
 
-                        path = "/image/${Uuid.random().toHexString()}"
+                        val resourceRecord = transaction {
+                            ResourceEntity.find { ResourceTable.md5 eq md5 }.firstOrNull()?.toRecord()
+                        }
 
-                        storage.put(
-                            path.toPath(),
-                            Buffer().write(buffer)
-                                .inputStream()
-                                .source()
-                        )
+                        if (resourceRecord != null) {
+                            path = resourceRecord.url
+                        } else {
+                            path = "./image/${groupId}/${Uuid.random().toHexString()}.${format}"
+
+                            storage.put(
+                                path.toPath(),
+                                Buffer().write(buffer)
+                                    .inputStream()
+                                    .source()
+                            )
+                        }
                     }
 
                     resource = resourceService.saveResource(

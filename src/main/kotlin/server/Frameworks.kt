@@ -1,6 +1,7 @@
 package uesugi.server
 
 import io.ktor.server.application.*
+import io.ktor.server.config.*
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.koin.core.context.loadKoinModules
 import org.koin.environmentProperties
@@ -24,6 +25,10 @@ fun Application.configureFrameworks() {
 
     koin().createEagerInstances()
 
-    migration(inject<Database>().value)
+    migrationIf(
+        environment.config.propertyOrNull("migration")?.getAs() ?: false,
+        inject<Database>().value
+    )
 
+    warmUp()
 }
