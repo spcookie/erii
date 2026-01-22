@@ -1,6 +1,7 @@
 package uesugi.config
 
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 import uesugi.core.emotion.EmotionTable
@@ -26,6 +27,32 @@ fun migration(database: Database) {
             FlowStateTable,
             VolitionStateTable
         )
-//        execInBatch(migration)
+        execInBatch(migration)
+    }
+}
+
+private fun init(database: Database) {
+    transaction(database) {
+        SchemaUtils.create(
+            HistoryTable,
+            ResourceTable,
+            EmotionTable,
+            FactsTable,
+            TodoTable,
+            UserProfileTable,
+            SummaryTable,
+            MemoryStateTable,
+            LearnedVocabTable,
+            FlowStateTable,
+            VolitionStateTable,
+            inBatch = true
+        )
+    }
+}
+
+fun migrationIf(condition: Boolean, database: Database) {
+    init(database)
+    if (condition) {
+        migration(database)
     }
 }

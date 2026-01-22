@@ -58,6 +58,7 @@ dependencies {
     // 工具
     implementation(libs.caffeine)
     implementation(libs.atomicfu)
+    implementation(libs.mapdb)
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)

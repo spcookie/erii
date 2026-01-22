@@ -11,6 +11,7 @@ logback = "1.4.14"
 caffeine = "3.1.8"
 atomicfu = "0.23.2"
 google-genai = "1.28.0"
+mapdb = "3.0.9"
 
 [libraries]
 mirai-overflow = { module = "top.mrxiaom.mirai:overflow-core", version = "1.0.8" }
@@ -42,7 +43,7 @@ ktor-server-partial-content = { module = "io.ktor:ktor-server-partial-content", 
 ktor-server-default-headers = { module = "io.ktor:ktor-server-default-headers", version.ref = "ktor" }
 ktor-server-compression = { module = "io.ktor:ktor-server-compression", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
-ktor-server-di = { module = "io.ktor:ktor-server-di", version.ref = "ktor" }
+mapdb = { module = "org.mapdb:mapdb", version.ref = "mapdb" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }

@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import org.koin.dsl.onClose
+import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
 import uesugi.core.emotion.EmotionJob
 import uesugi.core.emotion.EmotionService
@@ -25,6 +26,15 @@ import uesugi.toolkit.LocalStorage
 import uesugi.toolkit.Storage
 import javax.sql.DataSource
 
+fun Application.warmUp() {
+    monitor.subscribe(ApplicationStarted) {
+        it.get<EmotionJob>().apply { openTimingTriggerSignal() }
+        it.get<MemoryJob>().apply { openTimingTriggerSignal() }
+        it.get<VolitionJob>().apply { openTimingTriggerSignal() }
+        it.get<EvolutionJob>().apply { openTimingTriggerSignal() }
+        it.get<FlowJob>().apply { openTimingTriggerSignal() }
+    }
+}
 
 fun Application.configBaseModule() = koinModule {
     single<Storage> {
@@ -60,11 +70,11 @@ val serviceModule = module {
 }
 
 val jobModule = module(createdAtStart = true) {
-    single { EmotionJob(get()).apply { openTimingTriggerSignal() } }
-    single { MemoryJob(get()).apply { openTimingTriggerSignal() } }
-    single { FlowJob(get()).apply { openTimingTriggerSignal() } }
-    single { VolitionJob(get()).apply { openTimingTriggerSignal() } }
-    single { EvolutionJob(get()).apply { openTimingTriggerSignal() } }
+    single { EmotionJob(get()) }
+    single { MemoryJob(get()) }
+    single { FlowJob(get()) }
+    single { VolitionJob(get()) }
+    single { EvolutionJob(get()) }
 }
 
 val gatewayModule = module {

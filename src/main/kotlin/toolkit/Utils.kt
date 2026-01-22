@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
 import kotlinx.serialization.json.Json
+import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 
@@ -34,3 +35,5 @@ fun ResultSet.rowMapMapper(): List<Map<String, Any?>> {
         }
     }
 }
+
+inline fun <reified T : Any> ref() = GlobalContext.get().inject<T>()

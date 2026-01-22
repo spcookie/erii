@@ -3,4 +3,6 @@ ktor:
         modules:
             - uesugi.ApplicationKt.module
     deployment:
-        port: 8088
+        port: 8080
+
+migration: $MIGRATION:false

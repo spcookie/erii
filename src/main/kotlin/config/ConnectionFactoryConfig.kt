@@ -8,7 +8,7 @@ class ConnectionFactoryConfig {
 
     fun getDataSource(): DataSource {
         val dataSourceConfig = HikariConfig().apply {
-            jdbcUrl = "jdbc:h2:file:./store/test/data;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL"
+            jdbcUrl = "jdbc:h2:file:./store/data;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL"
             driverClassName = "org.h2.Driver"
             maximumPoolSize = 6
             isReadOnly = false

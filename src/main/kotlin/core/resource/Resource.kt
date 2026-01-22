@@ -20,11 +20,11 @@ object ResourceTable : IntIdTable("chat_resource") {
 
     val url = varchar("url", length = 1024)
 
-    val fileName = varchar("file_name", length = DEFAULT_LENGTH).nullable()
+    val fileName = varchar("file_name", length = DEFAULT_LENGTH)
 
-    val size = long("size").nullable()
+    val size = long("size")
 
-    val md5 = varchar("md5", length = DEFAULT_LENGTH).nullable()
+    val md5 = varchar("md5", length = DEFAULT_LENGTH)
 
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
 }
@@ -49,9 +49,9 @@ data class ResourceRecord(
     val botMark: String,
     val groupId: String,
     val url: String,
-    val fileName: String? = null,
-    val size: Long? = null,
-    val md5: String? = null,
+    val fileName: String,
+    val size: Long,
+    val md5: String,
     val histories: List<HistoryRecord>? = null,
     val createdAt: LocalDateTime
 )

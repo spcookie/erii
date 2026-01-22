@@ -7,9 +7,14 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
 import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.contact.Group
+import okio.Path.Companion.toPath
+import okio.buffer
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.mapdb.Serializer
 import plugins.Plugin
 import plugins.SendAgentConf
 import plugins.SendAgentState
@@ -20,11 +25,13 @@ import uesugi.core.RouteCallEvent
 import uesugi.core.RouteRule
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
-import uesugi.toolkit.EventBus
-import uesugi.toolkit.logger
+import uesugi.core.history.MessageType
+import uesugi.core.history.toRecord
+import uesugi.toolkit.*
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 
 class ImageCreator : Plugin {
@@ -38,24 +45,69 @@ class ImageCreator : Plugin {
             log.error("Image Creator error: {}", exception.message, exception)
         })
 
+    val urlMapCache = MapDB.Cache.hashMap("image_creator_cache")
+        .keySerializer(Serializer.STRING)
+        .valueSerializer(Serializer.STRING)
+        .expireAfterCreate(4, TimeUnit.HOURS)
+        .createOrOpen()
+
     private lateinit var job: Job
 
     override fun onLoad() {
+        val storage by ref<Storage>()
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             if (event hit RouteRule.IMAGE_CREATE) {
-
-                withContext(Dispatchers.IO) {
+                val records = withContext(Dispatchers.IO) {
                     transaction {
                         HistoryEntity.find {
                             HistoryTable.groupId eq event.groupId and
                                     (HistoryTable.userId eq event.atFromId)
-                        }
+                        }.orderBy(HistoryTable.createdAt to SortOrder.DESC)
+                            .limit(6)
+                            .with(HistoryEntity::resource)
+                            .reversed()
+                            .map {
+                                it.toRecord()
+                            }
                     }
                 }
 
+                val contentParts = records.mapNotNull { record ->
+                    when (record.messageType) {
+                        MessageType.TEXT -> {
+                            ContentPart(event.input, ContentPart.Type.TEXT)
+                        }
+
+                        MessageType.IMAGE -> {
+                            val resource = record.resource
+                            if (resource == null) {
+                                ContentPart(event.input, ContentPart.Type.TEXT)
+                            } else {
+                                val url = urlMapCache[resource.url]
+                                if (url != null) {
+                                    ContentPart(url, ContentPart.Type.IMAGE)
+                                } else {
+                                    val source = storage.get(resource.url.toPath())
+                                    source.use {
+                                        source.buffer()
+                                            .inputStream()
+                                            .use {
+                                                val uploadedFile = imageClient.upload(it, resource.fileName)
+                                                urlMapCache[resource.url] = uploadedFile.uri
+                                                ContentPart(uploadedFile.uri, ContentPart.Type.IMAGE)
+                                            }
+                                    }
+                                }
+                            }
+                        }
+
+                        else -> null
+                    }
+                }.toList()
+
                 val deferred = scope.async(Dispatchers.IO) {
                     imageClient.generate(
-                        listOf(ContentPart(event.input, ContentPart.Type.TEXT)),
+                        contentParts,
                         "AUTO",
                         null,
                         1f,

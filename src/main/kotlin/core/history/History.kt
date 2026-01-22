@@ -75,7 +75,9 @@ fun ResourceEntity.toRecord(): ResourceRecord {
         url = url,
         fileName = fileName,
         size = size,
-        createdAt = createdAt
+        createdAt = createdAt,
+        md5 = md5,
+        histories = histories.map { it.toRecord() }
     )
 }
 

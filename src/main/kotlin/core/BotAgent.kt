@@ -43,7 +43,6 @@ import uesugi.core.flow.FlowMeterState
 import uesugi.core.history.HistoryRecord
 import uesugi.core.history.HistorySavedEvent
 import uesugi.core.history.HistoryService
-import uesugi.core.history.toRecord
 import uesugi.core.memory.FactsEntity
 import uesugi.core.memory.MemoryService
 import uesugi.core.memory.SummaryEntity
@@ -333,7 +332,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
             currentBotId = currentBotId,
             groupId = groupId,
             echo = echo,
-            botRole = BotManage.getBot(currentBotId)!!.role,
+            botRole = BotManage.getBot(currentBotId).role,
             behaviorProfile = {
                 withContext(Dispatchers.IO) {
                     emotionService.getCurrentBehaviorProfile(currentBotId, groupId)
@@ -343,19 +342,19 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
             interruptionMode = event.interruptionMode,
             flow = {
                 val flowGauge =
-                    flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId)!!.role.emoticon)
+                    flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId).role.emoticon)
                 flowGauge.getFlowMeter()
             },
             flowState = {
                 val flowGauge =
-                    flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId)!!.role.emoticon)
+                    flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId).role.emoticon)
                 flowGauge.mapToState()
             },
             facts = {
                 withContext(Dispatchers.IO) {
                     transaction {
                         val records =
-                            historyService.getLatestHistory(currentBotId, groupId, 20, 1.days).map { it.toRecord() }
+                            historyService.getLatestHistory(currentBotId, groupId, 20, 1.days)
                         val subjects = records.map { it.userId }.distinct().toList()
                         memoryService.getFacts(currentBotId, groupId, subjects)
                     }
@@ -365,7 +364,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
                 withContext(Dispatchers.IO) {
                     transaction {
                         val records =
-                            historyService.getLatestHistory(currentBotId, groupId, 20, 1.days).map { it.toRecord() }
+                            historyService.getLatestHistory(currentBotId, groupId, 20, 1.days)
                         val subjects = records.map { it.userId }.distinct().toList()
                         memoryService.getUserProfiles(currentBotId, groupId, subjects)
                     }
@@ -388,14 +387,14 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
             histories = {
                 withContext(Dispatchers.IO) {
                     transaction {
-                        historyService.getLatestHistory(currentBotId, groupId, 25, 1.days).map { it.toRecord() }
+                        historyService.getLatestHistory(currentBotId, groupId, 25, 1.days)
                     }
                 }
             },
             moreHistories = {
                 withContext(Dispatchers.IO) {
                     transaction {
-                        historyService.getLatestHistory(currentBotId, groupId, 65, 1.days).map { it.toRecord() }
+                        historyService.getLatestHistory(currentBotId, groupId, 65, 1.days)
                     }
                 }
             }
@@ -1113,7 +1112,7 @@ object BotAgent {
                                 states[key] = BotGroupState(event.flag, null)
                             }
 
-                            val currentBot = BotManage.getBot(event.botId)!!
+                            val currentBot = BotManage.getBot(event.botId)
 
                             val sendMessage: suspend (String) -> Unit = { message ->
                                 val groupId = event.groupId
