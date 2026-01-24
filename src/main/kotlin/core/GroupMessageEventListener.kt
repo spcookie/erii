@@ -81,11 +81,9 @@ object GroupMessageEventListener : SimpleListenerHost() {
                             if (!isAtBot) {
                                 isAtBot = singleMessage.target == botId.toLong()
                             }
-                            appendLine(singleMessage.content)
                         }
 
                         is PlainText -> {
-                            appendLine(singleMessage.content)
                         }
 
                         is Image -> {
@@ -94,7 +92,6 @@ object GroupMessageEventListener : SimpleListenerHost() {
                                 url = singleMessage.queryUrl()
                                 format = singleMessage.imageType.formatName
                             }
-                            appendLine(singleMessage.content)
                         }
 
                         else -> {
@@ -104,13 +101,13 @@ object GroupMessageEventListener : SimpleListenerHost() {
                 } else {
                     if (singleMessage is MessageSource) {
                         // ignore
+                        continue
                     } else {
                         log.warn("Unsupported message type: {}", singleMessage)
-                        appendLine(singleMessage.content)
                     }
                 }
+                append(singleMessage.content)
             }
-            deleteAt(length - 1)
         }
         launch {
             val historyRecord = withContext(Dispatchers.IO) {

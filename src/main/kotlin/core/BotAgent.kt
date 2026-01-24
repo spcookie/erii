@@ -719,6 +719,11 @@ class ChatToolSet(
     private val sendMessage: suspend (String) -> Unit
 ) : ToolSet {
 
+    @Tool
+    fun googleSearch() {
+
+    }
+
     @LLMDescription("回复消息")
     @Serializable
     data class Sentences(
@@ -953,7 +958,7 @@ class ChatToolSet(
      * @param cpm 字/分钟 (如 80)
      * @param jitter 抖动比例 (0.1 = ±10%)
      */
-    fun calcHumanTypingDelay(
+    private fun calcHumanTypingDelay(
         text: String,
         cpm: Int = 160,
         jitter: Double = 0.15

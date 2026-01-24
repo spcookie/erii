@@ -108,7 +108,7 @@ class ImageCreator : Plugin {
                 val deferred = scope.async(Dispatchers.IO) {
                     imageClient.generate(
                         contentParts,
-                        "AUTO",
+                        null,
                         null,
                         1f,
                         32768,

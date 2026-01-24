@@ -69,7 +69,7 @@ val serviceModule = module {
     single { VolitionGaugeManager() } onClose { it?.stopAll() }
 }
 
-val jobModule = module(createdAtStart = true) {
+val jobModule = module {
     single { EmotionJob(get()) }
     single { MemoryJob(get()) }
     single { FlowJob(get()) }
