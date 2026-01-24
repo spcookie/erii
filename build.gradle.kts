@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.caffeine)
     implementation(libs.atomicfu)
     implementation(libs.mapdb)
+    implementation("io.ktor:ktor-client-logging:3.3.2")
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)

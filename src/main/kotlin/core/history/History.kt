@@ -77,7 +77,6 @@ fun ResourceEntity.toRecord(): ResourceRecord {
         size = size,
         createdAt = createdAt,
         md5 = md5,
-        histories = histories.map { it.toRecord() }
     )
 }
 

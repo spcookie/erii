@@ -17,7 +17,7 @@ class LLMFactory {
         val deepSeekApiKey = System.getenv("DEEP_SEEK_API_KEY")
 
         val llmClients = buildMap {
-            if (googleApiKey.isNotBlank()) {
+            if (!googleApiKey.isNullOrBlank()) {
                 put(
                     LLMProvider.Google,
                     RetryingLLMClient(
@@ -29,13 +29,17 @@ class LLMFactory {
                                     if (httpProxy != null) {
                                         proxy = ProxyBuilder.http(httpProxy)
                                     }
+//                                    install(Logging) {
+//                                        logger = Logger.DEFAULT
+//                                        level = LogLevel.ALL
+//                                    }
                                 }
                             }
                         ),
                         config = RetryConfig.CONSERVATIVE
                     ))
             }
-            if (deepSeekApiKey.isNotBlank()) {
+            if (!deepSeekApiKey.isNullOrBlank()) {
                 put(
                     LLMProvider.DeepSeek,
                     RetryingLLMClient(
