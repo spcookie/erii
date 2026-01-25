@@ -1,8 +1,9 @@
 {
   "host": "0.0.0.0",
   "port": 6099,
-  "token": "xxx",
+  "token": "a537dd6ffaec",
   "loginRate": 10,
+  "autoLoginAccount": "2125232116",
   "theme": {
     "fontMode": "system",
     "dark": {

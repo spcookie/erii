@@ -2,7 +2,6 @@ package uesugi.core.emotion
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
@@ -12,6 +11,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
+import uesugi.config.LLMModelsChoice
 import uesugi.toolkit.DateTimeFormat
 
 /**
@@ -236,10 +236,17 @@ suspend fun analyzeStimulus(history: List<GMessage>): Stimulus {
     // 执行结构化 LLM 调用
     val result = promptExecutor.executeStructured<PadScale12>(
         prompt = prompt,
-        model = GoogleModels.Gemini2_5Pro,
+        model = LLMModelsChoice.Pro,
         fixingParser = StructureFixingParser(
-            model = GoogleModels.Gemini2_5FlashLite,
+            model = LLMModelsChoice.Lite,
             retries = 2
+        ),
+        examples = listOf(
+            PadScale12(
+                q1 = 0.1, q4 = 2.0, q7 = -3.0, q10 = 0.0,
+                q2 = 0.0, q5 = 0.0, q8 = 0.0, q11 = 1.1,
+                q3 = 0.12, q6 = 0.99, q9 = 0.0, q12 = 0.0
+            )
         )
     )
 

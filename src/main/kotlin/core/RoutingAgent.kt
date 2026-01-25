@@ -1,13 +1,13 @@
 package uesugi.core
 
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.structure.executeStructured
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
+import uesugi.config.LLMModelsChoice
 import uesugi.core.history.HistoryService
 import uesugi.core.memory.MemoryService
 import uesugi.toolkit.logger
@@ -63,7 +63,7 @@ object RoutingAgent {
         try {
             val result = promptExecutor.executeStructured<RouteRuleRef>(
                 prompt,
-                model = GoogleModels.Gemini2_5FlashLite
+                model = LLMModelsChoice.Lite,
             )
 
             return result.getOrThrow().data.ref

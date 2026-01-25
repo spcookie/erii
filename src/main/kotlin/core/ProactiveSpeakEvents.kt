@@ -15,6 +15,7 @@ data class ProactiveSpeakEvent(
     val interruptionMode: InterruptionMode,
     val input: String? = null,
     val chatPointRule: String? = null,
+    val webSearch: Boolean = false,
     val toolSets: ((ChatToolSet) -> ToolSet)? = null,
     val flag: ProactiveSpeakFeatureFlag = NONE,
     val echo: String = Uuid.random().toHexString(),

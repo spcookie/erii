@@ -2,7 +2,6 @@ package uesugi.core.volition
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
@@ -11,6 +10,7 @@ import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
+import uesugi.config.LLMModelsChoice
 import uesugi.core.emotion.EmotionalTendencies
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.JSON
@@ -95,10 +95,19 @@ class VolitionAgent {
         return try {
             val response = promptExecutor.executeStructured<StimulusAnalysis>(
                 prompt,
-                model = GoogleModels.Gemini2_5Flash,
+                model = LLMModelsChoice.Flash,
                 fixingParser = StructureFixingParser(
-                    model = GoogleModels.Gemini2_5FlashLite,
+                    model = LLMModelsChoice.Lite,
                     retries = 2
+                ),
+                examples = listOf(
+                    StimulusAnalysis(
+                        keywordHit = true,
+                        keywordStrength = 0.8,
+                        isBusy = true,
+                        indirectMention = true,
+                        emotionalResonance = true
+                    )
                 )
             )
 

@@ -13,11 +13,9 @@ import ai.koog.agents.core.tools.reflect.asTools
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.markdown.markdown
-import ai.koog.prompt.params.LLMParams
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
 import kotlinx.coroutines.*
@@ -35,6 +33,7 @@ import kotlinx.serialization.json.jsonNull
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
+import uesugi.config.LLMModelsChoice
 import uesugi.core.emotion.*
 import uesugi.core.evolution.LearnedVocabEntity
 import uesugi.core.evolution.VocabularyService
@@ -47,10 +46,7 @@ import uesugi.core.memory.FactsEntity
 import uesugi.core.memory.MemoryService
 import uesugi.core.memory.SummaryEntity
 import uesugi.core.memory.UserProfileEntity
-import uesugi.toolkit.DateTimeFormat
-import uesugi.toolkit.EventBus
-import uesugi.toolkit.logger
-import kotlin.random.Random
+import uesugi.toolkit.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
@@ -451,7 +447,7 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryRecord>, rules: 
         historyEntities.map { "[id:${it.id} userId:${it.userId} username:${it.nick} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
             .toList()
 
-    val promptExecutor: PromptExecutor by GlobalContext.get().inject()
+    val promptExecutor by ref<PromptExecutor>()
 
     val prompt = prompt("分析群聊聊天点") {
         user(
@@ -486,16 +482,95 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryRecord>, rules: 
 
     val result = promptExecutor.executeStructured<ChatPoints>(
         prompt = prompt,
-        model = GoogleModels.Gemini2_5Flash,
+        model = LLMModelsChoice.Flash,
         fixingParser = StructureFixingParser(
-            model = GoogleModels.Gemini2_5FlashLite,
+            model = LLMModelsChoice.Lite,
             retries = 2
+        ),
+        examples = listOf(
+            ChatPoints(
+                listOf(
+                    ChatPoint(
+                        userId = "12345",
+                        username = "User",
+                        topic = "This is a sample chat point.",
+                        toneHint = "Neutral",
+                        actionType = ActionType.GENERAL,
+                        importance = 50
+                    )
+                )
+            )
         )
     )
     return result.getOrThrow().data.chatPoints
 }
 
-private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?): Prompt {
+private suspend fun buildWebSearchContext(historyEntities: List<HistoryRecord>): String {
+    val promptExecutor by ref<PromptExecutor>()
+
+    val msg =
+        historyEntities.map { "[id:${it.id} userId:${it.userId} username:${it.nick} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
+            .toList()
+
+    val structured = promptExecutor.executeStructured<WebSearchTool.Input>(
+        prompt = prompt("web-search") {
+            system(
+                """
+                # Role
+                你是一个群聊消息的【搜索意图分析员】。
+                你的唯一任务是分析用户的输入，判断是否需要调用 `webSearch` 工具。
+
+                # Judgment Rules (判断规则)
+
+                ## 1. 触发搜索 (YES)
+                仅当满足以下任一条件时，才调用工具：
+                *   **时效性问题**：询问今天/昨天/最近的新闻、天气、股价、汇率、比赛结果等实时数据。
+                *   **知识盲区**：询问 2024 年以后的新事物、新产品、新事件（超出你的训练数据范围）。
+                *   **URL 阅读**：用户发送了一个 HTTP/HTTPS 链接，并暗示需要你“看、读、总结、分析”这个链接。
+                *   **明确指令**：用户说了“搜一下”、“查一下”、“百度”等关键词。
+
+                ## 2. 拒绝搜索 (NO)
+                以下情况**绝对不要**调用工具：
+                *   **闲聊**：如“你好”、“早安”、“表情包”。
+                *   **通用知识**：如“李白是谁”、“怎么写 Python 循环”、“勾股定理是什么”等无需联网就能回答的问题。
+                *   **主观创作**：如“写首诗”、“翻译这段话（非链接）”。
+
+                # Parameter Extraction (参数提取)
+
+                如果判断需要搜索，请精准提取以下 3 个参数：
+
+                1.  **`specificUrl` (List<String>?)**:
+                    *   如果消息中包含需要阅读的目标 URL，提取它。
+                    *   否则留空 (null)。
+
+                2.  **`query` (String?)**:
+                    *   如果有 `specificUrl`，此项留空。
+                    *   否则，提炼出核心搜索关键词。**去语气词**（如“帮我查查”、“那个”）。
+                    *   例子："帮我查查现在的黄金价格是多少" -> "黄金 实时价格"
+
+                3.  **`maxResults` (Int?)**:
+                    *   **1**: 简单事实（天气、汇率、比分、具体数据）。
+                    *   **3**: 一般查询（某人是谁、某个梗的来源、产品参数）。
+                    *   **5**: 深度分析（复杂事件复盘、多方观点对比、行业报告）。
+            """.trimIndent()
+            )
+            user(
+                """
+                # 以下是群聊信息
+                
+                ${msg.joinToString("\n")}
+            """.trimIndent()
+            )
+        },
+        model = LLMModelsChoice.Lite
+    )
+
+    val webSearchToolInput = structured.getOrThrow().data
+
+    return WebSearchTool.webSearch(webSearchToolInput)
+}
+
+private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?, wepSearchContext: String?): Prompt {
     val transient = context.toTransient()
     val behaviorProfile = transient.behaviorProfile
     val constraints = buildSpeechConstraints(
@@ -541,6 +616,10 @@ private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?):
 
                 if (!chatPoints.isNullOrEmpty()) {
                     buildChatPointsPrompt(chatPoints)
+                }
+
+                if (!wepSearchContext.isNullOrBlank()) {
+                    buildWebSearchPrompt(wepSearchContext)
                 }
 
                 buildHistoriesPrompt(transient.histories, context.currentBotId)
@@ -692,9 +771,15 @@ fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
     }
 }
 
+fun MarkdownContentBuilder.buildWebSearchPrompt(webSearchContext: String) {
+    h2("以下群聊的联网搜索结果，供参考")
+    line { text(webSearchContext) }
+}
+
 fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, currentBotId: String) {
     if (histories.isNotEmpty()) {
         header(2, "最近群聊记录")
+        line { text("注意：标有 [我] 的为当前自己的发言") }
         bulleted {
             val entities = if (histories.size > 50) {
                 histories.takeLast(50)
@@ -719,9 +804,8 @@ class ChatToolSet(
     private val sendMessage: suspend (String) -> Unit
 ) : ToolSet {
 
-    @Tool
-    fun googleSearch() {
-
+    companion object {
+        private val log = logger()
     }
 
     @LLMDescription("回复消息")
@@ -753,19 +837,26 @@ class ChatToolSet(
                     buildSummaryPrompt(transient.summary)
                     buildHistoriesPrompt(transient.moreHistories, context.currentBotId)
                 }
+
             }
             user(sentence)
         }
         val s = scope.async {
             val result = promptExecutor.executeStructured<Sentences>(
                 prompt = prompt,
-                model = GoogleModels.Gemini2_5Pro
+                model = LLMModelsChoice.Pro,
+                examples = listOf(
+                    Sentences(listOf("这句话很有趣")),
+                    Sentences(listOf("这句话很 boring", "这句话很 helpful"))
+                )
             )
             eriiSendJob?.join()
             result.getOrNull()?.data?.sentences
         }.await()
         if (s != null) {
             return sendAndReceive(s)
+        } else {
+            log.warn("request ${botRole.name} no message sent")
         }
         return null
     }
@@ -951,27 +1042,6 @@ class ChatToolSet(
         }
     }
 
-    /**
-     * 根据中文打字速度计算发送延迟
-     *
-     * @param text 要发送的文本
-     * @param cpm 字/分钟 (如 80)
-     * @param jitter 抖动比例 (0.1 = ±10%)
-     */
-    private fun calcHumanTypingDelay(
-        text: String,
-        cpm: Int = 160,
-        jitter: Double = 0.15
-    ): Long {
-        val charCount = text.count { !it.isWhitespace() }
-        val cps = cpm / 60.0
-
-        val baseDelayMs = (charCount / cps * 1000).toLong()
-        val jitterFactor = 1 + Random.nextDouble(-jitter, jitter)
-
-        return (baseDelayMs * jitterFactor).toLong().coerceAtLeast(300)
-    }
-
 }
 
 object BotAgent {
@@ -1128,21 +1198,34 @@ object BotAgent {
                             }
 
                             val context = buildContext(event)
+
                             var chatPoints: List<ChatPoint>? = null
-                            if (event.chatPointRule != null) {
-                                log.info("Bot agent build chat point rule")
-                                chatPoints = buildChatPoint(context.histories(), event.chatPointRule)
-                            }
-                            val buildPrompt = buildPrompt(context, chatPoints)
-//                val prompt = buildPrompt(context)
-                            val prompt = prompt(
-                                id = "constraint",
-                                params = LLMParams(
-//                        additionalProperties = mapOf(
-//                            "thinkingConfig" to JsonObject(mapOf("thinkingLevel" to JsonPrimitive("LOW")))
-//                        )
-                                )
-                            ) {
+                            var webSearchContext: String? = null
+                            buildList {
+                                this += async {
+                                    try {
+                                        if (event.chatPointRule != null) {
+                                            log.info("Bot agent build chat point rule")
+                                            chatPoints = buildChatPoint(context.histories(), event.chatPointRule)
+                                        }
+                                    } catch (e: Exception) {
+                                        log.warn("build chat point rule error: {}", e.message, e)
+                                    }
+                                }
+                                this += async {
+                                    try {
+                                        if (event.webSearch) {
+                                            log.info("Bot agent build web search context")
+                                            webSearchContext = buildWebSearchContext(context.histories())
+                                        }
+                                    } catch (e: Exception) {
+                                        log.warn("build web search context: {}", e.message, e)
+                                    }
+                                }
+                            }.awaitAll()
+
+                            val buildPrompt = buildPrompt(context, chatPoints, webSearchContext)
+                            val prompt = prompt("constraint") {
                                 messages(buildPrompt.messages)
                             }
 
@@ -1160,7 +1243,7 @@ object BotAgent {
                                 promptExecutor = promptExecutor,
                                 agentConfig = AIAgentConfig(
                                     prompt = prompt,
-                                    model = GoogleModels.Gemini2_5Pro,
+                                    model = LLMModelsChoice.Pro,
                                     maxAgentIterations = 50,
                                 ),
                                 toolRegistry = ToolRegistry {

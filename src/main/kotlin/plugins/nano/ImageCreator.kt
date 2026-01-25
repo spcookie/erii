@@ -12,6 +12,7 @@ import okio.buffer
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.mapdb.Serializer
@@ -38,7 +39,11 @@ class ImageCreator : Plugin {
 
     val imageClient = ImageClient()
 
-    val log = logger()
+    companion object {
+        val log = logger()
+
+        val AT_REGEX = Regex("@\\d+")
+    }
 
     val scope =
         CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineName("ImageCreator") + CoroutineExceptionHandler { _, exception ->
@@ -61,9 +66,9 @@ class ImageCreator : Plugin {
                     transaction {
                         HistoryEntity.find {
                             HistoryTable.groupId eq event.groupId and
-                                    (HistoryTable.userId eq event.atFromId)
+                                    (HistoryTable.userId inList listOf(event.atFromId, event.botId))
                         }.orderBy(HistoryTable.createdAt to SortOrder.DESC)
-                            .limit(6)
+                            .limit(10)
                             .with(HistoryEntity::resource)
                             .reversed()
                             .map {
@@ -72,38 +77,46 @@ class ImageCreator : Plugin {
                     }
                 }
 
-                val contentParts = records.mapNotNull { record ->
-                    when (record.messageType) {
-                        MessageType.TEXT -> {
-                            ContentPart(event.input, ContentPart.Type.TEXT)
+                val contentParts = records.onEach {
+                    it.content = it.content?.replace(AT_REGEX, "")
+                }
+                    .mapNotNull { record ->
+                        val role = when (record.userId) {
+                            event.atFromId -> ContentPart.Role.ME
+                            event.botId -> ContentPart.Role.AI
+                            else -> return@mapNotNull null
                         }
+                        when (record.messageType) {
+                            MessageType.TEXT -> {
+                                ContentPart(record.content!!, ContentPart.Type.TEXT, role)
+                            }
 
-                        MessageType.IMAGE -> {
-                            val resource = record.resource
-                            if (resource == null) {
-                                ContentPart(event.input, ContentPart.Type.TEXT)
-                            } else {
-                                val url = urlMapCache[resource.url]
-                                if (url != null) {
-                                    ContentPart(url, ContentPart.Type.IMAGE)
+                            MessageType.IMAGE -> {
+                                val resource = record.resource
+                                if (resource == null) {
+                                    ContentPart(record.content!!, ContentPart.Type.TEXT, role)
                                 } else {
-                                    val source = storage.get(resource.url.toPath())
-                                    source.use {
-                                        source.buffer()
-                                            .inputStream()
-                                            .use {
-                                                val uploadedFile = imageClient.upload(it, resource.fileName)
-                                                urlMapCache[resource.url] = uploadedFile.uri
-                                                ContentPart(uploadedFile.uri, ContentPart.Type.IMAGE)
-                                            }
+                                    val url = urlMapCache[resource.url]
+                                    if (url != null) {
+                                        ContentPart(url, ContentPart.Type.IMAGE, role)
+                                    } else {
+                                        val source = storage.get(resource.url.toPath())
+                                        source.use {
+                                            source.buffer()
+                                                .inputStream()
+                                                .use {
+                                                    val uploadedFile = imageClient.upload(it, resource.fileName)
+                                                    urlMapCache[resource.url] = uploadedFile.uri
+                                                    ContentPart(uploadedFile.uri, ContentPart.Type.IMAGE, role)
+                                                }
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        else -> null
-                    }
-                }.toList()
+                            else -> null
+                        }
+                    }.toList()
 
                 val deferred = scope.async(Dispatchers.IO) {
                     imageClient.generate(

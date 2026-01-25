@@ -24,6 +24,8 @@ import uesugi.core.volition.VolitionGaugeManager
 import uesugi.core.volition.VolitionJob
 import uesugi.toolkit.LocalStorage
 import uesugi.toolkit.Storage
+import uesugi.toolkit.WebPageMarkdownScraper
+import uesugi.toolkit.WebSearchClient
 import javax.sql.DataSource
 
 fun Application.warmUp() {
@@ -79,6 +81,7 @@ val jobModule = module {
 
 val gatewayModule = module {
     single { HttpClientFactory().createClient() }
+    single { WebSearchClient(System.getenv("WEB_SEARCH_HOST")) }
 }
 
 val adapterModule = module {
@@ -88,4 +91,5 @@ val adapterModule = module {
 val infrastructureModule = module {
     includes(gatewayModule)
     single { LLMFactory().promptExecutor() }
+    single { WebPageMarkdownScraper() }
 }

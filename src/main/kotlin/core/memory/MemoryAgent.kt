@@ -1,7 +1,6 @@
 package uesugi.core.memory
 
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
@@ -9,6 +8,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
+import uesugi.config.LLMModelsChoice
 import uesugi.core.history.HistoryEntity
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.JSON
@@ -160,7 +160,7 @@ class MemoryAgent {
                 
                 【需要输出的字段】
                 
-                请分析并输出以下 4 个字段：
+                请分析并输出以下 2 个字段：
                 
                 1. profile（用户画像）  
                    - 关注其在群聊中的**行为模式与角色特征**
@@ -194,9 +194,9 @@ class MemoryAgent {
 
         val result = promptExecutor.executeStructured<UserProfileAnalysis>(
             prompt = prompt,
-            model = GoogleModels.Gemini2_5Flash,
+            model = LLMModelsChoice.Flash,
             fixingParser = StructureFixingParser(
-                model = GoogleModels.Gemini2_5FlashLite,
+                model = LLMModelsChoice.Lite,
                 retries = 2
             )
         )
@@ -285,9 +285,9 @@ class MemoryAgent {
 
         val result = promptExecutor.executeStructured<FactsAnalysisList>(
             prompt = prompt,
-            model = GoogleModels.Gemini2_5Flash,
+            model = LLMModelsChoice.Flash,
             fixingParser = StructureFixingParser(
-                model = GoogleModels.Gemini2_5FlashLite,
+                model = LLMModelsChoice.Lite,
                 retries = 2
             )
         )
@@ -389,9 +389,9 @@ class MemoryAgent {
 
         val result = promptExecutor.executeStructured<TodoAnalysisList>(
             prompt = prompt,
-            model = GoogleModels.Gemini2_5Flash,
+            model = LLMModelsChoice.Flash,
             fixingParser = StructureFixingParser(
-                model = GoogleModels.Gemini2_5FlashLite,
+                model = LLMModelsChoice.Lite,
                 retries = 2
             )
         )
@@ -462,9 +462,9 @@ class MemoryAgent {
 
         val result = promptExecutor.executeStructured<SummaryAnalysis>(
             prompt = prompt,
-            model = GoogleModels.Gemini2_5Flash,
+            model = LLMModelsChoice.Flash,
             fixingParser = StructureFixingParser(
-                model = GoogleModels.Gemini2_5FlashLite,
+                model = LLMModelsChoice.Lite,
                 retries = 2
             )
         )

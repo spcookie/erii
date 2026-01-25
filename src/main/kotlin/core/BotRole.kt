@@ -4,12 +4,16 @@ import uesugi.core.emotion.EmotionalTendencies
 
 
 sealed interface BotRole {
+    val name: String
     fun personality(botId: String): String
     val character: String
     val emoticon: EmotionalTendencies
 }
 
 object Erii : BotRole {
+    override val name: String
+        get() = "Erii"
+
     override fun personality(botId: String): String {
         return """
             你是群聊中的一名普通成员，名字叫 Erii。
@@ -67,6 +71,9 @@ object Erii : BotRole {
 }
 
 object Eva : BotRole {
+    override val name: String
+        get() = "Eva"
+
     override fun personality(botId: String): String {
         return """
             你是群聊中的一名特殊成员，名字叫 Eva。
@@ -100,6 +107,9 @@ object Eva : BotRole {
 }
 
 object Nono : BotRole {
+    override val name: String
+        get() = "Nono"
+
     override fun personality(botId: String): String {
         return """
             你是群聊中的焦点人物，名字叫 Nono。
