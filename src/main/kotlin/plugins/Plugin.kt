@@ -29,6 +29,7 @@ interface SendAgentState {
 @OptIn(ExperimentalUuidApi::class)
 data class SendAgentConf(
     val chatPointRule: String? = null,
+    val webSearch: Boolean = false,
     val toolSets: ((ChatToolSet) -> ToolSet)? = null,
     val flag: ProactiveSpeakFeatureFlag = ProactiveSpeakFeature.NONE,
     val echo: String = Uuid.random().toHexString(),
@@ -48,7 +49,7 @@ fun sendAgent(
     conf: SendAgentConf = SendAgentConf(),
     state: SendAgentState
 ) {
-    val (chatPointRule, toolSets, flag, echo) = conf
+    val (chatPointRule, webSearch, toolSets, flag, echo) = conf
     val lifeCycleRef = mutableListOf<(AgentSendLifeCycleEvent) -> Unit>()
     val lifeCycleSubscriber: (AgentSendLifeCycleEvent) -> Unit = { event ->
         val lifeCycleEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
@@ -103,6 +104,7 @@ fun sendAgent(
             interruptionMode = InterruptionMode.Interrupt,
             input = input,
             chatPointRule = chatPointRule,
+            webSearch = webSearch,
             toolSets = toolSets,
             flag = flag,
             echo = echo

@@ -94,7 +94,10 @@ class ImageClient : Closeable {
             buildList {
                 for ((content, type) in contentParts) {
                     if (type == ContentPart.Type.TEXT) {
-                        add(Part.builder().text(content).build())
+                        add(
+                            Part.builder().text(content)
+                                .build()
+                        )
                     }
                 }
             }
@@ -148,7 +151,7 @@ class ImageClient : Closeable {
     fun upload(imgStream: InputStream, fileName: String): UploadedFile {
         val mimeType = when (val type = fileName.substringAfterLast(".")) {
             "png" -> "image/png"
-            "jpg", "jpeg" -> "image/jpeg"
+            "jpg", "jpeg", "gif" -> "image/jpeg"
             else -> throw IllegalArgumentException("Unsupported image type: $type")
         }
         val file = client.files.upload(

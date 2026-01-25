@@ -2,7 +2,6 @@ package uesugi.core.flow
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
@@ -18,6 +17,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
+import uesugi.config.LLMModelsChoice
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -197,9 +197,9 @@ class FlowAgent {
         try {
             val response = promptExecutor.executeStructured<FlowAnalysisResult>(
                 prompt,
-                model = GoogleModels.Gemini2_5Flash,
+                model = LLMModelsChoice.Flash,
                 fixingParser = StructureFixingParser(
-                    model = GoogleModels.Gemini2_5FlashLite,
+                    model = LLMModelsChoice.Lite,
                     retries = 2
                 )
             )

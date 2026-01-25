@@ -315,7 +315,8 @@ class VolitionJob(
                         botId = botMark,
                         _groupId = groupId,
                         impulse = gauge.calculateImpulse(),
-                        interruptionMode = mode
+                        interruptionMode = mode,
+                        chatPointRule = ""
                     )
                 )
             }
@@ -352,7 +353,8 @@ class VolitionJob(
                                         botId = botMark,
                                         _groupId = groupId,
                                         impulse = gauge.calculateImpulse(),
-                                        interruptionMode = InterruptionMode.Icebreak
+                                        interruptionMode = InterruptionMode.Icebreak,
+                                        chatPointRule = ""
                                     )
                                 )
                             }

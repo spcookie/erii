@@ -36,4 +36,4 @@ fun ResultSet.rowMapMapper(): List<Map<String, Any?>> {
     }
 }
 
-inline fun <reified T : Any> ref() = GlobalContext.get().inject<T>()
+inline fun <reified T : Any> ref(): Lazy<T> = GlobalContext.get().inject<T>()

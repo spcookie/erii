@@ -56,15 +56,15 @@ class HistoryEntity(id: EntityID<Int>) : IntEntity(id) {
 
 @Serializable
 data class HistoryRecord(
-    val id: Int? = null,
-    val botMark: String,
-    val groupId: String,
-    val userId: String,
-    val nick: String,
-    val messageType: MessageType,
-    val content: String? = null,
-    val resource: ResourceRecord? = null,
-    val createdAt: LocalDateTime
+    var id: Int? = null,
+    var botMark: String,
+    var groupId: String,
+    var userId: String,
+    var nick: String,
+    var messageType: MessageType,
+    var content: String? = null,
+    var resource: ResourceRecord? = null,
+    var createdAt: LocalDateTime
 )
 
 fun ResourceEntity.toRecord(): ResourceRecord {

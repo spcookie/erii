@@ -1,12 +1,12 @@
 package uesugi.core.evolution
 
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
+import uesugi.config.LLMModelsChoice
 import uesugi.toolkit.logger
 
 /**
@@ -79,9 +79,9 @@ class ExtractionAgent {
 
             val result = promptExecutor.executeStructured<SlangWordList>(
                 prompt = userPromptObj,
-                model = GoogleModels.Gemini2_5Flash,
+                model = LLMModelsChoice.Flash,
                 fixingParser = StructureFixingParser(
-                    model = GoogleModels.Gemini2_5FlashLite,
+                    model = LLMModelsChoice.Flash,
                     retries = 2
                 )
             )

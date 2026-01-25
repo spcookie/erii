@@ -179,7 +179,8 @@ object GroupMessageEventListener : SimpleListenerHost() {
                                 botId = botId,
                                 _groupId = groupId,
                                 atFromId = senderId,
-                                impulse = 0.0,
+                                webSearch = true,
+                                chatPointRule = "",
                                 interruptionMode = InterruptionMode.Interrupt,
                                 flag = CHAT_URGENT or GRAB or IGNORE_INTERRUPT,
                             )

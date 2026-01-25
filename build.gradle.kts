@@ -55,11 +55,14 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.client.serialization.jackson)
+    implementation(libs.ktor.client.logging)
     // 工具
     implementation(libs.caffeine)
     implementation(libs.atomicfu)
     implementation(libs.mapdb)
-    implementation("io.ktor:ktor-client-logging:3.3.2")
+    implementation(libs.playwright)
+    implementation(libs.flexmark.html2md)
+    implementation(libs.flexmark.ext.tables)
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)

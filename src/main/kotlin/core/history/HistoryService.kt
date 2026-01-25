@@ -38,16 +38,16 @@ class HistoryService {
                 this.groupId = history.groupId
                 this.userId = history.userId
                 this.nick = history.nick
-                this.messageType = MessageType.TEXT
-                this.resource = history.resource?.let {
+                this.messageType = history.messageType
+                this.resource = history.resource?.let { resource ->
                     ResourceEntity.new {
                         this.botMark = history.botMark
                         this.groupId = history.groupId
-                        this.url = history.resource.url
-                        this.fileName = history.resource.fileName
-                        this.size = history.resource.size
-                        this.md5 = history.resource.md5
-                        this.createdAt = history.resource.createdAt
+                        this.url = resource.url
+                        this.fileName = resource.fileName
+                        this.size = resource.size
+                        this.md5 = resource.md5
+                        this.createdAt = resource.createdAt
                     }
                 }
                 this.content = history.content

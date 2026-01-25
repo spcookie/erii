@@ -9,7 +9,7 @@
         "enableCors": true,
         "enableWebsocket": false,
         "messagePostFormat": "array",
-        "token": "xxx",
+        "token": "hG8dQqGk6jGC",
         "debug": true
       }
     ],
@@ -24,7 +24,7 @@
         "reportSelfMessage": true,
         "enableForcePushEvent": true,
         "messagePostFormat": "array",
-        "token": "xxx",
+        "token": "hG8dQqGk6jGC",
         "debug": true,
         "heartInterval": 30000
       }
