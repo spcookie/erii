@@ -286,6 +286,7 @@ class MemoryJob(
                 }
             }.map {
                 MemoryAgent.FactsAnalysisInput(
+                    id = it.id.value,
                     keyword = it.keyword,
                     description = it.description,
                     values = it.values.split(","),
@@ -306,9 +307,6 @@ class MemoryJob(
                 transaction {
                     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                     for (fact in factsList) {
-                        if (fact.confidence < 0.5) {
-                            continue
-                        }
                         when (fact.action) {
                             MemoryAgent.MemoryAction.ADD -> {
                                 FactsEntity.new {
@@ -329,9 +327,9 @@ class MemoryJob(
 
                             MemoryAgent.MemoryAction.DEPRECATE -> {
                                 existFacts.filter {
-                                    it.keyword == fact.keyword &&
+                                    it.id == fact.id || (it.keyword == fact.keyword &&
                                             it.subjects == fact.subjects &&
-                                            it.scopeType == fact.scopeType
+                                            it.scopeType == fact.scopeType)
                                 }.forEach { exist ->
                                     FactsTable.update({
                                         (FactsTable.botMark eq botMark) and
