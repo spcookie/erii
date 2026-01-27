@@ -1,9 +1,10 @@
 package plugins.steamwatcher
 
-import com.github.benmanes.caffeine.cache.Cache
-import com.github.benmanes.caffeine.cache.Caffeine
+import org.mapdb.Serializer
+import uesugi.toolkit.MapDB
 import uesugi.toolkit.logger
 import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.net.URL
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
@@ -12,17 +13,20 @@ object AvatarCache {
 
     private val log = logger()
 
-    val cache: Cache<String, BufferedImage> = Caffeine.newBuilder()
-        .maximumSize(10_000)
-        .expireAfterWrite(1, TimeUnit.HOURS)
-        .build()
+    val cache = MapDB.Cache
+        .hashMap("avatars")
+        .keySerializer(Serializer.STRING)
+        .valueSerializer(Serializer.BYTE_ARRAY)
+        .expireAfterCreate(1, TimeUnit.HOURS)
+        .createOrOpen()
 
 
     fun getAvatarImage(url: String): BufferedImage? {
         try {
             val fileName = url.substringAfterLast('/').substringBeforeLast('_') + ".png"
 
-            val bufferedImage = cache.getIfPresent(fileName)
+            val bytes = cache.getValue(fileName)
+            val bufferedImage = ImageIO.read(bytes.inputStream())
             if (bufferedImage != null) {
                 log.debug("Loading avatar from cache: $fileName")
                 return bufferedImage
@@ -34,7 +38,10 @@ object AvatarCache {
             if (image != null) {
                 try {
                     // Save the downloaded image to the cache as a PNG file
-                    cache.put(fileName, image)
+                    ByteArrayOutputStream().use {
+                        ImageIO.write(image, "png", it)
+                        cache.put(fileName, it.toByteArray())
+                    }
                     log.info("Avatar cached successfully at: $fileName")
                 } catch (e: Exception) {
                     log.warn("Failed to save avatar to cache: ${e.message}")

@@ -51,6 +51,7 @@ class MemoryAgent {
      */
     @Serializable
     data class FactsAnalysis(
+        val id: Int,
         val action: MemoryAction,   // ADD / DEPRECATE
         val reason: String,         // 为什么这么判断
         val keyword: String,        // 关键词
@@ -58,11 +59,11 @@ class MemoryAgent {
         val values: List<String>,   // 相关值/属性
         val subjects: List<String>, // 涉及的主体(用户ID)
         val scopeType: MemoryScopes, // 范围类型: USER/GROUP
-        val confidence: Double,     // 置信度, 范围是 0.0-1.0
     )
 
     @Serializable
     data class FactsAnalysisInput(
+        val id: Int,
         val keyword: String,        // 关键词
         val description: String,    // 事实描述
         val values: List<String>,   // 相关值/属性
@@ -247,12 +248,17 @@ class MemoryAgent {
                 - 被新事实取代
                 - 明显不再适用（如“最近”“目前”）
                 
+                如果被 DEPRECATE 的事实重新出现，则必须重新评估。
+                
+                一个事实的唯一标识是 id，请根据唯一标识判断事实是否被废弃。
+                
                 ⚠️ 不允许凭感觉废弃事实  
                 ⚠️ 不允许推断未明说的信息  
                 
                 【输出要求】
                 
                 - 每个事实必须包含：
+                  - id: 事实的唯一标识（新增的可以没有，废弃的一定要关联id）
                   - action: ADD 或 DEPRECATE
                   - reason: 简要说明判断原因
                   - keyword

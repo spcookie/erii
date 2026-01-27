@@ -14,6 +14,7 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import io.ktor.client.*
 import io.ktor.client.engine.*
+import uesugi.toolkit.logger
 
 class LLMFactory {
 
@@ -82,8 +83,12 @@ class LLMFactory {
 
 object LLMModelsChoice {
 
+    private val log = logger()
+
     private val choice by lazy {
-        System.getenv("CHOICE_MODEL").takeIf { !it.isNullOrBlank() } ?: "GOOGLE"
+        val choice = System.getenv("CHOICE_MODEL").takeIf { !it.isNullOrBlank() } ?: "GOOGLE"
+        log.info("apply llm choice: $choice")
+        choice
     }
 
     private val DeepSeekChat: LLModel = LLModel(

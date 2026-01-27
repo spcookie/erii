@@ -352,7 +352,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
                         val records =
                             historyService.getLatestHistory(currentBotId, groupId, 20, 1.days)
                         val subjects = records.map { it.userId }.distinct().toList()
-                        memoryService.getFacts(currentBotId, groupId, subjects)
+                        memoryService.getFacts(currentBotId, groupId, subjects, 25)
                     }
                 }
             },
