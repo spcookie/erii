@@ -2,6 +2,7 @@ package uesugi.server
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.http.content.*
 import io.ktor.server.plugins.autohead.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.doublereceive.*
@@ -21,28 +22,14 @@ fun Application.configureRouting() {
 //    }
     install(DoubleReceive)
     install(AutoHeadResponse)
-//    routing {
-//        get("/") {
-//            call.respondText("Hello World!")
-//        }
-//        get<Articles> { article ->
-//            // Get all articles ...
-//            call.respond("List of articles sorted starting from ${article.sort}")
-//        }
-//        post("/double-receive") {
-//            val first = call.receiveText()
-//            val theSame = call.receiveText()
-//            call.respondText("$first $theSame")
-//        }
-//    }
     install(ContentNegotiation) {
         json(JSON)
     }
     routing {
+        // Configure bot status routes (dynamic content) - MUST be before catch-all static resources
         configureBotStatus()
+
+        // Serve static files from public directory
+        staticResources("/", "public")
     }
 }
-
-//@Serializable
-//@Resource("/articles")
-//class Articles(val sort: String? = "new")

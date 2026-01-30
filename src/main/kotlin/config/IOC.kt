@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.core.DatabaseConfig
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.koin.core.module.dsl.singleOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.dsl.onClose
 import org.koin.ktor.ext.get
@@ -22,10 +23,7 @@ import uesugi.core.memory.MemoryService
 import uesugi.core.resource.ResourceService
 import uesugi.core.volition.VolitionGaugeManager
 import uesugi.core.volition.VolitionJob
-import uesugi.toolkit.LocalStorage
-import uesugi.toolkit.Storage
-import uesugi.toolkit.WebPageMarkdownScraper
-import uesugi.toolkit.WebSearchClient
+import uesugi.toolkit.*
 import javax.sql.DataSource
 
 fun Application.warmUp() {
@@ -59,6 +57,14 @@ fun Application.configBaseModule() = koinModule {
         database
     }
     single(createdAtStart = true) { JobRunrConfig(get()).run { start() } }
+
+    single(named("port")) {
+        environment.config
+            .property("ktor.deployment.port")
+            .getString()
+            .toInt()
+    }
+
 }
 
 val serviceModule = module {
@@ -92,4 +98,5 @@ val infrastructureModule = module {
     includes(gatewayModule)
     single { LLMFactory().promptExecutor() }
     single { WebPageMarkdownScraper() }
+    single { WebScreenshotTaker() }
 }

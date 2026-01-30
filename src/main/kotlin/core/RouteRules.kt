@@ -1,6 +1,8 @@
 package uesugi.core
 
-enum class RouteRule(val title: String) {
+interface RouteRule
+
+enum class LLMRouteRule(val title: String) : RouteRule {
 
     REQUEST_R18_IMAGE(
         """
@@ -89,4 +91,15 @@ enum class RouteRule(val title: String) {
         """.trimIndent()
     )
 
+}
+
+enum class CmdRouteRule : RouteRule {
+    STATUS;
+
+    companion object {
+        fun from(input: String) = when (input) {
+            "status" -> STATUS
+            else -> null
+        }
+    }
 }

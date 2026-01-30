@@ -55,6 +55,15 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
     private val storage by GlobalContext.get().inject<Storage>()
 
+    private val COMMAND_REGEX = Regex("^/([A-Za-z0-9]+)$")
+
+    fun isCommand(text: String) = COMMAND_REGEX.matches(text)
+
+    fun parseCommand(text: String): String? =
+        COMMAND_REGEX.matchEntire(text)
+            ?.destructured
+            ?.component1()
+
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, MiraiInternalApi::class)
     @EventHandler
     suspend fun MessageEvent.onMessage() {
@@ -168,12 +177,13 @@ object GroupMessageEventListener : SimpleListenerHost() {
                 )
             }
             EventBus.postAsync(HistorySavedEvent(historyRecord))
+
             if (isAtBot) {
                 scope.launch {
                     log.info("机器人【${botId}】被@, 触发主动发言")
                     val route = RoutingAgent.route(botId, groupId, msg)
                     log.info("路由结果：{}", route)
-                    if (route == RouteRule.CHAT) {
+                    if (route == LLMRouteRule.CHAT) {
                         EventBus.postAsync(
                             ProactiveSpeakEvent(
                                 botId = botId,
@@ -196,6 +206,23 @@ object GroupMessageEventListener : SimpleListenerHost() {
                             )
                         )
                     }
+                }
+            } else if (isCommand(msg)) {
+                val command = parseCommand(msg)!!
+                log.info("机器人收到命令 $command")
+                val cmd = CmdRouteRule.from(command)
+                if (cmd == null) {
+                    log.warn("未知命令 $command, 跳过处理")
+                } else {
+                    EventBus.postAsync(
+                        RouteCallEvent(
+                            botId = botId,
+                            groupId = groupId,
+                            atFromId = senderId,
+                            input = msg,
+                            hit = cmd
+                        )
+                    )
                 }
             }
         }

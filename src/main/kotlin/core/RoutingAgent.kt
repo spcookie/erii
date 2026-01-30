@@ -18,7 +18,7 @@ object RoutingAgent {
 
     private val log = logger()
 
-    suspend fun route(botId: String, groupId: String, message: String): RouteRule {
+    suspend fun route(botId: String, groupId: String, message: String): LLMRouteRule {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         val historyService by GlobalContext.get().inject<HistoryService>()
         val memoryService by GlobalContext.get().inject<MemoryService>()
@@ -33,7 +33,7 @@ object RoutingAgent {
 
                     text("【可用规则枚举】")
                     bulleted {
-                        for (rule in RouteRule.entries) {
+                        for (rule in LLMRouteRule.entries) {
                             item { text("${rule.name}: ${rule.title}") }
                         }
                     }
@@ -69,13 +69,13 @@ object RoutingAgent {
             return result.getOrThrow().data.ref
         } catch (e: Exception) {
             log.warn("routing failed, dispatchFallback CHAT_URGENT, reason: {}", e.message)
-            return RouteRule.CHAT
+            return LLMRouteRule.CHAT
         }
     }
 }
 
-@SerialName("RouteRule")
+@SerialName("LLMRouteRule")
 @Serializable
 data class RouteRuleRef(
-    val ref: RouteRule
+    val ref: LLMRouteRule
 )
