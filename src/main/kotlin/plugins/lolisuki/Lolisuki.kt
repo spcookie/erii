@@ -27,9 +27,9 @@ import plugins.SendAgentState
 import plugins.sendAgent
 import uesugi.BotManage
 import uesugi.core.ChatToolSet
+import uesugi.core.LLMRouteRule
 import uesugi.core.ProactiveSpeakFeature
 import uesugi.core.RouteCallEvent
-import uesugi.core.RouteRule
 import uesugi.core.history.HistoryService
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
@@ -54,7 +54,7 @@ class Lolisuki : Plugin {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
 
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
-            if (event hit RouteRule.REQUEST_R18_IMAGE) {
+            if (event hit LLMRouteRule.REQUEST_R18_IMAGE) {
 
                 @Serializable
                 @LLMDescription("标签")
@@ -135,7 +135,7 @@ class Lolisuki : Plugin {
                 if (node.get("code").asInt() != 0) {
                     log.error("获取图片连接失败: $node")
                 } else {
-                    val roledBot = BotManage.getBot(event.botId)!!
+                    val roledBot = BotManage.getBot(event.botId)
                     val bot = roledBot.refBot
                     val group = bot.getGroup(event.groupId.toLong())!!
 

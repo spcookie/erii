@@ -152,6 +152,11 @@ class MemoryJob(
                 return
             }
 
+            if (histories.size < 50) {
+                log.debug("群组 $groupId 消息数量不足 50 条，跳过记忆处理")
+                return
+            }
+
             log.debug("群组 $groupId 获取到 ${histories.size} 条新消息")
 
             // 2. 转换为内存消息
@@ -171,7 +176,7 @@ class MemoryJob(
                 // 4.1 用户画像和偏好 (按用户)
                 launch {
                     for ((userId, userMessages) in messagesByUser) {
-                        if (userId != botMark && userMessages.size >= 5) {  // 至少 5 条消息才分析
+                        if (userId != botMark) {  // 至少 5 条消息才分析
                             processUserProfile(botMark, groupId, userId, userMessages)
                         }
                     }
@@ -179,9 +184,7 @@ class MemoryJob(
 
                 // 4.2 事实记忆提取
                 launch {
-                    if (messages.size >= 10) {  // 至少 10 条消息才提取事实
-                        processFacts(botMark, groupId, messages)
-                    }
+                    processFacts(botMark, groupId, messages)
                 }
 
                 // 4.3 待办事项生成 (按用户)
@@ -195,9 +198,7 @@ class MemoryJob(
 
                 // 4.4 对话摘要生成
                 launch {
-                    if (messages.size >= 100) {  // 至少 100 条消息才生成摘要
-                        processSummary(botMark, groupId, messages)
-                    }
+                    processSummary(botMark, groupId, messages)
                 }
             }
 
@@ -307,6 +308,7 @@ class MemoryJob(
                 transaction {
                     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                     for (fact in factsList) {
+                        if (fact.confidence < 0.7) continue
                         when (fact.action) {
                             MemoryAgent.MemoryAction.ADD -> {
                                 FactsEntity.new {

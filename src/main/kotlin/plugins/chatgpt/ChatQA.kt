@@ -27,8 +27,8 @@ import org.koin.core.context.GlobalContext
 import plugins.Plugin
 import uesugi.BotManage
 import uesugi.config.LLMModelsChoice
+import uesugi.core.LLMRouteRule
 import uesugi.core.RouteCallEvent
-import uesugi.core.RouteRule
 import uesugi.core.buildMetadataPrompt
 import uesugi.core.history.HistoryService
 import uesugi.toolkit.EventBus
@@ -56,7 +56,7 @@ class ChatQA : Plugin {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
 
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
-            if (event.hit == RouteRule.DIRECT_QA) {
+            if (event.hit == LLMRouteRule.DIRECT_QA) {
                 val ctx = withContext(Dispatchers.IO) {
                     transaction {
                         val history = historyService.getLatestHistory(event.botId, event.groupId, 10, 1.days)

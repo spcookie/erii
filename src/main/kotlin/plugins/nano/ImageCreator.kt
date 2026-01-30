@@ -21,9 +21,9 @@ import plugins.SendAgentConf
 import plugins.SendAgentState
 import plugins.sendAgent
 import uesugi.BotManage
+import uesugi.core.LLMRouteRule
 import uesugi.core.ProactiveSpeakFeature
 import uesugi.core.RouteCallEvent
-import uesugi.core.RouteRule
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
 import uesugi.core.history.MessageType
@@ -61,7 +61,7 @@ class ImageCreator : Plugin {
     override fun onLoad() {
         val storage by ref<Storage>()
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
-            if (event hit RouteRule.IMAGE_CREATE) {
+            if (event hit LLMRouteRule.IMAGE_CREATE) {
                 val records = withContext(Dispatchers.IO) {
                     transaction {
                         HistoryEntity.find {

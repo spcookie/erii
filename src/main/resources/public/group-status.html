@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>群组状态监控 - Erii Bot</title>
+    <link href="/styles.css?v=19" rel="stylesheet">
+    <link href="/css/fontawesome.min.css?v=3" rel="stylesheet">
+    <script src="/js/htmx.min.js?v=1"></script>
+</head>
+<body>
+<div class="header-wave"></div>
+
+<div class="container">
+    <header class="site-header">
+        <div class="header-content">
+            <div class="header-logo">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="header-text">
+                <h1 class="site-title" id="page-title">Erii Status</h1>
+                <p class="site-subtitle" id="page-subtitle">Group Status loading...</p>
+            </div>
+        </div>
+    </header>
+
+    <section class="status-detail" id="group-status-detail">
+        <div class="empty-state">
+            <div class="empty-icon-wrapper">
+                <i class="fas fa-spinner fa-spin empty-icon"></i>
+            </div>
+            <h3 class="empty-title">加载中</h3>
+            <p class="empty-description">正在获取群组状态数据...</p>
+        </div>
+    </section>
+
+    <footer class="site-footer">
+        <div class="footer-tech-stack">
+            <span class="tech-item">Power by</span>
+            <i class="fas fa-heart" style="color: #ef4444; margin: 0 4px;"></i>
+            <span class="tech-item">Kotlin</span>
+            <span class="tech-separator">|</span>
+            <span class="tech-item">Ktor</span>
+            <span class="tech-separator">|</span>
+            <span class="tech-item">Koin</span>
+            <span class="tech-separator">|</span>
+            <span class="tech-item">Exposed</span>
+            <span class="tech-separator">|</span>
+            <span class="tech-item">Koog</span>
+            <span class="tech-separator">|</span>
+            <span class="tech-item">JobRunr</span>
+        </div>
+        <div class="footer-copyright">
+            <i class="far fa-copyright"></i>
+            <span>2026 Erii. All rights reserved.</span>
+        </div>
+    </footer>
+</div>
+
+<script>
+    // 情绪枚举映射表
+    const EMOTION_MAP = {
+        'JOY': {name: '喜悦', pad: {pleasure: 2.77, arousal: 1.21, dominance: 1.42}, desc: '充满欢乐与活力的状态'},
+        'OPTIMISM': {name: '乐观', pad: {pleasure: 2.48, arousal: 1.05, dominance: 1.75}, desc: '对未来持积极态度'},
+        'RELAXATION': {
+            name: '轻松',
+            pad: {pleasure: 2.19, arousal: -0.66, dominance: 1.05},
+            desc: '平和舒适的放松状态'
+        },
+        'SURPRISE': {name: '惊奇', pad: {pleasure: 1.72, arousal: 1.71, dominance: 0.22}, desc: '对意外事件的反应'},
+        'MILDNESS': {name: '温和', pad: {pleasure: 1.57, arousal: -0.79, dominance: 0.38}, desc: '温柔平静的情绪'},
+        'DEPENDENCE': {
+            name: '依赖',
+            pad: {pleasure: 0.39, arousal: -0.81, dominance: 1.48},
+            desc: '需要他人支持的状态'
+        },
+        'BOREDOM': {name: '无聊', pad: {pleasure: -0.53, arousal: -1.25, dominance: -0.84}, desc: '缺乏兴趣与刺激'},
+        'SADNESS': {name: '悲伤', pad: {pleasure: -0.89, arousal: 0.17, dominance: -0.70}, desc: '消极低落的情绪'},
+        'FEAR': {name: '恐惧', pad: {pleasure: -0.93, arousal: 1.30, dominance: -0.64}, desc: '对威胁的警觉反应'},
+        'ANXIETY': {name: '焦虑', pad: {pleasure: -0.95, arousal: 0.32, dominance: -0.63}, desc: '不安与担忧的状态'},
+        'CONTEMPT': {name: '藐视', pad: {pleasure: -1.58, arousal: 0.32, dominance: 1.02}, desc: '轻视与不屑的态度'},
+        'DISGUST': {name: '厌恶', pad: {pleasure: -1.80, arousal: 0.40, dominance: 0.67}, desc: '强烈的排斥感'},
+        'RESENTMENT': {name: '愤懑', pad: {pleasure: -1.98, arousal: 1.10, dominance: 0.60}, desc: '压抑的愤怒与不满'},
+        'HOSTILITY': {name: '敌意', pad: {pleasure: -2.08, arousal: 1.00, dominance: 1.12}, desc: '对抗性的负面情绪'}
+    };
+
+    const TONE_MAP = {
+        'FRIENDLY': '友好',
+        'GENTLE': '温柔',
+        'NEUTRAL': '中性',
+        'IRONIC': '讽刺',
+        'LOW_ENERGY': '低能量'
+    };
+
+    const AGGRESSION_MAP = {
+        'NONE': '无攻击性',
+        'ABSTRACT_SARCASM': '抽象讽刺',
+        'TEASING': '戏弄'
+    };
+
+    const EMOJI_MAP = {
+        'NONE': '无表情',
+        'LOW': '少量表情',
+        'MEDIUM': '适度表情',
+        'HIGH': '丰富表情'
+    };
+
+    // 从 URL 中提取 botId 和 groupId
+    function parseUrlPath() {
+        const path = window.location.pathname;
+        const match = path.match(/^\/view\/([^/]+)\/([^/]+)$/);
+        if (match) {
+            return {botId: match[1], groupId: match[2]};
+        }
+        return null;
+    }
+
+    // 加载群组状态
+    async function loadGroupStatus() {
+        const params = parseUrlPath();
+        if (!params) {
+            showError('URL 格式错误，请使用 /view/botId/groupId 格式访问');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/status/${params.botId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const groupStatus = data.status.find(g => g.groupId === params.groupId);
+
+            if (!groupStatus) {
+                showError(`未找到群组 ${params.groupId} 的状态数据`);
+                return;
+            }
+
+            renderGroupStatus(groupStatus, params);
+        } catch (error) {
+            showError(`加载失败: ${error.message}`);
+        }
+    }
+
+    function showError(message) {
+        const container = document.getElementById('group-status-detail');
+        container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon-wrapper">
+                        <i class="fas fa-exclamation-triangle empty-icon" style="color: hsl(var(--destructive));"></i>
+                    </div>
+                    <h3 class="empty-title">加载失败</h3>
+                    <p class="empty-description">${message}</p>
+                </div>
+            `;
+    }
+
+    function renderGroupStatus(groupStatus, params) {
+        // 更新页面标题
+        document.getElementById('page-title').textContent = `Erii`;
+        document.getElementById('page-subtitle').textContent = `Status Snapshot`;
+
+        const container = document.getElementById('group-status-detail');
+        const bp = groupStatus.behaviorProfile;
+        const flow = groupStatus.flowState;
+        const volition = groupStatus.volitionState;
+
+        container.innerHTML = `
+                <article class="blog-article">
+                    <header class="article-header">
+                        <div class="article-meta-bar">
+                            <div class="meta-left">
+                                <span class="meta-badge bot-id">
+                                    <i class="fas fa-robot"></i>
+                                    <span>${params.botId}</span>
+                                </span>
+                                <span class="meta-badge timestamp">
+                                    <i class="fas fa-users"></i>
+                                    <span>群组 ${groupStatus.groupId}</span>
+                                </span>
+                                <span class="meta-badge timestamp">
+                                    <i class="far fa-clock"></i>
+                                    <span>${new Date().toLocaleString('zh-CN', {
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div class="article-content">
+                        <section class="markdown-section">
+                            ${bp ? `
+                            <h3 class="subsection-title">
+                                <i class="fas fa-smile"></i> 情绪状态
+                            </h3>
+                            ${renderBehaviorProfile(bp)}
+                            ` : '<blockquote class="info-box"><i class="fas fa-exclamation-triangle"></i> 暂无情绪数据</blockquote>'}
+
+                            <h3 class="subsection-title">
+                                <i class="fas fa-water"></i> 心流投入度
+                            </h3>
+                            ${renderFlowState(flow)}
+
+                            <h3 class="subsection-title">
+                                <i class="fas fa-brain"></i> 冲动值
+                            </h3>
+                            ${renderVolitionState(volition)}
+
+                            <h3 class="subsection-title">
+                                <i class="fas fa-database"></i> 记忆
+                            </h3>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-label">
+                                        <i class="fas fa-file-alt"></i>
+                                        <span>Facts</span>
+                                    </div>
+                                    <div class="stat-value">${groupStatus.factSize}</div>
+                                    <div class="stat-desc">条事实记忆</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">
+                                        <i class="fas fa-user"></i>
+                                        <span>UserProfile</span>
+                                    </div>
+                                    <div class="stat-value">${groupStatus.userProfileSize}</div>
+                                    <div class="stat-desc">个用户档案</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">
+                                        <i class="fas fa-language"></i>
+                                        <span>Vocabulary</span>
+                                    </div>
+                                    <div class="stat-value">${groupStatus.vocabularies ? groupStatus.vocabularies.length : 0}</div>
+                                    <div class="stat-desc">个学习词汇</div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <footer class="article-footer">
+                        <p><i class="fas fa-info-circle"></i> <em>页面为静态快照</em></p>
+                    </footer>
+                </article>
+            `;
+    }
+
+    function renderBehaviorProfile(bp) {
+        const emotionData = EMOTION_MAP[bp.emotion] || {
+            name: bp.emotion,
+            pad: {pleasure: 0, arousal: 0, dominance: 0},
+            desc: '未知情绪状态'
+        };
+        const pad = emotionData.pad;
+
+        const normalizeForDisplay = (val) => {
+            return Math.max(0, Math.min(100, (val + 3) / 6 * 100));
+        };
+
+        const getEmotionTendency = (p, a, d) => {
+            if (p > 1) return '积极愉悦';
+            if (p < -1) return '消极低落';
+            return '情绪平和';
+        };
+
+        return `
+                <div class="emotion-container">
+                    <div class="emotion-header">
+                        <div class="emotion-current">
+                            <span class="emotion-name">${emotionData.name}</span>
+                            <span class="emotion-code">${bp.emotion}</span>
+                        </div>
+                        <div class="emotion-tendency">${getEmotionTendency(pad.pleasure, pad.arousal, pad.dominance)}</div>
+                    </div>
+                    
+                    <div class="emotion-description">
+                        <i class="fas fa-quote-left"></i>
+                        ${emotionData.desc}
+                    </div>
+                    
+                    <div class="pad-grid">
+                        <div class="pad-item">
+                            <div class="pad-header">
+                                <div class="pad-label">
+                                    <i class="fas fa-smile"></i>
+                                    <span>Pleasure</span>
+                                </div>
+                                <div class="pad-value">${pad.pleasure.toFixed(2)}</div>
+                            </div>
+                            <div class="pad-bar-wrapper">
+                                <div class="pad-bar pleasure" style="width: ${normalizeForDisplay(pad.pleasure)}%"></div>
+                            </div>
+                            <div class="pad-scale">
+                                <span>-3</span>
+                                <span class="scale-center">0</span>
+                                <span>+3</span>
+                            </div>
+                        </div>
+                        
+                        <div class="pad-item">
+                            <div class="pad-header">
+                                <div class="pad-label">
+                                    <i class="fas fa-bolt"></i>
+                                    <span>Arousal</span>
+                                </div>
+                                <div class="pad-value">${pad.arousal.toFixed(2)}</div>
+                            </div>
+                            <div class="pad-bar-wrapper">
+                                <div class="pad-bar arousal" style="width: ${normalizeForDisplay(pad.arousal)}%"></div>
+                            </div>
+                            <div class="pad-scale">
+                                <span>-3</span>
+                                <span class="scale-center">0</span>
+                                <span>+3</span>
+                            </div>
+                        </div>
+                        
+                        <div class="pad-item">
+                            <div class="pad-header">
+                                <div class="pad-label">
+                                    <i class="fas fa-crown"></i>
+                                    <span>Dominance</span>
+                                </div>
+                                <div class="pad-value">${pad.dominance.toFixed(2)}</div>
+                            </div>
+                            <div class="pad-bar-wrapper">
+                                <div class="pad-bar dominance" style="width: ${normalizeForDisplay(pad.dominance)}%"></div>
+                            </div>
+                            <div class="pad-scale">
+                                <span>-3</span>
+                                <span class="scale-center">0</span>
+                                <span>+3</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="behavior-profile">
+                        <div class="profile-label">行为特征</div>
+                        <div class="profile-tags">
+                            <span class="profile-tag">
+                                <i class="fas fa-comment-dots"></i>
+                                ${TONE_MAP[bp.tone] || bp.tone}
+                            </span>
+                            <span class="profile-tag">
+                                <i class="fas fa-hand-rock"></i>
+                                ${AGGRESSION_MAP[bp.aggressiveness] || bp.aggressiveness}
+                            </span>
+                            <span class="profile-tag">
+                                <i class="fas fa-icons"></i>
+                                ${EMOJI_MAP[bp.emojiLevel] || bp.emojiLevel}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+    }
+
+    function renderFlowState(flow) {
+        const stateColors = {
+            'STANDBY': '#71717a',
+            'GETTING_BETTER': '#3b82f6',
+            'FLOW_BURST': '#ef4444'
+        };
+        const stateNames = {
+            'STANDBY': '待机模式',
+            'GETTING_BETTER': '渐入佳境',
+            'FLOW_BURST': '心流爆发'
+        };
+        const stateIcons = {
+            'STANDBY': 'fa-circle',
+            'GETTING_BETTER': 'fa-circle-half-stroke',
+            'FLOW_BURST': 'fa-circle-dot'
+        };
+        const stateDesc = {
+            'STANDBY': '机器人处于低活跃状态，对话参与度较低（0-30）',
+            'GETTING_BETTER': '对话逐渐热络，机器人兴趣逐步提升（31-70）',
+            'FLOW_BURST': '高度专注状态，主动性和响应质量达到峰值（71-100）'
+        };
+
+        return `
+                <div class="flow-state-container">
+                    <div class="flow-header">
+                        <div class="flow-current-state" style="color: ${stateColors[flow.state]}">
+                            <i class="fas ${stateIcons[flow.state]}"></i>
+                            <span class="state-name">${stateNames[flow.state]}</span>
+                        </div>
+                        <div class="flow-meter-value">${flow.meter.toFixed(1)}</div>
+                    </div>
+                    
+                    <div class="flow-bar-wrapper">
+                        <div class="flow-bar" style="width: ${flow.meter}%; background: ${stateColors[flow.state]}"></div>
+                        <div class="flow-marker" style="left: 30%" data-label="30"></div>
+                        <div class="flow-marker" style="left: 70%" data-label="70"></div>
+                    </div>
+                    
+                    <div class="flow-scale">
+                        <span class="scale-point">
+                            <span class="scale-value">0</span>
+                            <span class="scale-label">待机</span>
+                        </span>
+                        <span class="scale-point">
+                            <span class="scale-value">30</span>
+                            <span class="scale-label">阈值</span>
+                        </span>
+                        <span class="scale-point">
+                            <span class="scale-value">70</span>
+                            <span class="scale-label">阈值</span>
+                        </span>
+                        <span class="scale-point">
+                            <span class="scale-value">100</span>
+                            <span class="scale-label">爆发</span>
+                        </span>
+                    </div>
+                    
+                    <div class="flow-description">
+                        <i class="fas fa-info-circle"></i>
+                        ${stateDesc[flow.state]}
+                    </div>
+                </div>
+            `;
+    }
+
+    function renderVolitionState(volition) {
+        const shouldSpeakClass = volition.shouldSpeak ? 'active' : 'inactive';
+        const speakStatus = volition.shouldSpeak ? '已触发主动发言阈值' : '保持观察状态';
+        const speakIcon = volition.shouldSpeak ? 'fa-circle-check' : 'fa-circle-pause';
+
+        return `
+                <div class="volition-container">
+                    <div class="volition-header">
+                        <div class="volition-title">
+                            <i class="fas fa-brain"></i>
+                            <span>冲动值累积系统</span>
+                        </div>
+                        <div class="volition-status ${shouldSpeakClass}">
+                            <i class="fas ${speakIcon}"></i>
+                            <span>${speakStatus}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="volition-metrics">
+                        <div class="volition-metric">
+                            <div class="metric-header">
+                                <div class="metric-label">
+                                    <i class="fas fa-bolt"></i>
+                                    <span>Stimulus</span>
+                                </div>
+                                <div class="metric-value">${volition.stimulus.toFixed(1)}</div>
+                            </div>
+                            <div class="metric-bar-wrapper">
+                                <div class="metric-bar stimulus" style="width: ${volition.stimulus}%"></div>
+                            </div>
+                            <div class="metric-scale">
+                                <span>0</span>
+                                <span class="scale-center">50</span>
+                                <span>100</span>
+                            </div>
+                        </div>
+                        
+                        <div class="volition-metric">
+                            <div class="metric-header">
+                                <div class="metric-label">
+                                    <i class="fas fa-bed"></i>
+                                    <span>Fatigue</span>
+                                </div>
+                                <div class="metric-value">${volition.fatigue.toFixed(1)}</div>
+                            </div>
+                            <div class="metric-bar-wrapper">
+                                <div class="metric-bar fatigue" style="width: ${volition.fatigue}%"></div>
+                            </div>
+                            <div class="metric-scale">
+                                <span>0</span>
+                                <span class="scale-center">50</span>
+                                <span>100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+    }
+
+    // 页面加载时自动获取数据
+    document.addEventListener('DOMContentLoaded', loadGroupStatus);
+</script>
+</body>
+</html>

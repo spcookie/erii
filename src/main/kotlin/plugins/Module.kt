@@ -6,10 +6,12 @@ import plugins.steamwatcher.SteamWatcher
 import uesugi.plugins.chatgpt.ChatQA
 import uesugi.plugins.lolisuki.Lolisuki
 import uesugi.plugins.nano.ImageCreator
+import uesugi.plugins.status.RenderingStatus
 
 fun pluginModule() = module(createdAtStart = true) {
     single { SteamWatcher().apply { onLoad() } } onClose { it?.onUnload() }
     single { Lolisuki().apply { onLoad() } } onClose { it?.onUnload() }
     single { ChatQA().apply { onLoad() } } onClose { it?.onUnload() }
     single { ImageCreator().apply { onLoad() } } onClose { it?.onUnload() }
+    single { RenderingStatus().apply { onLoad() } } onClose { it?.onUnload() }
 }
