@@ -1,7 +1,6 @@
 package uesugi.toolkit
 
 import com.microsoft.playwright.Browser
-import com.microsoft.playwright.BrowserType
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.options.WaitUntilState
@@ -37,11 +36,7 @@ class WebPageMarkdownScraper : AutoCloseable {
     // 内部类：持有每个线程独立的浏览器实例
     private class BrowserSession : AutoCloseable {
         val playwright: Playwright = Playwright.create()
-        val browser: Browser = playwright.chromium().launch(
-            BrowserType.LaunchOptions()
-                .setHeadless(true)
-                .setArgs(listOf("--no-sandbox", "--disable-setuid-sandbox"))
-        )
+        val browser: Browser = playwright.chromium().connect(System.getenv("PLAYWRIGHT_HOST"))
 
         override fun close() {
             try {

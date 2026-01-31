@@ -32,7 +32,7 @@ class RenderingStatus : Plugin {
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             if (event hit CmdRouteRule.STATUS) {
                 val bytes = webScreenshotTaker.takeFullScreenshot(
-                    url = "http://localhost:${port}/view/${event.botId}/${event.groupId}",
+                    url = "http://hostmachine:${port}/view/${event.botId}/${event.groupId}",
                     width = 1200,
                     quality = 100,
                     deviceScaleFactor = 3.0

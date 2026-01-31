@@ -26,8 +26,8 @@ object AvatarCache {
             val fileName = url.substringAfterLast('/').substringBeforeLast('_') + ".png"
 
             val bytes = cache.getValue(fileName)
-            val bufferedImage = ImageIO.read(bytes.inputStream())
-            if (bufferedImage != null) {
+            if (bytes != null) {
+                val bufferedImage = ImageIO.read(bytes.inputStream())
                 log.debug("Loading avatar from cache: $fileName")
                 return bufferedImage
             }

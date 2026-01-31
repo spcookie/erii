@@ -1,7 +1,6 @@
 package uesugi.toolkit
 
 import com.microsoft.playwright.Browser
-import com.microsoft.playwright.BrowserType
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.options.ScreenshotType
@@ -12,11 +11,7 @@ class WebScreenshotTaker : AutoCloseable {
     // --- 资源隔离模式 (同 Scraper，确保并发安全) ---
     private class BrowserSession : AutoCloseable {
         val playwright: Playwright = Playwright.create()
-        val browser: Browser = playwright.chromium().launch(
-            BrowserType.LaunchOptions()
-                .setHeadless(true) // 生产环境必须 Headless
-                .setArgs(listOf("--no-sandbox", "--disable-setuid-sandbox"))
-        )
+        val browser: Browser = playwright.chromium().connect(System.getenv("PLAYWRIGHT_HOST"))
 
         override fun close() {
             try {
