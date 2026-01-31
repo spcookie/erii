@@ -1,4 +1,5 @@
-FROM amazoncorretto:17-alpine
+#FROM mcr.microsoft.com/playwright/java:v1.57.0-noble
+FROM eclipse-temurin:17
 
 ENV TZ=Asia/Shanghai
 ENV JAVA_OPTS=""

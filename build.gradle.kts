@@ -57,7 +57,6 @@ dependencies {
     implementation(libs.ktor.client.serialization.jackson)
     implementation(libs.ktor.client.logging)
     // 工具
-//    implementation(libs.caffeine)
     implementation(libs.atomicfu)
     implementation(libs.mapdb)
     implementation(libs.playwright)
