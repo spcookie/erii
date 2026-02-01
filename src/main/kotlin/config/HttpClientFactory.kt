@@ -11,7 +11,7 @@ class HttpClientFactory {
 
     fun createClient() = HttpClient(CIO) {
         engine {
-            val httpProxy = System.getProperty("http.proxy")
+            val httpProxy = System.getenv("HTTP_PROXY")
             if (httpProxy != null) {
                 proxy = ProxyBuilder.http(httpProxy)
             }

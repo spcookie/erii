@@ -4,7 +4,6 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.structure.executeStructured
 import com.fasterxml.jackson.databind.JsonNode
@@ -26,6 +25,7 @@ import plugins.SendAgentConf
 import plugins.SendAgentState
 import plugins.sendAgent
 import uesugi.BotManage
+import uesugi.config.LLMModelsChoice
 import uesugi.core.ChatToolSet
 import uesugi.core.LLMRouteRule
 import uesugi.core.ProactiveSpeakFeature
@@ -101,7 +101,7 @@ class Lolisuki : Plugin {
 
                 val result = promptExecutor.executeStructured<TagGroup>(
                     prompt,
-                    GoogleModels.Gemini2_5FlashLite
+                    LLMModelsChoice.Lite
                 )
 
                 var tags: List<String>? = null
