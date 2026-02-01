@@ -6,13 +6,15 @@ import io.ktor.client.statement.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import org.koin.core.context.GlobalContext
+import org.koin.core.qualifier.named
+import uesugi.config.HttpClientFactory
 import uesugi.toolkit.JSON
 import uesugi.toolkit.logger
 
 
 object SteamApi {
 
-    val client by GlobalContext.get().inject<HttpClient>()
+    val client by GlobalContext.get().inject<HttpClient>(named(HttpClientFactory.Type.PROXY))
 
     private val log = logger()
 
