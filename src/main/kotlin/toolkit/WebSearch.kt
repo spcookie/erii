@@ -91,7 +91,7 @@ class WebSearchClient(private val baseUrl: String) : AutoCloseable {
                 currentPage++
 
             } catch (e: Exception) {
-                log.error("Search failed on page $currentPage: ${e.message}")
+                log.error("Search failed on page $currentPage: ${e.message}", e)
                 break
             }
         }

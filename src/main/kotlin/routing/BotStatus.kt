@@ -1,5 +1,6 @@
 package uesugi.routing
 
+import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
@@ -16,93 +17,95 @@ import uesugi.core.memory.Scopes
 import uesugi.core.volition.VolitionGaugeManager
 
 fun Routing.configureBotStatus() {
-    get("/bots") {
-        call.respond(BotManage.getAllBotIds())
-    }
-    get("/status/{id}") {
-        val id = call.request.pathVariables["id"]
-        if (id == null) {
-            call.respond(mapOf("error" to "id is null"))
-        } else {
-            val roledBot = BotManage.getBot(id)
-            val groups =
-                roledBot.refBot.groups.map { it.id.toString() }.filter { ENABLE_GROUPS.contains(it) }.toList()
+    authenticate("basic") {
+        get("/bots") {
+            call.respond(BotManage.getAllBotIds())
+        }
+        get("/status/{id}") {
+            val id = call.request.pathVariables["id"]
+            if (id == null) {
+                call.respond(mapOf("error" to "id is null"))
+            } else {
+                val roledBot = BotManage.getBot(id)
+                val groups =
+                    roledBot.refBot.groups.map { it.id.toString() }.filter { ENABLE_GROUPS.contains(it) }.toList()
 
-            val emotionService by inject<EmotionService>()
-            val flowGaugeManager by inject<FlowGaugeManager>()
-            val volitionGaugeManager by inject<VolitionGaugeManager>()
-            val vocabularyService by inject<VocabularyService>()
-            val memoryService by inject<MemoryService>()
+                val emotionService by inject<EmotionService>()
+                val flowGaugeManager by inject<FlowGaugeManager>()
+                val volitionGaugeManager by inject<VolitionGaugeManager>()
+                val vocabularyService by inject<VocabularyService>()
+                val memoryService by inject<MemoryService>()
 
-            val botStatusByGroups = groups.map { groupId ->
-                val emoticon = BotManage.getBot(id).role.emoticon
-                val behaviorProfile = emotionService.getCurrentBehaviorProfile(id, groupId)
-                val flowState =
-                    flowGaugeManager.getOrCreate(id, groupId, emoticon).let { it.state.value to it.mapToState() }
-                val volitionState = volitionGaugeManager.getOrCreate(id, groupId, emoticon)
-                    .let { Triple(it.state.stimulus, it.state.fatigue, it.shouldSpeak()) }
-                val vocabularies = vocabularyService.getActiveVocabulary(id, groupId, 999).map { it.word }
-                val summary = memoryService.getSummary(id, groupId)?.content
-                val factSize = memoryService.getFactSize(id, groupId)
-                val userProfileSize = memoryService.getUserProfileSize(id, groupId)
-                val allFactsByGroup = memoryService.getAllFactsByGroup(id, groupId)
-                val allUserProfilesByGroup = memoryService.getAllUserProfilesByGroup(id, groupId)
+                val botStatusByGroups = groups.map { groupId ->
+                    val emoticon = BotManage.getBot(id).role.emoticon
+                    val behaviorProfile = emotionService.getCurrentBehaviorProfile(id, groupId)
+                    val flowState =
+                        flowGaugeManager.getOrCreate(id, groupId, emoticon).let { it.state.value to it.mapToState() }
+                    val volitionState = volitionGaugeManager.getOrCreate(id, groupId, emoticon)
+                        .let { Triple(it.state.stimulus, it.state.fatigue, it.shouldSpeak()) }
+                    val vocabularies = vocabularyService.getActiveVocabulary(id, groupId, 999).map { it.word }
+                    val summary = memoryService.getSummary(id, groupId)?.content
+                    val factSize = memoryService.getFactSize(id, groupId)
+                    val userProfileSize = memoryService.getUserProfileSize(id, groupId)
+                    val allFactsByGroup = memoryService.getAllFactsByGroup(id, groupId)
+                    val allUserProfilesByGroup = memoryService.getAllUserProfilesByGroup(id, groupId)
 
-                val scopeByFacts = allFactsByGroup.groupBy(
-                    { it.scopeType },
-                    {
-                        BotStatus.Fact(
-                            it.keyword,
-                            it.description,
-                            it.values,
-                            it.subjects.split(",")
+                    val scopeByFacts = allFactsByGroup.groupBy(
+                        { it.scopeType },
+                        {
+                            BotStatus.Fact(
+                                it.keyword,
+                                it.description,
+                                it.values,
+                                it.subjects.split(",")
+                            )
+                        }
+                    )
+
+                    val facts = BotStatus.Facts(
+                        group = scopeByFacts[Scopes.GROUP] ?: emptyList(),
+                        user = scopeByFacts[Scopes.USER] ?: emptyList()
+                    )
+
+                    val userProfiles = allUserProfilesByGroup.map {
+                        BotStatus.UserProfile(
+                            id = it.userId,
+                            profile = it.profile,
+                            preferences = it.preferences
                         )
                     }
-                )
 
-                val facts = BotStatus.Facts(
-                    group = scopeByFacts[Scopes.GROUP] ?: emptyList(),
-                    user = scopeByFacts[Scopes.USER] ?: emptyList()
-                )
-
-                val userProfiles = allUserProfilesByGroup.map {
-                    BotStatus.UserProfile(
-                        id = it.userId,
-                        profile = it.profile,
-                        preferences = it.preferences
+                    BotStatus.ByGroup(
+                        groupId = groupId,
+                        behaviorProfile = behaviorProfile,
+                        flowState = BotStatus.FlowState.fromPair(flowState),
+                        volitionState = BotStatus.VolitionState.fromTriple(volitionState),
+                        vocabularies = vocabularies,
+                        summary = summary,
+                        factSize = factSize,
+                        userProfileSize = userProfileSize,
+                        facts = facts,
+                        userProfiles = userProfiles
                     )
-                }
+                }.toList()
 
-                BotStatus.ByGroup(
-                    groupId = groupId,
-                    behaviorProfile = behaviorProfile,
-                    flowState = BotStatus.FlowState.fromPair(flowState),
-                    volitionState = BotStatus.VolitionState.fromTriple(volitionState),
-                    vocabularies = vocabularies,
-                    summary = summary,
-                    factSize = factSize,
-                    userProfileSize = userProfileSize,
-                    facts = facts,
-                    userProfiles = userProfiles
-                )
-            }.toList()
-
-            call.respond(BotStatus(id, groups, botStatusByGroups))
+                call.respond(BotStatus(id, groups, botStatusByGroups))
+            }
         }
-    }
 
-    // 新增：单群组状态页面路由
-    get("/view/{botId}/{groupId}") {
-        val botId = call.parameters["botId"]
-        val groupId = call.parameters["groupId"]
+        // 新增：单群组状态页面路由
+        get("/view/{botId}/{groupId}") {
+            val botId = call.parameters["botId"]
+            val groupId = call.parameters["groupId"]
 
-        if (botId == null || groupId == null) {
-            call.respondRedirect("/")
-        } else {
-            call.respondText(
-                this::class.java.classLoader.getResource("public/group-status.html")!!.readText(),
-                io.ktor.http.ContentType.Text.Html
-            )
+            if (botId == null || groupId == null) {
+                call.respondRedirect("/")
+            } else {
+                call.respondText(
+                    this::class.java.classLoader.getResource("public/group-status.html")!!.readText(),
+                    io.ktor.http.ContentType.Text.Html
+                )
+            }
         }
     }
 }

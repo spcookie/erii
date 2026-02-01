@@ -1,43 +1,20 @@
-//package uesugi.server
-//
-//import io.ktor.server.application.*
-//import io.ktor.server.auth.*
-//import io.ktor.server.response.*
-//import io.ktor.server.routing.*
-//
-//fun Application.configureSecurity() {
-//    authentication {
-//        basic(name = "myauth1") {
-//            realm = "Ktor Server"
-//            validate { credentials ->
-//                if (credentials.name == credentials.password) {
-//                    UserIdPrincipal(credentials.name)
-//                } else {
-//                    null
-//                }
-//            }
-//        }
-//
-//        form(name = "myauth2") {
-//            userParamName = "user"
-//            passwordParamName = "password"
-//            challenge {
-//                /**/
-//            }
-//        }
-//    }
-//    routing {
-//        authenticate("myauth1") {
-//            get("/protected/route/basic") {
-//                val principal = call.principal<UserIdPrincipal>()!!
-//                call.respondText("Hello ${principal.name}")
-//            }
-//        }
-//        authenticate("myauth2") {
-//            get("/protected/route/form") {
-//                val principal = call.principal<UserIdPrincipal>()!!
-//                call.respondText("Hello ${principal.name}")
-//            }
-//        }
-//    }
-//}
+package uesugi.server
+
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+
+fun Application.configureSecurity() {
+    authentication {
+        basic(name = "basic") {
+            realm = "EriiX"
+            validate { credentials ->
+                if (credentials.name == "eriix" && credentials.password == "!@Aa123") {
+                    UserIdPrincipal(credentials.name)
+                } else {
+                    null
+                }
+            }
+        }
+
+    }
+}

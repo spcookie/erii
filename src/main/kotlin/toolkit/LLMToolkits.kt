@@ -6,6 +6,7 @@ import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.prompt.markdown.MarkdownContentBuilder
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
+import uesugi.LOG
 import kotlin.random.Random
 
 /**
@@ -47,6 +48,7 @@ suspend fun appendWebPagePrompt(
                         val result = webPageMarkdownScraper.scrape(item.url, 1000)
                         Pair(index, result)
                     }.recover { error ->
+                        LOG.error("scrape url failed: {}", error.message, error)
                         Pair(
                             index, ScrapedResult(
                                 url = item.url,

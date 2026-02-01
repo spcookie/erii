@@ -23,7 +23,11 @@ import uesugi.core.memory.MemoryService
 import uesugi.core.resource.ResourceService
 import uesugi.core.volition.VolitionGaugeManager
 import uesugi.core.volition.VolitionJob
-import uesugi.toolkit.*
+import uesugi.plugins.status.WebScreenshotTaker
+import uesugi.toolkit.LocalStorage
+import uesugi.toolkit.Storage
+import uesugi.toolkit.WebPageMarkdownScraper
+import uesugi.toolkit.WebSearchClient
 import javax.sql.DataSource
 
 fun Application.warmUp() {
@@ -86,7 +90,12 @@ val jobModule = module {
 }
 
 val gatewayModule = module {
-    single { HttpClientFactory().createClient() }
+    val noProxyClient = HttpClientFactory().createClient()
+    val proxyClient = HttpClientFactory().createProxyClient()
+    single { noProxyClient }
+    single(named(HttpClientFactory.Type.NO_PROXY)) { noProxyClient }
+    single(named(HttpClientFactory.Type.PROXY)) { proxyClient }
+
     single { WebSearchClient(System.getenv("WEB_SEARCH_HOST")) }
 }
 

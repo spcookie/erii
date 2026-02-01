@@ -1,9 +1,10 @@
-package uesugi.toolkit
+package uesugi.plugins.status
 
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.options.ScreenshotType
+import com.microsoft.playwright.options.WaitUntilState
 import java.util.concurrent.ConcurrentHashMap
 
 class WebScreenshotTaker : AutoCloseable {
@@ -16,11 +17,11 @@ class WebScreenshotTaker : AutoCloseable {
         override fun close() {
             try {
                 browser.close()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
             }
             try {
                 playwright.close()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
             }
         }
     }
@@ -48,7 +49,9 @@ class WebScreenshotTaker : AutoCloseable {
         quality: Int = 70,
         deviceScaleFactor: Double = 1.0,
         type: ScreenshotType = ScreenshotType.JPEG, // JPEG 体积小，PNG 清晰但大
-        waitForNetworkIdle: Boolean = true
+        waitForNetworkIdle: Boolean = true,
+        username: String? = null,
+        password: String? = null,
     ): ByteArray {
         val session = threadLocalSession.get()
 
@@ -56,6 +59,11 @@ class WebScreenshotTaker : AutoCloseable {
         // 注意：全屏截图只需定宽，高度设为 0 或任意值均可，Playwright 会自动扩展
         val context = session.browser.newContext(
             Browser.NewContextOptions()
+                .apply {
+                    if (username != null && password != null) {
+                        setHttpCredentials(username, password)
+                    }
+                }
                 .setViewportSize(width, 1080)
                 .setDeviceScaleFactor(deviceScaleFactor) // 1.0=标准, 2.0=高清(Retina)
         )
@@ -76,9 +84,9 @@ class WebScreenshotTaker : AutoCloseable {
             // --- 导航与等待 ---
             // 如果开启 waitForNetworkIdle，会等待直到网络连接数变少，适合 SPA/懒加载页面
             val waitState = if (waitForNetworkIdle)
-                com.microsoft.playwright.options.WaitUntilState.NETWORKIDLE
+                WaitUntilState.NETWORKIDLE
             else
-                com.microsoft.playwright.options.WaitUntilState.DOMCONTENTLOADED
+                WaitUntilState.DOMCONTENTLOADED
 
             page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
 
