@@ -5,8 +5,6 @@ services:
     image: docker.io/valkey/valkey:8-alpine
     command: valkey-server --save 30 1 --loglevel warning
     restart: unless-stopped
-    networks:
-      - searxng
     volumes:
       - valkey-data2:/data
     logging:
@@ -14,18 +12,17 @@ services:
       options:
         max-size: "1m"
         max-file: "1"
-
   searxng:
     container_name: searxng
     image: docker.io/searxng/searxng:latest
     restart: unless-stopped
-    networks:
-      - searxng
     ports:
       - "18080:8080"
     volumes:
       - ./searxng:/etc/searxng:rw
       - searxng-data:/var/cache/searxng:rw
+    extra_hosts:
+      - "hostmachine:host-gateway"
     environment:
       - SEARXNG_BASE_URL=https://${SEARXNG_HOSTNAME:-localhost}/
     logging:
@@ -33,9 +30,6 @@ services:
       options:
         max-size: "1m"
         max-file: "1"
-
-networks:
-  searxng:
 
 volumes:
   caddy-data:

@@ -5,9 +5,14 @@ import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.options.ScreenshotType
 import com.microsoft.playwright.options.WaitUntilState
+import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 
 class WebScreenshotTaker : AutoCloseable {
+
+    companion object {
+        private val log = logger()
+    }
 
     // --- 资源隔离模式 (同 Scraper，确保并发安全) ---
     private class BrowserSession : AutoCloseable {
@@ -57,7 +62,7 @@ class WebScreenshotTaker : AutoCloseable {
 
         // 创建上下文，设置视口
         // 注意：全屏截图只需定宽，高度设为 0 或任意值均可，Playwright 会自动扩展
-        val context = session.browser.newContext(
+        session.browser.newContext(
             Browser.NewContextOptions()
                 .apply {
                     if (username != null && password != null) {
@@ -66,35 +71,34 @@ class WebScreenshotTaker : AutoCloseable {
                 }
                 .setViewportSize(width, 1080)
                 .setDeviceScaleFactor(deviceScaleFactor) // 1.0=标准, 2.0=高清(Retina)
-        )
-        val page = context.newPage()
-
-        try {
-            // --- 资源过滤优化 ---
-            // 截图需要图片和CSS，但不需要媒体和字体
-            page.route("**/*") { route ->
-                val resourceType = route.request().resourceType()
-                if (listOf("media").contains(resourceType)) {
-                    route.abort()
-                } else {
-                    route.resume()
+        ).use { context ->
+            try {
+                val page = context.newPage()
+                // --- 资源过滤优化 ---
+                // 截图需要图片和CSS，但不需要媒体和字体
+                page.route("**/*") { route ->
+                    val resourceType = route.request().resourceType()
+                    if (listOf("media").contains(resourceType)) {
+                        route.abort()
+                    } else {
+                        route.resume()
+                    }
                 }
-            }
 
-            // --- 导航与等待 ---
-            // 如果开启 waitForNetworkIdle，会等待直到网络连接数变少，适合 SPA/懒加载页面
-            val waitState = if (waitForNetworkIdle)
-                WaitUntilState.NETWORKIDLE
-            else
-                WaitUntilState.DOMCONTENTLOADED
+                // --- 导航与等待 ---
+                // 如果开启 waitForNetworkIdle，会等待直到网络连接数变少，适合 SPA/懒加载页面
+                val waitState = if (waitForNetworkIdle)
+                    WaitUntilState.NETWORKIDLE
+                else
+                    WaitUntilState.DOMCONTENTLOADED
 
-            page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
+                page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
 
-            // --- 滚动加载 (Lazy Loading 处理) ---
-            // 很多现代网页图片是滚动到可见区域才加载的
-            // 我们模拟快速滚动到底部，触发所有图片加载
-            page.evaluate(
-                """
+                // --- 滚动加载 (Lazy Loading 处理) ---
+                // 很多现代网页图片是滚动到可见区域才加载的
+                // 我们模拟快速滚动到底部，触发所有图片加载
+                page.evaluate(
+                    """
                 async () => {
                     await new Promise((resolve) => {
                         let totalHeight = 0;
@@ -114,28 +118,28 @@ class WebScreenshotTaker : AutoCloseable {
                     });
                 }
             """
-            )
+                )
 
-            // 稍微等一下懒加载动画
-            page.waitForTimeout(500.0)
+                // 稍微等一下懒加载动画
+                page.waitForTimeout(500.0)
 
-            // --- 截图 ---
-            val screenshotOptions = Page.ScreenshotOptions()
-                .setFullPage(true) // ✅ 关键：开启全屏截图
-                .setType(type)
+                // --- 截图 ---
+                val screenshotOptions = Page.ScreenshotOptions()
+                    .setFullPage(true) // ✅ 关键：开启全屏截图
+                    .setType(type)
 
-            if (type == ScreenshotType.JPEG) {
-                screenshotOptions.setQuality(quality)
+                if (type == ScreenshotType.JPEG) {
+                    screenshotOptions.setQuality(quality)
+                }
+
+                return page.screenshot(screenshotOptions)
+
+            } catch (e: Exception) {
+                log.error("Screenshot failed for $url: ${e.message}", e)
+                throw e
             }
-
-            return page.screenshot(screenshotOptions)
-
-        } catch (e: Exception) {
-            System.err.println("Screenshot failed for $url: ${e.message}")
-            throw e
-        } finally {
-            context.close()
         }
+
     }
 
     override fun close() {

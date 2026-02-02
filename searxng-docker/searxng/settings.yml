@@ -1,15 +1,34 @@
 # see https://docs.searxng.org/admin/settings/settings.html#settings-use-default-settings
-use_default_settings:
-  engines:
-    keep_only:
-      - baidu
-      - quark
-      - bing
-      - google
-      - duckduckgo
-      - startpage
-      - wikidata
-      - wikipedia
+use_default_settings: true
+
+engines:
+  - name: baidu
+    engine: baidu
+    disabled: false
+  - name: quark
+    engine: quark
+    disabled: false
+  - name: bing
+    engine: bing
+    disabled: false
+  - name: google
+    engine: google
+    disabled: false
+  - name: duckduckgo
+    engine: duckduckgo
+    disabled: false
+  - name: startpage
+    engine: startpage
+    disabled: false
+  - name: wikipedia
+    engine: wikipedia
+    disabled: false
+
+outgoing:
+  proxies:
+    all:
+      - http://hostmachine:7890
+
 server:
   # base_url is defined in the SEARXNG_BASE_URL environment variable, see .env and docker-compose.yml
   secret_key: "!@#$%^&*90"  # change this!
