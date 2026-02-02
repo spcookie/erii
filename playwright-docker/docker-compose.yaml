@@ -2,17 +2,17 @@ services:
   playwright:
     image: mcr.microsoft.com/playwright:v1.57.0-noble
     container_name: playwright-server
-
     init: true
     user: pwuser
     working_dir: /home/pwuser
-
     ports:
       - "13001:3000"
-
+    environment:
+      - HTTP_PROXY=http://hostmachine:7890
+      - HTTPS_PROXY=http://hostmachine:7890
+      - NO_PROXY=localhost,127.0.0.1,hostmachine
     extra_hosts:
       - "hostmachine:host-gateway"
-
     command: >
       /bin/sh -c
       "npx -y playwright@1.57.0 run-server --port 3000 --host 0.0.0.0"

@@ -7,7 +7,6 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -167,47 +166,5 @@ internal data class RawInfobox(
             content = this.content ?: "",
             imgSrc = this.imgSrc
         )
-    }
-}
-
-
-fun main() = runBlocking {
-    // 1. 初始化客户端 (生产环境建议单例)
-    val searchClient = WebSearchClient(baseUrl = "http://localhost:18080")
-
-    try {
-        println("开始搜索 '世界杯' ...")
-
-        // 2. 调用搜索
-        val response = searchClient.search(
-            query = "iPhone 18 什么时候发",
-            maxResults = 3,   // 我想要 5 条有效结果
-            minScore = 0.5,  // 分数至少要 0.15 (过滤掉那些 0.1 的低质量结果)
-            language = "zh-CN"
-        )
-
-        // 3. 处理 Infobox (知识卡片)
-        if (response.infoBoxes.isNotEmpty()) {
-            println("=== 知识卡片 ===")
-            response.infoBoxes.forEach { box ->
-                println("[${box.infobox}] ${box.content.take(50)}...")
-                println("Image: ${box.imgSrc}")
-            }
-            println()
-        }
-
-        // 4. 处理搜索结果
-        println("=== 搜索结果 (Top ${response.results.size}) ===")
-        response.results.forEachIndexed { index, item ->
-            println("${index + 1}. [${item.score}] ${item.title}")
-            println("   Link: ${item.url}")
-            println("   Desc: ${item.content.take(60)}...")
-            println("---")
-        }
-
-    } catch (e: Exception) {
-        e.printStackTrace()
-    } finally {
-        searchClient.close()
     }
 }

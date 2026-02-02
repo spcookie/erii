@@ -42,7 +42,7 @@ suspend fun appendWebPagePrompt(
 
     suspend fun MarkdownContentBuilder.buildContentBySearchResult(searchResults: List<SearchResultItem>) {
         coroutineScope {
-            searchResults.mapIndexed { index, item ->
+            val awaitAll = searchResults.mapIndexed { index, item ->
                 async {
                     runCatching {
                         val result = webPageMarkdownScraper.scrape(item.url, 1000)
@@ -59,16 +59,21 @@ suspend fun appendWebPagePrompt(
                         )
                     }.getOrThrow()
                 }
-            }
-                .awaitAll()
-                .sortedBy { it.first }
-                .map { it.second }
-                .forEach { item ->
-                    line {
-                        text(item.title)
-                        text(item.markdown)
+            }.awaitAll()
+            if (awaitAll.isNotEmpty()) {
+                awaitAll.sortedBy { it.first }
+                    .map { it.second }
+                    .forEach { item ->
+                        line {
+                            text(item.title)
+                            text(item.markdown)
+                        }
                     }
+            } else {
+                line {
+                    text("暂未搜索到内容")
                 }
+            }
         }
     }
 
