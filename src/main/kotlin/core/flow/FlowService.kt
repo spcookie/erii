@@ -161,8 +161,7 @@ class FlowGauge(
     }
 
     fun decayFlow() {
-        val now = System.currentTimeMillis()
-        val minutes = (now - state.lastUpdateTime) / 60000.0
+        val minutes = 0.3
         var drainAmount = minutes
         if (pleasure < -0.3) drainAmount = 5.0 * minutes
         state.drain(drainAmount, botMark, groupId)

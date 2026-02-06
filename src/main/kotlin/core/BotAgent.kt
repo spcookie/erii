@@ -914,7 +914,7 @@ class ChatToolSet(
                 if (record.groupId == context.groupId && record.userId != context.currentBotId) {
                     currentRecord = record
                     val transient = context.toTransient()
-                    if ((0..100).random() in 0..(transient.flow.toInt() + 50)) {
+                    if ((0..100).random() in 0..(transient.flow.toInt() + 25)) {
                         historyChannel.send(event)
                         historyChannel.close()
                     }
@@ -1278,7 +1278,6 @@ object BotAgent {
                                     } transformed { it.content })
                                     edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
                                     edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
-//                        edge((nodeSendToolResult forwardTo nodeFinish).transformed { it.content })
                                 }
                             ) {
                                 handleEvents {

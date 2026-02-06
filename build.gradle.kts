@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.playwright)
     implementation(libs.flexmark.html2md)
     implementation(libs.flexmark.ext.tables)
+    implementation("io.ktor:ktor-client-cio-jvm:3.3.2")
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)

@@ -159,7 +159,7 @@ class EmotionJob(
                 }
 
                 /**
-                 * 心情衰减函数 (修正版)
+                 * 心情衰减函数
                  * 使用指数衰减模型，让 Mood 平滑回归到 Baseline
                  * 公式: V_new = V_base + (V_old - V_base) * e^(-λ * t)
                  */
@@ -183,7 +183,7 @@ class EmotionJob(
                         p = baseline.p + (mood.p - baseline.p) * factorPA,
                         a = baseline.a + (mood.a - baseline.a) * factorPA,
 
-                        // D 也向 baseline.d 回归 (修复了之前无视 baseline.d 强制归零的bug)
+                        // D 也向 baseline.d 回归
                         d = baseline.d + (mood.d - baseline.d) * factorD
                     )
                 }
@@ -191,7 +191,7 @@ class EmotionJob(
                 // 计算衰减后的情绪和心情
                 val emotion = decayEmotion(currentEmotionEntity.emotion, seconds)
                 val mood =
-                    decayMood(currentEmotionEntity.mood, BotManage.getBot(currentBotId)!!.role.emoticon.pad, seconds)
+                    decayMood(currentEmotionEntity.mood, BotManage.getBot(currentBotId).role.emoticon.pad, seconds)
 
                 log.debug(
                     "群组 $groupId 情绪衰减: emotion P=${
@@ -217,13 +217,15 @@ class EmotionJob(
                 }
 
                 // 根据衰减后的情绪重新计算行为
+                val hours = (now - currentEmotionEntity.createdAt.toInstant(tz)).inWholeHours.coerceAtLeast(0)
+                val applyEmotion = hours < 1
                 val behaviorProfile = BehaviorAnalysis(currentEmotionEntity).decideBehavior(
                     groupSize = groupSize,
                     adminPresent = adminPresent,
                     recentNegativeCount = 0,
                     currentStimulus = PAD.ZERO,
                     decay = Decay.LOW,
-                    false
+                    applyEmotion
                 )
 
                 currentEmotionEntity.behavior = behaviorProfile
@@ -346,7 +348,7 @@ class EmotionJob(
         // 5. 创建行为分析器
         val behaviorAnalysis = BehaviorAnalysis(
             currentEmotionEntity,
-            BotManage.getBot(currentBotId)!!.role.emoticon
+            BotManage.getBot(currentBotId).role.emoticon
         )
 
         // 6. 确定衰减等级(根据新消息数量)

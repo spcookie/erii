@@ -40,6 +40,12 @@ class VolitionJob(
     private val scope = CoroutineScope(Dispatchers.Default)
 
     fun openTimingTriggerSignal() {
+        for (group in ENABLE_GROUPS) {
+            for (bot in BotManage.getAllBotIds()) {
+                log.info("init volition for bot $bot in group $group")
+                ensureVolitionGaugeExists(bot, group)
+            }
+        }
         jobScheduler.scheduleRecurrently(
             "volition-job",
             "*/2 * * * *",
@@ -168,7 +174,7 @@ class VolitionJob(
                 return
             }
 
-            analyzeAndDecide(botMark, groupId, messages)
+            analyze(botMark, groupId, messages)
 
             val maxHistoryId = histories.maxOf { it.id.value }
             updateVolitionState(botMark, groupId, maxHistoryId)
@@ -180,7 +186,7 @@ class VolitionJob(
         }
     }
 
-    private suspend fun analyzeAndDecide(
+    private suspend fun analyze(
         botMark: String,
         groupId: String,
         messages: List<VolitionMessage>
@@ -188,9 +194,7 @@ class VolitionJob(
         val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
         val gauge = volitionGaugeManager.get(botMark, groupId) ?: return
 
-        val impulse = gauge.calculateImpulse()
-
-        val botInterests = BotManage.getBot(botMark)!!.role.character
+        val botInterests = BotManage.getBot(botMark).role.character
 
         val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
 
@@ -210,22 +214,6 @@ class VolitionJob(
 
         if (result.emotionalResonance) {
             EventBus.postAsync(EmotionalResonanceEvent(botMark, groupId))
-        }
-
-        if (gauge.shouldSpeak()) {
-            log.info("决策: 群组 $groupId 应该主动发言!")
-
-            EventBus.postAsync(
-                ProactiveSpeakEvent(
-                    botId = botMark,
-                    _groupId = groupId,
-                    impulse = impulse,
-                    interruptionMode = InterruptionMode.Interrupt,
-                )
-            )
-
-            gauge.addFatigue(100.0)
-            gauge.state.lastActiveTime = System.currentTimeMillis()
         }
     }
 

@@ -117,7 +117,7 @@ class BehaviorAnalysis(
 ) {
 
     companion object {
-        private const val y = 0.05
+        private const val y = 0.1
     }
 
     fun decideEmotion(

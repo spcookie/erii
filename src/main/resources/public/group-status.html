@@ -240,6 +240,18 @@
                                     <div class="stat-desc">个学习词汇</div>
                                 </div>
                             </div>
+
+                            ${groupStatus.summary ? `
+                            <h3 class="subsection-title">
+                                <i class="fas fa-book-open"></i> 会话摘要
+                            </h3>
+                            <div class="summary-container">
+                                <div class="summary-content">
+                                    <i class="fas fa-quote-left"></i>
+                                    <div class="summary-text">${groupStatus.summary}</div>
+                                </div>
+                            </div>
+                            ` : ''}
                         </section>
                     </div>
 
@@ -259,7 +271,7 @@
         const pad = emotionData.pad;
 
         const normalizeForDisplay = (val) => {
-            return Math.max(0, Math.min(100, (val + 3) / 6 * 100));
+            return Math.max(0, Math.min(100, (val + 4) / 8 * 100));
         };
 
         const getEmotionTendency = (p, a, d) => {
@@ -296,9 +308,9 @@
                                 <div class="pad-bar pleasure" style="width: ${normalizeForDisplay(pad.pleasure)}%"></div>
                             </div>
                             <div class="pad-scale">
-                                <span>-3</span>
+                                <span>-4</span>
                                 <span class="scale-center">0</span>
-                                <span>+3</span>
+                                <span>+4</span>
                             </div>
                         </div>
                         
@@ -314,9 +326,9 @@
                                 <div class="pad-bar arousal" style="width: ${normalizeForDisplay(pad.arousal)}%"></div>
                             </div>
                             <div class="pad-scale">
-                                <span>-3</span>
+                                <span>-4</span>
                                 <span class="scale-center">0</span>
-                                <span>+3</span>
+                                <span>+4</span>
                             </div>
                         </div>
                         
@@ -332,9 +344,9 @@
                                 <div class="pad-bar dominance" style="width: ${normalizeForDisplay(pad.dominance)}%"></div>
                             </div>
                             <div class="pad-scale">
-                                <span>-3</span>
+                                <span>-4</span>
                                 <span class="scale-center">0</span>
-                                <span>+3</span>
+                                <span>+4</span>
                             </div>
                         </div>
                     </div>
@@ -435,7 +447,7 @@
                     <div class="volition-header">
                         <div class="volition-title">
                             <i class="fas fa-brain"></i>
-                            <span>冲动值累积系统</span>
+                            <span>冲动值累积</span>
                         </div>
                         <div class="volition-status ${shouldSpeakClass}">
                             <i class="fas ${speakIcon}"></i>

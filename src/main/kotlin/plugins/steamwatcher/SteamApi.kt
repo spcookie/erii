@@ -19,20 +19,20 @@ object SteamApi {
     private val log = logger()
 
     suspend fun getPlayerSummary(steamId: String): PlayerSummary? {
-        val apiKey = SteamWatcherConfig.apiKey.takeIf { it.isNotBlank() } ?: return null
+        val apiKey = SteamWatcherConfig.apiKey.takeIf { it.isNullOrBlank() } ?: return null
         val url = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=$apiKey&steamids=$steamId"
         return executeRequest(url)
     }
 
     suspend fun getPlayerAchievements(steamId: String, appId: String): List<Achievement>? {
-        val apiKey = SteamWatcherConfig.apiKey.takeIf { it.isNotBlank() } ?: return null
+        val apiKey = SteamWatcherConfig.apiKey.takeIf { it.isNullOrBlank() } ?: return null
         val url =
             "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key=$apiKey&steamid=$steamId&appid=$appId"
         return executeRequest<AchievementResponse>(url)?.playerstats?.achievements
     }
 
     suspend fun getSchemaForGame(appId: String): GameSchema? {
-        val apiKey = SteamWatcherConfig.apiKey.takeIf { it.isNotBlank() } ?: return null
+        val apiKey = SteamWatcherConfig.apiKey.takeIf { it.isNullOrBlank() } ?: return null
         val langParam = if (SteamWatcherConfig.enableTranslation) "&l=${SteamWatcherConfig.language}" else ""
         val url = "https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=$apiKey&appid=$appId$langParam"
         return executeRequest(url)
@@ -59,7 +59,7 @@ object SteamApi {
 
     // 获取全局成就解锁率
     suspend fun getGlobalAchievementPercentages(appId: String): List<GlobalAchievement>? {
-        SteamWatcherConfig.apiKey.takeIf { it.isNotBlank() } ?: return null
+        SteamWatcherConfig.apiKey.takeIf { it.isNullOrBlank() } ?: return null
         val url = "https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=$appId"
         return executeRequest<GlobalAchievementResponse>(url)?.achievementpercentages?.achievements
     }
