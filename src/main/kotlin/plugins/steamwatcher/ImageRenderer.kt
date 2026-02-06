@@ -5,7 +5,6 @@ import java.awt.*
 import java.awt.geom.RoundRectangle2D
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
-import java.io.InputStream
 import javax.imageio.ImageIO
 
 object ImageRenderer {
@@ -13,27 +12,7 @@ object ImageRenderer {
     val log = logger()
 
     private fun loadFont(isBold: Boolean, size: Float): Font {
-        val fontFileName = if (isBold) "/fonts/msyhbd.ttc" else "/fonts/msyh.ttc"
-        var font: Font? = null
-
-        try {
-            // 尝试从资源文件加载
-            val stream: InputStream? = javaClass.getResourceAsStream(fontFileName)
-            if (stream != null) {
-                // 加载字体文件
-                font = Font.createFont(Font.TRUETYPE_FONT, stream)
-                // 注册到图形环境（某些系统需要）
-                val ge = GraphicsEnvironment.getLocalGraphicsEnvironment()
-                ge.registerFont(font)
-            } else {
-                log.warn("⚠️ 未找到字体文件: $fontFileName，将使用系统默认字体")
-            }
-        } catch (e: Exception) {
-            log.error("❌ 加载字体失败: $fontFileName", e)
-        }
-
-        // 如果加载成功，衍生出指定大小；如果失败，回退到系统默认
-        return font?.deriveFont(size) ?: Font("Dialog", if (isBold) Font.BOLD else Font.PLAIN, size.toInt())
+        return Font("Microsoft YaHei", if (isBold) Font.BOLD else Font.PLAIN, size.toInt())
     }
 
     // 基础颜色和字体常量

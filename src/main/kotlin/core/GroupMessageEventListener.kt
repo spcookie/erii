@@ -55,7 +55,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
     private val storage by GlobalContext.get().inject<Storage>()
 
-    private val COMMAND_REGEX = Regex("^/([A-Za-z0-9]+)$")
+    private val COMMAND_REGEX = Regex("^/([A-Za-z0-9]+)")
 
     fun isCommand(text: String) = COMMAND_REGEX.matches(text)
 

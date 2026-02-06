@@ -3,11 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: erii-image
     container_name: erii
     restart: always
     environment:
-      - JAVA_OPTS=-XX:+UseZGC -Xms256m -Xmx512m -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai
+      - JAVA_OPTS=-XX:+UseZGC -Xms256m -Xmx256m -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai
     env_file:
       - .env.local
     volumes:

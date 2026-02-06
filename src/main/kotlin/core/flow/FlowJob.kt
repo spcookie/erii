@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
+import uesugi.ENABLE_GROUPS
 import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
 import uesugi.toolkit.logger
@@ -34,6 +35,12 @@ class FlowJob(
     private val flowAgent = FlowAgent()
 
     fun openTimingTriggerSignal() {
+        for (group in ENABLE_GROUPS) {
+            for (bot in BotManage.getAllBotIds()) {
+                log.info("init flow for bot $bot in group $group")
+                ensureFlowGaugeExists(bot, group)
+            }
+        }
         jobScheduler.scheduleRecurrently(
             "flow-job",
             "*/1 * * * *",
@@ -79,7 +86,7 @@ class FlowJob(
 
     private fun ensureFlowGaugeExists(botMark: String, groupId: String) {
         val flowGaugeManager by GlobalContext.get().inject<FlowGaugeManager>()
-        flowGaugeManager.getOrCreate(botMark, groupId, BotManage.getBot(botMark)!!.role.emoticon)
+        flowGaugeManager.getOrCreate(botMark, groupId, BotManage.getBot(botMark).role.emoticon)
     }
 
     private fun findGroupsNeedProcessing(botMark: String): List<String> {

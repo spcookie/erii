@@ -3,10 +3,12 @@ package uesugi.plugins.status
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
+import com.microsoft.playwright.Route
 import com.microsoft.playwright.options.ScreenshotType
 import com.microsoft.playwright.options.WaitUntilState
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.io.encoding.Base64
 
 class WebScreenshotTaker : AutoCloseable {
 
@@ -64,11 +66,6 @@ class WebScreenshotTaker : AutoCloseable {
         // 注意：全屏截图只需定宽，高度设为 0 或任意值均可，Playwright 会自动扩展
         session.browser.newContext(
             Browser.NewContextOptions()
-                .apply {
-                    if (username != null && password != null) {
-                        setHttpCredentials(username, password)
-                    }
-                }
                 .setViewportSize(width, 1080)
                 .setDeviceScaleFactor(deviceScaleFactor) // 1.0=标准, 2.0=高清(Retina)
         ).use { context ->
@@ -76,12 +73,20 @@ class WebScreenshotTaker : AutoCloseable {
                 val page = context.newPage()
                 // --- 资源过滤优化 ---
                 // 截图需要图片和CSS，但不需要媒体和字体
+                var token: String? = null
+                if (username != null && password != null) {
+                    token = Base64.encode("$username:$password".toByteArray())
+                }
                 page.route("**/*") { route ->
+                    val headers = HashMap(route.request().headers())
+                    if (token != null) {
+                        headers["Authorization"] = "Basic $token"
+                    }
                     val resourceType = route.request().resourceType()
                     if (listOf("media").contains(resourceType)) {
                         route.abort()
                     } else {
-                        route.resume()
+                        route.resume(Route.ResumeOptions().setHeaders(headers))
                     }
                 }
 

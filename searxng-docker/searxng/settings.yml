@@ -25,9 +25,15 @@ engines:
     disabled: false
 
 outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 30.0
+
   proxies:
-    all:
-      - http://hostmachine:7890
+    all://:
+      - http://hostmachine:7899
+      - socks5://hostmachine:7898
+
+  extra_proxy_timeout: 10
 
 server:
   # base_url is defined in the SEARXNG_BASE_URL environment variable, see .env and docker-compose.yml

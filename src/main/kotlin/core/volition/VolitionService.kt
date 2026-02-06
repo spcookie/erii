@@ -5,6 +5,8 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.core.InterruptionMode
+import uesugi.core.ProactiveSpeakEvent
 import uesugi.core.emotion.EmotionChangeEvent
 import uesugi.core.emotion.EmotionalTendencies
 import uesugi.core.flow.FlowChangeEvent
@@ -67,6 +69,29 @@ class VolitionGauge(
             while (isActive) {
                 delay(persistIntervalMs)
                 persistStateToDB()
+            }
+        }
+
+        scope.launch {
+            while (isActive) {
+                delay(decayIntervalMs)
+                val gauge = this@VolitionGauge
+                val impulse = gauge.calculateImpulse()
+                if (gauge.shouldSpeak()) {
+                    log.info("决策: 群组 $groupId 应该主动发言!")
+
+                    EventBus.postAsync(
+                        ProactiveSpeakEvent(
+                            botId = botMark,
+                            _groupId = groupId,
+                            impulse = impulse,
+                            interruptionMode = InterruptionMode.Interrupt,
+                        )
+                    )
+
+                    gauge.addFatigue(100.0)
+                    gauge.state.lastActiveTime = System.currentTimeMillis()
+                }
             }
         }
 
@@ -175,7 +200,7 @@ class VolitionGauge(
     }
 
     fun decayFatigue() {
-        val decayRate = if (arousal < 0.2) 8.0 else 5.0
+        val decayRate = if (arousal < 0.2) 0.8 else 0.5
         state.decayFatigue(decayRate)
     }
 

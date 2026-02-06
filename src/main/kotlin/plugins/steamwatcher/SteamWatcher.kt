@@ -29,7 +29,7 @@ class SteamWatcher : Plugin {
     private val lastStates = mutableMapOf<String, UserState>()
 
     override fun onLoad() {
-        if (SteamWatcherConfig.apiKey.isBlank()) {
+        if (SteamWatcherConfig.apiKey.isNullOrBlank()) {
             log.info("⚠️ Steam API Key 未设置，插件无法正常工作！")
         }
         log.info("✅ SteamWatcher 插件已启用")

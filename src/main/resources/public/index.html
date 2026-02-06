@@ -475,9 +475,9 @@
         };
         const pad = emotionData.pad;
 
-        // 将 PAD 值归一化到 0-100 范围用于显示（原始范围约 -3 到 +3）
+        // 将 PAD 值归一化到 0-100 范围用于显示（原始范围约 -4 到 +4）
         const normalizeForDisplay = (val) => {
-            return Math.max(0, Math.min(100, (val + 3) / 6 * 100));
+            return Math.max(0, Math.min(100, (val + 4) / 8 * 100));
         };
 
         // 计算情绪倾向描述
@@ -515,9 +515,9 @@
                                 <div class="pad-bar pleasure" style="width: ${normalizeForDisplay(pad.pleasure)}%"></div>
                             </div>
                             <div class="pad-scale">
-                                <span>-3</span>
+                                <span>-4</span>
                                 <span class="scale-center">0</span>
-                                <span>+3</span>
+                                <span>+4</span>
                             </div>
                         </div>
                                 
@@ -533,9 +533,9 @@
                                 <div class="pad-bar arousal" style="width: ${normalizeForDisplay(pad.arousal)}%"></div>
                             </div>
                             <div class="pad-scale">
-                                <span>-3</span>
+                                <span>-4</span>
                                 <span class="scale-center">0</span>
-                                <span>+3</span>
+                                <span>+4</span>
                             </div>
                         </div>
                                 
@@ -551,9 +551,9 @@
                                 <div class="pad-bar dominance" style="width: ${normalizeForDisplay(pad.dominance)}%"></div>
                             </div>
                             <div class="pad-scale">
-                                <span>-3</span>
+                                <span>-4</span>
                                 <span class="scale-center">0</span>
-                                <span>+3</span>
+                                <span>+4</span>
                             </div>
                         </div>
                     </div>

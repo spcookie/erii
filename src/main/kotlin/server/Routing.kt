@@ -2,6 +2,7 @@ package uesugi.server
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.http.content.*
 import io.ktor.server.plugins.autohead.*
 import io.ktor.server.plugins.contentnegotiation.*
@@ -26,10 +27,9 @@ fun Application.configureRouting() {
         json(JSON)
     }
     routing {
-        // Configure bot status routes (dynamic content) - MUST be before catch-all static resources
         configureBotStatus()
-
-        // Serve static files from public directory
-        staticResources("/", "public")
+        authenticate("basic") {
+            staticResources("/", "public")
+        }
     }
 }
