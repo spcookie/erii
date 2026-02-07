@@ -169,7 +169,7 @@ class VolitionJob(
             }
 
             if (messages.isEmpty()) {
-                log.debug("群组 $groupId 消息转换后为空,跳过处理")
+                log.debug("群组 $groupId 消息转换后为空, 跳过处理")
                 updateVolitionState(botMark, groupId, histories.maxOf { it.id.value })
                 return
             }
@@ -197,6 +197,8 @@ class VolitionJob(
         val botInterests = BotManage.getBot(botMark).role.character
 
         val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
+
+        log.info("冲动值分析完成, botId=$botMark, groupId=$groupId, stimulusAnalysis=$result")
 
         EventBus.postAsync(ResetStimulusEvent(botMark, groupId))
 

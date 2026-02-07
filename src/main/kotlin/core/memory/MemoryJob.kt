@@ -244,7 +244,7 @@ class MemoryJob(
                         // 更新现有画像
                         existing.profile = analysis.profile
                         existing.preferences = analysis.preferences
-                        log.debug("用户画像已更新, groupId=$groupId, userId=$userId")
+                        log.info("用户画像已更新, botId=$botMark, groupId=$groupId, userId=$userId, profile=${analysis.profile}, preferences=${analysis.preferences}")
                     } else {
                         // 创建新画像
                         UserProfileEntity.new {
@@ -254,7 +254,7 @@ class MemoryJob(
                             this.profile = analysis.profile
                             this.preferences = analysis.preferences
                         }
-                        log.debug("用户画像已创建, groupId=$groupId, userId=$userId")
+                        log.info("用户画像已创建, botId=$botMark, groupId=$groupId, userId=$userId, profile=${analysis.profile}, preferences=${analysis.preferences}")
                     }
                 }
             }
@@ -307,10 +307,13 @@ class MemoryJob(
             withContext(Dispatchers.IO) {
                 transaction {
                     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                    var addCounted = 0
+                    var deprecateCounted = 0
                     for (fact in factsList) {
                         if (fact.confidence < 0.7) continue
                         when (fact.action) {
                             MemoryAgent.MemoryAction.ADD -> {
+                                addCounted++
                                 FactsEntity.new {
                                     this.botMark = botMark
                                     this.groupId = groupId
@@ -328,6 +331,7 @@ class MemoryJob(
                             }
 
                             MemoryAgent.MemoryAction.DEPRECATE -> {
+                                deprecateCounted++
                                 existFacts.filter {
                                     it.id == fact.id || (it.keyword == fact.keyword &&
                                             it.subjects == fact.subjects &&
@@ -349,8 +353,8 @@ class MemoryJob(
                             }
                         }
                     }
+                    log.info("事实记忆分析完成, botId=$botMark, groupId=$groupId, size=${factsList.size}, add=${addCounted}, deprecate=${deprecateCounted}")
                 }
-                log.debug("事实记忆已保存, groupId=$groupId, 数量=${factsList.size}")
             }
         } catch (e: Exception) {
             log.error("提取事实记忆失败, groupId=$groupId", e)
@@ -429,7 +433,7 @@ class MemoryJob(
                         participantCount = summary.participantIds.distinct().size
                         messageCount = summary.messageCount
                     }
-                    log.debug("对话摘要已保存, groupId=$groupId")
+                    log.info("对话摘要分析完成, botId=$botMark, groupId=$groupId, summary=${summary.content}")
                 }
             }
 

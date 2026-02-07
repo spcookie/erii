@@ -187,8 +187,8 @@ class FlowAgent {
                     【机器人的核心兴趣领域】
                     $botInterests
                     
-                    【最近 1 分钟的群聊消息】
-                    以下是最近 1 分钟内的群聊消息，按时间顺序排列：
+                    【最近的群聊消息】
+                    以下是最近的群聊消息，按时间顺序排列：
                     $messagesText
                     """.trimIndent()
             )
@@ -210,7 +210,7 @@ class FlowAgent {
 
             triggerFlowEvents(result, botMark, groupId)
 
-            log.debug("心流分析完成, groupId=$groupId, 当前话题=${result.topicAnalysis.revisedTopic}")
+            log.info("心流分析完成, botId=$botMark, groupId=$groupId, FlowAnalysisResult=$result")
         } catch (e: Exception) {
             log.error("心流分析失败, groupId=$groupId", e)
         }
