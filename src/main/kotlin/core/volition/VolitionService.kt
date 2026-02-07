@@ -42,7 +42,7 @@ class VolitionGauge(
     private val groupId: String,
     private val baseDesire: Double = 15.0,
     private val decayIntervalMs: Long = 1000 * 60L,
-    private val persistIntervalMs: Long = 1000 * 60 * 2L
+    private val persistIntervalMs: Long = 1000 * 20L
 ) {
     val state = VolitionState()
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -78,7 +78,7 @@ class VolitionGauge(
                 val gauge = this@VolitionGauge
                 val impulse = gauge.calculateImpulse()
                 if (gauge.shouldSpeak()) {
-                    log.info("决策: 群组 $groupId 应该主动发言!")
+                    log.info("决策: 机器人 $botMark 群组 $groupId 应该主动发言!")
 
                     EventBus.postAsync(
                         ProactiveSpeakEvent(
@@ -200,7 +200,7 @@ class VolitionGauge(
     }
 
     fun decayFatigue() {
-        val decayRate = if (arousal < 0.2) 0.8 else 0.5
+        val decayRate = if (arousal < 0.2) 8.0 else 5.0
         state.decayFatigue(decayRate)
     }
 

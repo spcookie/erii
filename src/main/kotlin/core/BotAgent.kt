@@ -572,15 +572,7 @@ private suspend fun buildWebSearchContext(historyEntities: List<HistoryRecord>):
 
 private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?, wepSearchContext: String?): Prompt {
     val transient = context.toTransient()
-    val behaviorProfile = transient.behaviorProfile
-    val constraints = buildSpeechConstraints(
-        behaviorProfile?.emotion,
-        behaviorProfile?.tone,
-        behaviorProfile?.aggressiveness,
-        behaviorProfile?.emojiLevel,
-        context.interruptionMode,
-        transient.flowState
-    )
+    val constraints = buildConstraint(context, transient)
 
     return prompt("群聊机器人") {
         system {
@@ -627,6 +619,22 @@ private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?, 
         }
 
     }
+}
+
+private fun buildConstraint(
+    context: Context,
+    transient: Context.Transient
+): SpeechConstraints {
+    val behaviorProfile = transient.behaviorProfile
+    val constraints = buildSpeechConstraints(
+        behaviorProfile?.emotion,
+        behaviorProfile?.tone,
+        behaviorProfile?.aggressiveness,
+        behaviorProfile?.emojiLevel,
+        context.interruptionMode,
+        transient.flowState
+    )
+    return constraints
 }
 
 @OptIn(ExperimentalTime::class)
@@ -827,15 +835,18 @@ class ChatToolSet(
         }
 
         val transient = context.toTransient()
+        val constraints = buildConstraint(context, transient)
 
-        val prompt = prompt("promptId") {
+        val prompt = prompt("prompt") {
             system {
                 text(botRole.personality(context.currentBotId))
                 markdown {
+                    buildConstraintsPrompt(constraints)
                     buildVocabularyPrompt(transient.vocabulary)
                     buildFactsPrompt(transient.facts)
                     buildSummaryPrompt(transient.summary)
                     buildHistoriesPrompt(transient.moreHistories, context.currentBotId)
+                    buildMetadataPrompt()
                 }
 
             }

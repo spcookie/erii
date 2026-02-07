@@ -33,7 +33,7 @@ class FlowGauge(
     private val botMark: String,
     private val groupId: String,
     private val decayIntervalMs: Long = 1000 * 60L,
-    private val persistIntervalMs: Long = 1000 * 120L
+    private val persistIntervalMs: Long = 1000 * 20L
 ) {
     val state = FlowState()
     private val scope = CoroutineScope(Dispatchers.Default)

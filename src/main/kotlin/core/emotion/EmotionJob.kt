@@ -336,8 +336,8 @@ class EmotionJob(
 
         // 4. 调用 LLM 分析情感刺激值
         val stimulus = analyzeStimulus(gMessages)
-        log.debug(
-            "群组 $groupId 情感刺激值: P=${String.format("%.2f", stimulus.p)}, A=${
+        log.info(
+            "情感刺激值分析完成, botId=$currentBotId groupId=$groupId, P=${String.format("%.2f", stimulus.p)}, A=${
                 String.format(
                     "%.2f",
                     stimulus.a
