@@ -8,7 +8,10 @@ import uesugi.core.emotion.EmotionTable
 import uesugi.core.evolution.LearnedVocabTable
 import uesugi.core.flow.FlowStateTable
 import uesugi.core.history.HistoryTable
-import uesugi.core.memory.*
+import uesugi.core.memory.FactsTable
+import uesugi.core.memory.MemoryStateTable
+import uesugi.core.memory.SummaryTable
+import uesugi.core.memory.UserProfileTable
 import uesugi.core.resource.ResourceTable
 import uesugi.core.volition.VolitionStateTable
 
@@ -19,7 +22,6 @@ fun migration(database: Database) {
             ResourceTable,
             EmotionTable,
             FactsTable,
-            TodoTable,
             UserProfileTable,
             SummaryTable,
             MemoryStateTable,
@@ -38,7 +40,6 @@ private fun init(database: Database) {
             ResourceTable,
             EmotionTable,
             FactsTable,
-            TodoTable,
             UserProfileTable,
             SummaryTable,
             MemoryStateTable,

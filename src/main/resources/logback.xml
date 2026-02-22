@@ -14,6 +14,8 @@
         <appender-ref ref="STDOUT"/>
     </root>
 
+    <logger name="uesugi" level="DEBUG"/>
+
     <!-- Ktor 日志 -->
     <logger name="io.ktor" level="INFO"/>
     <logger name="org.eclipse.jetty" level="INFO"/>

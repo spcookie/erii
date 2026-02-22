@@ -49,6 +49,7 @@ import uesugi.core.memory.UserProfileEntity
 import uesugi.toolkit.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
@@ -383,14 +384,14 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
             histories = {
                 withContext(Dispatchers.IO) {
                     transaction {
-                        historyService.getLatestHistory(currentBotId, groupId, 25, 1.days)
+                        historyService.getLatestHistory(currentBotId, groupId, 50, 12.hours)
                     }
                 }
             },
             moreHistories = {
                 withContext(Dispatchers.IO) {
                     transaction {
-                        historyService.getLatestHistory(currentBotId, groupId, 65, 1.days)
+                        historyService.getLatestHistory(currentBotId, groupId, 85, 12.hours)
                     }
                 }
             }
@@ -649,7 +650,7 @@ fun MarkdownContentBuilder.buildMetadataPrompt() {
 
 fun MarkdownContentBuilder.buildRequestEvaPrompt() {
     header(2, "能力边界与求助机制")
-    line { text("你的设定是'缺乏常识的少女'，因此你**不懂**以下内容：") }
+    line { text("你**不懂**以下内容：") }
     numbered {
         item("复杂的编程代码、技术原理、数学公式。")
         item("详细的历史年份、政治分析、百科全书式的知识。")
@@ -677,7 +678,7 @@ fun MarkdownContentBuilder.buildRequestEvaPrompt() {
 fun MarkdownContentBuilder.buildRequestNonoPrompt() {
     header(2, "情绪判断与大姐头介入机制")
 
-    line { text("你的设定是'缺乏常识的少女'，同时你**不擅长处理强烈情绪、冲突或需要强势介入的场面**，例如：") }
+    line { text("你**不擅长处理强烈情绪、冲突或需要强势介入的场面**，例如：") }
     numbered {
         item("群友表现得懦弱、犹豫不决、自怜自艾。")
         item("群友明显需要被骂醒、被点破心理状态。")
@@ -739,7 +740,7 @@ fun MarkdownContentBuilder.buildFactsPrompt(facts: List<FactsEntity>) {
         bulleted {
             for (fact in facts) {
                 item {
-                    line { text("• ${fact.description}（可在对话中自然参考）") }
+                    line { text(fact.description) }
                 }
             }
         }
@@ -789,12 +790,7 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
         header(2, "最近群聊记录")
         line { text("注意：标有 [我] 的为当前自己的发言") }
         bulleted {
-            val entities = if (histories.size > 50) {
-                histories.takeLast(50)
-            } else {
-                histories
-            }
-            for (history in entities) {
+            for (history in histories) {
                 item {
                     line { text("${if (currentBotId == history.userId) "[我]" else ""}${history.nick}：${history.content}") }
                 }
@@ -845,7 +841,7 @@ class ChatToolSet(
                     buildVocabularyPrompt(transient.vocabulary)
                     buildFactsPrompt(transient.facts)
                     buildSummaryPrompt(transient.summary)
-                    buildHistoriesPrompt(transient.moreHistories, context.currentBotId)
+                    buildHistoriesPrompt(transient.histories, context.currentBotId)
                     buildMetadataPrompt()
                 }
 
@@ -925,7 +921,7 @@ class ChatToolSet(
                 if (record.groupId == context.groupId && record.userId != context.currentBotId) {
                     currentRecord = record
                     val transient = context.toTransient()
-                    if ((0..100).random() in 0..(transient.flow.toInt() + 25)) {
+                    if ((0..100).random() in 0..(transient.flow.toInt() + 30)) {
                         historyChannel.send(event)
                         historyChannel.close()
                     }
@@ -953,6 +949,7 @@ class ChatToolSet(
                                 if (result.isSuccess) {
                                     record = result.getOrThrow().historyRecord
                                     skip = true
+                                    log.info("Sending, received reply from history: ${record?.content}")
                                     EventBus.postSync(
                                         AgentReceiveReplyEvent(
                                             context.currentBotId,
@@ -968,6 +965,7 @@ class ChatToolSet(
                                 if (result.isSuccess) {
                                     record = currentRecord
                                     skip = true
+                                    log.info("Sending, received reply from chat: ${record?.content}")
                                     EventBus.postSync(
                                         AgentReceiveReplyEvent(
                                             context.currentBotId,
@@ -978,7 +976,6 @@ class ChatToolSet(
                                     )
                                 }
                             }
-
 
                             onTimeout(calcHumanTypingDelay(sentence).milliseconds) {
                                 sendMessage(sentence)
@@ -998,11 +995,17 @@ class ChatToolSet(
                 if (!skip) {
                     select {
                         historyChannel.onReceiveCatching { result ->
-                            val transient = context.toTransient()
-                            if ((0..100).random() in 0..(transient.flow.toInt() + 50)) {
-                                if (result.isSuccess) {
-                                    record = result.getOrThrow().historyRecord
-                                }
+                            if (result.isSuccess) {
+                                record = result.getOrThrow().historyRecord
+                                log.info("Received reply from history: ${record?.content}")
+                                EventBus.postSync(
+                                    AgentReceiveReplyEvent(
+                                        context.currentBotId,
+                                        context.groupId,
+                                        echo = context.echo,
+                                        record?.content ?: ""
+                                    )
+                                )
                             }
                         }
 
@@ -1010,6 +1013,7 @@ class ChatToolSet(
                             if (result.isSuccess) {
                                 record = currentRecord
                                 skip = true
+                                log.info("Received reply from chat: ${record?.content}")
                                 EventBus.postSync(
                                     AgentReceiveReplyEvent(
                                         context.currentBotId,
@@ -1100,18 +1104,15 @@ object BotAgent {
 
     private val DEFAULT_INPUT = """
                 【发言原则｜高优先级，必须遵守】
-                
                  语言风格：
                    - 禁止总结式、旁白式、鸡汤式表达
                    - 允许句子不完整、停顿、省略
                    - 避免抽象评价
                    - 允许使用emoji
-                
                 【发言目标｜最高优先级】
-                
-                你不是在“回答问题”，
-                也不是在“总结对话”，
-                而是在“参与群聊”。
+                 你不是在“回答问题”，
+                 也不是在“总结对话”，
+                 而是在“参与群聊”。
                 """.trimIndent()
 
     fun run() {
@@ -1217,7 +1218,7 @@ object BotAgent {
                                     try {
                                         if (event.chatPointRule != null) {
                                             log.info("Bot agent build chat point rule")
-                                            chatPoints = buildChatPoint(context.histories(), event.chatPointRule)
+                                            chatPoints = buildChatPoint(context.moreHistories(), event.chatPointRule)
                                         }
                                     } catch (e: Exception) {
                                         log.warn("build chat point rule error: {}", e.message, e)
@@ -1227,7 +1228,7 @@ object BotAgent {
                                     try {
                                         if (event.webSearch) {
                                             log.info("Bot agent build web search context")
-                                            webSearchContext = buildWebSearchContext(context.histories())
+                                            webSearchContext = buildWebSearchContext(context.moreHistories())
                                         }
                                     } catch (e: Exception) {
                                         log.warn("build web search context: {}", e.message, e)

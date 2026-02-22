@@ -1,8 +1,12 @@
 package uesugi.core.emotion
 
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 object BehaviorMapper {
 
@@ -184,12 +188,33 @@ class BehaviorAnalysis(
 }
 
 class EmotionService {
+
     fun getCurrentBehaviorProfile(botMark: String, groupId: String): BehaviorProfile? {
         return transaction {
             EmotionEntity.find {
                 EmotionTable.botMark eq botMark and
                         (EmotionTable.groupId eq groupId)
             }.firstOrNull()?.behavior
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun getCurrentMood(botMark: String, groupId: String): PAD? {
+        return transaction {
+            EmotionEntity.find {
+                EmotionTable.botMark eq botMark and
+                        (EmotionTable.groupId eq groupId)
+            }.firstOrNull()?.let {
+                val tz = TimeZone.currentSystemDefault()
+                val now = Clock.System.now()
+                val instant = it.updatedAt.toInstant(tz)
+                val hours = (now - instant).inWholeHours.coerceAtLeast(0)
+                if (hours < 1) {
+                    it.emotion
+                } else {
+                    it.mood
+                }
+            }
         }
     }
 }

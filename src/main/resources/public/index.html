@@ -273,6 +273,7 @@
 
     function renderGroupStatus(groupStatus, index, botId) {
         const bp = groupStatus.behaviorProfile;
+        const pad = groupStatus.pad;
         const flow = groupStatus.flowState;
         const volition = groupStatus.volitionState;
 
@@ -295,7 +296,7 @@
                     <h3 class="subsection-title">
                         <i class="fas fa-smile"></i> 情绪状态
                     </h3>
-                    ${renderBehaviorProfileMarkdown(bp)}
+                    ${renderBehaviorProfileMarkdown(bp, pad)}
                     ` : '<blockquote class="info-box"><i class="fas fa-exclamation-triangle"></i> 暂无情绪数据</blockquote>'}
 
                     <h3 class="subsection-title">
@@ -466,14 +467,13 @@
             `;
     }
 
-    function renderBehaviorProfileMarkdown(bp) {
+    function renderBehaviorProfileMarkdown(bp, pad) {
         // 获取情绪枚举对应的数据
         const emotionData = EMOTION_MAP[bp.emotion] || {
             name: bp.emotion,
             pad: {pleasure: 0, arousal: 0, dominance: 0},
             desc: '未知情绪状态'
         };
-        const pad = emotionData.pad;
 
         // 将 PAD 值归一化到 0-100 范围用于显示（原始范围约 -4 到 +4）
         const normalizeForDisplay = (val) => {
@@ -494,7 +494,7 @@
                             <span class="emotion-name">${emotionData.name}</span>
                             <span class="emotion-code">${bp.emotion}</span>
                         </div>
-                        <div class="emotion-tendency">${getEmotionTendency(pad.pleasure, pad.arousal, pad.dominance)}</div>
+                        <div class="emotion-tendency">${getEmotionTendency(pad.p, pad.a, pad.d)}</div>
                     </div>
                             
                     <div class="emotion-description">
@@ -509,10 +509,10 @@
                                     <i class="fas fa-smile"></i>
                                     <span>Pleasure</span>
                                 </div>
-                                <div class="pad-value">${pad.pleasure.toFixed(2)}</div>
+                                <div class="pad-value">${pad.p.toFixed(2)}</div>
                             </div>
                             <div class="pad-bar-wrapper">
-                                <div class="pad-bar pleasure" style="width: ${normalizeForDisplay(pad.pleasure)}%"></div>
+                                <div class="pad-bar pleasure" style="width: ${normalizeForDisplay(pad.p)}%"></div>
                             </div>
                             <div class="pad-scale">
                                 <span>-4</span>
@@ -527,10 +527,10 @@
                                     <i class="fas fa-bolt"></i>
                                     <span>Arousal</span>
                                 </div>
-                                <div class="pad-value">${pad.arousal.toFixed(2)}</div>
+                                <div class="pad-value">${pad.a.toFixed(2)}</div>
                             </div>
                             <div class="pad-bar-wrapper">
-                                <div class="pad-bar arousal" style="width: ${normalizeForDisplay(pad.arousal)}%"></div>
+                                <div class="pad-bar arousal" style="width: ${normalizeForDisplay(pad.a)}%"></div>
                             </div>
                             <div class="pad-scale">
                                 <span>-4</span>
@@ -545,10 +545,10 @@
                                     <i class="fas fa-crown"></i>
                                     <span>Dominance</span>
                                 </div>
-                                <div class="pad-value">${pad.dominance.toFixed(2)}</div>
+                                <div class="pad-value">${pad.d.toFixed(2)}</div>
                             </div>
                             <div class="pad-bar-wrapper">
-                                <div class="pad-bar dominance" style="width: ${normalizeForDisplay(pad.dominance)}%"></div>
+                                <div class="pad-bar dominance" style="width: ${normalizeForDisplay(pad.d)}%"></div>
                             </div>
                             <div class="pad-scale">
                                 <span>-4</span>

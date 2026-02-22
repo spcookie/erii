@@ -42,7 +42,7 @@ class VolitionGauge(
     private val groupId: String,
     private val baseDesire: Double = 15.0,
     private val decayIntervalMs: Long = 1000 * 60L,
-    private val persistIntervalMs: Long = 1000 * 20L
+    private val persistIntervalMs: Long = 1000 * 60L
 ) {
     val state = VolitionState()
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -200,14 +200,14 @@ class VolitionGauge(
     }
 
     fun decayFatigue() {
-        val decayRate = if (arousal < 0.2) 8.0 else 5.0
+        val decayRate = if (arousal < 0.2) 2.0 else 1.0
         state.decayFatigue(decayRate)
     }
 
     fun shouldSpeak(): Boolean {
         val impulse = calculateImpulse()
 
-        val threshold = if (flowValue > 70) 60.0 else 80.0
+        val threshold = if (flowValue > 70) 70.0 else 95.0
 
         return impulse > threshold
     }

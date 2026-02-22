@@ -143,15 +143,15 @@ class VolitionJob(
                                 (HistoryTable.id greater lastId)
                     }
                         .orderBy(HistoryTable.createdAt to SortOrder.ASC)
-                        .limit(50)
+                        .limit(100)
                         .toList()
 
                     historyList
                 }
             }
 
-            if (histories.isEmpty()) {
-                log.debug("群组 $groupId 没有新消息需要处理")
+            if (histories.size < 20) {
+                log.debug("群组 $groupId 新消息不足 20 条, 跳过处理主动意愿分析")
                 return
             }
 
@@ -198,7 +198,7 @@ class VolitionJob(
 
         val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
 
-        log.info("冲动值分析完成, botId=$botMark, groupId=$groupId, stimulusAnalysis=$result")
+        log.info("冲动值分析完成, botId=$botMark, groupId=$groupId, $result")
 
         EventBus.postAsync(ResetStimulusEvent(botMark, groupId))
 
@@ -300,6 +300,7 @@ class VolitionJob(
                     } else {
                         groupId
                     }
+                log.info("决策: 群组 $groupId 定时发言")
                 EventBus.postAsync(
                     ProactiveSpeakEvent(
                         botId = botMark,
@@ -338,6 +339,7 @@ class VolitionJob(
                             val hour = dateTime.hour
                             val inRange = hour in 8 until 22
                             if (inRange) {
+                                log.info("决策: 群组 $groupId 4 小时内无消息，主动发言")
                                 EventBus.postAsync(
                                     ProactiveSpeakEvent(
                                         botId = botMark,
