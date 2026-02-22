@@ -15,7 +15,6 @@ import uesugi.core.history.HistoryEntity
 import uesugi.core.history.HistoryTable
 import uesugi.toolkit.logger
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
 
 /**
@@ -159,7 +158,7 @@ class MemoryJob(
 
             log.debug("群组 $groupId 获取到 ${histories.size} 条新消息")
 
-            // 2. 转换为内存消息
+            // 2. 转换为记忆消息
             val messages = memoryAgent.convertToMemoryMessages(histories)
 
             if (messages.isEmpty()) {
@@ -187,16 +186,7 @@ class MemoryJob(
                     processFacts(botMark, groupId, messages)
                 }
 
-                // 4.3 待办事项生成 (按用户)
-//                launch {
-//                    for ((userId, userMessages) in messagesByUser) {
-//                        if (userId != botId && userMessages.size >= 3) {  // 至少 3 条消息才生成待办
-//                            processTodos(botId, groupId, userId, userMessages)
-//                        }
-//                    }
-//                }
-
-                // 4.4 对话摘要生成
+                // 4.３ 对话摘要生成
                 launch {
                     processSummary(botMark, groupId, messages)
                 }
@@ -358,52 +348,6 @@ class MemoryJob(
             }
         } catch (e: Exception) {
             log.error("提取事实记忆失败, groupId=$groupId", e)
-        }
-    }
-
-    /**
-     * 处理 Todo 事项
-     */
-    @OptIn(ExperimentalTime::class)
-    private suspend fun processTodos(
-        botMark: String,
-        groupId: String,
-        userId: String,
-        messages: List<MemoryAgent.MemoryMessage>
-    ) {
-        try {
-            log.debug("开始生成 Todo 事项, userId=$userId")
-
-            val todoList = memoryAgent.generateTodos(messages, userId)
-
-            // 批量保存到数据库
-            withContext(Dispatchers.IO) {
-                transaction {
-                    for (todo in todoList) {
-                        TodoEntity.new {
-                            this.botMark = botMark
-                            content = todo.content
-                            priority = todo.priority.coerceIn(1, 10)
-                            category = todo.category
-                            relatedUserId = todo.relatedUserId
-                            relatedGroupId = groupId
-                            status = TodoStatus.PENDING
-                            attempts = 0
-
-                            // 设置过期时间
-                            todo.expireHours?.let { hours ->
-                                val now = Clock.System.now()
-                                val tz = TimeZone.currentSystemDefault()
-                                expireAt = now.plus(hours.hours).toLocalDateTime(tz)
-                            }
-                        }
-                    }
-                    log.debug("Todo 事项已保存, userId=$userId, 数量=${todoList.size}")
-                }
-            }
-
-        } catch (e: Exception) {
-            log.error("生成 Todo 事项失败, userId=$userId", e)
         }
     }
 

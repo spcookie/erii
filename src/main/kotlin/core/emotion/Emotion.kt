@@ -66,6 +66,7 @@ private class PADColumnTransformer : ColumnTransformer<String, PAD> {
 
 }
 
+@Serializable
 data class PAD(
     val p: Double,
     val a: Double,

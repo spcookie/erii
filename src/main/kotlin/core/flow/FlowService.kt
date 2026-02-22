@@ -132,7 +132,7 @@ class FlowGauge(
             pleasure = p
             arousal = a
 
-            log.debug("收到情绪变更事件, 当前Emotion: P: ${event.pad.p}, A: ${event.pad.a}")
+            log.debug("Flow收到情绪变更事件, 当前Emotion: P: ${event.pad.p}, A: ${event.pad.a}")
         }
     }
 

@@ -210,7 +210,7 @@ class FlowAgent {
 
             triggerFlowEvents(result, botMark, groupId)
 
-            log.info("心流分析完成, botId=$botMark, groupId=$groupId, FlowAnalysisResult=$result")
+            log.info("心流分析完成, botId=$botMark, groupId=$groupId, $result")
         } catch (e: Exception) {
             log.error("心流分析失败, groupId=$groupId", e)
         }

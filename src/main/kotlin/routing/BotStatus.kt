@@ -9,6 +9,7 @@ import uesugi.BotManage
 import uesugi.ENABLE_GROUPS
 import uesugi.core.emotion.BehaviorProfile
 import uesugi.core.emotion.EmotionService
+import uesugi.core.emotion.PAD
 import uesugi.core.evolution.VocabularyService
 import uesugi.core.flow.FlowGaugeManager
 import uesugi.core.flow.FlowMeterState
@@ -39,6 +40,7 @@ fun Routing.configureBotStatus() {
                 val botStatusByGroups = groups.map { groupId ->
                     val emoticon = BotManage.getBot(id).role.emoticon
                     val behaviorProfile = emotionService.getCurrentBehaviorProfile(id, groupId)
+                    val pad = emotionService.getCurrentMood(id, groupId)
                     val flowState =
                         flowGaugeManager.getOrCreate(id, groupId, emoticon).let { it.state.value to it.mapToState() }
                     val volitionState = volitionGaugeManager.getOrCreate(id, groupId, emoticon)
@@ -78,6 +80,7 @@ fun Routing.configureBotStatus() {
                     BotStatus.ByGroup(
                         groupId = groupId,
                         behaviorProfile = behaviorProfile,
+                        pad = pad,
                         flowState = BotStatus.FlowState.fromPair(flowState),
                         volitionState = BotStatus.VolitionState.fromTriple(volitionState),
                         vocabularies = vocabularies,
@@ -118,6 +121,7 @@ data class BotStatus(
     data class ByGroup(
         val groupId: String,
         val behaviorProfile: BehaviorProfile?,
+        val pad: PAD?,
         val flowState: FlowState,
         val volitionState: VolitionState,
         val vocabularies: List<String>,

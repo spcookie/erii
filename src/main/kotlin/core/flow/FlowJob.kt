@@ -142,8 +142,8 @@ class FlowJob(
                 }
             }
 
-            if (histories.isEmpty()) {
-                log.debug("群组 $groupId 没有新消息需要处理")
+            if (histories.size < 20) {
+                log.debug("群组 $groupId 新消息不足20条, 跳过处理心流")
                 return
             }
 

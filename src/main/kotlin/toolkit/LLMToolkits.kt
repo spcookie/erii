@@ -78,7 +78,6 @@ suspend fun appendWebPagePrompt(
     }
 
     builder.apply {
-        h2("联网搜索内容")
         if (!specificUrls.isNullOrEmpty()) {
             buildContentBySearchResult(specificUrls.map {
                 SearchResultItem(
@@ -93,7 +92,7 @@ suspend fun appendWebPagePrompt(
                 val aggregate = webSearchClient.search(
                     query = query,
                     maxResults = maxResults,
-                    minScore = 0.7
+                    minScore = 0.9
                 )
                 val infoBoxes = aggregate.infoBoxes
                 if (infoBoxes.isNotEmpty()) {
