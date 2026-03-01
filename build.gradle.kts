@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.plugin.serialization)
+    alias(libs.plugins.kotlin.kapt)
 }
 
 group = "uesugi"
@@ -12,6 +13,7 @@ application {
 }
 
 dependencies {
+    kapt(libs.autoservice.processor)
     // 聊天机器人
     implementation(libs.mirai.overflow)
     // 定时任务
@@ -59,10 +61,14 @@ dependencies {
     // 工具
     implementation(libs.atomicfu)
     implementation(libs.mapdb)
+    implementation(libs.caffeine)
+    implementation(libs.lucene.core)
+    implementation(libs.lucene.analyzers.common)
+    implementation(libs.kotlinx.cli)
     implementation(libs.playwright)
     implementation(libs.flexmark.html2md)
     implementation(libs.flexmark.ext.tables)
-    implementation("io.ktor:ktor-client-cio-jvm:3.3.2")
+    compileOnly(libs.autoservice.annotations)
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)

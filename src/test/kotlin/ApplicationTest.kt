@@ -22,8 +22,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.core.history.HistoryEntity
-import uesugi.core.history.MessageType
+import uesugi.core.message.history.HistoryEntity
+import uesugi.core.message.history.MessageType
 import uesugi.toolkit.EventBus
 import kotlin.test.Test
 import kotlin.time.ExperimentalTime
