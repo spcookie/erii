@@ -6,20 +6,30 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.resource.ResourceTable
+import uesugi.core.state.emotion.EmotionTable
+import uesugi.core.state.evolution.LearnedVocabTable
+import uesugi.core.state.flow.FlowStateTable
+import uesugi.core.state.memo.MemoScanStateTable
+import uesugi.core.state.memo.MemoTable
+import uesugi.core.state.memory.FactsTable
+import uesugi.core.state.memory.MemoryStateTable
+import uesugi.core.state.memory.SummaryTable
+import uesugi.core.state.memory.UserProfileTable
+import uesugi.core.state.volition.VolitionStateTable
 
 fun migration(database: Database) {
     transaction(database) {
         val migration = MigrationUtils.statementsRequiredForDatabaseMigration(
             HistoryTable,
             ResourceTable,
-            _root_ide_package_.uesugi.core.state.emotion.EmotionTable,
-            _root_ide_package_.uesugi.core.state.memory.FactsTable,
-            _root_ide_package_.uesugi.core.state.memory.UserProfileTable,
-            _root_ide_package_.uesugi.core.state.memory.SummaryTable,
-            _root_ide_package_.uesugi.core.state.memory.MemoryStateTable,
-            _root_ide_package_.uesugi.core.state.evolution.LearnedVocabTable,
-            _root_ide_package_.uesugi.core.state.flow.FlowStateTable,
-            _root_ide_package_.uesugi.core.state.volition.VolitionStateTable
+            EmotionTable,
+            FactsTable,
+            UserProfileTable,
+            SummaryTable,
+            MemoryStateTable,
+            LearnedVocabTable,
+            FlowStateTable,
+            VolitionStateTable
         )
         execInBatch(migration)
     }
@@ -30,22 +40,24 @@ private fun init(database: Database) {
         SchemaUtils.create(
             HistoryTable,
             ResourceTable,
-            _root_ide_package_.uesugi.core.state.emotion.EmotionTable,
-            _root_ide_package_.uesugi.core.state.memory.FactsTable,
-            _root_ide_package_.uesugi.core.state.memory.UserProfileTable,
-            _root_ide_package_.uesugi.core.state.memory.SummaryTable,
-            _root_ide_package_.uesugi.core.state.memory.MemoryStateTable,
-            _root_ide_package_.uesugi.core.state.evolution.LearnedVocabTable,
-            _root_ide_package_.uesugi.core.state.flow.FlowStateTable,
-            _root_ide_package_.uesugi.core.state.volition.VolitionStateTable,
+            EmotionTable,
+            FactsTable,
+            UserProfileTable,
+            SummaryTable,
+            MemoryStateTable,
+            LearnedVocabTable,
+            FlowStateTable,
+            VolitionStateTable,
+            MemoTable,
+            MemoScanStateTable,
             inBatch = true
         )
     }
 }
 
 fun migrationIf(condition: Boolean, database: Database) {
-    _root_ide_package_.uesugi.config.init(database)
+    init(database)
     if (condition) {
-        _root_ide_package_.uesugi.config.migration(database)
+        migration(database)
     }
 }

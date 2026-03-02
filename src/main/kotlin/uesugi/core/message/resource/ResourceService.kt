@@ -19,4 +19,10 @@ class ResourceService {
         }
     }
 
+    fun getResource(id: Int): ResourceRecord? {
+        return transaction {
+            ResourceEntity.findById(id)?.toRecord()
+        }
+    }
+
 }

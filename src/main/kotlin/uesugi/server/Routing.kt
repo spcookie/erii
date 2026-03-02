@@ -10,17 +10,11 @@ import io.ktor.server.plugins.doublereceive.*
 import io.ktor.server.resources.*
 import io.ktor.server.routing.*
 import uesugi.routing.configureBotStatus
+import uesugi.routing.configureMemo
 import uesugi.toolkit.JSON
 
 fun Application.configureRouting() {
     install(Resources)
-//    install(RequestValidation) {
-//        validate<String> { bodyText ->
-//            if (!bodyText.startsWith("Hello"))
-//                ValidationResult.Invalid("Body text should start with 'Hello'")
-//            else ValidationResult.Valid
-//        }
-//    }
     install(DoubleReceive)
     install(AutoHeadResponse)
     install(ContentNegotiation) {
@@ -28,6 +22,7 @@ fun Application.configureRouting() {
     }
     routing {
         configureBotStatus()
+        configureMemo()
         authenticate("basic") {
             staticResources("/", "public")
         }

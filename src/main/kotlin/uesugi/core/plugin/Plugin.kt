@@ -342,7 +342,7 @@ internal class KvImpl(val defined: PluginDef) : Kv {
 internal class BlobImpl(val defined: PluginDef) : Blob {
 
     private val default by lazy {
-        LocalFileStorage(
+        LocalObjectStorage(
             baseDir = "./store/object/plugins".toPath().resolve(defined.name)
         )
     }
@@ -370,7 +370,7 @@ internal class MetaImpl(
 
 internal class DatabaseImpl : Database {
     override suspend fun getHistory(query: () -> Query): List<HistoryRecord> {
-        val storage by ref<FileStorage>()
+        val storage by ref<ObjectStorage>()
         return withContext(Dispatchers.IO) {
             transaction {
                 query().map {
