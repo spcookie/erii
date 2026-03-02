@@ -32,7 +32,7 @@ import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.core.route.RoutingAgent
 import uesugi.toolkit.EventBus
-import uesugi.toolkit.FileStorage
+import uesugi.toolkit.ObjectStorage
 import uesugi.toolkit.logger
 import java.net.URL
 import kotlin.coroutines.CoroutineContext
@@ -55,7 +55,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
     private val resourceService by GlobalContext.get().inject<ResourceService>()
 
-    private val storage by GlobalContext.get().inject<FileStorage>()
+    private val storage by GlobalContext.get().inject<ObjectStorage>()
 
     private val COMMAND_REGEX = Regex("^/([A-Za-z0-9]+)")
 

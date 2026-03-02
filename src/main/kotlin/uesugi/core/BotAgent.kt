@@ -30,20 +30,29 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonNull
+import net.mamoe.mirai.contact.Contact.Companion.sendImage
+import okio.Path.Companion.toPath
+import okio.buffer
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.koin.core.context.GlobalContext
 import uesugi.BotManage
 import uesugi.LOG
 import uesugi.config.LLMModelsChoice
 import uesugi.core.message.history.HistoryRecord
 import uesugi.core.message.history.HistorySavedEvent
 import uesugi.core.message.history.HistoryService
+import uesugi.core.message.resource.ResourceService
 import uesugi.core.state.emotion.*
 import uesugi.core.state.emotion.EmojiLevel.*
+import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.evolution.VocabularyService
 import uesugi.core.state.flow.FlowGaugeManager
 import uesugi.core.state.flow.FlowMeterState
+import uesugi.core.state.memo.MemoResource
+import uesugi.core.state.memo.MemoService
+import uesugi.core.state.memory.FactsEntity
 import uesugi.core.state.memory.MemoryService
+import uesugi.core.state.memory.SummaryEntity
+import uesugi.core.state.memory.UserProfileEntity
 import uesugi.toolkit.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
@@ -206,19 +215,19 @@ private fun applyEmojiLevel(
     when (emojiLevel) {
 
         NONE -> {
-            constraints.forbiddenHints += "不使用 Emoji"
+            constraints.forbiddenHints += "不使用 Emoji/表情包"
         }
 
         LOW -> {
-            constraints.styleHints += "如使用 Emoji，最多一个"
+            constraints.styleHints += "如使用 Emoji/表情包，最多一个"
         }
 
         MEDIUM -> {
-            constraints.styleHints += "可适度使用 Emoji 辅助语气"
+            constraints.styleHints += "可适度使用 Emoji/表情包 辅助语气"
         }
 
         HIGH -> {
-            constraints.styleHints += "可较频繁使用 Emoji 增强情绪"
+            constraints.styleHints += "可较频繁使用 Emoji/表情包 增强情绪"
         }
     }
 }
@@ -279,22 +288,23 @@ data class Context(
     val behaviorProfile: suspend () -> BehaviorProfile?,
     val flow: () -> Double,
     val flowState: () -> FlowMeterState,
-    val facts: suspend () -> List<uesugi.core.state.memory.FactsEntity>,
-    val userProfiles: suspend () -> List<uesugi.core.state.memory.UserProfileEntity>,
-    val vocabulary: suspend () -> List<uesugi.core.state.evolution.LearnedVocabEntity>,
-    val summary: suspend () -> uesugi.core.state.memory.SummaryEntity?,
+    val facts: suspend () -> List<FactsEntity>,
+    val userProfiles: suspend () -> List<UserProfileEntity>,
+    val vocabulary: suspend () -> List<LearnedVocabEntity>,
+    val summary: suspend () -> SummaryEntity?,
     val histories: suspend () -> List<HistoryRecord>,
-    val moreHistories: suspend () -> List<HistoryRecord>
+    val moreHistories: suspend () -> List<HistoryRecord>,
+    val memo: suspend (String) -> MemoResource?,
 ) {
 
     data class Transient(
         val behaviorProfile: BehaviorProfile?,
         val flow: Double,
         val flowState: FlowMeterState,
-        val facts: List<uesugi.core.state.memory.FactsEntity>,
-        val userProfiles: List<uesugi.core.state.memory.UserProfileEntity>,
-        val vocabulary: List<uesugi.core.state.evolution.LearnedVocabEntity>,
-        val summary: uesugi.core.state.memory.SummaryEntity?,
+        val facts: List<FactsEntity>,
+        val userProfiles: List<UserProfileEntity>,
+        val vocabulary: List<LearnedVocabEntity>,
+        val summary: SummaryEntity?,
         val histories: List<HistoryRecord>,
         val moreHistories: List<HistoryRecord>
     )
@@ -317,11 +327,14 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
     val currentBotId = event.botId
     val groupId = event.groupId
     val echo = event.echo
-    val emotionService by GlobalContext.get().inject<EmotionService>()
-    val memoryService by GlobalContext.get().inject<MemoryService>()
-    val historyService by GlobalContext.get().inject<HistoryService>()
-    val vocabularyService by GlobalContext.get().inject<VocabularyService>()
-    val flowGaugeManager by GlobalContext.get().inject<FlowGaugeManager>()
+    val emotionService: EmotionService by ref()
+    val memoryService: MemoryService by ref()
+    val historyService: HistoryService by ref()
+    val resourceService: ResourceService by ref()
+    val vocabularyService: VocabularyService by ref()
+    val flowGaugeManager: FlowGaugeManager by ref()
+    val memoService: MemoService by ref()
+    val objectStorage: ObjectStorage by ref()
     return transaction {
         Context(
             currentBotId = currentBotId,
@@ -392,7 +405,26 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
                         historyService.getLatestHistory(currentBotId, groupId, 85, 12.hours)
                     }
                 }
-            }
+            },
+            memo = { key ->
+                withContext(Dispatchers.IO) {
+                    val record = memoService.searchByVector(currentBotId, groupId, key, 1)
+                        .filter { it.second > 0.5 }
+                        .map { it.first }
+                        .firstOrNull() ?: return@withContext null
+                    val resource = resourceService.getResource(record.resourceId) ?: return@withContext null
+                    val bytes = objectStorage.get(resource.url.toPath())
+                        .buffer()
+                        .readByteArray()
+                    MemoResource(
+                        id = record.id!!,
+                        botId = record.botId,
+                        groupId = record.groupId,
+                        resourceId = record.resourceId,
+                        bytes = bytes
+                    )
+                }
+            },
         )
     }
 }
@@ -588,8 +620,8 @@ private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?, 
                 buildFusion()
                 horizontalRule()
                 buildMetadataPrompt()
-                horizontalRule()
-                buildDuplicateRestrictionRulePrompt()
+//                horizontalRule()
+//                buildDuplicateRestrictionRulePrompt()
             }
         }
         user {
@@ -651,7 +683,7 @@ fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechConstraints
     }
 }
 
-fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<uesugi.core.state.evolution.LearnedVocabEntity>) {
+fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<LearnedVocabEntity>) {
     if (vocabulary.isNotEmpty()) {
         h2("群聊常用语（可自然使用，不必每条都用）")
         for (learnedVocabEntity in vocabulary) {
@@ -667,7 +699,7 @@ fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<uesugi.core.st
     }
 }
 
-fun MarkdownContentBuilder.buildFactsPrompt(facts: List<uesugi.core.state.memory.FactsEntity>) {
+fun MarkdownContentBuilder.buildFactsPrompt(facts: List<FactsEntity>) {
     if (facts.isNotEmpty()) {
         h2("已知长期事实（参考即可，无需逐条复述）")
         bulleted {
@@ -680,7 +712,7 @@ fun MarkdownContentBuilder.buildFactsPrompt(facts: List<uesugi.core.state.memory
     }
 }
 
-fun MarkdownContentBuilder.buildUserProfilesPrompt(userProfiles: List<uesugi.core.state.memory.UserProfileEntity>) {
+fun MarkdownContentBuilder.buildUserProfilesPrompt(userProfiles: List<UserProfileEntity>) {
     if (userProfiles.isNotEmpty()) {
         h2("活跃成员互动提示（仅参考，不要复述）")
         numbered {
@@ -693,7 +725,7 @@ fun MarkdownContentBuilder.buildUserProfilesPrompt(userProfiles: List<uesugi.cor
     }
 }
 
-fun MarkdownContentBuilder.buildSummaryPrompt(summary: uesugi.core.state.memory.SummaryEntity?) {
+fun MarkdownContentBuilder.buildSummaryPrompt(summary: SummaryEntity?) {
     summary?.let { summary ->
         h2("当前群聊背景（供你快速进入状态）")
         line { text(summary.content) }
@@ -829,7 +861,8 @@ suspend fun isRelevanceContinue(histories: List<HistoryRecord>, currentBotId: St
 class ChatToolSet(
     val context: Context,
     private val scope: CoroutineScope,
-    private val sendMessage: suspend (String) -> Unit
+    private val sendMessage: suspend (String) -> Unit,
+    private val sendImage: suspend (ByteArray) -> Unit
 ) : ToolSet {
 
     companion object {
@@ -840,7 +873,56 @@ class ChatToolSet(
     @Serializable
     data class Sentences(
         @property:LLMDescription("回复默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。")
-        val sentences: List<String>
+        val sentences: List<Sentence>
+    )
+
+    @LLMDescription("消息类型。只能为 TEXT 或 MEMO。")
+    enum class SentenceType {
+        TEXT,
+        MEMO
+    }
+
+    @Serializable
+    @LLMDescription(
+        """
+    单条消息结构。
+    规则：
+    - type=TEXT 时，必须填写 text，不能填写 configureMemo 和 alt
+    - type=MEMO 时，必须填写 configureMemo 和 alt，不能填写 text
+    - 不允许输出 null
+    """
+    )
+    data class Sentence(
+
+        @property:LLMDescription("消息类型。")
+        val type: SentenceType,
+
+        @property:LLMDescription(
+            """
+        当 type=text 时必须填写。
+        要发送的文本内容。
+        """
+        )
+        val text: String? = null,
+
+        @property:LLMDescription(
+            """
+        当 type=configureMemo 时必须填写。
+        用于向量匹配的语义标签。
+        2-6 个字的抽象语义。
+        示例：震惊、无语、嘲讽、大笑
+        """
+        )
+        val memo: String? = null,
+
+        @property:LLMDescription(
+            """
+        当 type=configureMemo 时必须填写。
+        若匹配不到表情包时发送的替代文本。
+        必须是自然语言句子。
+        """
+        )
+        val alt: String? = null
     )
 
     fun send(sentences: List<String>): Job {
@@ -859,14 +941,26 @@ class ChatToolSet(
     @OptIn(ExperimentalCoroutinesApi::class)
     @LLMDescription("回复消息，返回群其他人的回复")
     @Tool
-    internal suspend fun sendAndReceive(@LLMDescription("回复默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。") sentences: List<String>): String? {
+    internal suspend fun sendAndReceive(@LLMDescription("回复默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。") sentence: Sentences): String? {
         try {
+            val sentences = sentence.sentences
+            val contents = sentences.map {
+                when (it.type) {
+                    SentenceType.TEXT -> {
+                        it.text!!
+                    }
+
+                    SentenceType.MEMO -> {
+                        it.alt!!
+                    }
+                }
+            }
             EventBus.postSync(
                 AgentBeforeSendAndReceiveEvent(
                     context.currentBotId,
                     context.groupId,
                     context.echo,
-                    sentences
+                    contents
                 )
             )
 
@@ -907,12 +1001,29 @@ class ChatToolSet(
                 }
             }
 
+            suspend fun sendSentence(sentence: Sentence) {
+                when (sentence.type) {
+                    SentenceType.TEXT -> {
+                        sendMessage(sentence.text!!)
+                    }
+
+                    SentenceType.MEMO -> {
+                        val memo = context.memo(sentence.memo!!)
+                        if (memo != null) {
+                            sendImage(memo.bytes)
+                        } else {
+                            sendMessage(sentence.alt!!)
+                        }
+                    }
+                }
+            }
+
             val deferred = scope.async {
                 var skip = false
                 var content: String? = null
                 for ((i, sentence) in sentences.withIndex()) {
                     if (i == 1) {
-                        sendMessage(sentence)
+                        sendSentence(sentence)
                     } else {
                         select {
                             historyChannel.onReceiveCatching { result ->
@@ -947,9 +1058,20 @@ class ChatToolSet(
                                 }
                             }
 
-                            onTimeout(calcHumanTypingDelay(sentence).milliseconds) {
-                                sendMessage(sentence)
+                            when (sentence.type) {
+                                SentenceType.TEXT -> {
+                                    onTimeout(calcHumanTypingDelay(sentence.text!!).milliseconds) {
+                                        sendSentence(sentence)
+                                    }
+                                }
+
+                                SentenceType.MEMO -> {
+                                    onTimeout(0) {
+                                        sendSentence(sentence)
+                                    }
+                                }
                             }
+
                         }
                     }
                     if (skip) break
@@ -959,7 +1081,7 @@ class ChatToolSet(
                         context.currentBotId,
                         context.groupId,
                         context.echo,
-                        sentences
+                        contents
                     )
                 )
                 if (!skip) {
@@ -1170,9 +1292,15 @@ object BotAgent {
                             val sendMessage: suspend (String) -> Unit = { message ->
                                 val groupId = event.groupId
                                 val bot = currentBot.refBot
-                                bot.launch {
-                                }
                                 bot.getGroup(groupId.toLong())?.sendMessage(message)
+                            }
+
+                            val sendImage: suspend (ByteArray) -> Unit = { bytes ->
+                                val groupId = event.groupId
+                                val bot = currentBot.refBot
+                                bytes.inputStream().use { image ->
+                                    bot.getGroup(groupId.toLong())?.sendImage(image)
+                                }
                             }
 
                             val context = buildContext(event)
@@ -1210,7 +1338,8 @@ object BotAgent {
                             val chatToolSet = ChatToolSet(
                                 context,
                                 toolScope,
-                                sendMessage
+                                sendMessage,
+                                sendImage
                             )
 
                             val toolSets = event.toolSets?.invoke(chatToolSet)

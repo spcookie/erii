@@ -5,7 +5,7 @@ import okio.Path
 import okio.Source
 import okio.buffer
 
-interface FileStorage {
+interface ObjectStorage {
 
     /** 写入（覆盖） */
     fun put(path: Path, source: Source)
@@ -24,10 +24,10 @@ interface FileStorage {
 }
 
 
-class LocalFileStorage(
+class LocalObjectStorage(
     private val baseDir: Path,
     private val fs: FileSystem = FileSystem.SYSTEM
-) : FileStorage {
+) : ObjectStorage {
 
     init {
         fs.createDirectories(baseDir)

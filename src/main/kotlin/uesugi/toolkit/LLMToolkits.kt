@@ -4,9 +4,15 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.prompt.markdown.MarkdownContentBuilder
+import com.fasterxml.jackson.databind.JsonNode
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import uesugi.LOG
+import uesugi.config.HttpClientFactory
+import java.io.IOException
 import kotlin.random.Random
 
 /**
@@ -152,6 +158,38 @@ object WebSearchTool : ToolSet {
         } catch (e: Exception) {
             log.error("webSearch failed: {}", e.message, e)
             "搜索/抓取失败"
+        }
+    }
+}
+
+object EmbeddingUtil {
+    private val client = HttpClientFactory().createClient()
+
+    suspend fun embedding(input: String): FloatArray {
+        return embedding(listOf(input)).first()
+    }
+
+    suspend fun embedding(input: List<String>): List<FloatArray> {
+        val node: JsonNode = client.post("https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(System.getenv("VOLCENGINE_API_KEY"))
+            setBody(
+                mapOf(
+                    "input" to input.map { mapOf("type" to "text", "text" to it) },
+                    "model" to "doubao-embedding-vision-250615",
+                    "dimensions" to 1024
+                )
+            )
+        }.body()
+
+        if (node.has("error")) {
+            throw IOException(node.path("error").asText())
+        }
+
+        return buildList {
+            for (embedding in node.path("data")) {
+                add(embedding.map { it.floatValue() }.toFloatArray())
+            }
         }
     }
 }

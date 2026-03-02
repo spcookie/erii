@@ -42,7 +42,6 @@ dependencies {
     implementation(libs.ktor.server.call.logging)
     implementation(libs.ktor.server.call.id)
     implementation(libs.ktor.server.resources)
-    implementation(libs.ktor.server.request.validation)
     implementation(libs.ktor.server.double.receive)
     implementation(libs.ktor.server.auto.head.response)
     implementation(libs.ktor.server.auth)

@@ -19,6 +19,7 @@ import uesugi.core.state.evolution.EvolutionJob
 import uesugi.core.state.evolution.VocabularyService
 import uesugi.core.state.flow.FlowGaugeManager
 import uesugi.core.state.flow.FlowJob
+import uesugi.core.state.memo.*
 import uesugi.core.state.memory.MemoryJob
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.volition.VolitionGaugeManager
@@ -35,12 +36,14 @@ fun Application.warmUp() {
         it.get<VolitionJob>().apply { openTimingTriggerSignal() }
         it.get<EvolutionJob>().apply { openTimingTriggerSignal() }
         it.get<FlowJob>().apply { openTimingTriggerSignal() }
+        it.get<MemoCollectJob>().apply { openTimingTriggerSignal() }
+        it.get<MemoExtractJob>().apply { openTimingTriggerSignal() }
     }
 }
 
 fun Application.configBaseModule() = koinModule {
-    single<FileStorage> {
-        LocalFileStorage(
+    single<ObjectStorage> {
+        LocalObjectStorage(
             baseDir = "./store/object".toPath()
         )
     }
@@ -81,6 +84,9 @@ val serviceModule = module {
     singleOf(::MemoryService)
     singleOf(::HistoryService)
     singleOf(::ResourceService)
+    single { MemoVectorStoreFactory() }
+    single { MemoService(get()) }
+    single { MemoAgent() }
     single { FlowGaugeManager() } onClose { it?.stopAll() }
     single { VolitionGaugeManager() } onClose { it?.stopAll() }
 }
@@ -91,6 +97,8 @@ val jobModule = module {
     single { FlowJob(get()) }
     single { VolitionJob(get()) }
     single { EvolutionJob(get()) }
+    single { MemoCollectJob(get()) }
+    single { MemoExtractJob(get(), get()) }
 }
 
 val gatewayModule = module {
