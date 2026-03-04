@@ -20,7 +20,7 @@ class MemoVectorStoreFactory {
     fun getStore(botMark: String, groupId: String): VectorStore {
         val key = "${botMark}_$groupId"
         return stores.getOrPut(key) {
-            val path = Paths.get("./store/vector/configureMemo/$key")
+            val path = Paths.get("./store/vector/memo/$key")
             EmbeddedVectorStore(path, DIMENSION)
         }
     }

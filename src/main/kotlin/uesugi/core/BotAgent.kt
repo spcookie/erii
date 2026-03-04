@@ -444,30 +444,9 @@ data class ChatPoint(
     val topic: String,
     @property:LLMDescription("推荐语气/互动方式，例如 “轻度调侃” / “共鸣” / “顺带回应”")
     val toneHint: String,
-    @property:LLMDescription("消息类型，辅助生成策略")
-    val actionType: ActionType = ActionType.GENERAL,
     @property:LLMDescription("优先级（0~100，可用于排序）")
     val importance: Int = 50
 )
-
-
-@Suppress("unused")
-enum class ActionType {
-    @LLMDescription("用户提问")
-    QUESTION,
-
-    @LLMDescription("用户吐槽、抱怨")
-    COMPLAINT,
-
-    @LLMDescription("用户日常分享、进展")
-    DAILY_SHARE,
-
-    @LLMDescription("用户分享群梗、表情、段子")
-    MEME_OR_BROKEN,
-
-    @LLMDescription("用户分享其他内容")
-    GENERAL
-}
 
 @Serializable
 @SerialName("ChatPoints")
@@ -475,9 +454,19 @@ data class ChatPoints(
     val chatPoints: List<ChatPoint>
 )
 
-private suspend fun buildChatPoint(historyEntities: List<HistoryRecord>, rules: String? = null): List<ChatPoint> {
+private suspend fun buildChatPoint(
+    historyEntities: List<HistoryRecord>,
+    rules: String? = null,
+    currentBotId: String
+): List<ChatPoint> {
     val msg =
-        historyEntities.map { "[id:${it.id} userId:${it.userId} username:${it.nick} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
+        historyEntities.map {
+            "${if (it.userId == currentBotId) "[我]" else ""}[userId:${it.userId} username:${it.nick} ${
+                it.createdAt.format(
+                    DateTimeFormat
+                )
+            }] ${it.content}"
+        }
             .toList()
 
     val promptExecutor by ref<PromptExecutor>()
@@ -494,8 +483,9 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryRecord>, rules: 
             2. username：用户名/昵称  
             3. topic：消息主题或关键内容摘要，最多一句话  
             4. toneHint：推荐语气/互动方式，例如“顺带回应”、“轻度调侃”、“共鸣”、“模仿梗”等  
-            5. actionType：消息类型，选择之一：[QUESTION, COMPLAINT, DAILY_SHARE, MEME_OR_BROKEN, GENERAL]  
-            6. importance：可选字段（0~100），表示优先级 
+            5. importance：可选字段（0~100），表示优先级 
+            
+            注意：带有“[我]”的聊天点表示该消息由机器人发出。
              
             额外规则：
             $rules
@@ -515,7 +505,7 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryRecord>, rules: 
 
     val result = promptExecutor.executeStructured<ChatPoints>(
         prompt = prompt,
-        model = LLMModelsChoice.Flash,
+        model = LLMModelsChoice.Lite,
         fixingParser = StructureFixingParser(
             model = LLMModelsChoice.Lite,
             retries = 2
@@ -528,7 +518,6 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryRecord>, rules: 
                         username = "User",
                         topic = "This is a sample chat point.",
                         toneHint = "Neutral",
-                        actionType = ActionType.GENERAL,
                         importance = 50
                     )
                 )
@@ -668,9 +657,10 @@ fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
     if (chatPoints.isNotEmpty()) {
         header(2, "最近可接的聊天点（仅参考，不必复述）")
         bulleted {
-            chatPoints.forEach { cp ->
+            chatPoints.sortedByDescending { it.importance }
+                .forEach { cp ->
                 val username = cp.username?.let { "@$it" } ?: "用户${cp.userId}"
-                item { line { text("$username 提到“${cp.topic}” → ${cp.toneHint}") } }
+                    item { line { text("$username 提到“${cp.topic}” → ${cp.toneHint} 优先级：${cp.importance}") } }
             }
         }
     }
@@ -1239,7 +1229,11 @@ object BotAgent {
                                     try {
                                         if (event.chatPointRule != null) {
                                             log.info("Bot agent build chat point rule")
-                                            chatPoints = buildChatPoint(context.moreHistories(), event.chatPointRule)
+                                            chatPoints = buildChatPoint(
+                                                context.moreHistories(),
+                                                event.chatPointRule,
+                                                event.botId
+                                            )
                                         }
                                     } catch (e: Exception) {
                                         log.warn("build chat point rule error: {}", e.message, e)

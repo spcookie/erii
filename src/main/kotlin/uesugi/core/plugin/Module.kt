@@ -23,13 +23,14 @@ fun pluginModule() = module(createdAtStart = true) {
             CmdRuleRegister.addRule(argParser.programName, argParser)
         }
 
-    val mem = MemImpl()
     val extension = DatabaseImpl()
 
     plugins.forEach { plugin ->
         val pluginDef = buildPluginDef(plugin)
+        val mem = MemImpl()
         val kv = KvImpl(pluginDef)
         val blob = BlobImpl(pluginDef)
+        val vector = VectorImpl(pluginDef)
 
         var context: PluginContext? = null
 
@@ -39,6 +40,7 @@ fun pluginModule() = module(createdAtStart = true) {
                 mem,
                 kv,
                 blob,
+                vector,
                 extension,
                 get(),
                 get(),
@@ -47,6 +49,10 @@ fun pluginModule() = module(createdAtStart = true) {
             ).apply { open() }
             plugin.apply { onLoad(context) }
         } onClose {
+            mem.close()
+            kv.close()
+            blob.close()
+            vector.close()
             context?.close()
             it?.onUnload()
         }

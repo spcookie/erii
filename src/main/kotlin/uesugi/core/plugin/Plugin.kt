@@ -62,6 +62,7 @@ interface PluginContext : AutoCloseable {
     val mem: Mem
     val kv: Kv
     val blob: Blob
+    val vector: Vector
 
     val database: Database
 
@@ -103,24 +104,37 @@ enum class ExpireStrategy {
     AFTER_ACCESS
 }
 
-interface Mem {
-    fun get(key: String): String?
-    fun set(key: String, value: String)
-    fun set(key: String, value: String, expire: Duration, strategy: ExpireStrategy)
-    fun delete(key: String)
+interface Mem : AutoCloseable {
+    suspend fun get(key: String): String?
+    suspend fun set(key: String, value: String)
+    suspend fun set(key: String, value: String, expire: Duration, strategy: ExpireStrategy)
+    suspend fun delete(key: String)
 }
 
-interface Kv {
-    fun get(key: String): String?
-    fun set(key: String, value: String)
-    fun set(key: String, value: String, expire: Duration, strategy: ExpireStrategy)
-    fun delete(key: String)
+interface Kv : AutoCloseable {
+    suspend fun get(key: String): String?
+    suspend fun set(key: String, value: String)
+    suspend fun set(key: String, value: String, expire: Duration, strategy: ExpireStrategy)
+    suspend fun delete(key: String)
 }
 
-interface Blob {
-    fun get(path: Path): InputStream
-    fun set(path: Path, value: InputStream)
-    fun delete(path: Path)
+interface Blob : AutoCloseable {
+    suspend fun get(path: Path): InputStream
+    suspend fun set(path: Path, value: InputStream)
+    suspend fun delete(path: Path)
+}
+
+interface Vector : AutoCloseable {
+    suspend fun embedding(input: List<String>, images: List<ByteArray>): FloatArray
+    suspend fun search(queryVector: FloatArray, topK: Int, filter: Map<String, String>? = null): List<SearchResult>
+    suspend fun upsert(id: String, content: String, vector: FloatArray)
+    suspend fun delete(id: String)
+
+    data class SearchResult(
+        val id: String,
+        val content: String,
+        val score: Float
+    )
 }
 
 interface Meta {
@@ -138,13 +152,13 @@ interface Database {
 
 fun Meta.sendAgent(
     input: String,
-    state: SendAgentState
+    state: SendAgentStateDsl? = null,
 ) = sendAgent(input, SendAgentConf(), state)
 
 fun Meta.sendAgent(
     input: String,
     conf: SendAgentConf = SendAgentConf(),
-    state: SendAgentState
+    state: SendAgentStateDsl? = null
 ) = sendAgent(botId, groupId, input, conf, state)
 
 interface SendAgentState {
@@ -169,66 +183,166 @@ data class SendAgentConf(
     val echo: String = Uuid.random().toHexString(),
 )
 
+typealias SendAgentStateDsl = SendAgentStateBuilder.() -> CoroutineScope
+
+@Suppress("UNUSED")
+class SendAgentStateBuilder(
+    private val holder: MutableMap<String, Any>
+) {
+
+    fun sendBefore(builder: (sentences: List<String>) -> Unit) {
+        holder["sendBefore"] = builder
+    }
+
+    fun sendAfter(builder: (sentences: List<String>) -> Unit) {
+        holder["sendAfter"] = builder
+    }
+
+    fun sendReplay(builder: (sentence: String) -> Unit) {
+        holder["sendReplay"] = builder
+    }
+
+    fun sendClosed(builder: () -> Unit) {
+        holder["sendClosed"] = builder
+    }
+
+    fun sendFinally(builder: () -> Unit) {
+        holder["sendFinally"] = builder
+    }
+
+    fun dispatchReject(builder: () -> Unit) {
+        holder["dispatchReject"] = builder
+    }
+
+    fun dispatchFallback(builder: () -> Unit) {
+        holder["dispatchFallback"] = builder
+    }
+
+    fun callStart(builder: () -> Unit) {
+        holder["callStart"] = builder
+    }
+
+    fun callCompletion(builder: () -> Unit) {
+        holder["callCompletion"] = builder
+    }
+}
+
 fun sendAgent(
     botId: String,
     groupId: String,
     input: String,
-    state: SendAgentState
-) = sendAgent(botId, groupId, input, SendAgentConf(), state)
+    dsl: SendAgentStateDsl? = null
+) = sendAgent(botId, groupId, input, SendAgentConf(), dsl)
 
 fun sendAgent(
     botId: String,
     groupId: String,
     input: String,
     conf: SendAgentConf = SendAgentConf(),
-    state: SendAgentState
+    dsl: SendAgentStateDsl? = null
 ) {
-    val (chatPointRule, webSearch, toolSets, flag, echo) = conf
-    val lifeCycleRef = mutableListOf<(AgentSendLifeCycleEvent) -> Unit>()
-    val lifeCycleSubscriber: (AgentSendLifeCycleEvent) -> Unit = { event ->
-        val lifeCycleEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
-        if (lifeCycleEvent != null) {
-            when (lifeCycleEvent) {
-                is AgentBeforeSendAndReceiveEvent -> state.sendBefore(lifeCycleEvent.sentences)
-                is AgentAfterSendAndReceiveEvent -> state.sendAfter(lifeCycleEvent.sentences)
-                is AgentReceiveReplyEvent -> state.sendReplay(lifeCycleEvent.sentence)
-                is AgentSendAndReceiveClosedEvent -> state.sendClosed()
-                is AgentSendAndReceiveFinallyEvent -> state.sendFinally()
+    val holder = mutableMapOf<String, Any>()
+    val fn = dsl?.let {
+        val scope = SendAgentStateBuilder(holder).dsl()
+        @Suppress("UNCHECKED_CAST")
+        object : SendAgentState {
+            override val scope = scope
+
+            override fun sendBefore(sentences: List<String>) {
+                (holder["sendBefore"] as? (List<String>) -> Unit)?.invoke(sentences)
+            }
+
+            override fun sendAfter(sentences: List<String>) {
+                (holder["sendAfter"] as? (List<String>) -> Unit)?.invoke(sentences)
+            }
+
+            override fun sendReplay(sentence: String) {
+                (holder["sendReplay"] as? (String) -> Unit)?.invoke(sentence)
+            }
+
+            override fun sendClosed() {
+                (holder["sendClosed"] as? () -> Unit)?.invoke()
+            }
+
+            override fun sendFinally() {
+                (holder["sendFinally"] as? () -> Unit)?.invoke()
+            }
+
+            override fun dispatchReject() {
+                (holder["dispatchReject"] as? () -> Unit)?.invoke()
+            }
+
+            override fun dispatchFallback() {
+                (holder["dispatchFallback"] as? () -> Unit)?.invoke()
+            }
+
+            override fun callStart() {
+                (holder["callStart"] as? () -> Unit)?.invoke()
+            }
+
+            override fun callCompletion() {
+                (holder["callCompletion"] as? () -> Unit)?.invoke()
             }
         }
     }
-    lifeCycleRef += lifeCycleSubscriber
-    EventBus.subscribeSync<AgentSendLifeCycleEvent>(lifeCycleSubscriber)
+    sendAgent(botId, groupId, input, conf, fn)
+}
 
-    val dispatchRef = mutableListOf<Job>()
-    val dispatchSubscriber: suspend (AgentDispatchEvent) -> Unit = { event ->
-        val dispatchEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
-        if (dispatchEvent != null) {
-            when (dispatchEvent) {
-                is AgentRejectGrabEvent -> {
-                    state.dispatchReject()
+private fun sendAgent(
+    botId: String,
+    groupId: String,
+    input: String,
+    conf: SendAgentConf = SendAgentConf(),
+    state: SendAgentState? = null
+) {
+    val (chatPointRule, webSearch, toolSets, flag, echo) = conf
+    if (state != null) {
+        val lifeCycleRef = mutableListOf<(AgentSendLifeCycleEvent) -> Unit>()
+        val lifeCycleSubscriber: (AgentSendLifeCycleEvent) -> Unit = { event ->
+            val lifeCycleEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
+            if (lifeCycleEvent != null) {
+                when (lifeCycleEvent) {
+                    is AgentBeforeSendAndReceiveEvent -> state.sendBefore(lifeCycleEvent.sentences)
+                    is AgentAfterSendAndReceiveEvent -> state.sendAfter(lifeCycleEvent.sentences)
+                    is AgentReceiveReplyEvent -> state.sendReplay(lifeCycleEvent.sentence)
+                    is AgentSendAndReceiveClosedEvent -> state.sendClosed()
+                    is AgentSendAndReceiveFinallyEvent -> state.sendFinally()
                 }
+            }
+        }
+        lifeCycleRef += lifeCycleSubscriber
+        EventBus.subscribeSync<AgentSendLifeCycleEvent>(lifeCycleSubscriber)
 
-                is AgentFallbackEvent -> {
-                    state.dispatchFallback()
-                }
+        val dispatchRef = mutableListOf<Job>()
+        val dispatchSubscriber: suspend (AgentDispatchEvent) -> Unit = { event ->
+            val dispatchEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
+            if (dispatchEvent != null) {
+                when (dispatchEvent) {
+                    is AgentRejectGrabEvent -> {
+                        state.dispatchReject()
+                    }
 
-                is AgentCallStartEvent -> {
-                    state.callStart()
-                }
+                    is AgentFallbackEvent -> {
+                        state.dispatchFallback()
+                    }
 
-                is AgentCallCompletionEvent -> {
-                    try {
-                        state.callCompletion()
-                    } finally {
-                        dispatchRef.forEach { EventBus.unsubscribeAsync(it) }
-                        lifeCycleRef.forEach { EventBus.unsubscribeSync<AgentSendLifeCycleEvent>(it) }
+                    is AgentCallStartEvent -> {
+                        state.callStart()
+                    }
+
+                    is AgentCallCompletionEvent -> {
+                        try {
+                            state.callCompletion()
+                        } finally {
+                            dispatchRef.forEach { EventBus.unsubscribeAsync(it) }
+                            lifeCycleRef.forEach { EventBus.unsubscribeSync<AgentSendLifeCycleEvent>(it) }
+                        }
                     }
                 }
             }
         }
+        dispatchRef += EventBus.subscribeAsync<AgentDispatchEvent>(state.scope, dispatchSubscriber)
     }
-    dispatchRef += EventBus.subscribeAsync<AgentDispatchEvent>(state.scope, dispatchSubscriber)
 
     EventBus.postAsync(
         ProactiveSpeakEvent(
@@ -258,13 +372,13 @@ internal class MemImpl : Mem {
 
     private val map = ConcurrentHashMap<String, Cache<String, String>>()
 
-    override fun get(key: String) = default.getIfPresent(key)
+    override suspend fun get(key: String) = default.getIfPresent(key)
 
-    override fun set(key: String, value: String) {
+    override suspend fun set(key: String, value: String) {
         default.put(key, value)
     }
 
-    override fun set(
+    override suspend fun set(
         key: String,
         value: String,
         expire: Duration,
@@ -282,11 +396,18 @@ internal class MemImpl : Mem {
         }.put(key, value)
     }
 
-    override fun delete(key: String) {
+    override suspend fun delete(key: String) {
         map.forEach { (_, cache) ->
             cache.invalidate(key)
         }
         default.invalidate(key)
+    }
+
+    override fun close() {
+        map.forEach { (_, cache) ->
+            cache.invalidateAll()
+        }
+        default.invalidateAll()
     }
 
 }
@@ -302,39 +423,54 @@ internal class KvImpl(val defined: PluginDef) : Kv {
 
     private val map = ConcurrentHashMap<String, HTreeMap<String, String>>()
 
-    override fun get(key: String): String? {
-        return default[key]
+    override suspend fun get(key: String): String? {
+        return withContext(Dispatchers.IO) {
+            default[key]
+        }
     }
 
-    override fun set(key: String, value: String) {
-        default[key] = value
+    override suspend fun set(key: String, value: String) {
+        withContext(Dispatchers.IO) {
+            default[key] = value
+        }
     }
 
-    override fun set(
+    override suspend fun set(
         key: String,
         value: String,
         expire: Duration,
         strategy: ExpireStrategy
     ) {
-        map.getOrPut(strategy.name + "_" + expire.toString()) {
-            MapDB.Cache.hashMap(defined.name)
-                .keySerializer(Serializer.STRING)
-                .valueSerializer(Serializer.STRING)
-                .apply {
-                    when (strategy) {
-                        ExpireStrategy.AFTER_WRITE -> expireAfterCreate(expire.inWholeMilliseconds)
-                        ExpireStrategy.AFTER_ACCESS -> expireAfterGet(expire.inWholeMilliseconds)
+        withContext(Dispatchers.IO) {
+            map.getOrPut(strategy.name + "_" + expire.toString()) {
+                MapDB.Cache.hashMap(defined.name)
+                    .keySerializer(Serializer.STRING)
+                    .valueSerializer(Serializer.STRING)
+                    .apply {
+                        when (strategy) {
+                            ExpireStrategy.AFTER_WRITE -> expireAfterCreate(expire.inWholeMilliseconds)
+                            ExpireStrategy.AFTER_ACCESS -> expireAfterGet(expire.inWholeMilliseconds)
+                        }
                     }
-                }
-                .createOrOpen()
-        }[key] = value
+                    .createOrOpen()
+            }[key] = value
+        }
     }
 
-    override fun delete(key: String) {
-        map.forEach { (_, cache) ->
-            cache.remove(key)
+    override suspend fun delete(key: String) {
+        withContext(Dispatchers.IO) {
+            map.forEach { (_, cache) ->
+                cache.remove(key)
+            }
+            default.remove(key)
         }
-        default.remove(key)
+    }
+
+    override fun close() {
+        map.forEach { (_, cache) ->
+            cache.close()
+        }
+        default.close()
     }
 
 }
@@ -347,16 +483,61 @@ internal class BlobImpl(val defined: PluginDef) : Blob {
         )
     }
 
-    override fun get(path: Path): InputStream = default.get(path).buffer().inputStream()
-
-    override fun set(path: Path, value: InputStream) {
-        default.put(path, value.source())
+    override suspend fun get(path: Path): InputStream = withContext(Dispatchers.IO) {
+        default.get(path).buffer().inputStream()
     }
 
-    override fun delete(path: Path) {
-        default.delete(path)
+    override suspend fun set(path: Path, value: InputStream) {
+        withContext(Dispatchers.IO) {
+            default.put(path, value.source())
+        }
     }
 
+    override suspend fun delete(path: Path) {
+        withContext(Dispatchers.IO) {
+            default.delete(path)
+        }
+    }
+
+    override fun close() {
+    }
+
+}
+
+internal class VectorImpl(val defined: PluginDef) : Vector {
+
+    private val default by lazy {
+        EmbeddedVectorStore(
+            path = "./store/vector/plugins".toPath().resolve(defined.name).toNioPath(),
+            dimension = 1024
+        )
+    }
+
+    override suspend fun embedding(input: List<String>, images: List<ByteArray>): FloatArray {
+        return EmbeddingUtil.embedding(input, images).first()
+    }
+
+    override suspend fun search(
+        queryVector: FloatArray,
+        topK: Int,
+        filter: Map<String, String>?
+    ): List<Vector.SearchResult> {
+        return default.search(queryVector, topK, filter).map {
+            Vector.SearchResult(it.id, it.content, it.score)
+        }
+    }
+
+    override suspend fun upsert(id: String, content: String, vector: FloatArray) {
+        default.upsert(id, content, vector)
+    }
+
+    override suspend fun delete(id: String) {
+        default.delete(id)
+    }
+
+    override fun close() {
+        default.close()
+    }
 }
 
 internal class MetaImpl(
@@ -414,6 +595,7 @@ class PluginContextImpl(
     override val mem: Mem,
     override val kv: Kv,
     override val blob: Blob,
+    override val vector: Vector,
     override val database: Database,
     override val scheduler: JobScheduler,
     override val llm: PromptExecutor,

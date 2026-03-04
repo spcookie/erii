@@ -21,6 +21,7 @@ import uesugi.config.LLMModelsChoice
 import uesugi.core.ChatToolSet
 import uesugi.core.ProactiveSpeakFeature
 import uesugi.core.plugin.*
+import uesugi.core.plugin.MetaToolSet.Companion.meta
 import uesugi.plugins.getGroup
 import uesugi.plugins.getLatestHistory
 import uesugi.toolkit.logger
@@ -39,29 +40,82 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
 
     override fun onLoad(context: PluginContext) {
         context.chain { meta ->
-            @Serializable
-            @LLMDescription("标签")
-            data class Tag(val values: List<String>)
+            val image = getImage(meta)
 
-            @Serializable
-            @LLMDescription("标签组")
-            data class TagGroup(val groups: List<Tag>)
+            val state = atomic(false)
 
-            val history = database.getLatestHistory(
-                meta.botId,
-                meta.groupId,
-                10,
-                1.days
-            )
-            val ctx = buildString {
-                for (entity in history) {
-                    appendLine("${entity.nick}: ${entity.content}")
+            val group = meta.getGroup()
+
+            fun send() {
+                if (!state.value) {
+                    state.value = true
+                    if (image != null) {
+                        log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
+                        meta.roledBot.refBot.launch {
+                            image.use {
+                                group.sendImage(image)
+                            }
+                            log.info("图片直接发送成功")
+                        }
+                    } else {
+                        log.warn("未获取到图片，直接发送失败")
+                    }
                 }
             }
 
-            val prompt = prompt("提取标题、关键词") {
-                user(
-                    """
+            meta.sendAgent(
+                input = "加入群聊天，你已经获取到了一张涩图，你需要调用工具发送一张涩图给群友。",
+                SendAgentConf(
+                    toolSets = { listOf(ImageTool(image, group, it, state)) },
+                    flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
+                )
+            ) {
+                sendBefore { send() }
+
+                callCompletion { send() }
+
+                dispatchFallback { send() }
+
+                this@Lolisuki.scope
+            }
+        }
+
+        context.tool {
+            {
+                object : MetaToolSet {
+                    @LLMDescription("回复消息，并发送一张涩图")
+                    suspend fun sendSexImage(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
+                        val resource = getImage(meta)
+                        val group = meta.getGroup()
+                        resource?.use {
+                            for (sentence in sentences) {
+                                group.sendMessage(sentence)
+                            }
+                            group.sendImage(resource)
+                        }
+                        return "ok"
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun PluginContext.getImage(meta: Meta): ExternalResource? {
+        val history = database.getLatestHistory(
+            meta.botId,
+            meta.groupId,
+            10,
+            1.days
+        )
+        val ctx = buildString {
+            for (entity in history) {
+                appendLine("${entity.nick}: ${entity.content}")
+            }
+        }
+
+        val prompt = prompt("提取标题、关键词") {
+            user(
+                """
                         请根据以下规则提取“当前内容”中索要的二次元/动漫图片的关键词或标签(Tag)，仅限二次元、动漫、游戏角色或风格类标签。
                 
                         规则：
@@ -78,55 +132,54 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
                         当前内容：
                         ${meta.input}
                         """.trimIndent()
-                )
-            }
-
-            log.info("用户输入：${meta.input}，开始提取关键词")
-
-            val result = llm.executeStructured<TagGroup>(
-                prompt,
-                LLMModelsChoice.Lite
             )
+        }
 
-            var tags: List<String>? = null
-            if (result.isSuccess) {
-                tags = result.getOrNull()?.data?.run {
-                    buildList {
-                        for (group in groups) {
-                            add(group.values.joinToString("|"))
-                        }
+        log.info("用户输入：${meta.input}，开始提取关键词")
+
+        val result = llm.executeStructured<TagGroup>(
+            prompt,
+            LLMModelsChoice.Lite
+        )
+
+        var tags: List<String>? = null
+        if (result.isSuccess) {
+            tags = result.getOrNull()?.data?.run {
+                buildList {
+                    for (group in groups) {
+                        add(group.values.joinToString("|"))
                     }
                 }
             }
+        }
 
-            if (tags.isNullOrEmpty()) {
-                log.info("未提取到关键词、标签")
-            } else {
-                log.info("提取到关键词、标签: ${tags.joinToString("&")}")
-            }
+        if (tags.isNullOrEmpty()) {
+            log.info("未提取到关键词、标签")
+        } else {
+            log.info("提取到关键词、标签: ${tags.joinToString("&")}")
+        }
 
-            val node: JsonNode = http.get("https://lolisuki.cn/api/setu/v1") {
-                parameter("r18", 1)
-                parameter("level", 4)
-                parameter("num", 4)
-                if (tags != null) {
-                    for (tag in tags) {
-                        parameter("tag", tag)
-                    }
+        val node: JsonNode = http.get("https://lolisuki.cn/api/setu/v1") {
+            parameter("r18", 1)
+            parameter("level", 4)
+            parameter("num", 4)
+            if (tags != null) {
+                for (tag in tags) {
+                    parameter("tag", tag)
                 }
-                log.info("开始获取图片连接: $url")
-            }.body()
-            if (node.get("code").asInt() != 0) {
-                log.error("获取图片连接失败: $node")
-            } else {
-                val group = meta.getGroup()
-
-                var image: ExternalResource? = null
+            }
+            log.info("开始获取图片连接: $url")
+        }.body()
+        var image: ExternalResource? = null
+        if (node.get("code").asInt() != 0) {
+            log.error("获取图片连接失败: $node")
+        } else {
+            for (i in 0 until 4) {
                 var url: String? = null
-                for (i in 0 until 4) {
-                    try {
-                        url = node.get("data")[i].get("urls").get("regular").asText()
-                        log.info("开始获取图片: $url")
+                try {
+                    url = node.get("data")[i].get("urls").get("regular").asText()
+                    log.info("开始获取图片: $url")
+                    withContext(Dispatchers.IO) {
                         val connection = URL(url).openConnection()
                             .apply {
                                 connectTimeout = 20_000
@@ -135,60 +188,17 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
                         image = connection.getInputStream().use { input ->
                             input.toExternalResource()
                         }
-                        break
-                    } catch (_: Exception) {
-                        log.info("图片: $url 获取失败，开始获取下一张图片")
                     }
+                    break
+                } catch (_: Exception) {
+                    log.info("图片: $url 获取失败，开始获取下一张图片")
                 }
-                if (image == null) {
-                    log.warn("未获取到图片")
-                }
-
-                val state = atomic(false)
-
-                meta.sendAgent(
-                    input = "加入群聊天，你已经获取到了一张图片，你需要调用工具发送一张涩图给群友。",
-                    SendAgentConf(
-                        toolSets = { listOf(ImageTool(image, url, group, it, state)) },
-                        flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
-                    ),
-                    state = object : SendAgentState {
-                        override val scope: CoroutineScope
-                            get() = this@Lolisuki.scope
-
-                        override fun sendAfter(sentences: List<String>) {
-                            send()
-                        }
-
-                        override fun callCompletion() {
-                            send()
-                        }
-
-                        private fun send() {
-                            if (!state.value) {
-                                state.value = true
-                                if (image != null) {
-                                    log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
-                                    meta.roledBot.refBot.launch {
-                                        image.use {
-                                            group.sendImage(image)
-                                        }
-                                        log.info("图片直接发送成功")
-                                    }
-                                } else {
-                                    log.warn("未获取到图片，直接发送失败")
-                                }
-                            }
-                        }
-
-                        override fun dispatchFallback() {
-                            callCompletion()
-                        }
-
-                    }
-                )
+            }
+            if (image == null) {
+                log.warn("未获取到图片")
             }
         }
+        return image
     }
 
     override val matcher: Pair<String, String>
@@ -210,10 +220,17 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
         这种情况应优先归类为 CHAT。
         """.trimIndent()
 
+    @Serializable
+    @LLMDescription("标签")
+    data class Tag(val values: List<String>)
+
+    @Serializable
+    @LLMDescription("标签组")
+    data class TagGroup(val groups: List<Tag>)
+
     @Suppress("unused")
     inner class ImageTool(
         val image: ExternalResource?,
-        val url: String?,
         val group: Group,
         val chatToolSet: ChatToolSet,
         val state: AtomicBoolean
