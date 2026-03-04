@@ -2,9 +2,13 @@ package uesugi.core.state.memo
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
+import okio.Path.Companion.toPath
+import okio.buffer
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.BotManage
 import uesugi.ENABLE_GROUPS
+import uesugi.core.message.resource.ResourceService
+import uesugi.toolkit.ObjectStorage
 import uesugi.toolkit.logger
 
 /**
@@ -17,6 +21,8 @@ import uesugi.toolkit.logger
  */
 class MemoExtractJob(
     private val memoService: MemoService,
+    private val resourceService: ResourceService,
+    private val storage: ObjectStorage,
     private val memoAgent: MemoAgent
 ) {
     companion object {
@@ -33,10 +39,10 @@ class MemoExtractJob(
     fun openTimingTriggerSignal() {
         BackgroundJob.scheduleRecurrently(
             "configureMemo-extract-job",
-            "0 */2 * * *",  // 每 2 小时一次
+            "0 */1 * * *",  // 每 1 小时一次
             ::doExtracting
         )
-        log.info("表情包提取任务定时器已启动, 执行周期: 每2小时")
+        log.info("表情包提取任务定时器已启动, 执行周期: 每1小时")
     }
 
     /**
@@ -96,7 +102,13 @@ class MemoExtractJob(
 
                     if (analysis != null) {
                         // 生成向量ID
-                        val vectorId = TextEncoder.generateVectorId(botMark, groupId, memo.id!!)
+                        val vectorId = TextImageEncoder.generateVectorId(botMark, groupId, memo.id!!)
+
+                        val resource = resourceService.getResource(memo.resourceId)
+                            ?.apply {
+                                bytes = storage.get(this.url.toPath())
+                                    .buffer().readByteArray()
+                            }
 
                         // 更新向量存储
                         val updatedMemo = memo.copy(
@@ -104,8 +116,10 @@ class MemoExtractJob(
                             purpose = analysis.purpose,
                             tags = analysis.tags.joinToString(","),
                             vectorId = vectorId,
-                            lastAnalyzedCount = currentSeenCount
+                            lastAnalyzedCount = currentSeenCount,
+                            resource = resource
                         )
+
                         memoService.upsertToVectorStore(updatedMemo)
 
                         // 更新分析结果（传入当前计数）

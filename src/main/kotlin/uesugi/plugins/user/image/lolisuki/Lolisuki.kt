@@ -147,7 +147,7 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
                 val state = atomic(false)
 
                 meta.sendAgent(
-                    input = "加入群聊天，你需要调用工具发送一张涩图给群友。",
+                    input = "加入群聊天，你已经获取到了一张图片，你需要调用工具发送一张涩图给群友。",
                     SendAgentConf(
                         toolSets = { listOf(ImageTool(image, url, group, it, state)) },
                         flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK

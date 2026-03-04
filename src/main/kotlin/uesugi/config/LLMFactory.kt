@@ -1,5 +1,7 @@
 package uesugi.config
 
+import ai.koog.prompt.executor.clients.anthropic.AnthropicClientSettings
+import ai.koog.prompt.executor.clients.anthropic.AnthropicLLMClient
 import ai.koog.prompt.executor.clients.deepseek.DeepSeekClientSettings
 import ai.koog.prompt.executor.clients.deepseek.DeepSeekLLMClient
 import ai.koog.prompt.executor.clients.google.GoogleClientSettings
@@ -23,6 +25,8 @@ class LLMFactory {
         val googleBaseUrl = System.getenv("GOOGLE_BASE_URL")
         val deepSeekApiKey = System.getenv("DEEP_SEEK_API_KEY")
         val deepSeekBaseUrl = System.getenv("DEEP_SEEK_BASE_URL")
+        val minimaxApiKey = System.getenv("MINIMAX_API_KEY")
+        val minimaxBaseUrl = System.getenv("MINIMAX_BASE_URL")
 
         val llmClients = buildMap {
             if (!googleApiKey.isNullOrBlank()) {
@@ -57,14 +61,6 @@ class LLMFactory {
                     RetryingLLMClient(
                         delegate = DeepSeekLLMClient(
                             apiKey = deepSeekApiKey,
-                            baseClient = HttpClient {
-//                                engine {
-//                                    install(Logging) {
-//                                        logger = Logger.DEFAULT
-//                                        level = LogLevel.ALL
-//                                    }
-//                                }
-                            },
                             settings = DeepSeekClientSettings(
                                 baseUrl = deepSeekBaseUrl.takeIf { !it.isNullOrBlank() } ?: "https://api.deepseek.com"
                             )
@@ -73,6 +69,26 @@ class LLMFactory {
                     )
                 )
             }
+            if (!minimaxApiKey.isNullOrBlank())
+                put(
+                    LLMProvider.Anthropic,
+                    RetryingLLMClient(
+                        delegate = AnthropicLLMClient(
+                            apiKey = minimaxApiKey,
+                            settings = AnthropicClientSettings(
+                                modelVersionsMap = mapOf(
+                                    LLMModelsChoice.Pro to "MiniMax-M2.5",
+                                    LLMModelsChoice.Flash to "MiniMax-M2.1",
+                                    LLMModelsChoice.Lite to "MiniMax-M2.1",
+                                ),
+                                baseUrl = minimaxBaseUrl.takeIf { !it.isNullOrBlank() }
+                                    ?: "https://api.minimaxi.com",
+                                messagesPath = "anthropic/v1/messages"
+                            )
+                        ),
+                        config = RetryConfig.CONSERVATIVE
+                    )
+                )
         }
 
 
@@ -106,10 +122,25 @@ object LLMModelsChoice {
         maxOutputTokens = 8_000
     )
 
+    private fun miniMaxChat(model: String): LLModel = LLModel(
+        provider = LLMProvider.Anthropic,
+        id = model,
+        capabilities = listOf(
+            LLMCapability.Completion,
+            LLMCapability.Temperature,
+            LLMCapability.Tools,
+            LLMCapability.ToolChoice,
+            LLMCapability.MultipleChoices
+        ),
+        contextLength = 204800,
+        maxOutputTokens = 204800
+    )
+
     val Lite by lazy {
         when (choice) {
             "GOOGLE" -> GoogleModels.Gemini2_5FlashLite
             "DEEP_SEEK" -> DeepSeekChat
+            "MINIMAX" -> miniMaxChat("MiniMax-M2.1")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }
@@ -117,7 +148,7 @@ object LLMModelsChoice {
     val Flash by lazy {
         when (choice) {
             "GOOGLE" -> GoogleModels.Gemini2_5Flash
-            "DEEP_SEEK" -> DeepSeekChat
+            "MINIMAX" -> miniMaxChat("MiniMax-M2.1")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }
@@ -125,7 +156,7 @@ object LLMModelsChoice {
     val Pro by lazy {
         when (choice) {
             "GOOGLE" -> GoogleModels.Gemini2_5Pro
-            "DEEP_SEEK" -> DeepSeekChat
+            "MINIMAX" -> miniMaxChat("MiniMax-M2.5")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }

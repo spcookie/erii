@@ -153,7 +153,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
     ) {
         if (isAtBot) {
             scope.launch {
-                log.info("机器人【${botId}】被@, 触发主动发言")
+                log.info("机器人[${botId}]被@, 触发主动发言")
                 val route = RoutingAgent.route(botId, groupId, msg)
                 log.info("路由结果：{}", route.name)
                 EventBus.postAsync(

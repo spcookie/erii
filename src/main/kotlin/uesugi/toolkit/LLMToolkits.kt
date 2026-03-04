@@ -13,6 +13,7 @@ import kotlinx.serialization.Serializable
 import uesugi.LOG
 import uesugi.config.HttpClientFactory
 import java.io.IOException
+import kotlin.io.encoding.Base64
 import kotlin.random.Random
 
 /**
@@ -114,6 +115,26 @@ suspend fun appendWebPagePrompt(
     }
 }
 
+suspend fun appendExaWebPagePrompt(
+    builder: MarkdownContentBuilder,
+    query: String? = null,
+    specificUrls: List<String>?,
+    maxResults: Int = 3
+) {
+    ExaSearch.search(query, specificUrls, maxResults).also { item ->
+        builder.apply {
+            if (item.isNotEmpty()) {
+                item.forEach { item ->
+                    line { text(item.title) }
+                    line { text(item.content) }
+                }
+            } else {
+                line { text("暂未搜索到内容") }
+            }
+        }
+    }
+}
+
 object WebSearchTool : ToolSet {
 
     private val log = logger()
@@ -122,7 +143,7 @@ object WebSearchTool : ToolSet {
     data class Input(
         @property:LLMDescription("搜索关键词。如果提供了 specificUrl，此项可为空。")
         val query: String? = null,
-        @property:LLMDescription("需要直接读取内容的特定 URL。如果提供了此项，将忽略 query 直接访问该链接。")
+        @property:LLMDescription("需要直接读取内容的特定 URL。直接访问该链接。")
         val specificUrls: List<String>? = null,
         @property:LLMDescription("搜索结果数量 (1-5)。简单事实查询填 1-2；复杂话题研究/对比分析填 3-5。默认为 3。")
         val maxResults: Int? = null
@@ -150,7 +171,7 @@ object WebSearchTool : ToolSet {
                 coroutineScope {
                     MarkdownContentBuilder()
                         .apply {
-                            appendWebPagePrompt(this, query, specificUrls, maxResults ?: 3)
+                            appendExaWebPagePrompt(this, query, specificUrls, maxResults ?: 3)
                         }
                         .build()
                 }
@@ -165,17 +186,26 @@ object WebSearchTool : ToolSet {
 object EmbeddingUtil {
     private val client = HttpClientFactory().createClient()
 
-    suspend fun embedding(input: String): FloatArray {
-        return embedding(listOf(input)).first()
+    suspend fun embedding(input: String, image: ByteArray?): FloatArray {
+        return embedding(listOf(input), if (image != null) listOf(image) else emptyList()).first()
     }
 
-    suspend fun embedding(input: List<String>): List<FloatArray> {
+    suspend fun embedding(input: List<String>, images: List<ByteArray>): List<FloatArray> {
         val node: JsonNode = client.post("https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal") {
             contentType(ContentType.Application.Json)
             bearerAuth(System.getenv("VOLCENGINE_API_KEY"))
+            val text = input.map {
+                mapOf("type" to "text", "text" to it)
+            }
+            val image = images.map {
+                val base64 = Base64.encode(it)
+                val mimeType = "image/jpeg"
+                val url = "data:$mimeType;base64,$base64"
+                mapOf("type" to "image_url", "url" to url)
+            }
             setBody(
                 mapOf(
-                    "input" to input.map { mapOf("type" to "text", "text" to it) },
+                    "input" to text + image,
                     "model" to "doubao-embedding-vision-250615",
                     "dimensions" to 1024
                 )

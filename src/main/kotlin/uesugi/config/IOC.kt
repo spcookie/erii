@@ -92,13 +92,13 @@ val serviceModule = module {
 }
 
 val jobModule = module {
-    single { EmotionJob(get()) }
-    single { MemoryJob(get()) }
-    single { FlowJob(get()) }
-    single { VolitionJob(get()) }
-    single { EvolutionJob(get()) }
-    single { MemoCollectJob(get()) }
-    single { MemoExtractJob(get(), get()) }
+    singleOf(::EmotionJob)
+    singleOf(::MemoryJob)
+    singleOf(::FlowJob)
+    singleOf(::VolitionJob)
+    singleOf(::EvolutionJob)
+    singleOf(::MemoCollectJob)
+    singleOf(::MemoExtractJob)
 }
 
 val gatewayModule = module {

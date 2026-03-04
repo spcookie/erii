@@ -55,7 +55,7 @@ data class ResourceRecord(
     val md5: String,
     val histories: List<HistoryRecord>? = null,
     val createdAt: LocalDateTime,
-    @Transient val bytes: ByteArray? = null,
+    @Transient var bytes: ByteArray? = null,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -16,6 +16,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.markdown.markdown
+import ai.koog.prompt.message.Message
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
 import kotlinx.coroutines.*
@@ -395,14 +396,14 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
             histories = {
                 withContext(Dispatchers.IO) {
                     transaction {
-                        historyService.getLatestHistory(currentBotId, groupId, 50, 12.hours)
+                        historyService.getLatestHistory(currentBotId, groupId, 20, 12.hours)
                     }
                 }
             },
             moreHistories = {
                 withContext(Dispatchers.IO) {
                     transaction {
-                        historyService.getLatestHistory(currentBotId, groupId, 85, 12.hours)
+                        historyService.getLatestHistory(currentBotId, groupId, 30, 12.hours)
                     }
                 }
             },
@@ -412,12 +413,13 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
                         .filter { it.second > 0.5 }
                         .map { it.first }
                         .firstOrNull() ?: return@withContext null
+                    memoService.incrementUsageCount(record.id!!)
                     val resource = resourceService.getResource(record.resourceId) ?: return@withContext null
                     val bytes = objectStorage.get(resource.url.toPath())
                         .buffer()
                         .readByteArray()
                     MemoResource(
-                        id = record.id!!,
+                        id = record.id,
                         botId = record.botId,
                         groupId = record.groupId,
                         resourceId = record.resourceId,
@@ -536,72 +538,7 @@ private suspend fun buildChatPoint(historyEntities: List<HistoryRecord>, rules: 
     return result.getOrThrow().data.chatPoints
 }
 
-private suspend fun buildWebSearchContext(historyEntities: List<HistoryRecord>): String {
-    val promptExecutor by ref<PromptExecutor>()
-
-    val msg =
-        historyEntities.map { "[id:${it.id} userId:${it.userId} username:${it.nick} ${it.createdAt.format(DateTimeFormat)}] ${it.content}" }
-            .toList()
-
-    val structured = promptExecutor.executeStructured<WebSearchTool.Input>(
-        prompt = prompt("web-search") {
-            system(
-                """
-                # Role
-                你是一个群聊消息的【搜索意图分析员】。
-                你的唯一任务是分析用户的输入，判断是否需要调用 `webSearch` 工具。
-
-                # Judgment Rules (判断规则)
-
-                ## 1. 触发搜索 (YES)
-                仅当满足以下任一条件时，才调用工具：
-                *   **时效性问题**：询问今天/昨天/最近的新闻、天气、股价、汇率、比赛结果等实时数据。
-                *   **知识盲区**：询问 2024 年以后的新事物、新产品、新事件（超出你的训练数据范围）。
-                *   **URL 阅读**：用户发送了一个 HTTP/HTTPS 链接，并暗示需要你“看、读、总结、分析”这个链接。
-                *   **明确指令**：用户说了“搜一下”、“查一下”、“百度”等关键词。
-
-                ## 2. 拒绝搜索 (NO)
-                以下情况**绝对不要**调用工具：
-                *   **闲聊**：如“你好”、“早安”、“表情包”。
-                *   **通用知识**：如“李白是谁”、“怎么写 Python 循环”、“勾股定理是什么”等无需联网就能回答的问题。
-                *   **主观创作**：如“写首诗”、“翻译这段话（非链接）”。
-
-                # Parameter Extraction (参数提取)
-
-                如果判断需要搜索，请精准提取以下 3 个参数：
-
-                1.  **`specificUrl` (List<String>?)**:
-                    *   如果消息中包含需要阅读的目标 URL，提取它。
-                    *   否则留空 (null)。
-
-                2.  **`query` (String?)**:
-                    *   如果有 `specificUrl`，此项留空。
-                    *   否则，提炼出核心搜索关键词。**去语气词**（如“帮我查查”、“那个”）。
-                    *   例子："帮我查查现在的黄金价格是多少" -> "黄金 实时价格"
-
-                3.  **`maxResults` (Int?)**:
-                    *   **1**: 简单事实（天气、汇率、比分、具体数据）。
-                    *   **3**: 一般查询（某人是谁、某个梗的来源、产品参数）。
-                    *   **5**: 深度分析（复杂事件复盘、多方观点对比、行业报告）。
-            """.trimIndent()
-            )
-            user(
-                """
-                # 以下是群聊信息
-                
-                ${msg.joinToString("\n")}
-            """.trimIndent()
-            )
-        },
-        model = LLMModelsChoice.Lite
-    )
-
-    val webSearchToolInput = structured.getOrThrow().data
-
-    return WebSearchTool.webSearch(webSearchToolInput)
-}
-
-private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?, wepSearchContext: String?): Prompt {
+private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?): Prompt {
     val transient = context.toTransient()
     val constraints = buildConstraint(context, transient)
 
@@ -620,8 +557,8 @@ private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?, 
                 buildFusion()
                 horizontalRule()
                 buildMetadataPrompt()
-//                horizontalRule()
-//                buildDuplicateRestrictionRulePrompt()
+                horizontalRule()
+                buildConstraintRulePrompt()
             }
         }
         user {
@@ -630,10 +567,6 @@ private suspend fun buildPrompt(context: Context, chatPoints: List<ChatPoint>?, 
 
                 if (!chatPoints.isNullOrEmpty()) {
                     buildChatPointsPrompt(chatPoints)
-                }
-
-                if (!wepSearchContext.isNullOrBlank()) {
-                    buildWebSearchPrompt(wepSearchContext)
                 }
 
                 buildHistoriesPrompt(transient.histories, context.currentBotId)
@@ -689,9 +622,7 @@ fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<LearnedVocabEn
         for (learnedVocabEntity in vocabulary) {
             bulleted {
                 item {
-                    line { text("词：${learnedVocabEntity.word}") }
-                    line { text("类型：${learnedVocabEntity.type}") }
-                    line { text("含义：${learnedVocabEntity.meaning}") }
+                    line { text("词：${learnedVocabEntity.word}, 含义：${learnedVocabEntity.meaning}，例子：${learnedVocabEntity.example}") }
                 }
             }
         }
@@ -745,11 +676,6 @@ fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
     }
 }
 
-fun MarkdownContentBuilder.buildWebSearchPrompt(webSearchContext: String) {
-    h2("以下群聊的联网搜索结果，供参考")
-    line { text(webSearchContext) }
-}
-
 fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, currentBotId: String) {
     if (histories.isNotEmpty()) {
         header(2, "最近群聊记录")
@@ -776,18 +702,11 @@ fun MarkdownContentBuilder.buildFusion() {
     line { text("原则：你是群里的成员，不是设定展示者") }
 }
 
-fun MarkdownContentBuilder.buildDuplicateRestrictionRulePrompt() {
-    h2("重复控制机制")
+fun MarkdownContentBuilder.buildConstraintRulePrompt() {
+    h2("工具调用规则")
     numbered {
-        item("同一话题中，相似表达连续出现2次后，必须更换表达角度。")
-        item("不允许连续3次使用相同句式。")
-        item("可以缩短回应，而不是重复展开。")
-    }
-    h2("避免安全区循环")
-    numbered {
-        item("不要长期停留在一个固定表达模式。")
-        item("如果话题重复，你可以缩短回应，或者只表达一个细节。")
-        item("允许沉默式短句。")
+        item("你应该调用工具回复消息。")
+        item("不允许直接输出消息。")
     }
 }
 
@@ -852,7 +771,7 @@ suspend fun isRelevanceContinue(histories: List<HistoryRecord>, currentBotId: St
     }
 
     val responses = promptExecutor.execute(prompt, LLMModelsChoice.Lite)
-    val content = responses.singleOrNull()?.content
+    val content = responses.filterIsInstance<Message.Assistant>().firstOrNull()?.content
     LOG.debug("Relevance continue determine LLM response: $content")
     return content != null && content.contains("CONTINUE")
 }
@@ -869,11 +788,19 @@ class ChatToolSet(
         private val log = logger()
     }
 
-    @LLMDescription("回复消息")
+    @LLMDescription("回复消息，回复默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。")
     @Serializable
     data class Sentences(
-        @property:LLMDescription("回复默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。")
-        val sentences: List<Sentence>
+        @property:LLMDescription(
+            """
+        回复消息列表。
+        强制规则：
+        - 每一句话必须作为一个独立的 Sentence
+        - 不允许在一个 text 字段中写多句话
+        - 每个 Sentence 只能包含一句完整语义
+        """
+        )
+        val items: List<Sentence>
     )
 
     @LLMDescription("消息类型。只能为 TEXT 或 MEMO。")
@@ -887,8 +814,8 @@ class ChatToolSet(
         """
     单条消息结构。
     规则：
-    - type=TEXT 时，必须填写 text，不能填写 configureMemo 和 alt
-    - type=MEMO 时，必须填写 configureMemo 和 alt，不能填写 text
+    - type=TEXT 时，必须填写 text，不能填写 memo 和 alt
+    - type=MEMO 时，必须填写 memo 和 alt，不能填写 text
     - 不允许输出 null
     """
     )
@@ -900,14 +827,16 @@ class ChatToolSet(
         @property:LLMDescription(
             """
         当 type=text 时必须填写。
-        要发送的文本内容。
+        只能包含一句话。
+        不允许使用换行连接多句。
+        如果有多句话，请拆分为多个 Sentence。
         """
         )
         val text: String? = null,
 
         @property:LLMDescription(
             """
-        当 type=configureMemo 时必须填写。
+        当 type=memo 时必须填写。
         用于向量匹配的语义标签。
         2-6 个字的抽象语义。
         示例：震惊、无语、嘲讽、大笑
@@ -917,7 +846,7 @@ class ChatToolSet(
 
         @property:LLMDescription(
             """
-        当 type=configureMemo 时必须填写。
+        当 type=memo 时必须填写。
         若匹配不到表情包时发送的替代文本。
         必须是自然语言句子。
         """
@@ -941,9 +870,8 @@ class ChatToolSet(
     @OptIn(ExperimentalCoroutinesApi::class)
     @LLMDescription("回复消息，返回群其他人的回复")
     @Tool
-    internal suspend fun sendAndReceive(@LLMDescription("回复默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。") sentence: Sentences): String? {
+    internal suspend fun sendAndReceive(@LLMDescription("回复文本/表情包消息，默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。") sentences: List<Sentence>): String? {
         try {
-            val sentences = sentence.sentences
             val contents = sentences.map {
                 when (it.type) {
                     SentenceType.TEXT -> {
@@ -1306,7 +1234,6 @@ object BotAgent {
                             val context = buildContext(event)
 
                             var chatPoints: List<ChatPoint>? = null
-                            var webSearchContext: String? = null
                             buildList {
                                 this += async {
                                     try {
@@ -1318,19 +1245,9 @@ object BotAgent {
                                         log.warn("build chat point rule error: {}", e.message, e)
                                     }
                                 }
-                                this += async {
-                                    try {
-                                        if (event.webSearch) {
-                                            log.info("Bot agent build web search context")
-                                            webSearchContext = buildWebSearchContext(context.moreHistories())
-                                        }
-                                    } catch (e: Exception) {
-                                        log.warn("build web search context: {}", e.message, e)
-                                    }
-                                }
                             }.awaitAll()
 
-                            val buildPrompt = buildPrompt(context, chatPoints, webSearchContext)
+                            val buildPrompt = buildPrompt(context, chatPoints)
                             val prompt = prompt("constraint") {
                                 messages(buildPrompt.messages)
                             }
@@ -1353,7 +1270,9 @@ object BotAgent {
                                 ),
                                 toolRegistry = ToolRegistry {
                                     tools(chatToolSet.asTools())
-                                    tools(WebSearchTool.asTools())
+                                    if (event.webSearch) {
+                                        tools(WebSearchTool.asTools())
+                                    }
                                     toolSets?.let { t -> t.forEach { tools(it.asTools()) } }
                                 },
                                 strategy = strategy("chat") {
@@ -1416,8 +1335,9 @@ object BotAgent {
                                                 }
                                             }
                                             log.debug("Bot agent onLLMCallCompleted: {}", info)
+                                        } else {
+                                            log.info("Bot agent onLLMCallCompleted")
                                         }
-                                        log.info("Bot agent onLLMCallCompleted")
                                     }
                                 }
                             }

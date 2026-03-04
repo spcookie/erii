@@ -78,7 +78,7 @@ class MemoCollectJob(
     /**
      * 处理单个群组的表情包收集
      */
-    private suspend fun processGroupCollection(botId: String, groupId: String) {
+    private fun processGroupCollection(botId: String, groupId: String) {
         log.debug("开始收集群组表情包, 群组ID: $groupId")
 
         try {

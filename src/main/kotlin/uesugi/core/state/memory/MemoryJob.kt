@@ -151,8 +151,8 @@ class MemoryJob(
                 return
             }
 
-            if (histories.size < 50) {
-                log.debug("群组 $groupId 消息数量不足 50 条，跳过记忆处理")
+            if (histories.size < 30) {
+                log.debug("群组 $groupId 消息数量不足 30 条，跳过记忆处理")
                 return
             }
 
