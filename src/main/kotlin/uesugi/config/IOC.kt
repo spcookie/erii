@@ -25,8 +25,10 @@ import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.volition.VolitionGaugeManager
 import uesugi.core.state.volition.VolitionJob
 import uesugi.plugins.system.status.WebScreenshotTaker
-import uesugi.toolkit.*
-import java.nio.file.Paths
+import uesugi.toolkit.LocalObjectStorage
+import uesugi.toolkit.ObjectStorage
+import uesugi.toolkit.WebPageMarkdownScraper
+import uesugi.toolkit.WebSearchClient
 import javax.sql.DataSource
 
 fun Application.warmUp() {
@@ -45,12 +47,6 @@ fun Application.configBaseModule() = koinModule {
     single<ObjectStorage> {
         LocalObjectStorage(
             baseDir = "./store/object".toPath()
-        )
-    }
-    single<VectorStore> {
-        EmbeddedVectorStore(
-            path = Paths.get("./store/vector"),
-            dimension = 1024
         )
     }
     single<DataSource> {

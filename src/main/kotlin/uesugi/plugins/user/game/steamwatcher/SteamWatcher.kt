@@ -229,24 +229,21 @@ class SteamWatcher : PassivePlugin {
                     "你一直在观察群友的 Steam 状态，发现 ${summary.personaname} 的 Steam 状态已更新，${text}，请告知群友",
                     SendAgentConf(
                         flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
-                    ),
-                    object : SendAgentState {
-                        override val scope: CoroutineScope
-                            get() = this@SteamWatcher.scope
-
-                        override fun sendAfter(sentences: List<String>) {
-                            this@SteamWatcher.scope.launch {
-                                group.sendMessage(message)
-                            }
+                    )
+                ) {
+                    sendAfter {
+                        this@SteamWatcher.scope.launch {
+                            group.sendMessage(message)
                         }
+                    }
 
-                        override fun dispatchFallback() {
-                            this@SteamWatcher.scope.launch {
-                                group.sendMessage(message)
-                            }
+                    dispatchFallback {
+                        this@SteamWatcher.scope.launch {
+                            group.sendMessage(message)
                         }
-                    },
-                )
+                    }
+                    this@SteamWatcher.scope
+                }
 
             } finally {
                 withContext(Dispatchers.IO) { resource.close() }

@@ -234,7 +234,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                             } ?: return@mapNotNull null
                         }
                         .map { (bytes, fileName) ->
-                            val base64 = Base64.encode(bytes)
+                            val base64 = Base64.encode(bytes!!)
                             val mimeType = getMimeType(fileName)
                             "data:$mimeType;base64,$base64"
                         }
@@ -289,6 +289,25 @@ class SeedDream : RoutePlugin, ClassNameMixin {
 
             val state = atomic(false)
 
+            fun send() {
+                if (!state.value) {
+                    state.value = true
+                    GlobalScope.launch {
+                        val await = resource.await()
+                        if (await != null) {
+                            log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
+                            meta.roledBot.refBot.launch {
+                                await.use {
+                                    group.sendImage(await)
+                                }
+                            }
+                        } else {
+                            log.warn("未获取到图片，直接发送失败")
+                        }
+                    }
+                }
+            }
+
             meta.sendAgent(
                 input = "用户需要生成一张图片，请调用图片生成 Tool 生成图片。",
                 SendAgentConf(
@@ -317,44 +336,13 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                         )
                     },
                     flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
-                ),
-                state = object : SendAgentState {
-                    override val scope: CoroutineScope
-                        get() = GlobalScope
-
-                    override fun sendAfter(sentences: List<String>) {
-                        send()
-                    }
-
-                    override fun callCompletion() {
-                        send()
-                    }
-
-                    private fun send() {
-                        if (!state.value) {
-                            state.value = true
-                            scope.launch {
-                                val await = resource.await()
-                                if (await != null) {
-                                    log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
-                                    meta.roledBot.refBot.launch {
-                                        await.use {
-                                            group.sendImage(await)
-                                        }
-                                    }
-                                } else {
-                                    log.warn("未获取到图片，直接发送失败")
-                                }
-                            }
-                        }
-                    }
-
-                    override fun dispatchFallback() {
-                        callCompletion()
-                    }
-
-                }
-            )
+                )
+            ) {
+                sendAfter { send() }
+                callCompletion { send() }
+                callCompletion { send() }
+                GlobalScope
+            }
         }
 
         context.tool {

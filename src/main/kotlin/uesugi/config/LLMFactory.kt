@@ -139,8 +139,7 @@ object LLMModelsChoice {
     val Lite by lazy {
         when (choice) {
             "GOOGLE" -> GoogleModels.Gemini2_5FlashLite
-            "DEEP_SEEK" -> DeepSeekChat
-            "MINIMAX" -> miniMaxChat("MiniMax-M2.1")
+            "DEEP_SEEK", "MINIMAX" -> DeepSeekChat
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }
@@ -148,6 +147,7 @@ object LLMModelsChoice {
     val Flash by lazy {
         when (choice) {
             "GOOGLE" -> GoogleModels.Gemini2_5Flash
+            "DEEP_SEEK" -> DeepSeekChat
             "MINIMAX" -> miniMaxChat("MiniMax-M2.1")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
@@ -156,6 +156,7 @@ object LLMModelsChoice {
     val Pro by lazy {
         when (choice) {
             "GOOGLE" -> GoogleModels.Gemini2_5Pro
+            "DEEP_SEEK" -> DeepSeekChat
             "MINIMAX" -> miniMaxChat("MiniMax-M2.5")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }

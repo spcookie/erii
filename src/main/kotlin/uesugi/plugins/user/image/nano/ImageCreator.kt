@@ -106,6 +106,16 @@ class ImageCreator : RoutePlugin, ClassNameMixin {
 
             val state = atomic(false)
 
+            fun send() {
+                if (!state.value) {
+                    state.value = true
+                    scope.launch {
+                        val (msg, image) = deferred.await()
+                        sendImage(msg, group, image)
+                    }
+                }
+            }
+
             meta.sendAgent(
                 "用户需要生成一张图片，请调用图片生成 Tool 生成图片。",
                 SendAgentConf(
@@ -127,34 +137,13 @@ class ImageCreator : RoutePlugin, ClassNameMixin {
                         )
                     },
                     flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
-                ),
-                object : SendAgentState {
-                    override val scope: CoroutineScope
-                        get() = this@ImageCreator.scope
-
-                    override fun sendAfter(sentences: List<String>) {
-                        send()
-                    }
-
-                    override fun callCompletion() {
-                        send()
-                    }
-
-                    override fun dispatchFallback() {
-                        callCompletion()
-                    }
-
-                    private fun send() {
-                        if (!state.value) {
-                            state.value = true
-                            scope.launch {
-                                val (msg, image) = deferred.await()
-                                sendImage(msg, group, image)
-                            }
-                        }
-                    }
-                }
-            )
+                )
+            ) {
+                sendAfter { send() }
+                callCompletion { send() }
+                dispatchFallback { send() }
+                this@ImageCreator.scope
+            }
 
         }
 

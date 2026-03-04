@@ -17,6 +17,7 @@ import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.filterTextOnly
 import ai.koog.prompt.streaming.toMessageResponses
+import com.google.auto.service.AutoService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.jsonNull
@@ -24,6 +25,7 @@ import net.mamoe.mirai.contact.Group
 import uesugi.config.LLMModelsChoice
 import uesugi.core.buildMetadataPrompt
 import uesugi.core.plugin.ClassNameMixin
+import uesugi.core.plugin.Plugin
 import uesugi.core.plugin.PluginContext
 import uesugi.core.plugin.RoutePlugin
 import uesugi.plugins.getGroup
@@ -32,7 +34,7 @@ import uesugi.toolkit.WebSearchTool
 import uesugi.toolkit.calcHumanTypingDelay
 import kotlin.time.Duration.Companion.days
 
-//@AutoService(Plugin::class)
+@AutoService(Plugin::class)
 class ChatQA : RoutePlugin, ClassNameMixin {
 
     override fun onLoad(context: PluginContext) {
@@ -219,7 +221,6 @@ class ChatQA : RoutePlugin, ClassNameMixin {
         - 去掉语气和情绪后，问题本身依然成立
 
         DIRECT_QA 的消息应由 AI 直接回答，
-        【不进入任何人格 Agent】。
         即使语气随意，只要本质是求解答，也应归类为 DIRECT_QA。
         """.trimIndent()
 
