@@ -12,7 +12,6 @@ import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.history.MessageType
 import uesugi.core.message.resource.ResourceTable
 import uesugi.toolkit.logger
-import kotlin.time.Clock
 import kotlin.time.Clock.System
 import kotlin.time.ExperimentalTime
 
@@ -160,7 +159,7 @@ class MemoService(
                 // 已存在：追加上下文，增加计数
                 val existingContexts = try {
                     json.decodeFromString<List<String>>(existing.contexts).toMutableList()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     mutableListOf()
                 }
 
@@ -242,8 +241,8 @@ class MemoService(
         transaction {
             val memo = MemoEntity.findById(memoId)
             memo?.let {
-                it.usageCount = it.usageCount + 1
-                it.lastUsedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                it.usageCount += 1
+                it.lastUsedAt = System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }
         }
     }
@@ -288,8 +287,8 @@ class MemoService(
         }
 
         if (content.isNotBlank()) {
-            val vector = TextEncoder.encode(content)
-            val vectorId = memo.vectorId ?: TextEncoder.generateVectorId(memo.botId, memo.groupId, memo.id!!)
+            val vector = TextImageEncoder.encode(content, memo.resource?.bytes)
+            val vectorId = memo.vectorId ?: TextImageEncoder.generateVectorId(memo.botId, memo.groupId, memo.id!!)
             store.upsert(vectorId, content, vector)
             log.debug("表情包向量已存储: vectorId=$vectorId, content=$content")
         }
@@ -314,7 +313,7 @@ class MemoService(
         topK: Int
     ): List<Pair<MemoRecord, Float>> {
         // 生成查询向量
-        val queryVector = TextEncoder.encode(query)
+        val queryVector = TextImageEncoder.encode(query)
 
         // 确定搜索范围
         val targetGroupId = groupId?.takeIf { it.isNotBlank() }
@@ -324,7 +323,7 @@ class MemoService(
             val store = vectorStoreFactory.getStore(botId, targetGroupId)
             val results = store.search(queryVector, topK, null)
             results.mapNotNull { result ->
-                val memoId = TextEncoder.extractMemoId(result.id)
+                val memoId = TextImageEncoder.extractMemoId(result.id)
                 memoId?.let { getMemoById(it) }?.let { it to result.score }
             }
         } else {
@@ -341,7 +340,7 @@ class MemoService(
                     val store = vectorStoreFactory.getStore(botId, gid)
                     val searchResults = store.search(queryVector, topK, null)
                     searchResults.forEach { result ->
-                        val memoId = TextEncoder.extractMemoId(result.id)
+                        val memoId = TextImageEncoder.extractMemoId(result.id)
                         memoId?.let { id ->
                             getMemoById(id)?.let { results.add(it to result.score) }
                         }

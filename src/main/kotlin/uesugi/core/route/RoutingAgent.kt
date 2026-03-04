@@ -3,6 +3,7 @@ package uesugi.core.route
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
+import ai.koog.prompt.message.Message
 import uesugi.config.LLMModelsChoice
 import uesugi.core.buildHistoriesPrompt
 import uesugi.core.buildSummaryPrompt
@@ -72,9 +73,10 @@ object RoutingAgent {
                 prompt,
                 model = LLMModelsChoice.Lite,
             )
-            return RouteRuleRegister.getRule(result.first().content.trim())!!
+            val assistant = result.filterIsInstance<Message.Assistant>().first()
+            return RouteRuleRegister.getRule(assistant.content.trim())!!
         } catch (e: Exception) {
-            log.warn("routing failed, dispatchFallback CHAT_URGENT, reason: {}", e.message)
+            log.warn("routing failed, dispatch fallback CHAT_URGENT, reason: {}", e.message)
             return RouteRuleRegister.getRule("CHAT")!!
         }
     }

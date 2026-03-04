@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
+import uesugi.core.message.resource.ResourceRecord
 import uesugi.toolkit.JSON
 
 /**
@@ -113,6 +114,7 @@ data class MemoRecord(
     val botId: String,
     val groupId: String,
     val resourceId: Int,
+    val resource: ResourceRecord? = null,
     val md5: String,
     val contexts: List<String> = emptyList(),
     val seenCount: Int = 1,

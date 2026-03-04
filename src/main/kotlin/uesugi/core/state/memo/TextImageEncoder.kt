@@ -3,17 +3,15 @@ package uesugi.core.state.memo
 import uesugi.toolkit.EmbeddingUtil
 
 /**
- * 简单的文本编码器
- * TODO: 接入真正的embedding模型
+ * 简单的文本、图片编码器
  *
- * 当前实现：将文本hash后转换为固定维度向量（仅用于占位）
  */
-object TextEncoder {
+object TextImageEncoder {
     /**
      * 将文本编码为向量
      */
-    suspend fun encode(text: String): FloatArray {
-        val vector = EmbeddingUtil.embedding(text)
+    suspend fun encode(text: String, image: ByteArray? = null): FloatArray {
+        val vector = EmbeddingUtil.embedding(text, image)
         return vector
     }
 
@@ -32,7 +30,7 @@ object TextEncoder {
         return try {
             // 从最后一个_之后获取数字
             vectorId.substringAfterLast("_").toIntOrNull()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

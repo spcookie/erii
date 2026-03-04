@@ -6,7 +6,6 @@ import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
 import ai.koog.agents.core.agent.session.AIAgentLLMWriteSession
 import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.dsl.extension.nodeExecuteTool
 import ai.koog.agents.core.dsl.extension.onAssistantMessage
 import ai.koog.agents.core.dsl.extension.onToolCall
 import ai.koog.agents.core.environment.ReceivedToolResult
@@ -97,21 +96,33 @@ class ChatQA : RoutePlugin, ClassNameMixin {
                             }
                         }
                         val responses = requestLLM(group)
-                        responses[0]
+                        responses.first { it !is Message.Reasoning }
                     }
                 }
-                val nodeExecuteTool by nodeExecuteTool()
-                val nodeSendToolResult by node<ReceivedToolResult, Message.Response> { result ->
+
+                val nodeExecuteTool by node<Message.Tool.Call, ReceivedToolResult> { toolCall ->
                     llm.writeSession {
                         appendPrompt {
                             tool {
-                                result(result)
+                                call(toolCall)
+                            }
+                        }
+                    }
+                    environment.executeTool(toolCall)
+                }
+
+                val nodeSendToolResult by node<ReceivedToolResult, Message.Response> { toolResult ->
+                    llm.writeSession {
+                        appendPrompt {
+                            tool {
+                                result(toolResult)
                             }
                         }
                         val responses = requestLLM(group)
-                        responses[0]
+                        responses.first { it !is Message.Reasoning }
                     }
                 }
+
 
                 edge(nodeStart forwardTo nodeSendInput)
                 edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
@@ -151,7 +162,7 @@ class ChatQA : RoutePlugin, ClassNameMixin {
                             你是一个专业的问答助手，只回答用户提出的问题的核心内容，保持简洁明了。  
     
                             要求：
-                            1. 不要输出 Markdown 或列表符号。
+                            1. 不要输出 Markdown 格式。
                             2. 直接输出文本答案，不要多余前缀、标题或注释。
                             3. 如果问题可以简短回答就直接回答，不要冗长。
                             4. 对于复杂问题，也尽量保持回答直截了当、可理解。
