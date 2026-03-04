@@ -1,4 +1,4 @@
-package uesugi.core.state.memo
+package uesugi.core.state.meme
 
 import uesugi.toolkit.EmbeddingUtil
 

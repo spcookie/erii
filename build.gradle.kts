@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.atomicfu)
     implementation(libs.mapdb)
     implementation(libs.caffeine)
+    implementation(libs.arrow.core)
     implementation(libs.lucene.core)
     implementation(libs.lucene.analyzers.common)
     implementation(libs.kotlinx.cli)

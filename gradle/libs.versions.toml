@@ -16,6 +16,7 @@ playwright = "1.57.0"
 flexmark = "0.64.8"
 cli = "0.3.6"
 autoservice = "1.1.1"
+arrow = "2.0.0"
 lucene = "9.12.3"
 lucene-analyzers = "8.11.4"
 
@@ -64,6 +65,7 @@ autoservice-processor = { module = "com.google.auto.service:auto-service", versi
 atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
 google-genai = { module = "com.google.genai:google-genai", version.ref = "google-genai" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
+arrow-core = { group = "io.arrow-kt", name = "arrow-core", version.ref = "arrow" }
 lucene-core = { module = "org.apache.lucene:lucene-core", version.ref = "lucene" }
 lucene-analyzers-common = { module = "org.apache.lucene:lucene-analyzers-common", version.ref = "lucene-analyzers" }
 flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter", version.ref = "flexmark" }

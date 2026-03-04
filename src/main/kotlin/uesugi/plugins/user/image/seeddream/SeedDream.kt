@@ -5,6 +5,9 @@ import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.structure.executeStructured
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
 import com.fasterxml.jackson.databind.JsonNode
 import com.google.auto.service.AutoService
 import io.ktor.client.call.*
@@ -185,7 +188,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onLoad(context: PluginContext) {
-        suspend fun image(meta: Meta): ExternalResource? {
+        suspend fun image(meta: Meta): Either<String, ExternalResource> {
             with(context) {
                 val records = database.getHistory {
                     (HistoryTable leftJoin ResourceTable).selectAll()
@@ -258,13 +261,18 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                     )
                 }.body()
 
+                if (node.has("error")) {
+                    log.warn("SeedDream Error: {}", node.toString())
+                    return node.toString().left()
+                }
+
                 val url: String? = node.path("data")
                     .path(0)
                     .path("url")
                     .textValue()
 
                 if (url == null) {
-                    return null
+                    return "No URL returned by SeedDream".left()
                 }
                 val connection = URL(url).openConnection()
                     .apply {
@@ -273,7 +281,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                     }
                 return connection.getInputStream()
                     .use { input ->
-                        input.toExternalResource()
+                        input.toExternalResource().right()
                     }
             }
         }
@@ -283,7 +291,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                 async {
                     image(meta)
                 }
-            }
+            }.await()
 
             val group = meta.getGroup()
 
@@ -293,42 +301,38 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                 if (!state.value) {
                     state.value = true
                     GlobalScope.launch {
-                        val await = resource.await()
-                        if (await != null) {
+                        resource.onRight { img ->
                             log.info("由于图片未使用 Agent Tool 发送，尝试直接发送")
-                            meta.roledBot.refBot.launch {
-                                await.use {
-                                    group.sendImage(await)
-                                }
+                            img.use {
+                                group.sendImage(it)
                             }
-                        } else {
-                            log.warn("未获取到图片，直接发送失败")
-                        }
+                        }.onLeft { log.warn("未获取到图片，直接发送失败") }
                     }
                 }
             }
 
             meta.sendAgent(
-                input = "用户需要生成一张图片，请调用图片生成 Tool 生成图片。",
+                input = resource.fold(
+                    { error -> "生成图片失败，发送消息告诉用户生成失败，错误: $error" },
+                    { _ -> "你已经生成了一张图片，必须调用图片 Tool 发送生成图片。" }
+                ),
                 SendAgentConf(
                     toolSets = {
+
                         listOf(
                             object : ToolSet {
-                                @LLMDescription("回复消息，并生成图片发送，返回群其他人的回复")
+                                @LLMDescription("回复消息，并发送图片，返回群其他人的回复")
                                 @Tool
                                 fun sendMessageAndImage(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
                                     state.value = true
                                     GlobalScope.launch {
                                         val job = it.send(sentences)
-                                        val await = resource.await()
-                                        if (await != null) {
+                                        resource.onRight { img ->
                                             job.join()
-                                            await.use {
-                                                group.sendImage(await)
+                                            img.use {
+                                                group.sendImage(it)
                                             }
-                                        } else {
-                                            log.warn("未获取到图片，发送失败")
-                                        }
+                                        }.onLeft { log.warn("未获取到图片，发送失败") }
                                     }
                                     return null
                                 }
@@ -352,16 +356,12 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                     suspend fun imageCreate(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
                         val resource = image(meta)
                         val group = meta.getGroup()
-                        coroutineScope {
-                            if (resource != null) {
-                                meta.roledBot.refBot.launch {
-                                    resource.use {
-                                        for (sentence in sentences) {
-                                            group.sendMessage(sentence)
-                                        }
-                                        group.sendImage(resource)
-                                    }
+                        resource.onRight { img ->
+                            img.use {
+                                for (sentence in sentences) {
+                                    group.sendMessage(sentence)
                                 }
+                                group.sendImage(it)
                             }
                         }
                         return "ok"

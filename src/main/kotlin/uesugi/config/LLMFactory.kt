@@ -78,8 +78,7 @@ class LLMFactory {
                             settings = AnthropicClientSettings(
                                 modelVersionsMap = mapOf(
                                     LLMModelsChoice.Pro to "MiniMax-M2.5",
-                                    LLMModelsChoice.Flash to "MiniMax-M2.1",
-                                    LLMModelsChoice.Lite to "MiniMax-M2.1",
+                                    LLMModelsChoice.Flash to "MiniMax-M2.1"
                                 ),
                                 baseUrl = minimaxBaseUrl.takeIf { !it.isNullOrBlank() }
                                     ?: "https://api.minimaxi.com",

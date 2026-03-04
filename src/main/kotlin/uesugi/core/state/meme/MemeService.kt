@@ -1,4 +1,4 @@
-package uesugi.core.state.memo
+package uesugi.core.state.meme
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -81,12 +81,12 @@ class MemoService(
      * 获取待分析的表情包
      * 条件：seenCount >= 3 且 seenCount 是 3 的倍数 且 seenCount > lastAnalyzedCount
      */
-    fun getPendingAnalysisMemos(botId: String, groupId: String): List<MemoRecord> {
+    fun getPendingAnalysisMemes(botId: String, groupId: String): List<MemeRecord> {
         return transaction {
-            MemoEntity.find {
-                (MemoTable.botMark eq botId) and
-                        (MemoTable.groupId eq groupId) and
-                        (MemoTable.seenCount greaterEq ANALYZE_THRESHOLD)
+            MemeEntity.find {
+                (MemeTable.botMark eq botId) and
+                        (MemeTable.groupId eq groupId) and
+                        (MemeTable.seenCount greaterEq ANALYZE_THRESHOLD)
             }.map { it.toRecord() }
                 .filter { memo ->
                     // seenCount 是 3 的倍数 且 大于上次分析的计数
@@ -102,20 +102,20 @@ class MemoService(
      * @param botId 机器人标识
      * @param groupId 群组ID，如果为空则返回所有群组的表情包
      */
-    fun getAnalyzedMemos(botId: String, groupId: String): List<MemoRecord> {
+    fun getAnalyzedMemes(botId: String, groupId: String): List<MemeRecord> {
         return transaction {
             val query = if (groupId.isBlank()) {
                 // 获取所有群组的已分析表情包
-                MemoEntity.find {
-                    (MemoTable.botMark eq botId) and
-                            (MemoTable.lastAnalyzedCount greaterEq ANALYZE_THRESHOLD)
+                MemeEntity.find {
+                    (MemeTable.botMark eq botId) and
+                            (MemeTable.lastAnalyzedCount greaterEq ANALYZE_THRESHOLD)
                 }
             } else {
                 // 获取指定群组的已分析表情包
-                MemoEntity.find {
-                    (MemoTable.botMark eq botId) and
-                            (MemoTable.groupId eq groupId) and
-                            (MemoTable.lastAnalyzedCount greaterEq ANALYZE_THRESHOLD)
+                MemeEntity.find {
+                    (MemeTable.botMark eq botId) and
+                            (MemeTable.groupId eq groupId) and
+                            (MemeTable.lastAnalyzedCount greaterEq ANALYZE_THRESHOLD)
                 }
             }
             query.map { it.toRecord() }
@@ -125,12 +125,12 @@ class MemoService(
     /**
      * 根据MD5查找已存在的表情包
      */
-    fun findByMd5(botId: String, groupId: String, md5: String): MemoRecord? {
+    fun findByMd5(botId: String, groupId: String, md5: String): MemeRecord? {
         return transaction {
-            MemoEntity.find {
-                (MemoTable.botMark eq botId) and
-                        (MemoTable.groupId eq groupId) and
-                        (MemoTable.md5 eq md5)
+            MemeEntity.find {
+                (MemeTable.botMark eq botId) and
+                        (MemeTable.groupId eq groupId) and
+                        (MemeTable.md5 eq md5)
             }.firstOrNull()?.toRecord()
         }
     }
@@ -147,12 +147,12 @@ class MemoService(
         resourceId: Int,
         md5: String,
         context: String?
-    ): MemoRecord {
+    ): MemeRecord {
         return transaction {
-            val existing = MemoEntity.find {
-                (MemoTable.botMark eq botId) and
-                        (MemoTable.groupId eq groupId) and
-                        (MemoTable.md5 eq md5)
+            val existing = MemeEntity.find {
+                (MemeTable.botMark eq botId) and
+                        (MemeTable.groupId eq groupId) and
+                        (MemeTable.md5 eq md5)
             }.firstOrNull()
 
             if (existing != null) {
@@ -185,7 +185,7 @@ class MemoService(
                     emptyList()
                 }
 
-                MemoEntity.new {
+                MemeEntity.new {
                     this.botMark = botId
                     this.groupId = groupId
                     this.resourceId = resourceId
@@ -203,7 +203,7 @@ class MemoService(
 
     /**
      * 更新分析结果
-     * @param memoId 表情包ID
+     * @param memeId 表情包ID
      * @param description 描述
      * @param purpose 用途
      * @param tags 标签
@@ -212,7 +212,7 @@ class MemoService(
      */
     @OptIn(ExperimentalTime::class)
     fun updateAnalysis(
-        memoId: Int,
+        memeId: Int,
         description: String,
         purpose: String,
         tags: String,
@@ -220,7 +220,7 @@ class MemoService(
         analyzedCount: Int
     ) {
         transaction {
-            val memo = MemoEntity.findById(memoId)
+            val memo = MemeEntity.findById(memeId)
             memo?.let {
                 it.lastAnalyzedCount = analyzedCount
                 it.description = description
@@ -228,7 +228,7 @@ class MemoService(
                 it.tags = tags
                 it.vectorId = vectorId
                 it.updatedAt = System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                log.debug("更新分析结果: memoId=$memoId, analyzedCount=$analyzedCount, description=$description")
+                log.debug("更新分析结果: memeId=$memeId, analyzedCount=$analyzedCount, description=$description")
             }
         }
     }
@@ -237,9 +237,9 @@ class MemoService(
      * 更新使用次数
      */
     @OptIn(ExperimentalTime::class)
-    fun incrementUsageCount(memoId: Int) {
+    fun incrementUsageCount(memeId: Int) {
         transaction {
-            val memo = MemoEntity.findById(memoId)
+            val memo = MemeEntity.findById(memeId)
             memo?.let {
                 it.usageCount += 1
                 it.lastUsedAt = System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -250,19 +250,19 @@ class MemoService(
     /**
      * 根据ID获取表情包
      */
-    fun getMemoById(id: Int): MemoRecord? {
+    fun getMemoById(id: Int): MemeRecord? {
         return transaction {
-            MemoEntity.findById(id)?.toRecord()
+            MemeEntity.findById(id)?.toRecord()
         }
     }
 
     /**
      * 获取所有表情包
      */
-    fun getAllMemos(botId: String, groupId: String): List<MemoRecord> {
+    fun getAllMemos(botId: String, groupId: String): List<MemeRecord> {
         return transaction {
-            MemoEntity.find {
-                (MemoTable.botMark eq botId) and (MemoTable.groupId eq groupId)
+            MemeEntity.find {
+                (MemeTable.botMark eq botId) and (MemeTable.groupId eq groupId)
             }.map { it.toRecord() }
         }
     }
@@ -270,7 +270,7 @@ class MemoService(
     /**
      * 将表情包添加到向量存储
      */
-    suspend fun upsertToVectorStore(memo: MemoRecord) {
+    suspend fun upsertToVectorStore(memo: MemeRecord) {
         val store = vectorStoreFactory.getStore(memo.botId, memo.groupId)
 
         // 构建用于向量化的文本内容
@@ -311,7 +311,7 @@ class MemoService(
         groupId: String?,
         query: String,
         topK: Int
-    ): List<Pair<MemoRecord, Float>> {
+    ): List<Pair<MemeRecord, Float>> {
         // 生成查询向量
         val queryVector = TextImageEncoder.encode(query)
 
@@ -328,10 +328,10 @@ class MemoService(
             }
         } else {
             // 在所有群组中搜索 - 需要遍历所有群组的向量存储
-            val results = mutableListOf<Pair<MemoRecord, Float>>()
+            val results = mutableListOf<Pair<MemeRecord, Float>>()
 
             // 获取该bot下所有已分析的群组
-            val allMemos = getAnalyzedMemos(botId, "")
+            val allMemos = getAnalyzedMemes(botId, "")
             val groupIds = allMemos.map { it.groupId }.distinct()
 
             for (gid in groupIds) {
@@ -358,9 +358,9 @@ class MemoService(
     /**
      * 获取扫描状态
      */
-    fun getScanState(botId: String, groupId: String): MemoScanStateRecord? {
+    fun getScanState(botId: String, groupId: String): MemeScanStateRecord? {
         return transaction {
-            MemoScanStateEntity.find {
+            MemeScanStateEntity.find {
                 (MemoScanStateTable.botMark eq botId) and (MemoScanStateTable.groupId eq groupId)
             }.firstOrNull()?.toRecord()
         }
@@ -372,7 +372,7 @@ class MemoService(
     @OptIn(ExperimentalTime::class)
     fun updateScanState(botId: String, groupId: String, lastHistoryId: Int) {
         transaction {
-            val existing = MemoScanStateEntity.find {
+            val existing = MemeScanStateEntity.find {
                 (MemoScanStateTable.botMark eq botId) and (MemoScanStateTable.groupId eq groupId)
             }.firstOrNull()
 
@@ -380,7 +380,7 @@ class MemoService(
                 existing.lastHistoryId = lastHistoryId
                 existing.lastScanAt = System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             } else {
-                MemoScanStateEntity.new {
+                MemeScanStateEntity.new {
                     this.botMark = botId
                     this.groupId = groupId
                     this.lastHistoryId = lastHistoryId

@@ -1,4 +1,4 @@
-package uesugi.core.state.memo
+package uesugi.core.state.meme
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
@@ -19,7 +19,7 @@ import uesugi.toolkit.JSON
  * 2. 提取任务：分析描述、用途、标签，生成向量嵌入
  * 3. 分析后继续累计，第6、12、24次...（翻倍）时重新分析，覆盖之前结果
  */
-object MemoTable : IntIdTable("configureMemo") {
+object MemeTable : IntIdTable("meme") {
     const val DEFAULT_LENGTH = 255
 
     val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)
@@ -72,35 +72,35 @@ object MemoScanStateTable : IntIdTable("memo_scan_state") {
 /**
  * 表情包实体
  */
-class MemoEntity(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<MemoEntity>(MemoTable)
+class MemeEntity(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<MemeEntity>(MemeTable)
 
-    var botMark by MemoTable.botMark
-    var groupId by MemoTable.groupId
-    var resourceId by MemoTable.resourceId
-    var md5 by MemoTable.md5
+    var botMark by MemeTable.botMark
+    var groupId by MemeTable.groupId
+    var resourceId by MemeTable.resourceId
+    var md5 by MemeTable.md5
 
-    var contexts by MemoTable.contexts
-    var seenCount by MemoTable.seenCount
+    var contexts by MemeTable.contexts
+    var seenCount by MemeTable.seenCount
 
-    var lastAnalyzedCount by MemoTable.lastAnalyzedCount
-    var description by MemoTable.description
-    var purpose by MemoTable.purpose
-    var tags by MemoTable.tags
-    var vectorId by MemoTable.vectorId
+    var lastAnalyzedCount by MemeTable.lastAnalyzedCount
+    var description by MemeTable.description
+    var purpose by MemeTable.purpose
+    var tags by MemeTable.tags
+    var vectorId by MemeTable.vectorId
 
-    var usageCount by MemoTable.usageCount
-    var lastUsedAt by MemoTable.lastUsedAt
+    var usageCount by MemeTable.usageCount
+    var lastUsedAt by MemeTable.lastUsedAt
 
-    var createdAt by MemoTable.createdAt
-    var updatedAt by MemoTable.updatedAt
+    var createdAt by MemeTable.createdAt
+    var updatedAt by MemeTable.updatedAt
 }
 
 /**
  * 扫描状态实体
  */
-class MemoScanStateEntity(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<MemoScanStateEntity>(MemoScanStateTable)
+class MemeScanStateEntity(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<MemeScanStateEntity>(MemoScanStateTable)
 
     var botMark by MemoScanStateTable.botMark
     var groupId by MemoScanStateTable.groupId
@@ -109,7 +109,7 @@ class MemoScanStateEntity(id: EntityID<Int>) : IntEntity(id) {
 }
 
 @Serializable
-data class MemoRecord(
+data class MemeRecord(
     val id: Int? = null,
     val botId: String,
     val groupId: String,
@@ -129,8 +129,8 @@ data class MemoRecord(
     val updatedAt: LocalDateTime
 )
 
-fun MemoEntity.toRecord(): MemoRecord {
-    return MemoRecord(
+fun MemeEntity.toRecord(): MemeRecord {
+    return MemeRecord(
         id = id.value,
         botId = botMark,
         groupId = groupId,
@@ -155,7 +155,7 @@ fun MemoEntity.toRecord(): MemoRecord {
 }
 
 @Serializable
-data class MemoScanStateRecord(
+data class MemeScanStateRecord(
     val id: Int? = null,
     val botMark: String,
     val groupId: String,
@@ -163,8 +163,8 @@ data class MemoScanStateRecord(
     val lastScanAt: LocalDateTime
 )
 
-fun MemoScanStateEntity.toRecord(): MemoScanStateRecord {
-    return MemoScanStateRecord(
+fun MemeScanStateEntity.toRecord(): MemeScanStateRecord {
+    return MemeScanStateRecord(
         id = id.value,
         botMark = botMark,
         groupId = groupId,
@@ -173,7 +173,7 @@ fun MemoScanStateEntity.toRecord(): MemoScanStateRecord {
     )
 }
 
-data class MemoResource(
+data class MemeResource(
     val id: Int,
     val botId: String,
     val groupId: String,
@@ -182,7 +182,7 @@ data class MemoResource(
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is MemoResource) return false
+        if (other !is MemeResource) return false
 
         if (id != other.id) return false
         if (resourceId != other.resourceId) return false

@@ -10,7 +10,7 @@ import io.ktor.server.plugins.doublereceive.*
 import io.ktor.server.resources.*
 import io.ktor.server.routing.*
 import uesugi.routing.configureBotStatus
-import uesugi.routing.configureMemo
+import uesugi.routing.configureMeme
 import uesugi.toolkit.JSON
 
 fun Application.configureRouting() {
@@ -22,7 +22,7 @@ fun Application.configureRouting() {
     }
     routing {
         configureBotStatus()
-        configureMemo()
+        configureMeme()
         authenticate("basic") {
             staticResources("/", "public")
         }
