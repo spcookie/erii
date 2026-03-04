@@ -1,4 +1,4 @@
-package uesugi.core.state.memo
+package uesugi.core.state.meme
 
 import uesugi.toolkit.EmbeddedVectorStore
 import uesugi.toolkit.VectorStore
@@ -20,7 +20,7 @@ class MemoVectorStoreFactory {
     fun getStore(botMark: String, groupId: String): VectorStore {
         val key = "${botMark}_$groupId"
         return stores.getOrPut(key) {
-            val path = Paths.get("./store/vector/memo/$key")
+            val path = Paths.get("./store/vector/meme/$key")
             EmbeddedVectorStore(path, DIMENSION)
         }
     }

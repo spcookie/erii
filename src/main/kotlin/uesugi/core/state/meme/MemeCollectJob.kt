@@ -1,4 +1,4 @@
-package uesugi.core.state.memo
+package uesugi.core.state.meme
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -22,8 +22,8 @@ import uesugi.toolkit.logger
  *
  * 使用扫描状态表记录最后扫描的 history id，避免重复扫描
  */
-class MemoCollectJob(
-    private val memoService: MemoService
+class MemeCollectJob(
+    private val memeService: MemoService
 ) {
     companion object {
         private val log = logger()
@@ -83,12 +83,12 @@ class MemoCollectJob(
 
         try {
             // 获取扫描状态（上次扫描到的最后 history id）
-            val scanState = memoService.getScanState(botId, groupId)
+            val scanState = memeService.getScanState(botId, groupId)
             val lastHistoryId = scanState?.lastHistoryId ?: 0
             log.debug("上次扫描到的最后 history id: $lastHistoryId")
 
             // 获取增量图片消息（只获取 id > lastHistoryId 的）
-            val newImages = memoService.getRecentImageMessages(
+            val newImages = memeService.getRecentImageMessages(
                 botId = botId,
                 groupId = groupId,
                 lastHistoryId = lastHistoryId,
@@ -120,7 +120,7 @@ class MemoCollectJob(
                     val context = getContextMessage(botId, groupId, image.historyId)
 
                     // 添加或更新表情包
-                    memoService.addOrUpdateMeme(
+                    memeService.addOrUpdateMeme(
                         botId = botId,
                         groupId = groupId,
                         resourceId = image.resourceId,
@@ -136,7 +136,7 @@ class MemoCollectJob(
 
             // 更新扫描状态
             if (maxHistoryId > lastHistoryId) {
-                memoService.updateScanState(botId, groupId, maxHistoryId)
+                memeService.updateScanState(botId, groupId, maxHistoryId)
                 log.debug("扫描状态已更新: lastHistoryId=$maxHistoryId")
             }
 

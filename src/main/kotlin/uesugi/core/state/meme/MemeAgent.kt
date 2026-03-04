@@ -1,4 +1,4 @@
-package uesugi.core.state.memo
+package uesugi.core.state.meme
 
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
@@ -14,7 +14,7 @@ import uesugi.toolkit.logger
  *
  * 使用 LLM 分析表情包的描述、用途、标签
  */
-class MemoAgent {
+class MemeAgent {
 
     companion object {
         private val log = logger()

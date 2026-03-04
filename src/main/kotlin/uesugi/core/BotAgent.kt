@@ -48,8 +48,8 @@ import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.evolution.VocabularyService
 import uesugi.core.state.flow.FlowGaugeManager
 import uesugi.core.state.flow.FlowMeterState
-import uesugi.core.state.memo.MemoResource
-import uesugi.core.state.memo.MemoService
+import uesugi.core.state.meme.MemeResource
+import uesugi.core.state.meme.MemoService
 import uesugi.core.state.memory.FactsEntity
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.SummaryEntity
@@ -295,7 +295,7 @@ data class Context(
     val summary: suspend () -> SummaryEntity?,
     val histories: suspend () -> List<HistoryRecord>,
     val moreHistories: suspend () -> List<HistoryRecord>,
-    val memo: suspend (String) -> MemoResource?,
+    val memo: suspend (String) -> MemeResource?,
 ) {
 
     data class Transient(
@@ -418,7 +418,7 @@ private fun buildContext(event: ProactiveSpeakEvent): Context {
                     val bytes = objectStorage.get(resource.url.toPath())
                         .buffer()
                         .readByteArray()
-                    MemoResource(
+                    MemeResource(
                         id = record.id,
                         botId = record.botId,
                         groupId = record.groupId,
@@ -786,17 +786,17 @@ class ChatToolSet(
         回复消息列表。
         强制规则：
         - 每一句话必须作为一个独立的 Sentence
-        - 不允许在一个 text 字段中写多句话
+        - 不允许在一个 content 字段中写多句话
         - 每个 Sentence 只能包含一句完整语义
         """
         )
         val items: List<Sentence>
     )
 
-    @LLMDescription("消息类型。只能为 TEXT 或 MEMO。")
+    @LLMDescription("消息类型。只能为 TEXT 或 MEME。")
     enum class SentenceType {
         TEXT,
-        MEMO
+        MEME
     }
 
     @Serializable
@@ -804,39 +804,38 @@ class ChatToolSet(
         """
     单条消息结构。
     规则：
-    - type=TEXT 时，必须填写 text，不能填写 memo 和 alt
-    - type=MEMO 时，必须填写 memo 和 alt，不能填写 text
-    - 不允许输出 null
+    - type=TEXT 时，必须填写 content，不能填写 meme 和 alt
+    - type=MEME 时，必须填写 meme 和 alt，不能填写 content
     """
     )
     data class Sentence(
 
-        @property:LLMDescription("消息类型。")
+        @property:LLMDescription("消息类型，必须填写")
         val type: SentenceType,
 
         @property:LLMDescription(
             """
-        当 type=text 时必须填写。
+        当 type=TEXT 时必须填写。
         只能包含一句话。
         不允许使用换行连接多句。
         如果有多句话，请拆分为多个 Sentence。
         """
         )
-        val text: String? = null,
+        val content: String? = null,
 
         @property:LLMDescription(
             """
-        当 type=memo 时必须填写。
+        当 type=MEME 时必须填写。
         用于向量匹配的语义标签。
         2-6 个字的抽象语义。
         示例：震惊、无语、嘲讽、大笑
         """
         )
-        val memo: String? = null,
+        val meme: String? = null,
 
         @property:LLMDescription(
             """
-        当 type=memo 时必须填写。
+        当 type=MEME 时必须填写。
         若匹配不到表情包时发送的替代文本。
         必须是自然语言句子。
         """
@@ -865,10 +864,10 @@ class ChatToolSet(
             val contents = sentences.map {
                 when (it.type) {
                     SentenceType.TEXT -> {
-                        it.text!!
+                        it.content!!
                     }
 
-                    SentenceType.MEMO -> {
+                    SentenceType.MEME -> {
                         it.alt!!
                     }
                 }
@@ -922,11 +921,11 @@ class ChatToolSet(
             suspend fun sendSentence(sentence: Sentence) {
                 when (sentence.type) {
                     SentenceType.TEXT -> {
-                        sendMessage(sentence.text!!)
+                        sendMessage(sentence.content!!)
                     }
 
-                    SentenceType.MEMO -> {
-                        val memo = context.memo(sentence.memo!!)
+                    SentenceType.MEME -> {
+                        val memo = context.memo(sentence.meme!!)
                         if (memo != null) {
                             sendImage(memo.bytes)
                         } else {
@@ -978,12 +977,12 @@ class ChatToolSet(
 
                             when (sentence.type) {
                                 SentenceType.TEXT -> {
-                                    onTimeout(calcHumanTypingDelay(sentence.text!!).milliseconds) {
+                                    onTimeout(calcHumanTypingDelay(sentence.content!!).milliseconds) {
                                         sendSentence(sentence)
                                     }
                                 }
 
-                                SentenceType.MEMO -> {
+                                SentenceType.MEME -> {
                                     onTimeout(0) {
                                         sendSentence(sentence)
                                     }

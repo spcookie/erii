@@ -1,4 +1,4 @@
-package uesugi.core.state.memo
+package uesugi.core.state.meme
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -19,11 +19,11 @@ import uesugi.toolkit.logger
  * 2. 调用 LLM 提取描述、用途、标签
  * 3. 生成向量嵌入
  */
-class MemoExtractJob(
+class MemeExtractJob(
     private val memoService: MemoService,
     private val resourceService: ResourceService,
     private val storage: ObjectStorage,
-    private val memoAgent: MemoAgent
+    private val memeAgent: MemeAgent
 ) {
     companion object {
         private val log = logger()
@@ -83,7 +83,7 @@ class MemoExtractJob(
 
         try {
             // 获取待分析的表情包
-            val pendingMemos = memoService.getPendingAnalysisMemos(botMark, groupId)
+            val pendingMemos = memoService.getPendingAnalysisMemes(botMark, groupId)
 
             if (pendingMemos.isEmpty()) {
                 log.debug("群组 $groupId 没有待分析的表情包")
@@ -98,7 +98,7 @@ class MemoExtractJob(
                     val currentSeenCount = memo.seenCount
 
                     // 调用 LLM 分析
-                    val analysis = memoAgent.analyzeMeme(memo.contexts)
+                    val analysis = memeAgent.analyzeMeme(memo.contexts)
 
                     if (analysis != null) {
                         // 生成向量ID
@@ -124,7 +124,7 @@ class MemoExtractJob(
 
                         // 更新分析结果（传入当前计数）
                         memoService.updateAnalysis(
-                            memoId = memo.id,
+                            memeId = memo.id,
                             description = analysis.description,
                             purpose = analysis.purpose,
                             tags = analysis.tags.joinToString(","),
