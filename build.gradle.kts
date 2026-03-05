@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.playwright)
     implementation(libs.flexmark.html2md)
     implementation(libs.flexmark.ext.tables)
+    implementation("cn.hutool:hutool-core:5.8.26")
     compileOnly(libs.autoservice.annotations)
     // 测试
     testImplementation(libs.ktor.server.test.host)

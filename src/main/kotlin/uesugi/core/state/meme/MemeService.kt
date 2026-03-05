@@ -275,7 +275,6 @@ class MemoService(
 
         // 构建用于向量化的文本内容
         val content = buildString {
-            memo.description?.let { append(it) }
             memo.purpose?.let {
                 if (isNotEmpty()) append(" ")
                 append(it)

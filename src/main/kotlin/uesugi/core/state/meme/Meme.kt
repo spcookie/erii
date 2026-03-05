@@ -56,7 +56,7 @@ object MemeTable : IntIdTable("meme") {
 /**
  * 表情包扫描状态表 - 记录每个 bot + group 最后扫描的 history id
  */
-object MemoScanStateTable : IntIdTable("memo_scan_state") {
+object MemoScanStateTable : IntIdTable("meme_scan_state") {
     const val DEFAULT_LENGTH = 255
 
     val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)

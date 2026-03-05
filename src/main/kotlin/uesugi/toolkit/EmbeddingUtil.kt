@@ -1,5 +1,6 @@
 package uesugi.toolkit
 
+import cn.hutool.core.io.FileTypeUtil
 import com.fasterxml.jackson.databind.JsonNode
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -24,9 +25,16 @@ object EmbeddingUtil {
             }
             val image = images.map {
                 val base64 = Base64.encode(it)
-                val mimeType = "image/jpeg"
+                val mimeType = it.inputStream().use { stream ->
+                    when (val type = FileTypeUtil.getType(stream)) {
+                        "png" -> "image/png"
+                        "jpg", "jpeg" -> "image/jpeg"
+                        "gif" -> "image/gif"
+                        else -> throw IllegalArgumentException("Unsupported image type: $type")
+                    }
+                }
                 val url = "data:$mimeType;base64,$base64"
-                mapOf("type" to "image_url", "url" to url)
+                mapOf("type" to "image_url", "image_url" to mapOf("url" to url))
             }
             setBody(
                 mapOf(
@@ -38,7 +46,7 @@ object EmbeddingUtil {
         }.body()
 
         if (node.has("error")) {
-            throw IOException(node.path("error").asText())
+            throw IOException(node.path("error").toString())
         }
 
         return buildList {
