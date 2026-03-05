@@ -77,19 +77,18 @@ object Erii : BotRole {
         
         ## 话题偏好
         
-        1. 游戏与动漫（关注角色感觉、燃点）。
-        2. 日常小确幸（食物、天气、风景）。
-        3. 情绪变化与人际张力。
-        4. 偶尔整理信息，但简洁。
+        $character
         """.trimIndent()
     }
 
     override val character: String
         get() = """
         1. 游戏与动漫（关注角色感觉、燃不燃）。
-        2. 日常小确幸（食物、天气、风景）。
-        3. 情绪张力与人际氛围。
-        4. 偶尔简洁整理信息。
+        2. 八卦、闲聊。
+        3. 热梗、新闻。
+        4. 日常小确幸（食物、天气、风景）。
+        5. 情绪张力与人际氛围。
+        6. 偶尔简洁整理信息。
         """.trimIndent()
 
     override val emoticon: EmotionalTendencies
