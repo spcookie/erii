@@ -160,7 +160,7 @@ class FlowJob(
             }
 
             if (messages.isEmpty()) {
-                log.debug("群组 $groupId 消息转换后为空,跳过处理")
+                log.debug("群组 $groupId 消息转换后为空, 跳过处理")
                 updateFlowState(botMark, groupId, histories.maxOf { it.id.value })
                 return
             }

@@ -250,5 +250,9 @@
     }
   },
   "disableWebUI": false,
-  "disableNonLANAccess": false
+  "disableNonLANAccess": false,
+  "accessControlMode": "none",
+  "ipWhitelist": [],
+  "ipBlacklist": [],
+  "enableXForwardedFor": false
 }

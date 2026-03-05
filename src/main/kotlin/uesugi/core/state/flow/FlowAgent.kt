@@ -78,7 +78,7 @@ data class GroupResonance(
     val exists: Boolean,
     @property:LLMDescription("参与讨论的人数")
     val participants: Int,
-    @property:LLMDescription("情绪PAD的 arousal，0.0-1.0，值越大表示愉悦度越强")
+    @property:LLMDescription("情绪PAD的 arousal，-1.0-1.0，值越大表示愉悦度越强")
     val arousal: Double
 )
 
@@ -156,7 +156,7 @@ class FlowAgent {
 
         val currentTopic = loadCurrentTopic(botMark, groupId)
 
-        val botInterests = BotManage.getBot(botMark)?.role?.character
+        val botInterests = BotManage.getBot(botMark).role.character
 
         val prompt = prompt("心流分析") {
             system(
@@ -169,11 +169,10 @@ class FlowAgent {
                 - 判断互动质量、群体共鸣、负面刺激等
                 - 输出结构化 JSON，用于程序直接消费
                 
-                ⚠️ 重要约束：
-                1. 判断应偏保守，宁可不给高分，也不要滥触发
-                2. 群体共鸣 ≠ 多人说话，而是【多人围绕相似语义话题】
-                3. 重复话题指"无信息增量的重复"，不是正常延续
-                4. 输出必须是 **严格 JSON**，不要任何额外说明文字
+                重要约束：
+                1. 群体共鸣 ≠ 多人说话，而是【多人围绕相似语义话题】
+                2. 重复话题指"无信息增量的重复"，不是正常延续
+                3. 输出必须是 **严格 JSON**，不要任何额外说明文字
                 
                 输出 JSON 结构
                 """.trimIndent()
