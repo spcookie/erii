@@ -28,10 +28,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.jsonNull
 import net.mamoe.mirai.contact.Contact.Companion.sendImage
+import net.mamoe.mirai.message.data.At
 import okio.Path.Companion.toPath
 import okio.buffer
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -659,9 +661,9 @@ fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
         bulleted {
             chatPoints.sortedByDescending { it.importance }
                 .forEach { cp ->
-                val username = cp.username?.let { "@$it" } ?: "用户${cp.userId}"
+                    val username = cp.username?.let { "@$it" } ?: "用户${cp.userId}"
                     item { line { text("$username 提到“${cp.topic}” → ${cp.toneHint} 优先级：${cp.importance}") } }
-            }
+                }
         }
     }
 }
@@ -669,11 +671,11 @@ fun MarkdownContentBuilder.buildChatPointsPrompt(chatPoints: List<ChatPoint>) {
 fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, currentBotId: String) {
     if (histories.isNotEmpty()) {
         header(2, "最近群聊记录")
-        line { text("注意：标有 [我] 的为当前自己的发言") }
+        line { text("注意：标有 [我] 的为当前自己的发言，括号中显示用户ID") }
         bulleted {
             for (history in histories) {
                 item {
-                    line { text("${if (currentBotId == history.userId) "[我]" else ""}${history.nick}：${history.content}") }
+                    line { text("${if (currentBotId == history.userId) "[我]" else ""}${history.nick}(${history.userId})：${history.content}") }
                 }
             }
         }
@@ -771,14 +773,15 @@ class ChatToolSet(
     val context: Context,
     private val scope: CoroutineScope,
     private val sendMessage: suspend (String) -> Unit,
-    private val sendImage: suspend (ByteArray) -> Unit
+    private val sendImage: suspend (ByteArray) -> Unit,
+    private val sendAt: suspend (Long) -> Unit
 ) : ToolSet {
 
     companion object {
         private val log = logger()
     }
 
-    @LLMDescription("回复消息，回复默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。")
+    @LLMDescription("回复消息，回复默认 1~6 句。")
     @Serializable
     data class Sentences(
         @property:LLMDescription(
@@ -796,7 +799,8 @@ class ChatToolSet(
     @LLMDescription("消息类型。只能为 TEXT 或 MEME。")
     enum class SentenceType {
         TEXT,
-        MEME
+        MEME,
+        AT
     }
 
     @Serializable
@@ -804,42 +808,25 @@ class ChatToolSet(
         """
     单条消息结构。
     规则：
-    - type=TEXT 时，必须填写 content，不能填写 meme 和 alt
-    - type=MEME 时，必须填写 meme 和 alt，不能填写 content
+    - 不允许使用换行连接多句
+    - 如果有多句话，请拆分为多个 Sentence
     """
     )
     data class Sentence(
-
         @property:LLMDescription("消息类型，必须填写")
-        val type: SentenceType,
+        @Required
+        val sentenceType: SentenceType,
 
-        @property:LLMDescription(
-            """
-        当 type=TEXT 时必须填写。
-        只能包含一句话。
-        不允许使用换行连接多句。
-        如果有多句话，请拆分为多个 Sentence。
-        """
-        )
+        @property:LLMDescription("当 type=TEXT 时必须填写文本消息。只能包含一句话。")
         val content: String? = null,
 
-        @property:LLMDescription(
-            """
-        当 type=MEME 时必须填写。
-        用于向量匹配的语义标签。
-        2-6 个字的抽象语义。
-        示例：震惊、无语、嘲讽、大笑
-        """
-        )
-        val meme: String? = null,
+        @property:LLMDescription("当 type=AT 时必须填写At消息。@某人。填写用户ID")
+        val at: Long? = null,
 
-        @property:LLMDescription(
-            """
-        当 type=MEME 时必须填写。
-        若匹配不到表情包时发送的替代文本。
-        必须是自然语言句子。
-        """
-        )
+        @property:LLMDescription("当 type=MEME 时必须填写表情包标签。用于向量匹配的语义标签。2-6 个字的抽象语义。示例：震惊、无语、嘲讽、大笑")
+        val tag: String? = null,
+
+        @property:LLMDescription("当 type=MEME 时必须填写表情包替代文本。若匹配不到表情包时发送的替代文本。必须是自然语言句子。")
         val alt: String? = null
     )
 
@@ -859,16 +846,22 @@ class ChatToolSet(
     @OptIn(ExperimentalCoroutinesApi::class)
     @LLMDescription("回复消息，返回群其他人的回复")
     @Tool
-    internal suspend fun sendAndReceive(@LLMDescription("回复文本/表情包消息，默认 1~3 句，如果你真的感兴趣，可以 3~5 句，不超过 6 句。") sentences: List<Sentence>): String? {
+    internal suspend fun sendAndReceive(@LLMDescription("回复文本/表情包消息，默认 1~6 句。") sentences: List<Sentence>): String? {
         try {
             val contents = sentences.map {
-                when (it.type) {
+                when (it.sentenceType) {
                     SentenceType.TEXT -> {
-                        it.content!!
+                        it.content ?: ""
                     }
 
                     SentenceType.MEME -> {
-                        it.alt!!
+                        it.alt ?: ""
+                    }
+
+                    SentenceType.AT -> {
+                        it.at?.let { userId ->
+                            "@$userId"
+                        } ?: ""
                     }
                 }
             }
@@ -919,17 +912,23 @@ class ChatToolSet(
             }
 
             suspend fun sendSentence(sentence: Sentence) {
-                when (sentence.type) {
+                when (sentence.sentenceType) {
                     SentenceType.TEXT -> {
-                        sendMessage(sentence.content!!)
+                        sendMessage(sentence.content ?: "")
                     }
 
                     SentenceType.MEME -> {
-                        val memo = context.memo(sentence.meme!!)
+                        val memo = sentence.tag?.let {
+                            context.memo(it)
+                        }
                         if (memo != null) {
                             sendImage(memo.bytes)
-                        } else {
-                            sendMessage(sentence.alt!!)
+                        }
+                    }
+
+                    SentenceType.AT -> {
+                        sentence.at?.let {
+                            sendAt(it)
                         }
                     }
                 }
@@ -975,14 +974,20 @@ class ChatToolSet(
                                 }
                             }
 
-                            when (sentence.type) {
+                            when (sentence.sentenceType) {
                                 SentenceType.TEXT -> {
-                                    onTimeout(calcHumanTypingDelay(sentence.content!!).milliseconds) {
+                                    onTimeout(calcHumanTypingDelay(sentence.content ?: "").milliseconds) {
                                         sendSentence(sentence)
                                     }
                                 }
 
                                 SentenceType.MEME -> {
+                                    onTimeout(0) {
+                                        sendSentence(sentence)
+                                    }
+                                }
+
+                                SentenceType.AT -> {
                                     onTimeout(0) {
                                         sendSentence(sentence)
                                     }
@@ -1205,19 +1210,21 @@ object BotAgent {
                             }
 
                             val currentBot = BotManage.getBot(event.botId)
+                            val groupId = event.groupId
+                            val bot = currentBot.refBot
 
                             val sendMessage: suspend (String) -> Unit = { message ->
-                                val groupId = event.groupId
-                                val bot = currentBot.refBot
-                                bot.getGroup(groupId.toLong())?.sendMessage(message)
+                                bot.getGroupOrFail(groupId.toLong()).sendMessage(message)
                             }
 
                             val sendImage: suspend (ByteArray) -> Unit = { bytes ->
-                                val groupId = event.groupId
-                                val bot = currentBot.refBot
                                 bytes.inputStream().use { image ->
-                                    bot.getGroup(groupId.toLong())?.sendImage(image)
+                                    bot.getGroupOrFail(groupId.toLong()).sendImage(image)
                                 }
+                            }
+
+                            val sendAt: suspend (Long) -> Unit = { id ->
+                                bot.getGroupOrFail(groupId.toLong()).sendMessage(At(id))
                             }
 
                             val context = buildContext(event)
@@ -1249,7 +1256,8 @@ object BotAgent {
                                 context,
                                 toolScope,
                                 sendMessage,
-                                sendImage
+                                sendImage,
+                                sendAt
                             )
 
                             val toolSets = event.toolSets?.invoke(chatToolSet)

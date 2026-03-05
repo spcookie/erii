@@ -38,7 +38,7 @@ class MemeExtractJob(
      */
     fun openTimingTriggerSignal() {
         BackgroundJob.scheduleRecurrently(
-            "configureMemo-extract-job",
+            "meme-extract-job",
             "0 */1 * * *",  // 每 1 小时一次
             ::doExtracting
         )

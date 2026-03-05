@@ -173,7 +173,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
         @property:LLMDescription("图片生成任务类型")
         var taskType: SeedDreamType,
         @property:LLMDescription("最终完整prompt")
-        var prompt: String? = null,
+        var prompt: String,
         @property:LLMDescription("被修改图片的id列表")
         var imageIds: List<Int>? = null,
         @property:LLMDescription("置信度，0~1之间的小数")
@@ -217,10 +217,12 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                     }
                 }.joinToString("\n\n")
 
-                val result = llm.executeStructured<SeedDreamRequest>(prompt("seed_dream_prompt") {
+                val promt = prompt("seed_dream_prompt") {
                     system(IMAGE_TASK_AGGREGATOR_PROMPT)
                     user(prompt)
-                }, LLMModelsChoice.Pro)
+                }
+
+                val result = llm.executeStructured<SeedDreamRequest>(promt, LLMModelsChoice.Pro)
 
                 val request = result.getOrThrow().data
 

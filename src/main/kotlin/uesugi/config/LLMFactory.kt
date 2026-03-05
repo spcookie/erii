@@ -74,6 +74,14 @@ class LLMFactory {
                     LLMProvider.Anthropic,
                     RetryingLLMClient(
                         delegate = AnthropicLLMClient(
+                            baseClient = HttpClient {
+                                engine {
+//                                    install(Logging) {
+//                                        logger = Logger.DEFAULT
+//                                        level = LogLevel.ALL
+//                                    }
+                                }
+                            },
                             apiKey = minimaxApiKey,
                             settings = AnthropicClientSettings(
                                 modelVersionsMap = mapOf(

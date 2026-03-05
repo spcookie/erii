@@ -38,7 +38,7 @@ class MemeCollectJob(
      */
     fun openTimingTriggerSignal() {
         BackgroundJob.scheduleRecurrently(
-            "configureMemo-collect-job",
+            "meme-collect-job",
             "0,30 * * * *",  // 每 30 分钟一次
             ::doCollecting
         )

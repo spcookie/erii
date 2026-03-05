@@ -74,7 +74,7 @@ class MemeAgent {
                 prompt = userPromptObj,
                 model = LLMModelsChoice.Flash,
                 fixingParser = StructureFixingParser(
-                    model = LLMModelsChoice.Flash,
+                    model = LLMModelsChoice.Lite,
                     retries = 2
                 )
             )
