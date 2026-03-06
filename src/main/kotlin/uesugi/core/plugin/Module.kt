@@ -17,10 +17,10 @@ fun pluginModule() = module(createdAtStart = true) {
             RouteRuleRegister.addRule(name, description)
         }
 
-    plugins.filterIsInstance<CmdPlugin>()
+    plugins.filterIsInstance<CmdPlugin<*, *>>()
         .forEach { plugin ->
-            val argParser = plugin.argParser
-            CmdRuleRegister.addRule(argParser.programName, argParser)
+            val cmdName = plugin.cmd
+            CmdRuleRegister.addRule(cmdName)
         }
 
     val extension = DatabaseImpl()
@@ -65,8 +65,8 @@ fun buildPluginDef(plugin: Plugin): PluginDef {
         if (plugin is RoutePlugin) {
             add(LLMRouteKey(plugin.matcher.first))
         }
-        if (plugin is CmdPlugin) {
-            add(CmdRouteKey(plugin.argParser.programName))
+        if (plugin is CmdPlugin<*, *>) {
+            add(CmdRouteKey(plugin.cmd))
         }
     }
     return PluginDefImpl(plugin.name, routeKeys)

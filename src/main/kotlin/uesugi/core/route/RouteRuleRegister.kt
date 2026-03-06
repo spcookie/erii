@@ -1,6 +1,5 @@
 package uesugi.core.route
 
-import kotlinx.cli.ArgParser
 import uesugi.core.plugin.MetaToolSetCreator
 
 interface RouteRule {
@@ -8,6 +7,9 @@ interface RouteRule {
 }
 
 data class LLMRouteRule(override val name: String, val description: String) : RouteRule
+
+// 简单的命令路由规则
+data class CmdRouteRule(override val name: String) : RouteRule
 
 object RouteRuleRegister {
 
@@ -26,13 +28,11 @@ object RouteRuleRegister {
     }
 }
 
-data class CmdRouteRule(override val name: String, val argParser: ArgParser) : RouteRule
-
 object CmdRuleRegister {
     private val parsers = mutableMapOf<String, CmdRouteRule>()
 
-    fun addRule(name: String, argParser: ArgParser) {
-        parsers[name] = CmdRouteRule(name, argParser)
+    fun addRule(name: String) {
+        parsers[name] = CmdRouteRule(name)
     }
 
     fun getRule(name: String): CmdRouteRule? {

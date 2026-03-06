@@ -463,7 +463,11 @@ private suspend fun buildChatPoint(
 ): List<ChatPoint> {
     val msg =
         historyEntities.map {
-            "${if (it.userId == currentBotId) "[我]" else ""}[userId:${it.userId} username:${it.nick} ${
+            "${if (it.userId == currentBotId) "[我]" else ""}[userId:${it.userId} username: ${
+                if (it.userId == currentBotId) BotManage.getBot(
+                    currentBotId
+                ).role.name else it.nick
+            } ${
                 it.createdAt.format(
                     DateTimeFormat
                 )
@@ -675,7 +679,7 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
         bulleted {
             for (history in histories) {
                 item {
-                    line { text("${if (currentBotId == history.userId) "[我]" else ""}${history.nick}(${history.userId})：${history.content}") }
+                    line { text("${if (currentBotId == history.userId) "[我]${BotManage.getBot(history.userId).role.name}" else history.nick}(${history.userId})：${history.content}") }
                 }
             }
         }
@@ -1262,6 +1266,8 @@ object BotAgent {
 
                             val toolSets = event.toolSets?.invoke(chatToolSet)
 
+                            var requireSend = false
+
                             val aiAgent = AIAgent(
                                 promptExecutor = promptExecutor,
                                 agentConfig = AIAgentConfig(
@@ -1282,7 +1288,10 @@ object BotAgent {
                                     val nodeSendToolResult by nodeLLMSendToolResult()
 
                                     edge(nodeStart forwardTo nodeSendInput)
-                                    edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
+                                    edge(nodeSendInput forwardTo nodeFinish onAssistantMessage {
+                                        requireSend = true
+                                        true
+                                    })
                                     edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
                                     edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
                                         try {
@@ -1303,7 +1312,10 @@ object BotAgent {
                                         }
                                     } transformed { it.content })
                                     edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-                                    edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+                                    edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage {
+                                        requireSend = true
+                                        true
+                                    })
                                 }
                             ) {
                                 handleEvents {
@@ -1343,7 +1355,11 @@ object BotAgent {
                                 }
                             }
 
-                            aiAgent.run(event.input ?: DEFAULT_INPUT)
+                            val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
+
+                            if (requireSend) {
+                                sendMessage(result)
+                            }
                         } catch (e: Exception) {
                             error = e
                             throw e
