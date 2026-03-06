@@ -14,11 +14,12 @@ google-genai = "1.28.0"
 mapdb = "3.0.9"
 playwright = "1.57.0"
 flexmark = "0.64.8"
-cli = "0.3.6"
 autoservice = "1.1.1"
 arrow = "2.0.0"
 lucene = "9.12.3"
 lucene-analyzers = "8.11.4"
+clikt = "5.1.0"
+hutool = "5.8.26"
 
 [libraries]
 mirai-overflow = { module = "top.mrxiaom.mirai:overflow-core", version = "1.0.8" }
@@ -42,7 +43,6 @@ exposed-migration-jdbc = { module = "org.jetbrains.exposed:exposed-migration-jdb
 ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging", version.ref = "ktor" }
 ktor-server-call-id = { module = "io.ktor:ktor-server-call-id", version.ref = "ktor" }
 ktor-server-resources = { module = "io.ktor:ktor-server-resources", version.ref = "ktor" }
-ktor-server-request-validation = { module = "io.ktor:ktor-server-request-validation", version.ref = "ktor" }
 ktor-server-double-receive = { module = "io.ktor:ktor-server-double-receive", version.ref = "ktor" }
 ktor-server-auto-head-response = { module = "io.ktor:ktor-server-auto-head-response", version.ref = "ktor" }
 ktor-server-auth = { module = "io.ktor:ktor-server-auth", version.ref = "ktor" }
@@ -59,7 +59,8 @@ ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negoti
 ktor-client-serialization-jackson = { module = "io.ktor:ktor-serialization-jackson", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
-kotlinx-cli = { module = "org.jetbrains.kotlinx:kotlinx-cli", version.ref = "cli" }
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+hutool-core = { module = "cn.hutool:hutool-core", version.ref = "hutool" }
 autoservice-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoservice" }
 autoservice-processor = { module = "com.google.auto.service:auto-service", version.ref = "autoservice" }
 atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }

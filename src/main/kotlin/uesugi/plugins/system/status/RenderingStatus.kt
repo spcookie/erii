@@ -1,19 +1,15 @@
 package uesugi.plugins.system.status
 
 import com.google.auto.service.AutoService
-import kotlinx.cli.ArgParser
 import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.koin.core.context.GlobalContext
 import org.koin.core.qualifier.named
-import uesugi.core.plugin.ClassNameMixin
-import uesugi.core.plugin.CmdPlugin
-import uesugi.core.plugin.Plugin
-import uesugi.core.plugin.PluginContext
+import uesugi.core.plugin.*
 import uesugi.toolkit.ref
 
 @AutoService(Plugin::class)
-class RenderingStatus : CmdPlugin, ClassNameMixin {
+class RenderingStatus : CmdPlugin<Unit, ArgParserHolder.Empty>, ClassNameMixin {
 
     override fun onLoad(context: PluginContext) {
         val webScreenshotTaker by ref<WebScreenshotTaker>()
@@ -38,6 +34,6 @@ class RenderingStatus : CmdPlugin, ClassNameMixin {
         }
     }
 
-    override val argParser: ArgParser
-        get() = ArgParser("status")
+    override val cmd: String
+        get() = "status"
 }

@@ -2,10 +2,19 @@ package uesugi.core.plugin
 
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.prompt.executor.model.PromptExecutor
+import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.context
+import com.github.ajalt.clikt.core.main
+import com.github.ajalt.clikt.core.terminal
+import com.github.ajalt.mordant.rendering.AnsiLevel
+import com.github.ajalt.mordant.terminal.PrintRequest
+import com.github.ajalt.mordant.terminal.Terminal
+import com.github.ajalt.mordant.terminal.TerminalInfo
+import com.github.ajalt.mordant.terminal.TerminalInterface
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
-import kotlinx.cli.ArgParser
 import kotlinx.coroutines.*
 import net.mamoe.mirai.utils.ConcurrentHashMap
 import okio.Path
@@ -27,6 +36,8 @@ import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.toolkit.*
 import java.io.InputStream
+import kotlin.reflect.KClass
+import kotlin.reflect.full.createInstance
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlin.uuid.ExperimentalUuidApi
@@ -38,8 +49,80 @@ sealed interface Plugin {
     fun onUnload() {}
 }
 
-interface CmdPlugin : Plugin {
-    val argParser: ArgParser
+interface CmdPlugin<Context, Arg : ArgParserHolder<Context>> : Plugin {
+    val cmd: String
+
+    fun Meta.parser(context: Context): Arg {
+        val holder = getHolder(this@parser)
+        holder.init(this@parser, context)
+        val args = buildList {
+            addAll(
+                input!!.removePrefix("/")
+                    .removePrefix(cmd)
+                    .split(" ")
+                    .filter { it.isNotBlank() }
+                    .map { it.trim() }
+            )
+        }
+        holder.main(args)
+        return holder
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun getHolder(meta: Meta): Arg {
+        val superType = this@CmdPlugin::class.supertypes.first()
+        val typeArg = superType.arguments[1].type
+        val kClass = typeArg?.classifier as? KClass<*> ?: error("Not a class")
+        val holder = kClass.createInstance()
+        return holder as Arg
+    }
+}
+
+object LoggerTerminalInterface : TerminalInterface {
+
+    private val log = KotlinLogging.logger {}
+
+    override fun info(
+        ansiLevel: AnsiLevel?,
+        hyperlinks: Boolean?,
+        outputInteractive: Boolean?,
+        inputInteractive: Boolean?
+    ): TerminalInfo {
+        return TerminalInfo(
+            ansiLevel = AnsiLevel.NONE,
+            outputInteractive = true,
+            inputInteractive = true,
+            supportsAnsiCursor = true,
+            ansiHyperLinks = true
+        )
+    }
+
+    override fun completePrintRequest(request: PrintRequest) {
+        if (request.stderr) log.error { request.text }
+        else log.info { request.text }
+    }
+
+    override fun readLineOrNull(hideInput: Boolean): String? {
+        return null
+    }
+}
+
+abstract class ArgParserHolder<Context> : CliktCommand() {
+
+    companion object Empty : ArgParserHolder<Unit>() {
+        override fun run() {
+        }
+    }
+
+    init {
+        context {
+            terminal = Terminal(terminalInterface = LoggerTerminalInterface)
+            exitProcess = {}
+        }
+    }
+
+    open fun init(meta: Meta, context: Context) {}
+
 }
 
 interface RoutePlugin : Plugin {

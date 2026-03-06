@@ -57,7 +57,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
     private val storage by GlobalContext.get().inject<ObjectStorage>()
 
-    private val COMMAND_REGEX = Regex("^/([A-Za-z0-9]+)")
+    private val COMMAND_REGEX = Regex("^\\s*/(\\S+)(?:\\s+.*)?$")
 
     private val serial = mutableMapOf<String, Channel<GroupAwareMessageEvent>>()
 
