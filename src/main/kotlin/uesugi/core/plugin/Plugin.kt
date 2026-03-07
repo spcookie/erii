@@ -15,6 +15,12 @@ import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
+import io.ktor.serialization.jackson.*
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.*
 import net.mamoe.mirai.utils.ConcurrentHashMap
 import okio.Path
@@ -156,6 +162,8 @@ interface PluginContext : AutoCloseable {
 
     val HttpClient.proxy: HttpClient
 
+    val server: Server
+
     fun chain(handler: Handler)
 
     fun tool(toolset: PluginContext.() -> MetaToolSetCreator)
@@ -231,6 +239,10 @@ interface Meta {
 
 interface Database {
     suspend fun getHistory(query: () -> Query): List<HistoryRecord>
+}
+
+interface Server {
+    fun route(conf: Route.() -> Unit)
 }
 
 fun Meta.sendAgent(
@@ -673,6 +685,40 @@ internal class DatabaseImpl : Database {
 
 }
 
+class ServerImpl(val defined: PluginDef) : Server {
+
+    private val routeing by lazy {
+        var ref: Route? = null
+        embeddedServer(Netty, configure = {
+            connectors.add(EngineConnectorBuilder().apply {
+                host = "127.0.0.1"
+                port = 8888
+            })
+            connectionGroupSize = 2
+            workerGroupSize = 5
+            callGroupSize = 10
+        }) {
+            install(ContentNegotiation) {
+                jackson()
+            }
+
+            routing {
+                route("/plugin") {
+                    ref = this
+                }
+            }
+        }.start()
+        ref!!
+    }
+
+    override fun route(conf: Route.() -> Unit) {
+        routeing.route("/${defined.name}") {
+            conf()
+        }
+    }
+
+}
+
 class PluginContextImpl(
     override val defined: PluginDef,
     override val mem: Mem,
@@ -683,6 +729,7 @@ class PluginContextImpl(
     override val scheduler: JobScheduler,
     override val llm: PromptExecutor,
     override val http: HttpClient,
+    override val server: Server,
     val httpProxy: HttpClient
 ) : PluginContext {
 
