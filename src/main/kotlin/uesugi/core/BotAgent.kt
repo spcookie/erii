@@ -826,7 +826,6 @@ suspend fun isRelevanceContinue(histories: List<HistoryRecord>, currentBotId: St
     return content != null && content.contains("CONTINUE")
 }
 
-@Suppress("unused")
 class ChatToolSet(
     val context: Context,
     private val scope: CoroutineScope,
@@ -838,21 +837,6 @@ class ChatToolSet(
     companion object {
         private val log = logger()
     }
-
-    @LLMDescription("回复消息，回复默认 1~6 句。")
-    @Serializable
-    data class Sentences(
-        @property:LLMDescription(
-            """
-        回复消息列表。
-        强制规则：
-        - 每一句话必须作为一个独立的 Sentence
-        - 不允许在一个 content 字段中写多句话
-        - 每个 Sentence 只能包含一句完整语义
-        """
-        )
-        val items: List<Sentence>
-    )
 
     @LLMDescription("消息类型。只能为 TEXT 或 MEME。")
     enum class SentenceType {
@@ -981,6 +965,8 @@ class ChatToolSet(
                         }
                         if (memo != null) {
                             sendImage(memo.bytes)
+                        } else {
+                            sendMessage(sentence.alt ?: sentence.tag ?: "")
                         }
                     }
 
@@ -1197,7 +1183,7 @@ object BotAgent {
                 } else if (it.flag has ProactiveSpeakFeature.GRAB) {
                     if (state?.flag has ProactiveSpeakFeature.IGNORE_INTERRUPT) {
                         if (it.flag has ProactiveSpeakFeature.FALLBACK) {
-                            log.warn("BotAgent: Reject grab and dispatchFallback, {}", it)
+                            log.warn("BotAgent: Reject grab and dispatch fallback, {}", it)
                             EventBus.postAsync(
                                 AgentFallbackEvent(
                                     it.botId,

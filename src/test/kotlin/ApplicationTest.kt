@@ -20,8 +20,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import net.mamoe.mirai.message.data.Face
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import top.mrxiaom.overflow.BotBuilder
 import uesugi.core.message.history.HistoryEntity
 import uesugi.core.message.history.MessageType
 import uesugi.toolkit.EventBus
@@ -167,6 +169,26 @@ class ApplicationTest {
             edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
             edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
         }.asMermaidDiagram())
+    }
+
+    @Test
+    fun test_face() {
+        runBlocking {
+            val bot = BotBuilder.positive(System.getenv("NAPCAT_WS"))
+                .token(System.getenv("NAPCAT_TOKEN"))
+                .connect() ?: error("Failed to connect bot")
+            bot.getGroupOrFail(474270623).also { group ->
+                group.sendMessage(Face(123))
+            }
+        }
+    }
+
+    @Test
+    fun test_print_face() {
+        for ((i, n) in Face.names.withIndex()) {
+            if (n == "[表情]") continue
+            println("${n.removePrefix("[").removeSuffix("]")}=$i")
+        }
     }
 
 }

@@ -168,7 +168,11 @@ interface PluginContext : AutoCloseable {
 
     fun tool(toolset: PluginContext.() -> MetaToolSetCreator)
 
+}
+
+internal interface PluginContextBootstrap : PluginContext, AutoCloseable {
     fun open()
+    fun ready()
 }
 
 interface MetaToolSet : ToolSet {
@@ -218,7 +222,7 @@ interface Blob : AutoCloseable {
 interface Vector : AutoCloseable {
     suspend fun embedding(input: List<String>, images: List<ByteArray>): FloatArray
     suspend fun search(queryVector: FloatArray, topK: Int, filter: Map<String, String>? = null): List<SearchResult>
-    suspend fun upsert(id: String, content: String, vector: FloatArray)
+    suspend fun upsert(id: String, content: String, tag: String, vector: FloatArray)
     suspend fun delete(id: String)
 
     data class SearchResult(
@@ -622,8 +626,8 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
         }
     }
 
-    override suspend fun upsert(id: String, content: String, vector: FloatArray) {
-        default.upsert(id, content, vector)
+    override suspend fun upsert(id: String, content: String, tag: String, vector: FloatArray) {
+        default.upsert(id, content, tag, vector)
     }
 
     override suspend fun delete(id: String) {
@@ -731,7 +735,7 @@ class PluginContextImpl(
     override val http: HttpClient,
     override val server: Server,
     val httpProxy: HttpClient
-) : PluginContext {
+) : PluginContextBootstrap {
 
     companion object {
         val log = logger()
@@ -759,9 +763,6 @@ class PluginContextImpl(
     }
 
     override fun open() {
-        for (toolset in toolsets) {
-            MetaToolSetRegister.addToolSet(defined.name, toolset)
-        }
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             for (rk in defined.routeKeys) {
                 if (event hit rk.key) {
@@ -778,6 +779,12 @@ class PluginContextImpl(
                     }
                 }
             }
+        }
+    }
+
+    override fun ready() {
+        for (toolset in toolsets) {
+            MetaToolSetRegister.addToolSet(defined.name, toolset)
         }
     }
 

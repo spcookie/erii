@@ -180,6 +180,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
         var confidence: Float = 0.0f
     )
 
+    @Suppress("unused")
     enum class SeedDreamType {
         TEXT_TO_IMAGE,
         IMAGE_TO_IMAGE_REFERENCE,
@@ -345,7 +346,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                 )
             ) {
                 sendAfter { send() }
-                callCompletion { send() }
+                dispatchFallback { send() }
                 callCompletion { send() }
                 GlobalScope
             }
@@ -354,6 +355,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
         context.tool {
             {
                 object : MetaToolSet {
+                    @Tool
                     @LLMDescription("回复消息，并生成图片发送")
                     suspend fun imageCreate(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
                         val resource = image(meta)

@@ -20,7 +20,7 @@ data class VectorSearchResult(
 )
 
 interface VectorStore {
-    fun upsert(id: String, content: String, vector: FloatArray)
+    fun upsert(id: String, content: String, tag: String, vector: FloatArray)
     fun delete(id: String)
     fun search(queryVector: FloatArray, topK: Int, filter: Map<String, String>? = null): List<VectorSearchResult>
 }
@@ -41,6 +41,7 @@ class EmbeddedVectorStore(
         const val VECTOR_FIELD = "vector"
         const val ID_FIELD = "id"
         const val CONTENT_FIELD = "content"
+        const val TAG = "tag"
     }
 
     init {
@@ -52,13 +53,14 @@ class EmbeddedVectorStore(
         searcherManager = SearcherManager(writer, null)
     }
 
-    override fun upsert(id: String, content: String, vector: FloatArray) {
+    override fun upsert(id: String, content: String, tag: String, vector: FloatArray) {
         validate(vector)
 
         lock.write {
             val doc = Document().apply {
                 add(StringField(ID_FIELD, id, Field.Store.YES))
                 add(TextField(CONTENT_FIELD, content, Field.Store.YES))
+                add(StringField(TAG, tag, Field.Store.YES))
                 add(KnnFloatVectorField(VECTOR_FIELD, vector))
             }
 
