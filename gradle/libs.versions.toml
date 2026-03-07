@@ -20,6 +20,7 @@ lucene = "9.12.3"
 lucene-analyzers = "8.11.4"
 clikt = "5.1.0"
 hutool = "5.8.26"
+jte = "3.2.1"
 
 [libraries]
 mirai-overflow = { module = "top.mrxiaom.mirai:overflow-core", version = "1.0.8" }
@@ -50,14 +51,15 @@ ktor-server-partial-content = { module = "io.ktor:ktor-server-partial-content", 
 ktor-server-default-headers = { module = "io.ktor:ktor-server-default-headers", version.ref = "ktor" }
 ktor-server-compression = { module = "io.ktor:ktor-server-compression", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
-mapdb = { module = "org.mapdb:mapdb", version.ref = "mapdb" }
-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml", version.ref = "ktor" }
+ktor-server-jte = { module = "io.ktor:ktor-server-jte", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-serialization-jackson = { module = "io.ktor:ktor-serialization-jackson", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+mapdb = { module = "org.mapdb:mapdb", version.ref = "mapdb" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 hutool-core = { module = "cn.hutool:hutool-core", version.ref = "hutool" }
@@ -69,6 +71,7 @@ playwright = { module = "com.microsoft.playwright:playwright", version.ref = "pl
 arrow-core = { group = "io.arrow-kt", name = "arrow-core", version.ref = "arrow" }
 lucene-core = { module = "org.apache.lucene:lucene-core", version.ref = "lucene" }
 lucene-analyzers-common = { module = "org.apache.lucene:lucene-analyzers-common", version.ref = "lucene-analyzers" }
+jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
 flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter", version.ref = "flexmark" }
 flexmark-ext-tables = { module = "com.vladsch.flexmark:flexmark-ext-tables", version.ref = "flexmark" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }

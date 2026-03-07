@@ -32,6 +32,8 @@ fun pluginModule() = module(createdAtStart = true) {
         val blob = BlobImpl(pluginDef)
         val vector = VectorImpl(pluginDef)
 
+        val server = ServerImpl(pluginDef)
+
         var context: PluginContext? = null
 
         single(named(pluginDef.name)) {
@@ -45,6 +47,7 @@ fun pluginModule() = module(createdAtStart = true) {
                 get(),
                 get(),
                 get(named(HttpClientFactory.Type.NO_PROXY)),
+                server,
                 get(named(HttpClientFactory.Type.PROXY)),
             ).apply { open() }
             plugin.apply { onLoad(context) }
