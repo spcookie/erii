@@ -83,6 +83,7 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
         context.tool {
             {
                 object : MetaToolSet {
+                    @Tool
                     @LLMDescription("回复消息，并发送一张涩图")
                     suspend fun sendSexImage(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
                         val resource = getImage(meta)

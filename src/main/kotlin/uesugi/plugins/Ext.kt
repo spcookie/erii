@@ -12,7 +12,9 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
-fun Meta.getGroup() = roledBot.refBot.getGroupOrFail(groupId.toLong())
+fun Meta.getRefBot() = roledBot.refBot
+
+fun Meta.getGroup() = getRefBot().getGroupOrFail(groupId.toLong())
 
 @OptIn(ExperimentalTime::class)
 suspend fun Database.getLatestHistory(

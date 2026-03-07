@@ -288,7 +288,7 @@ class MemoService(
         if (content.isNotBlank()) {
             val vector = TextImageEncoder.encode(content, memo.resource?.bytes)
             val vectorId = memo.vectorId ?: TextImageEncoder.generateVectorId(memo.botId, memo.groupId, memo.id!!)
-            store.upsert(vectorId, content, vector)
+            store.upsert(vectorId, content, "", vector)
             log.debug("表情包向量已存储: vectorId=$vectorId, content=$content")
         }
     }

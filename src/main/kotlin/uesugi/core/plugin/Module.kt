@@ -23,6 +23,9 @@ fun pluginModule() = module(createdAtStart = true) {
             CmdRuleRegister.addRule(cmdName)
         }
 
+    plugins.forEach { plugin ->
+    }
+
     val extension = DatabaseImpl()
 
     plugins.forEach { plugin ->
@@ -37,20 +40,25 @@ fun pluginModule() = module(createdAtStart = true) {
         var context: PluginContext? = null
 
         single(named(pluginDef.name)) {
-            context = PluginContextImpl(
-                pluginDef,
-                mem,
-                kv,
-                blob,
-                vector,
-                extension,
-                get(),
-                get(),
-                get(named(HttpClientFactory.Type.NO_PROXY)),
-                server,
-                get(named(HttpClientFactory.Type.PROXY)),
-            ).apply { open() }
-            plugin.apply { onLoad(context) }
+            plugin.apply {
+                context = PluginContextImpl(
+                    pluginDef,
+                    mem,
+                    kv,
+                    blob,
+                    vector,
+                    extension,
+                    get(),
+                    get(),
+                    get(named(HttpClientFactory.Type.NO_PROXY)),
+                    server,
+                    get(named(HttpClientFactory.Type.PROXY)),
+                ).apply {
+                    open()
+                    plugin.onLoad(this)
+                    ready()
+                }
+            }
         } onClose {
             mem.close()
             kv.close()
