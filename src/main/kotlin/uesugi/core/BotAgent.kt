@@ -19,6 +19,7 @@ import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
+import com.nlf.calendar.Solar
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.onTimeout
@@ -27,6 +28,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
+import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
@@ -63,6 +65,7 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
+
 
 data class SpeechConstraints(
     val styleHints: MutableList<String> = mutableListOf(),
@@ -590,11 +593,62 @@ private fun buildConstraint(
 @OptIn(ExperimentalTime::class)
 fun MarkdownContentBuilder.buildMetadataPrompt() {
     header(2, "元数据")
-    line {
-        val instant = Clock.System.now()
-        val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-        text("当前日期时间: ${DateTimeFormat.format(localDateTime)}")
+    val instant = Clock.System.now()
+    val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+    var solar = Solar.fromYmd(
+        localDateTime.year,
+        localDateTime.month.number,
+        localDateTime.day
+    )
+    var lunar = solar.lunar
+    line { text("当前日期时间: ${DateTimeFormat.format(localDateTime)}") }
+
+    line { text("当前星期: 星期${solar.weekInChinese}") }
+    buildList {
+        addAll(solar.festivals)
+        addAll(solar.otherFestivals)
+        addAll(lunar.festivals)
+        addAll(lunar.otherFestivals)
+    }.joinToString("、")
+        .takeIf { it.isNotBlank() }
+        ?.let {
+            line { text("当前节日: $it") }
+        }
+    val maxDays = 365
+    var count = 0
+    val max = 2
+    var inc = 0
+    while (count++ < maxDays) {
+        solar = solar.next(1)
+        lunar = solar.lunar
+        val festivals = buildList {
+            addAll(solar.festivals)
+            addAll(solar.otherFestivals)
+            addAll(lunar.festivals)
+            addAll(lunar.otherFestivals)
+        }
+        if (festivals.isNotEmpty()) {
+            var label = ""
+            repeat(inc + 1) { label += "下" }
+            label += "一次节日"
+            val time =
+                "${solar.month}/${solar.day} ${lunar.monthInChinese}月${lunar.dayInChinese} 星期${solar.weekInChinese}"
+            line {
+                text(
+                    "$label[$time]: ${
+                        festivals.joinToString(
+                            "、"
+                        )
+                    }"
+                )
+            }
+            inc++
+            if (inc >= max) {
+                break
+            }
+        }
     }
+
 }
 
 fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechConstraints) {

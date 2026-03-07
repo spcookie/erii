@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.ktor.server.netty)
     implementation(libs.logback.classic)
     implementation(libs.ktor.server.config.yaml)
+    implementation(libs.ktor.server.jte)
     // 客户端
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
@@ -69,6 +70,8 @@ dependencies {
     implementation(libs.flexmark.ext.tables)
     implementation(libs.clikt)
     implementation(libs.hutool.core)
+    implementation(libs.jte.kotlin)
+    implementation("cn.6tail:lunar:1.7.5")
     compileOnly(libs.autoservice.annotations)
     // 测试
     testImplementation(libs.ktor.server.test.host)
