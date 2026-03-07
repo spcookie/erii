@@ -1,6 +1,7 @@
 package uesugi
 
 import io.ktor.server.application.*
+import uesugi.config.configureH2Console
 import uesugi.server.*
 
 internal val LOG = _root_ide_package_.uesugi.toolkit.logger("uesugi")
@@ -18,5 +19,5 @@ fun Application.module() {
 
     configureBotAgent()
     configureConnectBots()
-    _root_ide_package_.uesugi.config.configureH2Console()
+    configureH2Console()
 }
