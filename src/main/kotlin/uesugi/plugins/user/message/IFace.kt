@@ -1,4 +1,4 @@
-package uesugi.plugins.user
+package uesugi.plugins.user.message
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
@@ -8,7 +8,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.mamoe.mirai.message.data.Face
 import uesugi.core.plugin.*
-import uesugi.core.plugin.MetaToolSet.Companion.meta
 import uesugi.plugins.getGroup
 
 @AutoService(Plugin::class)
@@ -31,7 +30,7 @@ class IFace : PassivePlugin {
                         query: String
                     ): String {
                         ensureFace()
-                        return if (sendFace(meta, query)) {
+                        return if (sendFace(MetaToolSet.meta, query)) {
                             "发送成功"
                         } else {
                             "没有该表情，发送失败"
