@@ -1,4 +1,4 @@
-package uesugi.plugins.system.chatgpt
+package uesugi.plugins.system.qa
 
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig

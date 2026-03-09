@@ -893,11 +893,11 @@ class ChatToolSet(
             val contents = sentences.map {
                 when (it.sentenceType) {
                     SentenceType.TEXT -> {
-                        it.content ?: ""
+                        it.content ?: it.alt ?: ""
                     }
 
                     SentenceType.MEME -> {
-                        it.alt ?: ""
+                        it.alt ?: it.content ?: ""
                     }
 
                     SentenceType.AT -> {
@@ -956,7 +956,7 @@ class ChatToolSet(
             suspend fun sendSentence(sentence: Sentence) {
                 when (sentence.sentenceType) {
                     SentenceType.TEXT -> {
-                        sendMessage(sentence.content ?: "")
+                        sendMessage(sentence.content ?: sentence.alt ?: sentence.tag ?: "")
                     }
 
                     SentenceType.MEME -> {
@@ -966,13 +966,15 @@ class ChatToolSet(
                         if (memo != null) {
                             sendImage(memo.bytes)
                         } else {
-                            sendMessage(sentence.alt ?: sentence.tag ?: "")
+                            sendMessage(sentence.alt ?: sentence.tag ?: sentence.content ?: "")
                         }
                     }
 
                     SentenceType.AT -> {
-                        sentence.at?.let {
-                            sendAt(it)
+                        if (sentence.at != null) {
+                            sendAt(sentence.at)
+                        } else {
+                            sendMessage(sentence.content ?: sentence.alt ?: sentence.tag ?: "")
                         }
                     }
                 }
@@ -1352,10 +1354,7 @@ object BotAgent {
                                         }
                                     } transformed { it.content })
                                     edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-                                    edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage {
-                                        requireSend = true
-                                        true
-                                    })
+                                    edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
                                 }
                             ) {
                                 handleEvents {
@@ -1395,10 +1394,22 @@ object BotAgent {
                                 }
                             }
 
-                            val result = aiAgent.run(event.input ?: DEFAULT_INPUT)
+                            aiAgent.run(event.input ?: DEFAULT_INPUT)
 
                             if (requireSend) {
-                                sendMessage(result)
+                                val emoticon = listOf(
+                                    "(×_×)",
+                                    "(@_@)",
+                                    "(；￣Д￣)",
+                                    "(⊙_⊙;)",
+                                    "(>_<)",
+                                    "(￣□￣;)",
+                                    "(╯°□°）╯︵ ┻━┻",
+                                    "(⊙＿⊙')",
+                                    "(；・∀・)",
+                                    "(._.)"
+                                )
+                                sendMessage(emoticon.random())
                             }
                         } catch (e: Exception) {
                             error = e
