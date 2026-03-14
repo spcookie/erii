@@ -55,7 +55,7 @@ class MemoryService(
 
             if (messages.isEmpty()) {
                 log.debug("群组 $groupId 消息转换后为空,跳过处理")
-                val maxHistoryId = histories.maxOf { it.id.value }
+                val maxHistoryId = histories.maxOf { it.id!! }
                 memoryRepository.updateMemoryState(botMark, groupId, maxHistoryId)
                 return
             }
@@ -86,7 +86,7 @@ class MemoryService(
             }
 
             // 5. 更新记忆处理状态
-            val maxHistoryId = histories.maxOf { it.id.value }
+            val maxHistoryId = histories.maxOf { it.id!! }
             memoryRepository.updateMemoryState(botMark, groupId, maxHistoryId)
 
             log.debug("群组 $groupId 记忆处理完成, 最大 historyId=$maxHistoryId")
@@ -136,11 +136,9 @@ class MemoryService(
             // 保存到数据库
             withContext(Dispatchers.IO) {
                 transaction {
-                    if (existing != null) {
-                        existing.profile = analysis.profile
-                        existing.preferences = analysis.preferences
-                        log.info("用户画像已更新, botId=$botMark, groupId=$groupId, userId=$userId")
-                    }
+                    existing.profile = analysis.profile
+                    existing.preferences = analysis.preferences
+                    log.info("用户画像已更新, botId=$botMark, groupId=$groupId, userId=$userId")
                 }
             }
 
@@ -165,7 +163,7 @@ class MemoryService(
                 memoryRepository.getValidFacts(botMark, groupId)
             }.map {
                 MemoryAgent.FactsAnalysisInput(
-                    id = it.id.value,
+                    id = it.id,
                     keyword = it.keyword,
                     description = it.description,
                     values = it.values.split(","),
@@ -313,9 +311,9 @@ class MemoryService(
                             val vectorId = factVectorStore.indexFact(it)
                             // 保存 vectorId 到数据库
                             withContext(Dispatchers.IO) {
-                                memoryRepository.updateFactVectorId(it.id.value, vectorId)
+                                memoryRepository.updateFactVectorId(it.id, vectorId)
                             }
-                            log.debug("事实向量索引已创建, factId=${it.id.value}, vectorId=$vectorId")
+                            log.debug("事实向量索引已创建, factId=${it.id}, vectorId=$vectorId")
                         }
                     }
 
@@ -337,7 +335,7 @@ class MemoryService(
                             factEntity?.let { entity ->
                                 entity.vectorId?.let { vectorId ->
                                     factVectorStore.deleteVector(vectorId, botMark, groupId)
-                                    log.debug("事实向量索引已删除, factId=${entity.id.value}, vectorId=$vectorId")
+                                    log.debug("事实向量索引已删除, factId=${entity.id}, vectorId=$vectorId")
                                 }
                             }
                         }
@@ -371,9 +369,9 @@ class MemoryService(
                             newFact?.let {
                                 val vectorId = factVectorStore.indexFact(it)
                                 withContext(Dispatchers.IO) {
-                                    memoryRepository.updateFactVectorId(it.id.value, vectorId)
+                                    memoryRepository.updateFactVectorId(it.id, vectorId)
                                 }
-                                log.debug("事实向量索引已更新, factId=${it.id.value}, vectorId=$vectorId")
+                                log.debug("事实向量索引已更新, factId=${it.id}, vectorId=$vectorId")
                             }
                         }
                     }

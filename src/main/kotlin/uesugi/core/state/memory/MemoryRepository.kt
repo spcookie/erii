@@ -1,6 +1,5 @@
 package uesugi.core.state.memory
 
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
@@ -9,8 +8,12 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import uesugi.core.message.history.HistoryEntity
+import uesugi.core.message.history.HistoryRecord
 import uesugi.core.message.history.HistoryTable
+import uesugi.core.message.history.toRecord
 import uesugi.toolkit.logger
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 /**
  * 记忆仓库 - 负责数据库操作
@@ -58,17 +61,18 @@ class MemoryRepository {
     /**
      * 获取记忆处理状态
      */
-    fun getMemoryState(botMark: String, groupId: String): MemoryStateEntity? {
+    fun getMemoryState(botMark: String, groupId: String): MemoryStateRecord? {
         return transaction {
             MemoryStateEntity.find(
                 (MemoryStateTable.botMark eq botMark) and (MemoryStateTable.groupId eq groupId)
-            ).firstOrNull()
+            ).firstOrNull()?.toRecord()
         }
     }
 
     /**
      * 更新记忆处理状态
      */
+    @OptIn(ExperimentalTime::class)
     fun updateMemoryState(botMark: String, groupId: String, lastHistoryId: Int) {
         transaction {
             val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -100,7 +104,7 @@ class MemoryRepository {
         groupId: String,
         lastHistoryId: Int,
         limit: Int = 200
-    ): List<HistoryEntity> {
+    ): List<HistoryRecord> {
         return transaction {
             HistoryEntity.find(
                 (HistoryTable.botMark eq botMark) and
@@ -109,16 +113,16 @@ class MemoryRepository {
             )
                 .orderBy(HistoryTable.createdAt to SortOrder.ASC)
                 .limit(limit)
-                .toList()
+                .map { it.toRecord() }
         }
     }
 
     /**
      * 查找或创建用户画像
      */
-    fun findOrCreateUserProfile(botMark: String, groupId: String, userId: String): UserProfileEntity? {
+    fun findOrCreateUserProfile(botMark: String, groupId: String, userId: String): UserProfileRecord {
         return transaction {
-            UserProfileEntity.find(
+            val entity = UserProfileEntity.find(
                 (UserProfileTable.botMark eq botMark) and
                         (UserProfileTable.groupId eq groupId) and
                         (UserProfileTable.userId eq userId)
@@ -129,20 +133,21 @@ class MemoryRepository {
                 this.profile = ""
                 this.preferences = ""
             }
+            entity.toRecord()
         }
     }
 
     /**
      * 获取有效的事实记忆
      */
-    fun getValidFacts(botMark: String, groupId: String): List<FactsEntity> {
+    fun getValidFacts(botMark: String, groupId: String): List<FactsRecord> {
         return transaction {
             FactsEntity.find(
                 (FactsTable.botMark eq botMark) and
                         (FactsTable.groupId eq groupId) and
                         (FactsTable.validFrom lessEq CurrentDateTime) and
                         (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-            ).toList()
+            ).map { it.toRecord() }
         }
     }
 
@@ -174,6 +179,7 @@ class MemoryRepository {
     /**
      * 废弃旧的事实记忆
      */
+    @OptIn(ExperimentalTime::class)
     fun deprecateFacts(botMark: String, groupId: String, keyword: String, subjects: String, scopeType: Scopes) {
         transaction {
             val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -193,6 +199,7 @@ class MemoryRepository {
     /**
      * 根据 ID 废弃事实
      */
+    @OptIn(ExperimentalTime::class)
     fun deprecateFactsById(botMark: String, groupId: String, factId: Int, scopeType: Scopes) {
         transaction {
             val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -211,7 +218,7 @@ class MemoryRepository {
     // ==================== Facts 增强 ====================
 
     /** 获取所有有效事实（可按用户过滤） */
-    fun getFacts(botMark: String, groupId: String, userId: String? = null): List<FactsEntity> {
+    fun getFacts(botMark: String, groupId: String, userId: String? = null): List<FactsRecord> {
         return transaction {
             FactsEntity.find {
                 (FactsTable.botMark eq botMark) and
@@ -219,40 +226,42 @@ class MemoryRepository {
                         (FactsTable.validTo.isNull())
             }.filter { fact ->
                 if (userId != null) fact.subjects.split(",").any { it == userId } else true
-            }.toList()
+            }.map { it.toRecord() }
         }
     }
 
     /** 获取群组维度事实 */
-    fun getGroupFacts(botMark: String, groupId: String): List<FactsEntity> {
+    fun getGroupFacts(botMark: String, groupId: String): List<FactsRecord> {
         return transaction {
             FactsEntity.find {
                 (FactsTable.botMark eq botMark) and
                         (FactsTable.groupId eq groupId) and
                         (FactsTable.scopeType eq Scopes.GROUP) and
                         (FactsTable.validTo.isNull())
-            }.toList()
+            }.map { it.toRecord() }
         }
     }
 
     /** 获取用户维度事实 */
-    fun getUserFacts(botMark: String, groupId: String, userId: String): List<FactsEntity> {
+    fun getUserFacts(botMark: String, groupId: String, userId: String): List<FactsRecord> {
         return transaction {
             FactsEntity.find {
                 (FactsTable.botMark eq botMark) and
                         (FactsTable.groupId eq groupId) and
                         (FactsTable.scopeType eq Scopes.USER) and
                         (FactsTable.validTo.isNull())
-            }.filter { fact -> fact.subjects.split(",").any { it == userId } }.toList()
+            }
+                .filter { fact -> fact.subjects.split(",").any { it == userId } }
+                .map { it.toRecord() }
         }
     }
 
     /** 根据 ID 查询 */
-    fun getFactById(id: Int): FactsEntity? = transaction { FactsEntity.findById(id) }
+    fun getFactById(id: Int): FactsRecord? = transaction { FactsEntity.findById(id)?.toRecord() }
 
     /** 根据向量 ID 查询 */
-    fun getFactByVectorId(vectorId: String): FactsEntity? = transaction {
-        FactsEntity.find { FactsTable.vectorId eq vectorId }.firstOrNull()
+    fun getFactByVectorId(vectorId: String): FactsRecord? = transaction {
+        FactsEntity.find { FactsTable.vectorId eq vectorId }.firstOrNull()?.toRecord()
     }
 
     /** 更新事实 */
@@ -268,6 +277,7 @@ class MemoryRepository {
         }
 
     /** 逻辑删除事实 */
+    @OptIn(ExperimentalTime::class)
     fun deleteFact(id: Int) = transaction {
         FactsEntity.findById(id)?.let {
             it.validTo = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -287,7 +297,7 @@ class MemoryRepository {
         groupId: String,
         keyword: String,
         scopeType: MemoryAgent.MemoryScopes
-    ): FactsEntity? {
+    ): FactsRecord? {
         val scope = when (scopeType) {
             MemoryAgent.MemoryScopes.USER -> Scopes.USER
             MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
@@ -299,7 +309,9 @@ class MemoryRepository {
                         (FactsTable.keyword eq keyword) and
                         (FactsTable.scopeType eq scope) and
                         (FactsTable.validTo.isNull())
-            }.orderBy(FactsTable.createdAt to SortOrder.DESC).firstOrNull()
+            }.orderBy(FactsTable.createdAt to SortOrder.DESC)
+                .firstOrNull()
+                ?.toRecord()
         }
     }
 
@@ -312,7 +324,7 @@ class MemoryRepository {
         keyword: String,
         subjects: String,
         scopeType: MemoryAgent.MemoryScopes
-    ): FactsEntity? {
+    ): FactsRecord? {
         val scope = when (scopeType) {
             MemoryAgent.MemoryScopes.USER -> Scopes.USER
             MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
@@ -326,6 +338,7 @@ class MemoryRepository {
                         (FactsTable.scopeType eq scope) and
                         (FactsTable.validTo.isNull())
             }.firstOrNull()
+                ?.toRecord()
         }
     }
 
@@ -347,14 +360,14 @@ class MemoryRepository {
         userId: String?,
         lastHistoryId: Int,
         limit: Int
-    ): List<HistoryEntity> = transaction {
+    ): List<HistoryRecord> = transaction {
         val query = HistoryEntity.find {
             (HistoryTable.botMark eq botMark) and
                     (HistoryTable.groupId eq groupId) and
                     (HistoryTable.id greater lastHistoryId)
         }.orderBy(HistoryTable.createdAt to SortOrder.ASC).limit(limit)
 
-        if (userId != null) query.filter { it.userId == userId }.toList() else query.toList()
+        if (userId != null) query.filter { it.userId == userId }.map { it.toRecord() } else query.map { it.toRecord() }
     }
 
     /**

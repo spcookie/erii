@@ -34,10 +34,10 @@ class FactVectorStore {
      * 索引事实记忆
      * @return 向量ID
      */
-    suspend fun indexFact(fact: FactsEntity): String {
+    suspend fun indexFact(fact: FactsRecord): String {
         val botMark = fact.botMark
         val groupId = fact.groupId
-        val factId = fact.id.value
+        val factId = fact.id
 
         val vectorId = generateVectorId(botMark, groupId, factId)
 
