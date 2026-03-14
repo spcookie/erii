@@ -7,10 +7,10 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.BotManage
 import uesugi.core.InterruptionMode
+import uesugi.core.PSFeature.CHAT_URGENT
+import uesugi.core.PSFeature.GRAB
+import uesugi.core.PSFeature.IGNORE_INTERRUPT
 import uesugi.core.ProactiveSpeakEvent
-import uesugi.core.ProactiveSpeakFeature.CHAT_URGENT
-import uesugi.core.ProactiveSpeakFeature.GRAB
-import uesugi.core.ProactiveSpeakFeature.IGNORE_INTERRUPT
 import uesugi.core.plugin.MetaImpl
 import uesugi.core.plugin.MetaToolSet.Companion.meta
 import uesugi.core.route.MetaToolSetRegister
@@ -85,7 +85,6 @@ class VolitionGauge(
             while (isActive) {
                 delay(decayIntervalMs)
                 val gauge = this@VolitionGauge
-                val impulse = gauge.calculateImpulse()
                 if (gauge.shouldSpeak()) {
                     log.info("决策: 机器人 $botMark 群组 $groupId 应该主动发言!")
 
@@ -93,7 +92,6 @@ class VolitionGauge(
                         ProactiveSpeakEvent(
                             botId = botMark,
                             _groupId = groupId,
-                            impulse = impulse,
                             interruptionMode = InterruptionMode.Interrupt,
                         )
                     )
@@ -285,12 +283,11 @@ fun speakV(
         _groupId = groupId,
         senderId = senderId,
         webSearch = true,
-        chatPointRule = "",
         interruptionMode = interruptionMode,
-        flag = CHAT_URGENT or GRAB or IGNORE_INTERRUPT,
+        feature = CHAT_URGENT or GRAB or IGNORE_INTERRUPT,
         input = input,
         echo = echo ?: Uuid.random().toHexString(),
-        toolSets = { metaToolSets }
+        toolSetBuilder = { metaToolSets }
     )
     EventBus.postAsync(event)
 }

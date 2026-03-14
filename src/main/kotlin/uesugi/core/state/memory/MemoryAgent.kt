@@ -1,9 +1,26 @@
 package uesugi.core.state.memory
 
+import ai.koog.agents.core.agent.AIAgent
+import ai.koog.agents.core.agent.config.AIAgentConfig
+import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
+import ai.koog.agents.core.dsl.builder.forwardTo
+import ai.koog.agents.core.dsl.builder.strategy
+import ai.koog.agents.core.dsl.extension.nodeExecuteTool
+import ai.koog.agents.core.dsl.extension.nodeLLMSendToolResult
+import ai.koog.agents.core.dsl.extension.onAssistantMessage
+import ai.koog.agents.core.dsl.extension.onToolCall
+import ai.koog.agents.core.tools.ToolRegistry
+import ai.koog.agents.core.tools.annotations.LLMDescription
+import ai.koog.agents.core.tools.annotations.Tool
+import ai.koog.agents.core.tools.reflect.ToolSet
+import ai.koog.agents.core.tools.reflect.asTools
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.message.Message
 import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
@@ -16,10 +33,15 @@ import uesugi.toolkit.logger
 /**
  * 记忆代理 - 负责从历史消息中提取和生成各类记忆数据
  */
-class MemoryAgent {
+class MemoryAgent(
+    val memoryRepository: MemoryRepository,
+    val factVectorStore: FactVectorStore,
+    val promptExecutor: PromptExecutor
+) {
 
     companion object {
         private val log = logger()
+        private const val DEFAULT_BOT_MARK = "default"
     }
 
     /**
@@ -73,8 +95,10 @@ class MemoryAgent {
 
     @Serializable
     enum class MemoryAction {
-        ADD,
-        DEPRECATE
+        ADD,        // 新增事实
+        DEPRECATE,  // 废弃不成立的事实
+        MERGE,      // 合并相似事实
+        UPDATE      // 修改事实
     }
 
     enum class MemoryScopes {
@@ -85,23 +109,6 @@ class MemoryAgent {
     @Serializable
     data class FactsAnalysisList(
         val facts: List<FactsAnalysis>
-    )
-
-    /**
-     * Todo 事项提取结果
-     */
-    @Serializable
-    data class TodoAnalysis(
-        val content: String,           // 意图内容
-        val priority: Int,             // 优先级 1-10
-        val category: String?,         // 分类
-        val relatedUserId: String?,    // 关联用户
-        val expireHours: Int?          // 过期小时数
-    )
-
-    @Serializable
-    data class TodoAnalysisList(
-        val todos: List<TodoAnalysis>
     )
 
     /**
@@ -414,6 +421,332 @@ class MemoryAgent {
                     content = it
                 )
             }
+        }
+    }
+
+    /**
+     * 记忆整理工具集 - 最小职责的工具方法
+     * 向量同步已内联到各个操作工具中
+     */
+    class FactOrganizeTools(
+        val memoryRepository: MemoryRepository,
+        val factVectorStore: FactVectorStore
+    ) : ToolSet {
+
+        /**
+         * 新增事实到数据库，并同步创建向量索引
+         */
+        @Tool
+        @LLMDescription("添加新的事实记忆到数据库（自动同步向量索引）")
+        suspend fun addFact(
+            @LLMDescription("机器人标识") botMark: String = DEFAULT_BOT_MARK,
+            @LLMDescription("群 ID") groupId: String,
+            @LLMDescription("事实关键词") keyword: String,
+            @LLMDescription("事实描述") description: String,
+            @LLMDescription("相关值/属性，逗号分隔") values: String,
+            @LLMDescription("涉及的主体(用户ID)，逗号分隔") subjects: String,
+            @LLMDescription("范围类型: USER 或 GROUP") scope: Scopes
+        ): String {
+            return try {
+                val repo = memoryRepository
+                val vectorStore = factVectorStore
+
+                // 1. 添加到数据库
+                withContext(Dispatchers.IO) {
+                    repo.createFact(botMark, groupId, keyword, description, values, subjects, scope)
+                }
+
+                // 2. 同步创建向量索引
+                val newFact = withContext(Dispatchers.IO) {
+                    repo.getLatestFact(
+                        botMark, groupId, keyword,
+                        if (scope == Scopes.USER) MemoryScopes.USER else MemoryScopes.GROUP
+                    )
+                }
+                newFact?.let {
+                    val vectorId = vectorStore.indexFact(it)
+                    withContext(Dispatchers.IO) {
+                        repo.updateFactVectorId(it.id.value, vectorId)
+                    }
+                    log.debug("事实向量索引已创建, factId=${it.id.value}, vectorId=$vectorId")
+                }
+
+                "事实已添加: [$keyword] $description, 主体: $subjects, 向量已同步"
+            } catch (e: Exception) {
+                log.error("添加事实失败, groupId=$groupId", e)
+                "添加失败: ${e.message}"
+            }
+        }
+
+        /**
+         * 标记过时事实为废弃，并删除向量索引
+         */
+        @Tool
+        @LLMDescription("标记过时或不成立的事实为废弃（自动删除向量索引）")
+        suspend fun deprecateFact(
+            @LLMDescription("机器人标识") botMark: String = DEFAULT_BOT_MARK,
+            @LLMDescription("群 ID") groupId: String,
+            @LLMDescription("要废弃的事实的关键词") keyword: String,
+            @LLMDescription("涉及的主体(用户ID)，逗号分隔") subjects: String,
+            @LLMDescription("范围类型: USER 或 GROUP") scope: Scopes,
+            @LLMDescription("废弃原因") reason: String = ""
+        ): String {
+            return try {
+                val repo = memoryRepository
+                val vectorStore = factVectorStore
+
+                // 1. 标记废弃
+                withContext(Dispatchers.IO) {
+                    repo.deprecateFacts(botMark, groupId, keyword, subjects, scope)
+                }
+
+                // 2. 删除向量索引
+                val factEntity = withContext(Dispatchers.IO) {
+                    repo.getFactByKeywordAndSubjects(
+                        botMark, groupId, keyword, subjects,
+                        if (scope == Scopes.USER) MemoryScopes.USER else MemoryScopes.GROUP
+                    )
+                }
+                factEntity?.let { entity ->
+                    entity.vectorId?.let { vectorId ->
+                        vectorStore.deleteVector(vectorId, botMark, groupId)
+                        log.debug("事实向量索引已删除, factId=${entity.id.value}, vectorId=$vectorId")
+                    }
+                }
+
+                "事实已废弃: [$keyword], 主体: $subjects, 原因: $reason, 向量已删除"
+            } catch (e: Exception) {
+                log.error("废弃事实失败, groupId=$groupId", e)
+                "废弃失败: ${e.message}"
+            }
+        }
+
+        /**
+         * 合并相似事实，保留最完整的一条
+         */
+        @Tool
+        @LLMDescription("合并相似的多条事实，保留最完整的一条（自动处理向量索引）")
+        suspend fun mergeFacts(
+            @LLMDescription("机器人标识") botMark: String = DEFAULT_BOT_MARK,
+            @LLMDescription("群 ID") groupId: String,
+            @LLMDescription("被合并的事实ID") factIdToRemove: Int,
+            @LLMDescription("保留的事实ID") factIdToKeep: Int,
+            @LLMDescription("范围类型: USER 或 GROUP") scope: Scopes
+        ): String {
+            return try {
+                val repo = memoryRepository
+                val vectorStore = factVectorStore
+
+                // 1. 获取被合并的事实并删除其向量
+                val oldFact = withContext(Dispatchers.IO) {
+                    repo.getFactById(factIdToRemove)
+                }
+                oldFact?.let { entity ->
+                    entity.vectorId?.let { vectorId ->
+                        vectorStore.deleteVector(vectorId, botMark, groupId)
+                        log.debug("合并事实向量索引已删除, factId=$factIdToRemove, vectorId=$vectorId")
+                    }
+                }
+
+                // 2. 废弃被合并的事实
+                withContext(Dispatchers.IO) {
+                    repo.deprecateFactsById(botMark, groupId, factIdToRemove, scope)
+                }
+
+                "事实已合并: $factIdToRemove -> $factIdToKeep, 向量已清理"
+            } catch (e: Exception) {
+                log.error("合并事实失败, groupId=$groupId", e)
+                "合并失败: ${e.message}"
+            }
+        }
+
+        /**
+         * 更新事实内容
+         */
+        @Tool
+        @LLMDescription("更新已有事实的内容（自动更新向量索引）")
+        suspend fun updateFact(
+            @LLMDescription("机器人标识") botMark: String = DEFAULT_BOT_MARK,
+            @LLMDescription("群 ID") groupId: String,
+            @LLMDescription("要更新的事实ID") factId: Int,
+            @LLMDescription("新的关键词") newKeyword: String,
+            @LLMDescription("新的描述") newDescription: String,
+            @LLMDescription("新的相关值，逗号分隔") newValues: String,
+            @LLMDescription("涉及的主体(用户ID)，逗号分隔") subjects: String,
+            @LLMDescription("范围类型: USER 或 GROUP") scope: Scopes
+        ): String {
+            return try {
+                val repo = memoryRepository
+                val vectorStore = factVectorStore
+
+                // 1. 获取旧事实并删除向量
+                val oldFact = withContext(Dispatchers.IO) {
+                    repo.getFactById(factId)
+                }
+                oldFact?.let { entity ->
+                    entity.vectorId?.let { vectorId ->
+                        vectorStore.deleteVector(vectorId, botMark, groupId)
+                        log.debug("更新事实旧向量索引已删除, factId=$factId, vectorId=$vectorId")
+                    }
+                }
+
+                // 2. 废弃旧事实
+                withContext(Dispatchers.IO) {
+                    repo.deprecateFactsById(botMark, groupId, factId, scope)
+                }
+
+                // 3. 添加新事实
+                withContext(Dispatchers.IO) {
+                    repo.createFact(botMark, groupId, newKeyword, newDescription, newValues, subjects, scope)
+                }
+
+                // 4. 创建新向量
+                val newFact = withContext(Dispatchers.IO) {
+                    repo.getLatestFact(
+                        botMark, groupId, newKeyword,
+                        if (scope == Scopes.USER) MemoryScopes.USER else MemoryScopes.GROUP
+                    )
+                }
+                newFact?.let {
+                    val vectorId = vectorStore.indexFact(it)
+                    withContext(Dispatchers.IO) {
+                        repo.updateFactVectorId(it.id.value, vectorId)
+                    }
+                    log.debug("更新事实新向量索引已创建, factId=${it.id.value}, vectorId=$vectorId")
+                }
+
+                "事实已更新: ID=$factId, [$newKeyword] $newDescription, 向量已更新"
+            } catch (e: Exception) {
+                log.error("更新事实失败, groupId=$groupId", e)
+                "更新失败: ${e.message}"
+            }
+        }
+
+    }
+
+    /**
+     * 整理群记忆 - 真正的 ReAct Agent
+     * LLM 自主分析、决定调用工具、执行结果返回、循环直到完成
+     */
+    suspend fun organize(
+        botMark: String,
+        groupId: String,
+        messages: List<MemoryMessage>
+    ) {
+        if (messages.isEmpty()) return
+
+        // 定义 ReAct 策略
+        fun getMemoryStrategy(): AIAgentGraphStrategy<String, String> {
+            return strategy("memory") {
+                // 节点1: LLM 分析输入
+                val nodeAnalyze by node<String, Message.Response> { input ->
+                    llm.writeSession {
+                        appendPrompt {
+                            user {
+                                text(input)
+                            }
+                        }
+                        requestLLM()
+                    }
+                }
+
+                // 节点2: 执行工具
+                val nodeExecuteTool by nodeExecuteTool()
+
+                // 节点3: 发送工具结果给 LLM
+                val nodeSendToolResult by nodeLLMSendToolResult()
+
+                // 边: 定义流程走向
+                edge(nodeStart forwardTo nodeAnalyze)
+                edge(nodeAnalyze forwardTo nodeFinish onAssistantMessage { true })  // 无工具调用，结束
+                edge(nodeAnalyze forwardTo nodeExecuteTool onToolCall { true })    // 有工具调用
+                // 工具执行后，如果结果有效则发送给 LLM，否则结束
+                edge(nodeExecuteTool forwardTo nodeSendToolResult)
+                edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })  // 继续调用工具
+                edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true }) // 无更多工具，结束
+            }
+        }
+
+        // 系统提示词
+        val systemPrompt = prompt("记忆整理") {
+            system(
+                """
+                你是记忆管理员。分析群聊消息和现有记忆，自主决定调用哪些工具来整理。
+
+                ## 可用工具
+                - addFact: 添加新事实（自动同步向量）
+                - deprecateFact: 废弃过时事实（自动删除向量）
+                - mergeFacts: 合并相似事实
+                - updateFact: 更新事实
+
+                ## 操作原则
+                1. 只记录长久有效的信息（如职业、居住地、人际关系、重大经历、性格特质）
+                2. 冲突时先 DEPRECATE 旧事实再 ADD 新事实
+                3. 相似事实可以 MERGE
+                4. 不准确信息可以 UPDATE
+                5. 每执行一个操作后等待结果，再决定下一步
+                6. 确认所有事实操作完成后，再输出最终总结
+
+                ## 执行流程
+                1. 基于分析结果决定需要调用哪些操作工具
+                2. 每执行一个操作后查看结果，再决定下一步
+                3. 所有操作完成后，输出完成总结
+
+                开始分析！
+                """.trimIndent()
+            )
+        }
+
+        val factTools = FactOrganizeTools(memoryRepository, factVectorStore)
+
+        // 格式化消息
+        val msgText =
+            messages.joinToString("\n") { "${DateTimeFormat.format(it.time)} | 主体: ${it.userId} | 内容: ${it.content}" }
+
+        val facts = withContext(Dispatchers.IO) {
+            memoryRepository.getFacts(botMark, groupId)
+        }
+
+        val factsText = facts.joinToString("\n") { fact ->
+            "ID: ${fact.id.value} | 关键词: ${fact.keyword} | 内容: ${fact.description} | 主体: ${fact.subjects} | 范围: ${fact.scopeType}"
+        }
+
+        return try {
+            // 创建 ReAct Agent
+            val agent = AIAgent(
+                promptExecutor = promptExecutor,
+                agentConfig = AIAgentConfig(
+                    prompt = systemPrompt,
+                    model = LLMModelsChoice.Pro,
+                    maxAgentIterations = 50
+                ),
+                toolRegistry = ToolRegistry {
+                    tools(factTools.asTools())
+                },
+                strategy = getMemoryStrategy()
+            )
+
+            // 运行 Agent
+            agent.run(
+                """
+                请分析以下消息，整理记忆：
+
+                群聊消息:
+                $msgText
+
+                现有事实：
+                $factsText
+                """.trimIndent()
+            )
+
+            // 统计结果
+            val finalFacts = withContext(Dispatchers.IO) {
+                memoryRepository.getValidFacts(botMark, groupId)
+            }
+
+            log.info("ReAct Agent 记忆整理完成, groupId=$groupId, 现有事实数=${finalFacts.size}")
+        } catch (e: Exception) {
+            log.error("记忆整理失败", e)
         }
     }
 }

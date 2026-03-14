@@ -132,8 +132,11 @@ object EventBus {
 
     inline fun <reified T : Any> subscribeSync(
         noinline onEvent: (T) -> Unit
-    ) =
+    ): (T) -> Unit {
         SyncBus.subscribe(T::class, once = false, onEvent)
+        return onEvent
+    }
+
 
     inline fun <reified T : Any> subscribeOnceSync(
         noinline onEvent: (T) -> Unit

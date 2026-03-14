@@ -9,7 +9,10 @@ import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.ktor.plugin.koin
 import org.koin.logger.slf4jLogger
-import uesugi.config.*
+import uesugi.config.appModule
+import uesugi.config.configBaseModule
+import uesugi.config.migrationIf
+import uesugi.config.warmUp
 import uesugi.core.plugin.pluginModule
 
 fun Application.configureFrameworks() {
@@ -20,7 +23,7 @@ fun Application.configureFrameworks() {
 
     configBaseModule()
 
-    loadKoinModules(listOf(infrastructureModule, serviceModule, adapterModule))
+    loadKoinModules(listOf(appModule))
     loadKoinModules(pluginModule())
 
     koin().createEagerInstances()

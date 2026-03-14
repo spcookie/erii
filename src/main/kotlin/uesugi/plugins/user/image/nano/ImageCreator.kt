@@ -13,12 +13,13 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import uesugi.core.ProactiveSpeakFeature
+import uesugi.core.PSFeature
 import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.history.MessageType
 import uesugi.core.message.resource.ResourceTable
 import uesugi.core.plugin.*
 import uesugi.plugins.getGroup
+import uesugi.toolkit.calcHumanTypingDelay
 import uesugi.toolkit.logger
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
@@ -119,7 +120,7 @@ class ImageCreator : RoutePlugin, ClassNameMixin {
             meta.sendAgent(
                 "用户需要生成一张图片，请调用图片生成 Tool 生成图片。",
                 SendAgentConf(
-                    toolSets = { toolSet ->
+                    toolSetBuilder = { chatToolSet ->
                         listOf(
                             object : ToolSet {
                                 @LLMDescription("回复消息，并生成图片发送，返回群其他人的回复")
@@ -127,7 +128,14 @@ class ImageCreator : RoutePlugin, ClassNameMixin {
                                 fun sendMessageAndImage(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
                                     state.value = true
                                     scope.launch {
-                                        toolSet.send(sentences).join()
+                                        for ((i, v) in sentences.withIndex()) {
+                                            if (i == 0) {
+                                                chatToolSet.sendText(v)
+                                            } else {
+                                                delay(calcHumanTypingDelay(v))
+                                                chatToolSet.sendText(v)
+                                            }
+                                        }
                                         val (msg, image) = deferred.await()
                                         sendImage(msg, group, image)
                                     }
@@ -136,12 +144,12 @@ class ImageCreator : RoutePlugin, ClassNameMixin {
                             }
                         )
                     },
-                    flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
+                    feature = PSFeature.GRAB or PSFeature.FALLBACK
                 )
             ) {
-                sendAfter { send() }
+                runCompletion { send() }
                 callCompletion { send() }
-                dispatchFallback { send() }
+                callFallback { send() }
                 this@ImageCreator.scope
             }
 

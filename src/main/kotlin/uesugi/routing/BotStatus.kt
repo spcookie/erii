@@ -10,7 +10,7 @@ import uesugi.ENABLE_GROUPS
 import uesugi.core.state.emotion.BehaviorProfile
 import uesugi.core.state.emotion.EmotionService
 import uesugi.core.state.emotion.PAD
-import uesugi.core.state.evolution.VocabularyService
+import uesugi.core.state.evolution.EvolutionService
 import uesugi.core.state.flow.FlowGaugeManager
 import uesugi.core.state.flow.FlowMeterState
 import uesugi.core.state.memory.MemoryService
@@ -34,7 +34,7 @@ fun Routing.configureBotStatus() {
                 val emotionService by inject<EmotionService>()
                 val flowGaugeManager by inject<FlowGaugeManager>()
                 val volitionGaugeManager by inject<VolitionGaugeManager>()
-                val vocabularyService by inject<VocabularyService>()
+                val evolutionService by inject<EvolutionService>()
                 val memoryService by inject<MemoryService>()
 
                 val botStatusByGroups = groups.map { groupId ->
@@ -45,7 +45,7 @@ fun Routing.configureBotStatus() {
                         flowGaugeManager.getOrCreate(id, groupId, emoticon).let { it.state.value to it.mapToState() }
                     val volitionState = volitionGaugeManager.getOrCreate(id, groupId, emoticon)
                         .let { Triple(it.state.stimulus, it.state.fatigue, it.shouldSpeak()) }
-                    val vocabularies = vocabularyService.getActiveVocabulary(id, groupId, 999).map { it.word }
+                    val vocabularies = evolutionService.getActiveVocabulary(id, groupId, 999).map { it.word }
                     val summary = memoryService.getSummary(id, groupId)?.content
                     val factSize = memoryService.getFactSize(id, groupId)
                     val userProfileSize = memoryService.getUserProfileSize(id, groupId)

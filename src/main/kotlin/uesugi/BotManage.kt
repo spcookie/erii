@@ -5,6 +5,8 @@ import net.mamoe.mirai.Bot
 import net.mamoe.mirai.event.globalEventChannel
 import top.mrxiaom.overflow.BotBuilder
 import uesugi.core.BotRole
+import uesugi.core.Erii
+import uesugi.core.agent.BotAgent
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 
@@ -67,7 +69,7 @@ fun configureConnectBots() {
         if (erii == null) {
             log.error("机器人 erii 连接失败")
         } else {
-            BotManage.registerBot(erii, uesugi.core.Erii)
+            BotManage.registerBot(erii, Erii)
 
             erii.globalEventChannel()
                 .exceptionHandler { log.error("Bot exception handler: {}", it.message, it) }
@@ -78,4 +80,4 @@ fun configureConnectBots() {
     }
 }
 
-fun configureBotAgent() = uesugi.core.BotAgent.run()
+fun configureBotAgent() = BotAgent.run()

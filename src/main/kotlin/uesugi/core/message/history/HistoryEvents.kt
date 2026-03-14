@@ -1,3 +1,6 @@
 package uesugi.core.message.history
 
-data class HistorySavedEvent(val historyRecord: HistoryRecord)
+data class HistorySavedEvent(
+    val isAtBot: Boolean,
+    val historyRecord: HistoryRecord
+)

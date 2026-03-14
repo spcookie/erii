@@ -5,9 +5,10 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.message.Message
 import uesugi.config.LLMModelsChoice
-import uesugi.core.buildHistoriesPrompt
-import uesugi.core.buildSummaryPrompt
+import uesugi.core.agent.buildHistoriesPrompt
+import uesugi.core.agent.buildSummaryPrompt
 import uesugi.core.message.history.HistoryService
+import uesugi.core.state.memory.MemoryService
 import uesugi.toolkit.logger
 import uesugi.toolkit.ref
 import kotlin.time.Duration.Companion.hours
@@ -20,7 +21,7 @@ object RoutingAgent {
     suspend fun route(botId: String, groupId: String, message: String): LLMRouteRule {
         val promptExecutor by ref<PromptExecutor>()
         val historyService by ref<HistoryService>()
-        val memoryService by ref<uesugi.core.state.memory.MemoryService>()
+        val memoryService by ref<MemoryService>()
 
         val summaryEntity = memoryService.getSummary(botId, groupId)
         val latestHistory = historyService.getLatestHistory(botId, groupId, 50, 24.hours)

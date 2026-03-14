@@ -1,5 +1,6 @@
 package uesugi.core.state.evolution
 
+import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
@@ -13,6 +14,15 @@ import uesugi.core.message.history.HistoryTable.DEFAULT_LENGTH
  * 学习词汇表 - 存储从群聊中学习到的流行语、梗、黑话
  *
  * 用于实现"模因进化系统"：让机器人的语言风格随群聊氛围动态漂移
+ *
+ * 字段说明：
+ * - word: 词汇本身（如"绝绝子"、"泰裤辣"）
+ * - type: 词性类型（adjective形容词、exclamation感叹词、noun名词等）
+ * - meaning: 词汇含义解释
+ * - example: 使用示例
+ * - weight: 权重（0-100），影响词汇被选中的概率
+ * - lastSeen: 最后出现时间
+ * - createdAt: 创建时间
  */
 object LearnedVocabTable : IntIdTable("learned_vocab") {
     val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)
@@ -44,6 +54,39 @@ class LearnedVocabEntity(id: EntityID<Int>) : IntEntity(id) {
     var lastSeen by LearnedVocabTable.lastSeen
     var createdAt by LearnedVocabTable.createdAt
 }
+
+/**
+ * 学习词汇记录 - 数据传输对象
+ */
+@Serializable
+data class LearnedVocabRecord(
+    val id: Int,
+    val botMark: String,
+    val groupId: String,
+    val word: String,
+    val type: String,
+    val meaning: String,
+    val example: String,
+    val weight: Int,
+    val lastSeen: LocalDateTime,
+    val createdAt: LocalDateTime
+)
+
+/**
+ * 实体转换为记录
+ */
+fun LearnedVocabEntity.toRecord(): LearnedVocabRecord = LearnedVocabRecord(
+    id = id.value,
+    botMark = botMark,
+    groupId = groupId,
+    word = word,
+    type = type,
+    meaning = meaning,
+    example = example,
+    weight = weight,
+    lastSeen = lastSeen,
+    createdAt = createdAt
+)
 
 /**
  * 流行语/梗/黑话数据结构
