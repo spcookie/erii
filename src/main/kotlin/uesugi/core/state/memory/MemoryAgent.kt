@@ -26,7 +26,7 @@ import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.config.LLMModelsChoice
-import uesugi.core.message.history.HistoryEntity
+import uesugi.core.message.history.HistoryRecord
 import uesugi.toolkit.DateTimeFormat
 import uesugi.toolkit.logger
 
@@ -132,7 +132,7 @@ class MemoryAgent(
      */
     suspend fun analyzeUserProfile(
         messages: List<MemoryMessage>,
-        userProfileEntity: UserProfileEntity?
+        userProfileEntity: UserProfileRecord?
     ): UserProfileAnalysis {
         log.debug("开始分析用户画像, userId=${messages.firstOrNull()?.userId}, 消息数=${messages.size}")
 
@@ -410,11 +410,11 @@ class MemoryAgent(
     /**
      * 转换历史实体为内存消息
      */
-    fun convertToMemoryMessages(histories: List<HistoryEntity>): List<MemoryMessage> {
+    fun convertToMemoryMessages(histories: List<HistoryRecord>): List<MemoryMessage> {
         return histories.mapNotNull { history ->
             history.content?.let {
                 MemoryMessage(
-                    id = history.id.value,
+                    id = history.id!!,
                     userId = history.userId,
                     groupId = history.groupId,
                     time = history.createdAt,
@@ -466,9 +466,9 @@ class MemoryAgent(
                 newFact?.let {
                     val vectorId = vectorStore.indexFact(it)
                     withContext(Dispatchers.IO) {
-                        repo.updateFactVectorId(it.id.value, vectorId)
+                        repo.updateFactVectorId(it.id, vectorId)
                     }
-                    log.debug("事实向量索引已创建, factId=${it.id.value}, vectorId=$vectorId")
+                    log.debug("事实向量索引已创建, factId=${it.id}, vectorId=$vectorId")
                 }
 
                 "事实已添加: [$keyword] $description, 主体: $subjects, 向量已同步"
@@ -510,7 +510,7 @@ class MemoryAgent(
                 factEntity?.let { entity ->
                     entity.vectorId?.let { vectorId ->
                         vectorStore.deleteVector(vectorId, botMark, groupId)
-                        log.debug("事实向量索引已删除, factId=${entity.id.value}, vectorId=$vectorId")
+                        log.debug("事实向量索引已删除, factId=${entity.id}, vectorId=$vectorId")
                     }
                 }
 
@@ -610,9 +610,9 @@ class MemoryAgent(
                 newFact?.let {
                     val vectorId = vectorStore.indexFact(it)
                     withContext(Dispatchers.IO) {
-                        repo.updateFactVectorId(it.id.value, vectorId)
+                        repo.updateFactVectorId(it.id, vectorId)
                     }
-                    log.debug("更新事实新向量索引已创建, factId=${it.id.value}, vectorId=$vectorId")
+                    log.debug("更新事实新向量索引已创建, factId=${it.id}, vectorId=$vectorId")
                 }
 
                 "事实已更新: ID=$factId, [$newKeyword] $newDescription, 向量已更新"
@@ -708,7 +708,7 @@ class MemoryAgent(
         }
 
         val factsText = facts.joinToString("\n") { fact ->
-            "ID: ${fact.id.value} | 关键词: ${fact.keyword} | 内容: ${fact.description} | 主体: ${fact.subjects} | 范围: ${fact.scopeType}"
+            "ID: ${fact.id} | 关键词: ${fact.keyword} | 内容: ${fact.description} | 主体: ${fact.subjects} | 范围: ${fact.scopeType}"
         }
 
         return try {

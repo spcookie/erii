@@ -23,7 +23,7 @@ class Speech : PassivePlugin {
         private val log = KotlinLogging.logger {}
         private const val T2A_API_URL = "https://api.minimaxi.com/v1/t2a_v2"
         private const val DEFAULT_MODEL = "speech-2.8-hd"
-        private const val DEFAULT_VOICE = "female-yujie"
+        private const val DEFAULT_VOICE = "danya_xuejie"
     }
 
     override fun onLoad(context: PluginContext) {
@@ -35,20 +35,24 @@ class Speech : PassivePlugin {
                     @Tool
                     @LLMDescription(
                         """
-                        发送语音。当需要发送语音消息比文字更自然时使用此工具。
-                        段落切换用换行符标记
-                        支持停顿控制：支持自定义文本之间的语音时间间隔，以实现自定义文本语音停顿时间的效果。
-                        使用方式：在文本中增加<#x#>标记，x 为停顿时长（单位：秒），范围 [0.01, 99.99]，最多保留两位小数。
-                        文本间隔时间需设置在两个可以语音发音的文本之间，不可连续使用多个停顿标记。
-                        支持的语气词标签：(laughs)笑声、(chuckle)轻笑、(coughs)咳嗽、(clear-throat)清嗓子、
-                        (groans)呻吟、(breath)换气、(pant)喘气、(inhale)吸气、(exhale)呼气、(gasps)倒吸气、
-                        (sniffs)吸鼻子、(sighs)叹气、(snorts)喷鼻息、(burps)打嗝、(lip-smacking)咂嘴、
-                        (humming)哼唱、(hissing)嘶嘶声、(emm)嗯、(sneezes)喷嚏。
-                        也可以在文本中使用<#x#>标记控制停顿间隔，x为秒数。
+                        发送语音。当需要发送语音消息或者需要“说”时使用此工具。
                         """
                     )
                     suspend fun sendSpeech(
-                        @LLMDescription("要转换为语音的文本内容，长度不超过10000字符")
+                        @LLMDescription(
+                            """
+                            要转换为语音的文本内容，长度不超过10000字符
+                            段落切换用换行符标记
+                            支持停顿控制：支持自定义文本之间的语音时间间隔，以实现自定义文本语音停顿时间的效果。
+                            使用方式：在文本中增加<#x#>标记，x 为停顿时长（单位：秒），范围 [0.01, 99.99]，最多保留两位小数。
+                            文本间隔时间需设置在两个可以语音发音的文本之间，不可连续使用多个停顿标记。
+                            支持的语气词标签：(laughs)笑声、(chuckle)轻笑、(coughs)咳嗽、(clear-throat)清嗓子、
+                            (groans)呻吟、(breath)换气、(pant)喘气、(inhale)吸气、(exhale)呼气、(gasps)倒吸气、
+                            (sniffs)吸鼻子、(sighs)叹气、(snorts)喷鼻息、(burps)打嗝、(lip-smacking)咂嘴、
+                            (humming)哼唱、(hissing)嘶嘶声、(emm)嗯、(sneezes)喷嚏。
+                            也可以在文本中使用<#x#>标记控制停顿间隔，x为秒数。
+                            """
+                        )
                         text: String,
                         @LLMDescription("语速，0.5-2.0，默认为1.0")
                         speed: Float = 1.0f,

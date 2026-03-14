@@ -46,13 +46,13 @@ class UserProfileEntity(id: EntityID<Int>) : IntEntity(id) {
  */
 @Serializable
 data class UserProfileRecord(
-    val id: Int,
-    val botMark: String,
-    val groupId: String,
-    val userId: String,
-    val profile: String,
-    val preferences: String,
-    val createdAt: LocalDateTime
+    var id: Int,
+    var botMark: String,
+    var groupId: String,
+    var userId: String,
+    var profile: String,
+    var preferences: String,
+    var createdAt: LocalDateTime
 )
 
 /**
