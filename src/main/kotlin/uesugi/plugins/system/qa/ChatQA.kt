@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.jsonNull
 import net.mamoe.mirai.contact.Group
 import uesugi.config.LLMModelsChoice
-import uesugi.core.buildMetadataPrompt
+import uesugi.core.agent.buildMetadataPrompt
 import uesugi.core.plugin.ClassNameMixin
 import uesugi.core.plugin.Plugin
 import uesugi.core.plugin.PluginContext

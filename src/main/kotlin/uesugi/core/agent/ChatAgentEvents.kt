@@ -1,44 +1,34 @@
-package uesugi.core
+package uesugi.core.agent
+
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 
-sealed interface AgentSendLifeCycleEvent {
+sealed interface AgentToolCallEvent {
     val botId: String
     val groupId: String
     val echo: String
+    val toolName: String
+    val toolArgs: JsonObject
 }
 
-data class AgentBeforeSendAndReceiveEvent(
+data class AgentToolCallStartEvent(
     override val botId: String,
     override val groupId: String,
     override val echo: String,
-    val sentences: List<String>
-) : AgentSendLifeCycleEvent
+    override val toolName: String,
+    override val toolArgs: JsonObject
+) : AgentToolCallEvent
 
-data class AgentAfterSendAndReceiveEvent(
+data class AgentToolCallCompleteEvent(
     override val botId: String,
     override val groupId: String,
     override val echo: String,
-    val sentences: List<String>,
-) : AgentSendLifeCycleEvent
-
-data class AgentReceiveReplyEvent(
-    override val botId: String,
-    override val groupId: String,
-    override val echo: String,
-    val sentence: String
-) : AgentSendLifeCycleEvent
-
-class AgentSendAndReceiveClosedEvent(
-    override val botId: String,
-    override val groupId: String,
-    override val echo: String
-) : AgentSendLifeCycleEvent
-
-class AgentSendAndReceiveFinallyEvent(
-    override val botId: String,
-    override val groupId: String,
-    override val echo: String
-) : AgentSendLifeCycleEvent
+    override val toolName: String,
+    override val toolArgs: JsonObject,
+    val toolResult: JsonElement?,
+    val toolError: String?
+) : AgentToolCallEvent
 
 sealed interface AgentDispatchEvent {
     val botId: String
@@ -46,13 +36,26 @@ sealed interface AgentDispatchEvent {
     val echo: String
 }
 
-class AgentFallbackEvent(
+class AgentRunStartEvent(
     override val botId: String,
     override val groupId: String,
     override val echo: String,
 ) : AgentDispatchEvent
 
-class AgentRejectGrabEvent(
+class AgentRunCompleteEvent(
+    val throwable: Throwable?,
+    override val botId: String,
+    override val groupId: String,
+    override val echo: String,
+) : AgentDispatchEvent
+
+class AgentCallFallbackEvent(
+    override val botId: String,
+    override val groupId: String,
+    override val echo: String,
+) : AgentDispatchEvent
+
+class AgentCallRejectEvent(
     override val botId: String,
     override val groupId: String,
     override val echo: String,
@@ -65,7 +68,7 @@ class AgentCallStartEvent(
     override val echo: String,
 ) : AgentDispatchEvent
 
-class AgentCallCompletionEvent(
+class AgentCallCompleteEvent(
     val throwable: Throwable?,
     override val botId: String,
     override val groupId: String,

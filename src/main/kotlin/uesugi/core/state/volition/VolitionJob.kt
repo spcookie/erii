@@ -3,20 +3,12 @@ package uesugi.core.state.volition
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.*
-import org.jetbrains.exposed.v1.core.SortOrder
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.greater
-import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
 import uesugi.ENABLE_GROUPS
 import uesugi.MESSAGE_REDIRECT_GROUP_MAP
 import uesugi.core.InterruptionMode
-import uesugi.core.message.history.HistoryEntity
-import uesugi.core.message.history.HistoryTable
 import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import kotlin.random.Random
@@ -26,7 +18,9 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 class VolitionJob(
-    val jobScheduler: JobScheduler
+    val jobScheduler: JobScheduler,
+    private val volitionAgent: VolitionAgent,
+    private val volitionRepository: VolitionRepository
 ) {
 
     companion object {
@@ -34,7 +28,6 @@ class VolitionJob(
     }
 
     private val mutex = Mutex()
-    private val volitionAgent = VolitionAgent()
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -66,9 +59,7 @@ class VolitionJob(
                         log.debug("开始处理主动意愿: currentBotId=$currentBotId")
 
                         val groups = withContext(Dispatchers.IO) {
-                            transaction {
-                                findGroupsNeedProcessing(currentBotId)
-                            }
+                            volitionRepository.findGroupsNeedProcessing(currentBotId)
                         }
 
                         log.debug("主动意愿任务发现 ${groups.size} 个群组需要处理")
@@ -96,57 +87,16 @@ class VolitionJob(
         volitionGaugeManager.getOrCreate(botMark, groupId, BotManage.getBot(botMark).role.emoticon)
     }
 
-    private fun findGroupsNeedProcessing(botMark: String): List<String> {
-        return transaction {
-            val allGroupIds = HistoryTable
-                .select(HistoryTable.groupId)
-                .where { HistoryTable.botMark eq botMark }
-                .groupBy(HistoryTable.groupId)
-                .map { it[HistoryTable.groupId] }
-                .distinct()
-
-            allGroupIds.filter { groupId ->
-                val volitionState = VolitionStateEntity.find {
-                    (VolitionStateTable.botMark eq botMark) and (VolitionStateTable.groupId eq groupId)
-                }.firstOrNull()
-
-                val lastProcessedId = volitionState?.lastProcessedHistoryId ?: 0
-
-                val newMessageCount = HistoryEntity.count(
-                    HistoryTable.botMark eq botMark and
-                            (HistoryTable.groupId eq groupId) and
-                            (HistoryTable.id greater lastProcessedId)
-                )
-
-                newMessageCount > 0
-            }
-        }
-    }
-
     @OptIn(ExperimentalTime::class)
     private suspend fun processGroupVolition(botMark: String, groupId: String) {
         log.debug("开始处理群组主动意愿, groupId=$groupId")
 
         try {
+            val volitionState = volitionRepository.getVolitionState(botMark, groupId)
+            val lastId = volitionState?.lastProcessedHistoryId ?: 0
+
             val histories = withContext(Dispatchers.IO) {
-                transaction {
-                    val volitionState = VolitionStateEntity.find {
-                        (VolitionStateTable.botMark eq botMark) and (VolitionStateTable.groupId eq groupId)
-                    }.firstOrNull()
-
-                    val lastId = volitionState?.lastProcessedHistoryId ?: 0
-
-                    val historyList = HistoryEntity.find {
-                        (HistoryTable.botMark eq botMark) and
-                                (HistoryTable.groupId eq groupId) and
-                                (HistoryTable.id greater lastId)
-                    }
-                        .orderBy(HistoryTable.createdAt to SortOrder.ASC)
-                        .limit(100)
-                        .toList()
-
-                    historyList
-                }
+                volitionRepository.getHistoriesToProcess(botMark, groupId, lastId, 100)
             }
 
             if (histories.size < 20) {
@@ -169,14 +119,15 @@ class VolitionJob(
 
             if (messages.isEmpty()) {
                 log.debug("群组 $groupId 消息转换后为空, 跳过处理")
-                updateVolitionState(botMark, groupId, histories.maxOf { it.id.value })
+                val maxHistoryId = histories.maxOf { it.id.value }
+                volitionRepository.updateVolitionState(botMark, groupId, maxHistoryId)
                 return
             }
 
             analyze(botMark, groupId, messages)
 
             val maxHistoryId = histories.maxOf { it.id.value }
-            updateVolitionState(botMark, groupId, maxHistoryId)
+            volitionRepository.updateVolitionState(botMark, groupId, maxHistoryId)
 
             log.debug("群组 $groupId 主动意愿处理完成, 最大 historyId=$maxHistoryId")
 
@@ -215,35 +166,6 @@ class VolitionJob(
 
         if (result.emotionalResonance) {
             EventBus.postAsync(EmotionalResonanceEvent(botMark, groupId))
-        }
-    }
-
-    @OptIn(ExperimentalTime::class)
-    private suspend fun updateVolitionState(botMark: String, groupId: String, lastHistoryId: Int) {
-        withContext(Dispatchers.IO) {
-            transaction {
-                val existing = VolitionStateEntity.find {
-                    (VolitionStateTable.botMark eq botMark) and (VolitionStateTable.groupId eq groupId)
-                }.firstOrNull()
-
-                val now = Clock.System.now()
-                val tz = TimeZone.currentSystemDefault()
-                val instant = now.toLocalDateTime(tz)
-
-                if (existing != null) {
-                    existing.lastProcessedHistoryId = lastHistoryId
-                    existing.lastProcessedAt = instant
-                } else {
-                    VolitionStateEntity.new {
-                        this.botMark = botMark
-                        this.groupId = groupId
-                        this.lastProcessedHistoryId = lastHistoryId
-                        this.lastProcessedAt = instant
-                    }
-                }
-
-                log.debug("主动意愿状态已更新, groupId=$groupId, lastHistoryId=$lastHistoryId")
-            }
         }
     }
 

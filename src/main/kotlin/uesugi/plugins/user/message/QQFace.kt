@@ -11,7 +11,7 @@ import uesugi.core.plugin.*
 import uesugi.plugins.getGroup
 
 @AutoService(Plugin::class)
-class IFace : PassivePlugin {
+class QQFace : PassivePlugin {
 
     companion object {
         val log = KotlinLogging.logger {}

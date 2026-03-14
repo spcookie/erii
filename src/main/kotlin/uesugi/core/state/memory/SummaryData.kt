@@ -1,5 +1,7 @@
 package uesugi.core.state.memory
 
+import kotlinx.datetime.LocalDateTime
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
 import org.jetbrains.exposed.v1.dao.IntEntity
@@ -8,6 +10,17 @@ import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
 import uesugi.core.message.history.HistoryTable.DEFAULT_LENGTH
 
+/**
+ * 对话摘要表 - 存储群聊的摘要信息
+ *
+ * 字段说明：
+ * - timeRange: 时间范围（格式 yyyy-MM-dd HH:mm）
+ * - content: 摘要内容（讨论背景、核心冲突/观点、结论）
+ * - keyPoints: 关键要点（3-5个信息胶囊）
+ * - emotionalTone: 情感基调（焦虑、欢快、激烈争论等）
+ * - participantCount: 参与人数
+ * - messageCount: 消息总数
+ */
 object SummaryTable : IntIdTable("memory_summary") {
     val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)
     val groupId = varchar("group_id", length = DEFAULT_LENGTH)
@@ -20,6 +33,9 @@ object SummaryTable : IntIdTable("memory_summary") {
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
 }
 
+/**
+ * 对话摘要实体
+ */
 class SummaryEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<SummaryEntity>(SummaryTable)
 
@@ -33,3 +49,36 @@ class SummaryEntity(id: EntityID<Int>) : IntEntity(id) {
     var messageCount by SummaryTable.messageCount
     var createdAt by SummaryTable.createdAt
 }
+
+/**
+ * 对话摘要记录 - 数据传输对象
+ */
+@Serializable
+data class SummaryRecord(
+    val id: Int,
+    val botMark: String,
+    val groupId: String,
+    val timeRange: String,
+    val content: String,
+    val keyPoints: String,
+    val emotionalTone: String?,
+    val participantCount: Int,
+    val messageCount: Int,
+    val createdAt: LocalDateTime
+)
+
+/**
+ * 实体转换为记录
+ */
+fun SummaryEntity.toRecord(): SummaryRecord = SummaryRecord(
+    id = id.value,
+    botMark = botMark,
+    groupId = groupId,
+    timeRange = timeRange,
+    content = content,
+    keyPoints = keyPoints,
+    emotionalTone = emotionalTone,
+    participantCount = participantCount,
+    messageCount = messageCount,
+    createdAt = createdAt
+)

@@ -2,7 +2,6 @@ package uesugi.plugins.user.image.lolisuki
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
-import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.structure.executeStructured
 import com.fasterxml.jackson.databind.JsonNode
@@ -18,12 +17,13 @@ import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.utils.ExternalResource
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import uesugi.config.LLMModelsChoice
-import uesugi.core.ChatToolSet
-import uesugi.core.ProactiveSpeakFeature
+import uesugi.core.PSFeature
+import uesugi.core.agent.ChatToolSet
 import uesugi.core.plugin.*
 import uesugi.core.plugin.MetaToolSet.Companion.meta
 import uesugi.plugins.getGroup
 import uesugi.plugins.getLatestHistory
+import uesugi.toolkit.calcHumanTypingDelay
 import uesugi.toolkit.logger
 import java.net.URL
 import kotlin.time.Duration.Companion.days
@@ -66,15 +66,15 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
             meta.sendAgent(
                 input = "加入群聊天，你已经获取到了一张涩图，你需要调用工具发送一张涩图给群友。",
                 SendAgentConf(
-                    toolSets = { listOf(ImageTool(image, group, it, state)) },
-                    flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
+                    toolSetBuilder = { listOf(ImageTool(image, group, it, state)) },
+                    feature = PSFeature.GRAB or PSFeature.FALLBACK
                 )
             ) {
-                sendBefore { send() }
+                runCompletion { send() }
 
                 callCompletion { send() }
 
-                dispatchFallback { send() }
+                callFallback { send() }
 
                 this@Lolisuki.scope
             }
@@ -235,19 +235,23 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
         val group: Group,
         val chatToolSet: ChatToolSet,
         val state: AtomicBoolean
-    ) : ToolSet {
+    ) : MetaToolSet {
 
-        @LLMDescription("回复消息，并发送涩图，返回群其他人的回复")
+        @LLMDescription("回复消息，并发送涩图")
         @Tool
         fun sendMessageAndImage(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
             state.value = true
             scope.launch {
-                val job = chatToolSet.send(sentences)
-                if (image != null) {
-                    job.join()
-                    image.use {
-                        group.sendImage(image)
+                for ((i, v) in sentences.withIndex()) {
+                    if (i == 0) {
+                        chatToolSet.sendText(v)
+                    } else {
+                        delay(calcHumanTypingDelay(v))
+                        chatToolSet.sendText(v)
                     }
+                }
+                image?.use {
+                    group.sendImage(image)
                 }
             }
             return null

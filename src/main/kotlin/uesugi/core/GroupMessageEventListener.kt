@@ -41,6 +41,28 @@ import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+/**
+ * 解析后的消息内容
+ */
+private data class ParsedMessage(
+    val content: String,
+    val isAtBot: Boolean,
+    val messageType: MessageType,
+    val imageUrl: String?,
+    val imageFormat: String?
+)
+
+/**
+ * 消息上下文信息
+ */
+private data class MessageContext(
+    val botId: String,
+    val groupId: String,
+    val senderId: String,
+    val senderNick: String,
+    val parsedMessage: ParsedMessage
+)
+
 object GroupMessageEventListener : SimpleListenerHost() {
 
     private val log = logger()
@@ -86,88 +108,104 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, MiraiInternalApi::class)
     suspend fun handleEvent(event: GroupAwareMessageEvent) {
-        with(event) {
-            if (this.group.id.toString() !in ENABLE_GROUPS) return
-            val botId = bot.id.toString()
-            val groupId =
-                if (group.id.toString() in MESSAGE_REDIRECT_GROUP_MAP) {
-                    MESSAGE_REDIRECT_GROUP_MAP.getValue(group.id.toString())
-                } else {
-                    group.id.toString()
-                }
-            val senderId = sender.id.toString()
-            val senderNick = sender.nameCardOrNick
-            var isAtBot = false
-            var url: String? = null
-            var messageType = MessageType.TEXT
-            var format: String? = null
-            val msg = buildString {
-                for (singleMessage in message) {
-                    if (singleMessage is MessageContent) {
-                        when (singleMessage) {
-                            is At -> {
-                                if (!isAtBot) {
-                                    isAtBot = singleMessage.target == botId.toLong()
-                                }
-                            }
+        val botId = event.bot.id.toString()
+        val groupId = resolveGroupId(event.group.id.toString())
+        if (groupId !in ENABLE_GROUPS) return
 
-                            is PlainText -> {
-                            }
+        val context = buildMessageContext(event, botId, groupId)
 
-                            is Image -> {
-                                if (url == null) {
-                                    messageType = MessageType.IMAGE
-                                    url = singleMessage.queryUrl()
-                                    format = singleMessage.imageType.formatName
-                                }
-                            }
-
-                            else -> {
-                                log.warn("Unknown message: $messageType")
-                            }
-                        }
-                    } else {
-                        if (singleMessage is MessageSource) {
-                            continue
-                        } else {
-                            log.warn("Unsupported message type: {}", singleMessage)
-                        }
-                    }
-                    append(singleMessage.content)
-                }
-            }
-            launch {
-                saveAndPublishHistoryRecord(url, groupId, format, botId, senderId, senderNick, messageType, msg)
-                routeCall(isAtBot, botId, groupId, msg, senderId)
-            }
+        launch {
+            saveHistoryAndPublish(context)
+            routeCall(context)
         }
     }
 
-    @OptIn(ExperimentalUuidApi::class)
-    private fun routeCall(
-        isAtBot: Boolean,
+    private fun resolveGroupId(rawGroupId: String): String {
+        return MESSAGE_REDIRECT_GROUP_MAP.getOrDefault(rawGroupId, rawGroupId)
+    }
+
+    private suspend fun buildMessageContext(
+        event: GroupAwareMessageEvent,
         botId: String,
-        groupId: String,
-        msg: String,
-        senderId: String
-    ) {
-        if (isAtBot) {
+        groupId: String
+    ): MessageContext {
+        val parsed = parseMessage(event, botId)
+        return MessageContext(
+            botId = botId,
+            groupId = groupId,
+            senderId = event.sender.id.toString(),
+            senderNick = event.sender.nameCardOrNick,
+            parsedMessage = parsed
+        )
+    }
+
+    @OptIn(MiraiInternalApi::class)
+    private suspend fun parseMessage(event: GroupAwareMessageEvent, botId: String): ParsedMessage {
+        var isAtBot = false
+        var imageUrl: String? = null
+        var imageFormat: String? = null
+        var messageType = MessageType.TEXT
+
+        val content = buildString {
+            for (singleMessage in event.message) {
+                when (singleMessage) {
+                    is At -> {
+                        if (!isAtBot) {
+                            isAtBot = singleMessage.target == botId.toLong()
+                        }
+                    }
+
+                    is Image -> {
+                        if (imageUrl == null) {
+                            messageType = MessageType.IMAGE
+                            imageUrl = singleMessage.queryUrl()
+                            imageFormat = singleMessage.imageType.formatName
+                        }
+                    }
+
+                    is PlainText -> { /* 纯文本，直接追加内容 */
+                    }
+
+                    is MessageSource -> { /* 消息源，跳过 */
+                    }
+
+                    else -> {
+                        log.warn("Unsupported message type: {}", singleMessage)
+                    }
+                }
+                append(singleMessage.content)
+            }
+        }
+
+        return ParsedMessage(
+            content = content,
+            isAtBot = isAtBot,
+            messageType = messageType,
+            imageUrl = imageUrl,
+            imageFormat = imageFormat
+        )
+    }
+
+    private fun routeCall(context: MessageContext) {
+        val parsed = context.parsedMessage
+
+        if (parsed.isAtBot) {
             scope.launch {
-                log.info("机器人[${botId}]被@, 触发主动发言")
-                val route = RoutingAgent.route(botId, groupId, msg)
+                log.info("机器人[${context.botId}]被@, 触发主动发言")
+                val route = RoutingAgent.route(context.botId, context.groupId, parsed.content)
                 log.info("路由结果：{}", route.name)
                 EventBus.postAsync(
                     RouteCallEvent(
-                        botId = botId,
-                        groupId = groupId,
-                        senderId = senderId,
-                        input = "你被群友 $senderId @了，内容：$msg",
+                        botId = context.botId,
+                        groupId = context.groupId,
+                        senderId = context.senderId,
+                        input = "你被群友 ${context.senderId} @了，内容：${parsed.content}",
                         hit = route
                     )
                 )
             }
-        } else if (isCommand(msg)) {
-            val command = parseCommand(msg)!!
+        } else if (isCommand(parsed.content)) {
+            val command = parseCommand(parsed.content)!!
             log.info("机器人收到命令 $command")
             val cmd = CmdRuleRegister.getRule(command)
             if (cmd == null) {
@@ -175,10 +213,10 @@ object GroupMessageEventListener : SimpleListenerHost() {
             } else {
                 EventBus.postAsync(
                     RouteCallEvent(
-                        botId = botId,
-                        groupId = groupId,
-                        senderId = senderId,
-                        input = msg,
+                        botId = context.botId,
+                        groupId = context.groupId,
+                        senderId = context.senderId,
+                        input = parsed.content,
                         hit = cmd
                     )
                 )
@@ -187,24 +225,20 @@ object GroupMessageEventListener : SimpleListenerHost() {
     }
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
-    private suspend fun saveAndPublishHistoryRecord(
-        url: String?,
-        groupId: String,
-        format: String?,
-        botId: String,
-        senderId: String,
-        senderNick: String,
-        messageType: MessageType,
-        msg: String
-    ) {
+    private suspend fun saveHistoryAndPublish(context: MessageContext) {
+        val parsed = context.parsedMessage
         val historyRecord = withContext(Dispatchers.IO) {
             var resource: ResourceRecord? = null
-            if (url != null) {
+
+            if (parsed.imageUrl != null) {
+                val imageUrl = parsed.imageUrl
+                val format = parsed.imageFormat
+
                 val size: Long
                 val md5: String
                 val path: String
 
-                URL(url).openStream().use { input ->
+                URL(imageUrl).openStream().use { input ->
                     val buffer = input.source().buffer().readByteString()
 
                     size = buffer.size.toLong()
@@ -217,7 +251,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
                     if (resourceRecord != null) {
                         path = resourceRecord.url
                     } else {
-                        path = "./image/${groupId}/${Uuid.random().toHexString()}.${format}"
+                        path = "./image/${context.groupId}/${Uuid.random().toHexString()}.${format}"
 
                         storage.put(
                             path.toPath(),
@@ -230,8 +264,8 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
                 resource = resourceService.saveResource(
                     ResourceRecord(
-                        botMark = botId,
-                        groupId = groupId,
+                        botMark = context.botId,
+                        groupId = context.groupId,
                         url = path,
                         fileName = path.substringAfterLast("/"),
                         size = size,
@@ -243,17 +277,17 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
             historyService.saveHistory(
                 HistoryRecord(
-                    botMark = botId,
-                    groupId = groupId,
-                    userId = senderId,
-                    nick = senderNick,
-                    messageType = messageType,
-                    content = msg,
+                    botMark = context.botId,
+                    groupId = context.groupId,
+                    userId = context.senderId,
+                    nick = context.senderNick,
+                    messageType = parsed.messageType,
+                    content = parsed.content,
                     resource = resource,
                     createdAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                 )
             )
         }
-        EventBus.postAsync(HistorySavedEvent(historyRecord))
+        EventBus.postAsync(HistorySavedEvent(context.parsedMessage.isAtBot, historyRecord))
     }
 }

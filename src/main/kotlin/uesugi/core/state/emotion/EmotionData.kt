@@ -25,11 +25,11 @@ object EmotionTable : IntIdTable("chat_emotion") {
     val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)
     val groupId = varchar("group_id", length = DEFAULT_LENGTH)
     val emotionalTendency =
-        enumerationByName<uesugi.core.state.emotion.EmotionalTendencies>("emotional_tendency", length = 32)
+        enumerationByName<EmotionalTendencies>("emotional_tendency", length = 32)
     val stimulus = varchar("stimulus", length = 255)
     val emotion = varchar("emotion", length = 255)
     val mood = varchar("mood", length = 255)
-    val behavior = json<uesugi.core.state.emotion.BehaviorProfile>("behavior", JSON)
+    val behavior = json<BehaviorProfile>("behavior", JSON)
     val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
     val historyMessageProcessed = integer("history_message_processed")
@@ -37,33 +37,29 @@ object EmotionTable : IntIdTable("chat_emotion") {
 }
 
 class EmotionEntity(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<EmotionEntity>(_root_ide_package_.uesugi.core.state.emotion.EmotionTable)
+    companion object : IntEntityClass<EmotionEntity>(EmotionTable)
 
-    var botMark by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.botMark
-    var groupId by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.groupId
-    var emotionalTendency by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.emotionalTendency
-    var stimulus: uesugi.core.state.emotion.PAD by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.stimulus.memoizedTransform(
-        _root_ide_package_.uesugi.core.state.emotion.PADColumnTransformer()
-    )
-    var emotion by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.emotion.memoizedTransform(
-        _root_ide_package_.uesugi.core.state.emotion.PADColumnTransformer()
-    )
-    var mood by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.mood.memoizedTransform(_root_ide_package_.uesugi.core.state.emotion.PADColumnTransformer())
-    var behavior by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.behavior
-    var updatedAt by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.updatedAt
-    var createdAt by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.createdAt
-    var historyMessageProcessed by _root_ide_package_.uesugi.core.state.emotion.EmotionTable.historyMessageProcessed
+    var botMark by EmotionTable.botMark
+    var groupId by EmotionTable.groupId
+    var emotionalTendency by EmotionTable.emotionalTendency
+    var stimulus: PAD by EmotionTable.stimulus.memoizedTransform(PADColumnTransformer())
+    var emotion by EmotionTable.emotion.memoizedTransform(PADColumnTransformer())
+    var mood by EmotionTable.mood.memoizedTransform(PADColumnTransformer())
+    var behavior by EmotionTable.behavior
+    var updatedAt by EmotionTable.updatedAt
+    var createdAt by EmotionTable.createdAt
+    var historyMessageProcessed by EmotionTable.historyMessageProcessed
 }
 
-private class PADColumnTransformer : ColumnTransformer<String, uesugi.core.state.emotion.PAD> {
-    override fun unwrap(value: uesugi.core.state.emotion.PAD): String {
+private class PADColumnTransformer : ColumnTransformer<String, PAD> {
+    override fun unwrap(value: PAD): String {
         return "${value.p},${value.a},${value.d}"
     }
 
-    override fun wrap(value: String): uesugi.core.state.emotion.PAD {
+    override fun wrap(value: String): PAD {
         val dimensions = value.split(",").map { s -> s.trim().toDouble() }
         return if (dimensions.size >= 3) {
-            _root_ide_package_.uesugi.core.state.emotion.PAD(p = dimensions[0], a = dimensions[1], d = dimensions[2])
+            PAD(p = dimensions[0], a = dimensions[1], d = dimensions[2])
         } else {
             throw IllegalArgumentException("Invalid stimulus format: $value")
         }
@@ -118,7 +114,7 @@ data class PAD(
 
         val ZERO = PAD(p = 0.0, a = 0.0, d = 0.0)
 
-        fun from(scale: uesugi.core.state.emotion.PadScale12): PAD {
+        fun from(scale: PadScale12): PAD {
             val p = (scale.q1 - scale.q4 + scale.q7 - scale.q10) / 4
             val a = (-scale.q2 + scale.q5 - scale.q8 + scale.q11) / 4
             val d = (scale.q3 - scale.q6 + scale.q9 - scale.q12) / 4
@@ -129,9 +125,9 @@ data class PAD(
 
 }
 
-typealias Stimulus = uesugi.core.state.emotion.PAD
-typealias Emotion = uesugi.core.state.emotion.PAD
-typealias Mood = uesugi.core.state.emotion.PAD
+typealias Stimulus = PAD
+typealias Emotion = PAD
+typealias Mood = PAD
 
 enum class Decay(val decay: Double) {
     HIGH(0.85),
@@ -139,76 +135,76 @@ enum class Decay(val decay: Double) {
     LOW(0.5)
 }
 
-enum class EmotionalTendencies(val pad: uesugi.core.state.emotion.PAD) {
+enum class EmotionalTendencies(val pad: PAD) {
     /**
      * 喜悦
      */
-    JOY(_root_ide_package_.uesugi.core.state.emotion.PAD(p = 2.77, a = 1.21, d = 1.42)),
+    JOY(PAD(p = 2.77, a = 1.21, d = 1.42)),
 
     /**
      * 乐观
      */
-    OPTIMISM(_root_ide_package_.uesugi.core.state.emotion.PAD(p = 2.48, a = 1.05, d = 1.75)),
+    OPTIMISM(PAD(p = 2.48, a = 1.05, d = 1.75)),
 
     /**
      * 轻松
      */
-    RELAXATION(_root_ide_package_.uesugi.core.state.emotion.PAD(p = 2.19, a = -0.66, d = 1.05)),
+    RELAXATION(PAD(p = 2.19, a = -0.66, d = 1.05)),
 
     /**
      * 惊奇
      */
-    SURPRISE(_root_ide_package_.uesugi.core.state.emotion.PAD(p = 1.72, a = 1.71, d = 0.22)),
+    SURPRISE(PAD(p = 1.72, a = 1.71, d = 0.22)),
 
     /**
      * 温和
      */
-    MILDNESS(_root_ide_package_.uesugi.core.state.emotion.PAD(p = 1.57, a = -0.79, d = 0.38)),
+    MILDNESS(PAD(p = 1.57, a = -0.79, d = 0.38)),
 
     /**
      * 依赖
      */
-    DEPENDENCE(_root_ide_package_.uesugi.core.state.emotion.PAD(p = 0.39, a = -0.81, d = 1.48)),
+    DEPENDENCE(PAD(p = 0.39, a = -0.81, d = 1.48)),
 
     /**
      * 无聊
      */
-    BOREDOM(_root_ide_package_.uesugi.core.state.emotion.PAD(p = -0.53, a = -1.25, d = -0.84)),
+    BOREDOM(PAD(p = -0.53, a = -1.25, d = -0.84)),
 
     /**
      * 悲伤
      */
-    SADNESS(_root_ide_package_.uesugi.core.state.emotion.PAD(p = -0.89, a = 0.17, d = -0.70)),
+    SADNESS(PAD(p = -0.89, a = 0.17, d = -0.70)),
 
     /**
      * 恐惧
      */
-    FEAR(_root_ide_package_.uesugi.core.state.emotion.PAD(p = -0.93, a = 1.30, d = -0.64)),
+    FEAR(PAD(p = -0.93, a = 1.30, d = -0.64)),
 
     /**
      * 焦虑
      */
-    ANXIETY(_root_ide_package_.uesugi.core.state.emotion.PAD(p = -0.95, a = 0.32, d = -0.63)),
+    ANXIETY(PAD(p = -0.95, a = 0.32, d = -0.63)),
 
     /**
      * 藐视
      */
-    CONTEMPT(_root_ide_package_.uesugi.core.state.emotion.PAD(p = -1.58, a = 0.32, d = 1.02)),
+    CONTEMPT(PAD(p = -1.58, a = 0.32, d = 1.02)),
 
     /**
      * 厌恶
      */
-    DISGUST(_root_ide_package_.uesugi.core.state.emotion.PAD(p = -1.80, a = 0.40, d = 0.67)),
+    DISGUST(PAD(p = -1.80, a = 0.40, d = 0.67)),
 
     /**
      * 愤懑
      */
-    RESENTMENT(_root_ide_package_.uesugi.core.state.emotion.PAD(p = -1.98, a = 1.10, d = 0.60)),
+    RESENTMENT(PAD(p = -1.98, a = 1.10, d = 0.60)),
 
     /**
      * 敌意
      */
-    HOSTILITY(_root_ide_package_.uesugi.core.state.emotion.PAD(p = -2.08, a = 1.00, d = 1.12));
+    HOSTILITY(PAD(p = -2.08, a = 1.00, d = 1.12));
 
     companion object {
 
@@ -220,8 +216,8 @@ enum class EmotionalTendencies(val pad: uesugi.core.state.emotion.PAD) {
          * @return 距离
          */
         private fun calculateDistance(
-            pad1: uesugi.core.state.emotion.PAD,
-            pad2: uesugi.core.state.emotion.PAD
+            pad1: PAD,
+            pad2: PAD
         ): Double {
             val pDiff = pad1.p - pad2.p
             val aDiff = pad1.a - pad2.a
@@ -235,7 +231,7 @@ enum class EmotionalTendencies(val pad: uesugi.core.state.emotion.PAD) {
          * @param pad 用户的PAD情感状态
          * @return 距离最小的基本情感
          */
-        fun findClosest(pad: uesugi.core.state.emotion.PAD): EmotionalTendencies {
+        fun findClosest(pad: PAD): EmotionalTendencies {
             return EmotionalTendencies.entries.toTypedArray().minByOrNull {
                 calculateDistance(pad, it.pad)
             } ?: throw IllegalStateException("EmotionalTendencies enum cannot be empty.")
@@ -246,10 +242,10 @@ enum class EmotionalTendencies(val pad: uesugi.core.state.emotion.PAD) {
 
 @Serializable
 data class BehaviorProfile(
-    val emotion: uesugi.core.state.emotion.EmotionalTendencies,
-    val tone: uesugi.core.state.emotion.Tone,
-    val aggressiveness: uesugi.core.state.emotion.Aggressiveness,
-    val emojiLevel: uesugi.core.state.emotion.EmojiLevel
+    val emotion: EmotionalTendencies,
+    val tone: Tone,
+    val aggressiveness: Aggressiveness,
+    val emojiLevel: EmojiLevel
 )
 
 enum class Tone {
@@ -273,7 +269,7 @@ enum class EmojiLevel {
     HIGH
 }
 
-fun uesugi.core.state.emotion.EmotionEntity.Companion.findRequiredAnalysisHistoryGroupIds(botMark: String): List<String> {
+fun EmotionEntity.Companion.findRequiredAnalysisHistoryGroupIds(botMark: String): List<String> {
     val result = transaction {
         exec(
             """
@@ -298,21 +294,21 @@ fun uesugi.core.state.emotion.EmotionEntity.Companion.findRequiredAnalysisHistor
     }
 }
 
-fun uesugi.core.state.emotion.EmotionEntity.Companion.findNotAnalysisHistoryGroupIds(
+fun EmotionEntity.Companion.findNotAnalysisHistoryGroupIds(
     botMark: String,
     groupIds: List<String>
 ): List<String> {
     return transaction {
-        _root_ide_package_.uesugi.core.state.emotion.EmotionTable.select(_root_ide_package_.uesugi.core.state.emotion.EmotionTable.groupId)
+        EmotionTable.select(EmotionTable.groupId)
             .where {
-                (_root_ide_package_.uesugi.core.state.emotion.EmotionTable.botMark eq botMark).apply {
+                (EmotionTable.botMark eq botMark).apply {
                     if (groupIds.isNotEmpty()) {
-                        this and (_root_ide_package_.uesugi.core.state.emotion.EmotionTable.groupId notInList groupIds)
+                        this and (EmotionTable.groupId notInList groupIds)
                     }
                 }
             }.withDistinct(true)
             .map {
-                it[_root_ide_package_.uesugi.core.state.emotion.EmotionTable.groupId]
+                it[EmotionTable.groupId]
             }
     }
 }

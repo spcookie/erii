@@ -4,26 +4,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.exposed.v1.core.SortOrder
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.greater
-import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
 import uesugi.ENABLE_GROUPS
-import uesugi.core.message.history.HistoryEntity
-import uesugi.core.message.history.HistoryTable
 import uesugi.toolkit.logger
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 class FlowJob(
-    val jobScheduler: JobScheduler
+    val jobScheduler: JobScheduler,
+    private val flowAgent: FlowAgent,
+    private val flowRepository: FlowRepository
 ) {
 
     companion object {
@@ -31,8 +22,6 @@ class FlowJob(
     }
 
     private val mutex = Mutex()
-
-    private val flowAgent = FlowAgent()
 
     fun openTimingTriggerSignal() {
         for (group in ENABLE_GROUPS) {
@@ -59,9 +48,7 @@ class FlowJob(
                         log.debug("开始处理心流任务: currentBotId=$currentBotId")
 
                         val groups = withContext(Dispatchers.IO) {
-                            transaction {
-                                findGroupsNeedProcessing(currentBotId)
-                            }
+                            flowRepository.findGroupsNeedProcessing(currentBotId)
                         }
 
                         log.debug("心流任务发现 ${groups.size} 个群组需要处理")
@@ -89,57 +76,16 @@ class FlowJob(
         flowGaugeManager.getOrCreate(botMark, groupId, BotManage.getBot(botMark).role.emoticon)
     }
 
-    private fun findGroupsNeedProcessing(botMark: String): List<String> {
-        return transaction {
-            val allGroupIds = HistoryTable
-                .select(HistoryTable.groupId)
-                .where { HistoryTable.botMark eq botMark }
-                .groupBy(HistoryTable.groupId)
-                .map { it[HistoryTable.groupId] }
-                .distinct()
-
-            allGroupIds.filter { groupId ->
-                val flowState = FlowStateEntity.find {
-                    (FlowStateTable.botMark eq botMark) and (FlowStateTable.groupId eq groupId)
-                }.firstOrNull()
-
-                val lastProcessedId = flowState?.lastProcessedHistoryId ?: 0
-
-                val newMessageCount = HistoryEntity.count(
-                    HistoryTable.botMark eq botMark and
-                            (HistoryTable.groupId eq groupId) and
-                            (HistoryTable.id greater lastProcessedId)
-                )
-
-                newMessageCount > 3
-            }
-        }
-    }
-
     @OptIn(ExperimentalTime::class)
     private suspend fun processGroupFlow(botMark: String, groupId: String) {
         log.debug("开始处理群组心流, groupId=$groupId")
 
         try {
+            val flowState = flowRepository.getFlowState(botMark, groupId)
+            val lastId = flowState?.lastProcessedHistoryId ?: 0
+
             val histories = withContext(Dispatchers.IO) {
-                transaction {
-                    val flowState = FlowStateEntity.find {
-                        (FlowStateTable.botMark eq botMark) and (FlowStateTable.groupId eq groupId)
-                    }.firstOrNull()
-
-                    val lastId = flowState?.lastProcessedHistoryId ?: 0
-
-                    val historyList = HistoryEntity.find {
-                        (HistoryTable.botMark eq botMark) and
-                                (HistoryTable.groupId eq groupId) and
-                                (HistoryTable.id greater lastId)
-                    }
-                        .orderBy(HistoryTable.createdAt to SortOrder.ASC)
-                        .limit(100)
-                        .toList()
-
-                    historyList
-                }
+                flowRepository.getHistoriesToProcess(botMark, groupId, lastId, 100)
             }
 
             if (histories.size < 20) {
@@ -161,14 +107,15 @@ class FlowJob(
 
             if (messages.isEmpty()) {
                 log.debug("群组 $groupId 消息转换后为空, 跳过处理")
-                updateFlowState(botMark, groupId, histories.maxOf { it.id.value })
+                val maxHistoryId = histories.maxOf { it.id.value }
+                flowRepository.updateFlowState(botMark, groupId, maxHistoryId)
                 return
             }
 
             flowAgent.analysis(messages, botMark, groupId)
 
             val maxHistoryId = histories.maxOf { it.id.value }
-            updateFlowState(botMark, groupId, maxHistoryId)
+            flowRepository.updateFlowState(botMark, groupId, maxHistoryId)
 
             log.debug("群组 $groupId 心流处理完成, 最大 historyId=$maxHistoryId")
 
@@ -177,32 +124,4 @@ class FlowJob(
         }
     }
 
-    @OptIn(ExperimentalTime::class)
-    private suspend fun updateFlowState(botMark: String, groupId: String, lastHistoryId: Int) {
-        withContext(Dispatchers.IO) {
-            transaction {
-                val existing = FlowStateEntity.find {
-                    (FlowStateTable.botMark eq botMark) and (FlowStateTable.groupId eq groupId)
-                }.firstOrNull()
-
-                val now = Clock.System.now()
-                val tz = TimeZone.currentSystemDefault()
-                val instant = now.toLocalDateTime(tz)
-
-                if (existing != null) {
-                    existing.lastProcessedHistoryId = lastHistoryId
-                    existing.lastProcessedAt = instant
-                } else {
-                    FlowStateEntity.new {
-                        this.botMark = botMark
-                        this.groupId = groupId
-                        this.lastProcessedHistoryId = lastHistoryId
-                        this.lastProcessedAt = instant
-                    }
-                }
-
-                log.debug("心流状态已更新, groupId=$groupId, lastHistoryId=$lastHistoryId")
-            }
-        }
-    }
 }

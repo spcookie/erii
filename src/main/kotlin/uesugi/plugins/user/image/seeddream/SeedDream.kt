@@ -25,13 +25,14 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import uesugi.config.LLMModelsChoice
-import uesugi.core.ProactiveSpeakFeature
+import uesugi.core.PSFeature
 import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.history.MessageType
 import uesugi.core.message.resource.ResourceTable
 import uesugi.core.plugin.*
 import uesugi.core.plugin.MetaToolSet.Companion.meta
 import uesugi.plugins.getGroup
+import uesugi.toolkit.calcHumanTypingDelay
 import uesugi.toolkit.logger
 import java.net.URL
 import kotlin.io.encoding.Base64
@@ -189,110 +190,10 @@ class SeedDream : RoutePlugin, ClassNameMixin {
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onLoad(context: PluginContext) {
-        suspend fun image(meta: Meta): Either<String, ExternalResource> {
-            with(context) {
-                val records = database.getHistory {
-                    (HistoryTable leftJoin ResourceTable).selectAll()
-                        .where {
-                            HistoryTable.groupId eq meta.groupId and
-                                    (HistoryTable.userId inList listOf(meta.senderId!!, meta.botId))
-                        }
-                        .orderBy(HistoryTable.createdAt to SortOrder.DESC)
-                        .limit(14)
-                }.reversed()
-
-                val prompt = records.mapIndexedNotNull { index, record ->
-                    val role = if (record.userId == meta.senderId) "User: " else "AI: "
-                    when (record.messageType) {
-                        MessageType.TEXT -> {
-                            "$role${record.content}"
-                        }
-
-                        MessageType.IMAGE -> {
-                            "$role[image id=${index}]"
-                        }
-
-                        else -> {
-                            null
-                        }
-                    }
-                }.joinToString("\n\n")
-
-                val promt = prompt("seed_dream_prompt") {
-                    system(IMAGE_TASK_AGGREGATOR_PROMPT)
-                    user(prompt)
-                }
-
-                val result = llm.executeStructured<SeedDreamRequest>(promt, LLMModelsChoice.Pro)
-
-                val request = result.getOrThrow().data
-
-                log.debug("SeedDream Request: {}", request)
-
-                val images = if (request.taskType != SeedDreamType.TEXT_TO_IMAGE) {
-                    records.filterIndexed { index, record ->
-                        record.messageType == MessageType.IMAGE && request.imageIds?.contains(index) ?: false
-                    }
-                        .mapNotNull {
-                            it.resource?.let { resource ->
-                                resource.bytes ?: return@mapNotNull null
-                                Pair(resource.bytes, resource.fileName)
-                            } ?: return@mapNotNull null
-                        }
-                        .map { (bytes, fileName) ->
-                            val base64 = Base64.encode(bytes!!)
-                            val mimeType = getMimeType(fileName)
-                            "data:$mimeType;base64,$base64"
-                        }
-                } else {
-                    listOf()
-                }
-
-                val node: JsonNode = http.post("https://ark.cn-beijing.volces.com/api/v3/images/generations") {
-                    contentType(ContentType.Application.Json)
-                    bearerAuth("d89e5cf3-29af-4efc-9ffd-23064fd0838d")
-                    setBody(
-                        mapOf(
-                            "model" to "doubao-seedream-4-5-251128",
-                            "prompt" to request.prompt,
-                            "image" to if (images.isEmpty()) null else if (images.size == 1) images[0] else images,
-                            "response_format" to "url",
-                            "size" to "2K",
-                            "stream" to false,
-                            "watermark" to false
-                        )
-                    )
-                }.body()
-
-                if (node.has("error")) {
-                    log.warn("SeedDream Error: {}", node.toString())
-                    return node.toString().left()
-                }
-
-                val url: String? = node.path("data")
-                    .path(0)
-                    .path("url")
-                    .textValue()
-
-                if (url == null) {
-                    return "No URL returned by SeedDream".left()
-                }
-                val connection = URL(url).openConnection()
-                    .apply {
-                        connectTimeout = 20_000
-                        readTimeout = 60_000
-                    }
-                return connection.getInputStream()
-                    .use { input ->
-                        input.toExternalResource().right()
-                    }
-            }
-        }
-
         context.chain { meta ->
             val resource = coroutineScope {
                 async {
-                    image(meta)
+                    image(context, meta)
                 }
             }.await()
 
@@ -316,12 +217,11 @@ class SeedDream : RoutePlugin, ClassNameMixin {
 
             meta.sendAgent(
                 input = resource.fold(
-                    { error -> "生成图片失败，发送消息告诉用户生成失败，错误: $error" },
+                    { error -> "生成图片失败，调用 Tool 发送消息告诉用户生成失败，错误: $error" },
                     { _ -> "你已经生成了一张图片，必须调用图片 Tool 发送生成图片。" }
                 ),
                 SendAgentConf(
-                    toolSets = {
-
+                    toolSetBuilder = { chatToolSet ->
                         listOf(
                             object : ToolSet {
                                 @LLMDescription("回复消息，并发送图片，返回群其他人的回复")
@@ -329,9 +229,15 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                                 fun sendMessageAndImage(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
                                     state.value = true
                                     GlobalScope.launch {
-                                        val job = it.send(sentences)
+                                        for ((i, v) in sentences.withIndex()) {
+                                            if (i == 0) {
+                                                chatToolSet.sendText(v)
+                                            } else {
+                                                delay(calcHumanTypingDelay(v))
+                                                chatToolSet.sendText(v)
+                                            }
+                                        }
                                         resource.onRight { img ->
-                                            job.join()
                                             img.use {
                                                 group.sendImage(it)
                                             }
@@ -342,11 +248,11 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                             }
                         )
                     },
-                    flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
+                    feature = PSFeature.GRAB or PSFeature.FALLBACK
                 )
             ) {
-                sendAfter { send() }
-                dispatchFallback { send() }
+                runCompletion { send() }
+                callFallback { send() }
                 callCompletion { send() }
                 GlobalScope
             }
@@ -358,7 +264,7 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                     @Tool
                     @LLMDescription("回复消息，并生成图片发送")
                     suspend fun imageCreate(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
-                        val resource = image(meta)
+                        val resource = image(this@tool, meta)
                         val group = meta.getGroup()
                         resource.onRight { img ->
                             img.use {
@@ -374,6 +280,107 @@ class SeedDream : RoutePlugin, ClassNameMixin {
             }
         }
     }
+
+    suspend fun image(context: PluginContext, meta: Meta): Either<String, ExternalResource> {
+        with(context) {
+            val records = database.getHistory {
+                (HistoryTable leftJoin ResourceTable).selectAll()
+                    .where {
+                        HistoryTable.groupId eq meta.groupId and
+                                (HistoryTable.userId inList listOf(meta.senderId!!, meta.botId))
+                    }
+                    .orderBy(HistoryTable.createdAt to SortOrder.DESC)
+                    .limit(14)
+            }.reversed()
+
+            val prompt = records.mapIndexedNotNull { index, record ->
+                val role = if (record.userId == meta.senderId) "User: " else "AI: "
+                when (record.messageType) {
+                    MessageType.TEXT -> {
+                        "$role${record.content}"
+                    }
+
+                    MessageType.IMAGE -> {
+                        "$role[image id=${index}]"
+                    }
+
+                    else -> {
+                        null
+                    }
+                }
+            }.joinToString("\n\n")
+
+            val promt = prompt("seed_dream_prompt") {
+                system(IMAGE_TASK_AGGREGATOR_PROMPT)
+                user(prompt)
+            }
+
+            val result = llm.executeStructured<SeedDreamRequest>(promt, LLMModelsChoice.Pro)
+
+            val request = result.getOrThrow().data
+
+            log.debug("SeedDream Request: {}", request)
+
+            val images = if (request.taskType != SeedDreamType.TEXT_TO_IMAGE) {
+                records.filterIndexed { index, record ->
+                    record.messageType == MessageType.IMAGE && request.imageIds?.contains(index) ?: false
+                }
+                    .mapNotNull {
+                        it.resource?.let { resource ->
+                            resource.bytes ?: return@mapNotNull null
+                            Pair(resource.bytes, resource.fileName)
+                        } ?: return@mapNotNull null
+                    }
+                    .map { (bytes, fileName) ->
+                        val base64 = Base64.encode(bytes!!)
+                        val mimeType = getMimeType(fileName)
+                        "data:$mimeType;base64,$base64"
+                    }
+            } else {
+                listOf()
+            }
+
+            val node: JsonNode = http.post("https://ark.cn-beijing.volces.com/api/v3/images/generations") {
+                contentType(ContentType.Application.Json)
+                bearerAuth("d89e5cf3-29af-4efc-9ffd-23064fd0838d")
+                setBody(
+                    mapOf(
+                        "model" to "doubao-seedream-4-5-251128",
+                        "prompt" to request.prompt,
+                        "image" to if (images.isEmpty()) null else if (images.size == 1) images[0] else images,
+                        "response_format" to "url",
+                        "size" to "2K",
+                        "stream" to false,
+                        "watermark" to false
+                    )
+                )
+            }.body()
+
+            if (node.has("error")) {
+                log.warn("SeedDream Error: {}", node.toString())
+                return node.toString().left()
+            }
+
+            val url: String? = node.path("data")
+                .path(0)
+                .path("url")
+                .textValue()
+
+            if (url == null) {
+                return "No URL returned by SeedDream".left()
+            }
+            val connection = URL(url).openConnection()
+                .apply {
+                    connectTimeout = 20_000
+                    readTimeout = 60_000
+                }
+            return connection.getInputStream()
+                .use { input ->
+                    input.toExternalResource().right()
+                }
+        }
+    }
+
 
     override val matcher: Pair<String, String>
         get() = "IMAGE_CREATE" to """

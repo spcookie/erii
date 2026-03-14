@@ -25,7 +25,7 @@ class LLMFactory {
         val googleBaseUrl = System.getenv("GOOGLE_BASE_URL")
         val deepSeekApiKey = System.getenv("DEEP_SEEK_API_KEY")
         val deepSeekBaseUrl = System.getenv("DEEP_SEEK_BASE_URL")
-        val minimaxApiKey = System.getenv("MINIMAX_API_KEY")
+        val minimaxApiKey = System.getenv("MINIMAX_CODING_PLAN_KEY")
         val minimaxBaseUrl = System.getenv("MINIMAX_BASE_URL")
 
         val llmClients = buildMap {
@@ -155,7 +155,7 @@ object LLMModelsChoice {
         when (choice) {
             "GOOGLE" -> GoogleModels.Gemini2_5Flash
             "DEEP_SEEK" -> DeepSeekChat
-            "MINIMAX" -> miniMaxChat("MiniMax-M2.1")
+            "MINIMAX" -> miniMaxChat("MiniMax-M2.5")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }

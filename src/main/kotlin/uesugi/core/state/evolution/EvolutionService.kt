@@ -22,7 +22,7 @@ import kotlin.time.ExperimentalTime
  *
  * 提供增删改查和热度管理功能，实现"遗忘机制"
  */
-class VocabularyService {
+class EvolutionService {
     companion object {
         private val log = logger()
 

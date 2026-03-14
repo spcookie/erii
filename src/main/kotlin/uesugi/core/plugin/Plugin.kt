@@ -22,6 +22,8 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.*
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import net.mamoe.mirai.utils.ConcurrentHashMap
 import okio.Path
 import okio.Path.Companion.toPath
@@ -33,7 +35,11 @@ import org.jobrunr.scheduling.JobScheduler
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import uesugi.BotManage
-import uesugi.core.*
+import uesugi.core.InterruptionMode
+import uesugi.core.PSFeature
+import uesugi.core.ProactiveSpeakEvent
+import uesugi.core.ProactiveSpeakFeature
+import uesugi.core.agent.*
 import uesugi.core.message.history.HistoryRecord
 import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.resource.ResourceRecord
@@ -262,23 +268,51 @@ fun Meta.sendAgent(
 
 interface SendAgentState {
     val scope: CoroutineScope
-    fun sendBefore(sentences: List<String>) {}
-    fun sendAfter(sentences: List<String>) {}
-    fun sendReplay(sentence: String) {}
-    fun sendClosed() {}
-    fun sendFinally() {}
-    fun dispatchReject() {}
-    fun dispatchFallback() {}
-    fun callStart() {}
-    fun callCompletion() {}
+    fun callToolStart(
+        toolName: String,
+        toolArgs: JsonObject
+    ) {
+
+    }
+
+    fun callToolCompletion(
+        toolName: String,
+        toolArgs: JsonObject,
+        toolResult: JsonElement?,
+        toolError: String?
+    ) {
+    }
+
+    fun runStart() {
+
+    }
+
+    fun runCompletion(error: Throwable?) {
+
+    }
+
+    fun callReject() {
+
+    }
+
+    fun callFallback() {
+
+    }
+
+    fun callStart() {
+
+    }
+
+    fun callCompletion(error: Throwable?) {
+
+    }
 }
 
 @OptIn(ExperimentalUuidApi::class)
 data class SendAgentConf(
-    val chatPointRule: String? = null,
     val webSearch: Boolean = false,
-    val toolSets: ((ChatToolSet) -> List<ToolSet>)? = null,
-    val flag: ProactiveSpeakFeatureFlag = ProactiveSpeakFeature.NONE,
+    val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)? = null,
+    val feature: ProactiveSpeakFeature = PSFeature.NONE,
     val echo: String = Uuid.random().toHexString(),
 )
 
@@ -289,39 +323,42 @@ class SendAgentStateBuilder(
     private val holder: MutableMap<String, Any>
 ) {
 
-    fun sendBefore(builder: (sentences: List<String>) -> Unit) {
-        holder["sendBefore"] = builder
+    fun callToolStart(builder: (String, JsonObject) -> Unit) {
+        holder["callToolStart"] = builder
     }
 
-    fun sendAfter(builder: (sentences: List<String>) -> Unit) {
-        holder["sendAfter"] = builder
+    fun callToolCompletion(
+        builder: (
+            String,
+            JsonObject,
+            JsonElement?,
+            String?
+        ) -> Unit
+    ) {
+        holder["callToolCompletion"] = builder
     }
 
-    fun sendReplay(builder: (sentence: String) -> Unit) {
-        holder["sendReplay"] = builder
+    fun runStart(builder: () -> Unit) {
+        holder["runStart"] = builder
     }
 
-    fun sendClosed(builder: () -> Unit) {
-        holder["sendClosed"] = builder
+    fun runCompletion(builder: (Throwable?) -> Unit) {
+        holder["runCompletion"] = builder
     }
 
-    fun sendFinally(builder: () -> Unit) {
-        holder["sendFinally"] = builder
+    fun callReject(builder: () -> Unit) {
+        holder["callReject"] = builder
     }
 
-    fun dispatchReject(builder: () -> Unit) {
-        holder["dispatchReject"] = builder
-    }
-
-    fun dispatchFallback(builder: () -> Unit) {
-        holder["dispatchFallback"] = builder
+    fun callFallback(builder: () -> Unit) {
+        holder["callFallback"] = builder
     }
 
     fun callStart(builder: () -> Unit) {
         holder["callStart"] = builder
     }
 
-    fun callCompletion(builder: () -> Unit) {
+    fun callCompletion(builder: (Throwable?) -> Unit) {
         holder["callCompletion"] = builder
     }
 }
@@ -347,40 +384,51 @@ fun sendAgent(
         object : SendAgentState {
             override val scope = scope
 
-            override fun sendBefore(sentences: List<String>) {
-                (holder["sendBefore"] as? (List<String>) -> Unit)?.invoke(sentences)
+            override fun callToolStart(toolName: String, toolArgs: JsonObject) {
+                (holder["callToolStart"] as? (String, JsonObject) -> Unit)?.invoke(toolName, toolArgs)
             }
 
-            override fun sendAfter(sentences: List<String>) {
-                (holder["sendAfter"] as? (List<String>) -> Unit)?.invoke(sentences)
+            override fun callToolCompletion(
+                toolName: String,
+                toolArgs: JsonObject,
+                toolResult: JsonElement?,
+                toolError: String?
+            ) {
+                (holder["callToolCompletion"] as? (
+                    String,
+                    JsonObject,
+                    JsonElement?,
+                    String?
+                ) -> Unit)?.invoke(
+                    toolName,
+                    toolArgs,
+                    toolResult,
+                    toolError
+                )
             }
 
-            override fun sendReplay(sentence: String) {
-                (holder["sendReplay"] as? (String) -> Unit)?.invoke(sentence)
+            override fun runStart() {
+                (holder["runStart"] as? () -> Unit)?.invoke()
             }
 
-            override fun sendClosed() {
-                (holder["sendClosed"] as? () -> Unit)?.invoke()
+            override fun runCompletion(error: Throwable?) {
+                (holder["runCompletion"] as? (Throwable?) -> Unit)?.invoke(error)
             }
 
-            override fun sendFinally() {
-                (holder["sendFinally"] as? () -> Unit)?.invoke()
+            override fun callReject() {
+                (holder["callReject"] as? () -> Unit)?.invoke()
             }
 
-            override fun dispatchReject() {
-                (holder["dispatchReject"] as? () -> Unit)?.invoke()
-            }
-
-            override fun dispatchFallback() {
-                (holder["dispatchFallback"] as? () -> Unit)?.invoke()
+            override fun callFallback() {
+                (holder["callFallback"] as? () -> Unit)?.invoke()
             }
 
             override fun callStart() {
                 (holder["callStart"] as? () -> Unit)?.invoke()
             }
 
-            override fun callCompletion() {
-                (holder["callCompletion"] as? () -> Unit)?.invoke()
+            override fun callCompletion(error: Throwable?) {
+                (holder["callCompletion"] as? (Throwable?) -> Unit)?.invoke(error)
             }
         }
     }
@@ -394,66 +442,81 @@ private fun sendAgent(
     conf: SendAgentConf = SendAgentConf(),
     state: SendAgentState? = null
 ) {
-    val (chatPointRule, webSearch, toolSets, flag, echo) = conf
+    val (webSearch, toolSets, flag, echo) = conf
+
     if (state != null) {
-        val lifeCycleRef = mutableListOf<(AgentSendLifeCycleEvent) -> Unit>()
-        val lifeCycleSubscriber: (AgentSendLifeCycleEvent) -> Unit = { event ->
-            val lifeCycleEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
-            if (lifeCycleEvent != null) {
-                when (lifeCycleEvent) {
-                    is AgentBeforeSendAndReceiveEvent -> state.sendBefore(lifeCycleEvent.sentences)
-                    is AgentAfterSendAndReceiveEvent -> state.sendAfter(lifeCycleEvent.sentences)
-                    is AgentReceiveReplyEvent -> state.sendReplay(lifeCycleEvent.sentence)
-                    is AgentSendAndReceiveClosedEvent -> state.sendClosed()
-                    is AgentSendAndReceiveFinallyEvent -> state.sendFinally()
+        val job = EventBus.subscribeAsync<AgentToolCallEvent>(state.scope) { event ->
+            val toolCallEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
+            if (toolCallEvent != null) {
+                when (toolCallEvent) {
+                    is AgentToolCallStartEvent -> state.callToolStart(
+                        toolCallEvent.toolName,
+                        toolCallEvent.toolArgs
+                    )
+
+                    is AgentToolCallCompleteEvent -> state.callToolCompletion(
+                        toolCallEvent.toolName,
+                        toolCallEvent.toolArgs,
+                        toolCallEvent.toolResult,
+                        toolCallEvent.toolError
+                    )
                 }
             }
         }
-        lifeCycleRef += lifeCycleSubscriber
-        EventBus.subscribeSync<AgentSendLifeCycleEvent>(lifeCycleSubscriber)
 
-        val dispatchRef = mutableListOf<Job>()
-        val dispatchSubscriber: suspend (AgentDispatchEvent) -> Unit = { event ->
-            val dispatchEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
-            if (dispatchEvent != null) {
-                when (dispatchEvent) {
-                    is AgentRejectGrabEvent -> {
-                        state.dispatchReject()
-                    }
-
-                    is AgentFallbackEvent -> {
-                        state.dispatchFallback()
-                    }
-
-                    is AgentCallStartEvent -> {
-                        state.callStart()
-                    }
-
-                    is AgentCallCompletionEvent -> {
-                        try {
-                            state.callCompletion()
-                        } finally {
-                            dispatchRef.forEach { EventBus.unsubscribeAsync(it) }
-                            lifeCycleRef.forEach { EventBus.unsubscribeSync<AgentSendLifeCycleEvent>(it) }
-                        }
-                    }
-                }
+        EventBus.subscribeOnceSync<AgentCallStartEvent> { event ->
+            val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
+            if (e != null) {
+                state.callStart()
             }
         }
-        dispatchRef += EventBus.subscribeAsync<AgentDispatchEvent>(state.scope, dispatchSubscriber)
+
+        val runStart = EventBus.subscribeSync<AgentRunStartEvent> { event ->
+            val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
+            if (e != null) {
+                state.runStart()
+            }
+        }
+
+        val runCompletion = EventBus.subscribeSync<AgentRunCompleteEvent> { event ->
+            val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
+            if (e != null) {
+                state.runCompletion(event.throwable)
+            }
+        }
+
+        fun AgentDispatchEvent.call(block: () -> Unit) {
+            val e = this.takeIf { this.botId == botId && this.groupId == groupId && this.echo == echo }
+            if (e != null) {
+                runCatching { block() }
+                EventBus.unsubscribeAsync(job)
+                EventBus.unsubscribeSync(runStart)
+                EventBus.unsubscribeSync(runCompletion)
+            }
+        }
+
+        EventBus.subscribeOnceSync<AgentCallRejectEvent> { event ->
+            event.call { state.callReject() }
+        }
+
+        EventBus.subscribeOnceSync<AgentCallFallbackEvent> { event ->
+            event.call { state.callFallback() }
+        }
+
+        EventBus.subscribeOnceSync<AgentCallCompleteEvent> { event ->
+            event.call { state.callCompletion(event.throwable) }
+        }
     }
 
     EventBus.postAsync(
         ProactiveSpeakEvent(
             botId = botId,
             _groupId = groupId,
-            impulse = 0.0,
             interruptionMode = InterruptionMode.Interrupt,
             input = input,
-            chatPointRule = chatPointRule,
             webSearch = webSearch,
-            toolSets = toolSets,
-            flag = flag,
+            toolSetBuilder = toolSets,
+            feature = flag,
             echo = echo
         )
     )

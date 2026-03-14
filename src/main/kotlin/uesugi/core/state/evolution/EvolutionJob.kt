@@ -2,25 +2,22 @@ package uesugi.core.state.evolution
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.BotManage
-import uesugi.core.message.history.HistoryTable
 import uesugi.toolkit.logger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
 class EvolutionJob(
-    private val vocabularyService: VocabularyService
+    private val evolutionService: EvolutionService,
+    private val extractionAgent: ExtractionAgent,
+    private val evolutionRepository: EvolutionRepository
 ) {
     companion object {
         private val log = logger()
     }
 
     private val mutex = Mutex()
-    private val extractionAgent = ExtractionAgent()
 
     /**
      * 开启定时触发
@@ -51,7 +48,7 @@ class EvolutionJob(
                     for (currentBotId in BotManage.getAllBotIds()) {
                         log.debug("开始模因进化任务: currentBotId=$currentBotId")
 
-                        val groups = getActiveGroups(currentBotId)
+                        val groups = evolutionRepository.getActiveGroups(currentBotId)
 
                         log.debug("发现 ${groups.size} 个活跃群组需要处理")
 
@@ -73,30 +70,6 @@ class EvolutionJob(
     }
 
     /**
-     * 获取活跃群组列表
-     *
-     * 活跃群组定义：最近有消息记录的群组
-     *
-     * @param botMark 机器人标识
-     * @return 群组ID列表
-     */
-    private fun getActiveGroups(botMark: String): List<String> {
-        return transaction {
-            log.debug("开始查询活跃群组, botId=$botMark")
-
-            val groups = HistoryTable
-                .select(HistoryTable.groupId)
-                .where { HistoryTable.botMark eq botMark }
-                .groupBy(HistoryTable.groupId)
-                .map { it[HistoryTable.groupId] }
-                .distinct()
-
-            log.debug("查询到活跃群组数量: ${groups.size}")
-            groups
-        }
-    }
-
-    /**
      * 处理单个群组的模因进化
      *
      * 处理流程：
@@ -113,7 +86,7 @@ class EvolutionJob(
 
         try {
             // 步骤1: 捕获最近的消息
-            val recentMessages = vocabularyService.getMostActiveMessages(botMark, groupId, 500, range)
+            val recentMessages = evolutionService.getMostActiveMessages(botMark, groupId, 500, range)
 
             if (recentMessages.isEmpty()) {
                 log.warn("群组 $groupId 没有最近的消息，跳过处理")
@@ -136,12 +109,12 @@ class EvolutionJob(
 
             // 步骤3: 更新词汇库
             for (slangWord in slangWords) {
-                vocabularyService.addOrUpdateWord(botMark, groupId, slangWord)
+                evolutionService.addOrUpdateWord(botMark, groupId, slangWord)
             }
             log.debug("词汇库更新完成")
 
             // 步骤4: 热度衰减
-            vocabularyService.decayOldWords(botMark, groupId, recentMessages)
+            evolutionService.decayOldWords(botMark, groupId, recentMessages)
             log.debug("热度衰减完成")
 
             log.debug("群组 $groupId 模因进化处理完成")

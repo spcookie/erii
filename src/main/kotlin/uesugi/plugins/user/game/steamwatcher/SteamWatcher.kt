@@ -6,7 +6,7 @@ import net.mamoe.mirai.message.data.Image
 import net.mamoe.mirai.message.data.MessageChainBuilder
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import uesugi.BotManage
-import uesugi.core.ProactiveSpeakFeature
+import uesugi.core.PSFeature
 import uesugi.core.plugin.*
 import uesugi.toolkit.logger
 
@@ -228,16 +228,16 @@ class SteamWatcher : PassivePlugin {
                     group.id.toString(),
                     "你一直在观察群友的 Steam 状态，发现 ${summary.personaname} 的 Steam 状态已更新，${text}，请告知群友",
                     SendAgentConf(
-                        flag = ProactiveSpeakFeature.GRAB or ProactiveSpeakFeature.FALLBACK
+                        feature = PSFeature.GRAB or PSFeature.FALLBACK
                     )
                 ) {
-                    sendAfter {
+                    runCompletion {
                         this@SteamWatcher.scope.launch {
                             group.sendMessage(message)
                         }
                     }
 
-                    dispatchFallback {
+                    callFallback {
                         this@SteamWatcher.scope.launch {
                             group.sendMessage(message)
                         }

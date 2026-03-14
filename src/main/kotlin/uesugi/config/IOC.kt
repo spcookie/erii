@@ -5,30 +5,25 @@ import okio.Path.Companion.toPath
 import org.jetbrains.exposed.v1.core.DatabaseConfig
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
-import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import org.koin.dsl.onClose
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
-import uesugi.core.message.history.HistoryService
-import uesugi.core.message.resource.ResourceService
+import uesugi.core.message.messageModule
 import uesugi.core.state.emotion.EmotionJob
-import uesugi.core.state.emotion.EmotionService
+import uesugi.core.state.emotion.emotionModule
 import uesugi.core.state.evolution.EvolutionJob
-import uesugi.core.state.evolution.VocabularyService
-import uesugi.core.state.flow.FlowGaugeManager
+import uesugi.core.state.evolution.evolutionModule
 import uesugi.core.state.flow.FlowJob
-import uesugi.core.state.meme.*
+import uesugi.core.state.flow.flowModule
+import uesugi.core.state.meme.MemeJob
+import uesugi.core.state.meme.memeModule
 import uesugi.core.state.memory.MemoryJob
-import uesugi.core.state.memory.MemoryService
-import uesugi.core.state.volition.VolitionGaugeManager
+import uesugi.core.state.memory.memoryModule
 import uesugi.core.state.volition.VolitionJob
+import uesugi.core.state.volition.volitionModule
 import uesugi.plugins.system.status.WebScreenshotTaker
-import uesugi.toolkit.LocalObjectStorage
-import uesugi.toolkit.ObjectStorage
-import uesugi.toolkit.WebPageMarkdownScraper
-import uesugi.toolkit.WebSearchClient
+import uesugi.toolkit.*
 import javax.sql.DataSource
 
 fun Application.warmUp() {
@@ -38,8 +33,7 @@ fun Application.warmUp() {
         it.get<VolitionJob>().apply { openTimingTriggerSignal() }
         it.get<EvolutionJob>().apply { openTimingTriggerSignal() }
         it.get<FlowJob>().apply { openTimingTriggerSignal() }
-        it.get<MemeCollectJob>().apply { openTimingTriggerSignal() }
-        it.get<MemeExtractJob>().apply { openTimingTriggerSignal() }
+        it.get<MemeJob>().apply { openTimingTriggerSignal() }
     }
 }
 
@@ -48,6 +42,9 @@ fun Application.configBaseModule() = koinModule {
         LocalObjectStorage(
             baseDir = "./store/object".toPath()
         )
+    }
+    factory<VectorStore> {
+        EmbeddedVectorStore(it.get(), it.get())
     }
     single<DataSource> {
         ConnectionFactoryConfig().getDataSource()
@@ -74,46 +71,30 @@ fun Application.configBaseModule() = koinModule {
 
 }
 
-val serviceModule = module {
-    singleOf(::VocabularyService)
-    singleOf(::EmotionService)
-    singleOf(::MemoryService)
-    singleOf(::HistoryService)
-    singleOf(::ResourceService)
-    single { MemoVectorStoreFactory() }
-    single { MemoService(get()) }
-    single { MemeAgent() }
-    single { FlowGaugeManager() } onClose { it?.stopAll() }
-    single { VolitionGaugeManager() } onClose { it?.stopAll() }
-}
-
-val jobModule = module {
-    singleOf(::EmotionJob)
-    singleOf(::MemoryJob)
-    singleOf(::FlowJob)
-    singleOf(::VolitionJob)
-    singleOf(::EvolutionJob)
-    singleOf(::MemeCollectJob)
-    singleOf(::MemeExtractJob)
-}
-
 val gatewayModule = module {
     val noProxyClient = HttpClientFactory().createClient()
     val proxyClient = HttpClientFactory().createProxyClient()
     single { noProxyClient }
     single(named(HttpClientFactory.Type.NO_PROXY)) { noProxyClient }
     single(named(HttpClientFactory.Type.PROXY)) { proxyClient }
-
-    single { WebSearchClient(System.getenv("WEB_SEARCH_HOST")) }
 }
 
-val adapterModule = module {
-    includes(jobModule)
-}
 
 val infrastructureModule = module {
-    includes(gatewayModule)
     single { LLMFactory().promptExecutor() }
     single { WebPageMarkdownScraper() }
     single { WebScreenshotTaker() }
+    single { WebSearchClient(System.getenv("WEB_SEARCH_HOST")) }
+}
+
+val appModule = module {
+    includes(gatewayModule)
+    includes(infrastructureModule)
+    includes(messageModule)
+    includes(emotionModule)
+    includes(evolutionModule)
+    includes(flowModule)
+    includes(memeModule)
+    includes(memoryModule)
+    includes(volitionModule)
 }

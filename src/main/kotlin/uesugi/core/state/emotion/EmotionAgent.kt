@@ -132,7 +132,7 @@ data class GMessage(
  * @param history 群聊历史消息列表
  * @return Prompt 对象
  */
-fun buildPrompt(history: List<uesugi.core.state.emotion.GMessage>) = prompt(
+fun buildPrompt(history: List<GMessage>) = prompt(
     "提取群聊消息的情感 PAD 数值"
 ) {
     system(
@@ -222,19 +222,19 @@ fun buildPrompt(history: List<uesugi.core.state.emotion.GMessage>) = prompt(
  * @param history 群聊历史消息列表
  * @return Stimulus (PAD 情感刺激值)
  */
-suspend fun analyzeStimulus(history: List<uesugi.core.state.emotion.GMessage>): uesugi.core.state.emotion.Stimulus {
+suspend fun analyzeStimulus(history: List<GMessage>): Stimulus {
     val log = LoggerFactory.getLogger("EmotionAgent")
 
     log.debug("开始分析情感刺激值, 消息数=${history.size}")
 
     // 构建 Prompt
-    val prompt = _root_ide_package_.uesugi.core.state.emotion.buildPrompt(history)
+    val prompt = buildPrompt(history)
 
     // 获取 Prompt 执行器
     val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
 
     // 执行结构化 LLM 调用
-    val result = promptExecutor.executeStructured<uesugi.core.state.emotion.PadScale12>(
+    val result = promptExecutor.executeStructured<PadScale12>(
         prompt = prompt,
         model = LLMModelsChoice.Pro,
         fixingParser = StructureFixingParser(
@@ -242,7 +242,7 @@ suspend fun analyzeStimulus(history: List<uesugi.core.state.emotion.GMessage>): 
             retries = 2
         ),
         examples = listOf(
-            _root_ide_package_.uesugi.core.state.emotion.PadScale12(
+            PadScale12(
                 q1 = 0.1, q4 = 2.0, q7 = -3.0, q10 = 0.0,
                 q2 = 0.0, q5 = 0.0, q8 = 0.0, q11 = 1.1,
                 q3 = 0.12, q6 = 0.99, q9 = 0.0, q12 = 0.0
@@ -258,7 +258,7 @@ suspend fun analyzeStimulus(history: List<uesugi.core.state.emotion.GMessage>): 
     log.debug("PAD 量表评分: Q3=${padScale12.q3}, Q6=${padScale12.q6}, Q9=${padScale12.q9}, Q12=${padScale12.q12}")
 
     // 转换为 PAD 三维值
-    val stimulus = _root_ide_package_.uesugi.core.state.emotion.Stimulus.from(padScale12)
+    val stimulus = Stimulus.from(padScale12)
 
     log.debug(
         "情感刺激值分析完成, P=${String.format("%.2f", stimulus.p)}, A=${

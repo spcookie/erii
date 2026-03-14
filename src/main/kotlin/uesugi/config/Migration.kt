@@ -9,8 +9,8 @@ import uesugi.core.message.resource.ResourceTable
 import uesugi.core.state.emotion.EmotionTable
 import uesugi.core.state.evolution.LearnedVocabTable
 import uesugi.core.state.flow.FlowStateTable
-import uesugi.core.state.meme.MemeTable
-import uesugi.core.state.meme.MemoScanStateTable
+import uesugi.core.state.meme.MemeData.MemeScanStateTable
+import uesugi.core.state.meme.MemeData.MemeTable
 import uesugi.core.state.memory.FactsTable
 import uesugi.core.state.memory.MemoryStateTable
 import uesugi.core.state.memory.SummaryTable
@@ -49,7 +49,7 @@ private fun init(database: Database) {
             FlowStateTable,
             VolitionStateTable,
             MemeTable,
-            MemoScanStateTable,
+            MemeScanStateTable,
             inBatch = true
         )
     }
