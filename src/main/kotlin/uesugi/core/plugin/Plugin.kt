@@ -48,6 +48,7 @@ import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.toolkit.*
 import java.io.InputStream
+import java.nio.file.Paths
 import kotlin.reflect.KClass
 import kotlin.reflect.full.createInstance
 import kotlin.time.Duration
@@ -159,6 +160,8 @@ interface PluginContext : AutoCloseable {
     val blob: Blob
     val vector: Vector
 
+    val config: Config
+
     val database: Database
 
     val scheduler: JobScheduler
@@ -227,15 +230,21 @@ interface Blob : AutoCloseable {
 
 interface Vector : AutoCloseable {
     suspend fun embedding(input: List<String>, images: List<ByteArray>): FloatArray
-    suspend fun search(queryVector: FloatArray, topK: Int, filter: Map<String, String>? = null): List<SearchResult>
+    suspend fun search(queryVector: FloatArray, topK: Int, filter: List<String>? = null): List<SearchResult>
     suspend fun upsert(id: String, content: String, tag: String, vector: FloatArray)
     suspend fun delete(id: String)
+    suspend fun deleteAll()
 
     data class SearchResult(
         val id: String,
         val content: String,
+        val tag: String,
         val score: Float
     )
+}
+
+interface Config {
+    suspend fun read(path: String): InputStream
 }
 
 interface Meta {
@@ -682,10 +691,10 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
     override suspend fun search(
         queryVector: FloatArray,
         topK: Int,
-        filter: Map<String, String>?
+        filter: List<String>?
     ): List<Vector.SearchResult> {
         return default.search(queryVector, topK, filter).map {
-            Vector.SearchResult(it.id, it.content, it.score)
+            Vector.SearchResult(it.id, it.content, it.tag, it.score)
         }
     }
 
@@ -697,9 +706,31 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
         default.delete(id)
     }
 
+    override suspend fun deleteAll() {
+        default.deleteAll()
+    }
+
     override fun close() {
         default.close()
     }
+}
+
+internal class ConfigImpl(val plugin: Plugin) : Config {
+
+    override suspend fun read(path: String): InputStream {
+        return withContext(Dispatchers.IO) {
+            val path = Paths.get(path)
+            val normalize = Paths.get("/plugin")
+                .resolve(Paths.get(plugin::class.simpleName!!))
+                .resolve(path)
+                .normalize()
+                .toString()
+            plugin.javaClass
+                .getResourceAsStream(normalize)
+                ?: error("Config not found: $normalize")
+        }
+    }
+
 }
 
 internal class MetaImpl(
@@ -792,6 +823,7 @@ class PluginContextImpl(
     override val kv: Kv,
     override val blob: Blob,
     override val vector: Vector,
+    override val config: Config,
     override val database: Database,
     override val scheduler: JobScheduler,
     override val llm: PromptExecutor,
