@@ -23,10 +23,7 @@ fun pluginModule() = module(createdAtStart = true) {
             CmdRuleRegister.addRule(cmdName)
         }
 
-    plugins.forEach { plugin ->
-    }
-
-    val extension = DatabaseImpl()
+    val database = DatabaseImpl()
 
     plugins.forEach { plugin ->
         val pluginDef = buildPluginDef(plugin)
@@ -34,6 +31,8 @@ fun pluginModule() = module(createdAtStart = true) {
         val kv = KvImpl(pluginDef)
         val blob = BlobImpl(pluginDef)
         val vector = VectorImpl(pluginDef)
+
+        val config = ConfigImpl(plugin)
 
         val server = ServerImpl(pluginDef)
 
@@ -47,7 +46,8 @@ fun pluginModule() = module(createdAtStart = true) {
                     kv,
                     blob,
                     vector,
-                    extension,
+                    config,
+                    database,
                     get(),
                     get(),
                     get(named(HttpClientFactory.Type.NO_PROXY)),

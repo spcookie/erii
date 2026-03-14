@@ -16,13 +16,15 @@ import kotlin.concurrent.write
 data class VectorSearchResult(
     val id: String,
     val content: String,
+    val tag: String,
     val score: Float
 )
 
 interface VectorStore {
     fun upsert(id: String, content: String, tag: String, vector: FloatArray)
     fun delete(id: String)
-    fun search(queryVector: FloatArray, topK: Int, filter: Map<String, String>? = null): List<VectorSearchResult>
+    fun deleteAll()
+    fun search(queryVector: FloatArray, topK: Int, filter: List<String>? = null): List<VectorSearchResult>
 }
 
 class EmbeddedVectorStore(
@@ -78,10 +80,18 @@ class EmbeddedVectorStore(
         }
     }
 
+    override fun deleteAll() {
+        lock.write {
+            writer.deleteAll()
+            writer.commit()
+            searcherManager.maybeRefresh()
+        }
+    }
+
     override fun search(
         queryVector: FloatArray,
         topK: Int,
-        filter: Map<String, String>?
+        filter: List<String>?
     ): List<VectorSearchResult> {
 
         validate(queryVector)
@@ -106,6 +116,7 @@ class EmbeddedVectorStore(
                 VectorSearchResult(
                     id = doc.get(ID_FIELD),
                     content = doc.get(CONTENT_FIELD),
+                    tag = doc.get(TAG),
                     score = it.score
                 )
             }
@@ -121,13 +132,13 @@ class EmbeddedVectorStore(
 
     private fun buildFilteredQuery(
         knnQuery: Query,
-        filter: Map<String, String>
+        filter: List<String>
     ): Query {
         val builder = BooleanQuery.Builder()
         builder.add(knnQuery, BooleanClause.Occur.MUST)
 
-        filter.forEach { (k, v) ->
-            builder.add(TermQuery(Term(k, v)), BooleanClause.Occur.FILTER)
+        filter.forEach { v ->
+            builder.add(TermQuery(Term("tag", v)), BooleanClause.Occur.FILTER)
         }
 
         return builder.build()
