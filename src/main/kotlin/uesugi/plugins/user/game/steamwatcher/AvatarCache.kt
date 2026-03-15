@@ -1,7 +1,7 @@
 package uesugi.plugins.user.game.steamwatcher
 
 import org.mapdb.Serializer
-import uesugi.toolkit.MapDB
+import uesugi.core.component.MapDB
 import uesugi.toolkit.logger
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream

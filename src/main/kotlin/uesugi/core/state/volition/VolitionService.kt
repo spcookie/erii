@@ -11,13 +11,13 @@ import uesugi.core.PSFeature.CHAT_URGENT
 import uesugi.core.PSFeature.GRAB
 import uesugi.core.PSFeature.IGNORE_INTERRUPT
 import uesugi.core.ProactiveSpeakEvent
+import uesugi.core.component.EventBus
 import uesugi.core.plugin.MetaImpl
 import uesugi.core.plugin.MetaToolSet.Companion.meta
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.state.emotion.EmotionChangeEvent
 import uesugi.core.state.emotion.EmotionalTendencies
 import uesugi.core.state.flow.FlowChangeEvent
-import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.ExperimentalUuidApi

@@ -9,6 +9,7 @@ import uesugi.BotManage
 import uesugi.core.BotRole
 import uesugi.core.InterruptionMode
 import uesugi.core.ProactiveSpeakEvent
+import uesugi.core.component.ObjectStorage
 import uesugi.core.message.history.HistoryRecord
 import uesugi.core.message.history.HistoryService
 import uesugi.core.message.resource.ResourceService
@@ -25,7 +26,6 @@ import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.SummaryEntity
 import uesugi.core.state.memory.UserProfileEntity
 import uesugi.core.state.volition.VolitionGaugeManager
-import uesugi.toolkit.ObjectStorage
 import uesugi.toolkit.ref
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours

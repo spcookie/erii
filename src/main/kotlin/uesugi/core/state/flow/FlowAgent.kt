@@ -18,8 +18,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.BotManage
 import uesugi.config.LLMModelsChoice
+import uesugi.core.component.EventBus
 import uesugi.toolkit.DateTimeFormat
-import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 
 enum class ChargeEventType {

@@ -30,6 +30,7 @@ import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.history.MessageType
 import uesugi.core.message.resource.ResourceTable
 import uesugi.core.plugin.*
+import uesugi.core.plugin.EmptyConfig.plus
 import uesugi.core.plugin.MetaToolSet.Companion.meta
 import uesugi.plugins.getGroup
 import uesugi.toolkit.calcHumanTypingDelay
@@ -220,36 +221,33 @@ class SeedDream : RoutePlugin, ClassNameMixin {
                     { error -> "生成图片失败，调用 Tool 发送消息告诉用户生成失败，错误: $error" },
                     { _ -> "你已经生成了一张图片，必须调用图片 Tool 发送生成图片。" }
                 ),
-                SendAgentConf(
-                    toolSetBuilder = { chatToolSet ->
-                        listOf(
-                            object : ToolSet {
-                                @LLMDescription("回复消息，并发送图片，返回群其他人的回复")
-                                @Tool
-                                fun sendMessageAndImage(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
-                                    state.value = true
-                                    GlobalScope.launch {
-                                        for ((i, v) in sentences.withIndex()) {
-                                            if (i == 0) {
-                                                chatToolSet.sendText(v)
-                                            } else {
-                                                delay(calcHumanTypingDelay(v))
-                                                chatToolSet.sendText(v)
-                                            }
+                ToolSetBuilder { chatToolSet ->
+                    listOf(
+                        object : ToolSet {
+                            @LLMDescription("回复消息，并发送图片，返回群其他人的回复")
+                            @Tool
+                            fun sendMessageAndImage(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
+                                state.value = true
+                                GlobalScope.launch {
+                                    for ((i, v) in sentences.withIndex()) {
+                                        if (i == 0) {
+                                            chatToolSet.sendText(v)
+                                        } else {
+                                            delay(calcHumanTypingDelay(v))
+                                            chatToolSet.sendText(v)
                                         }
-                                        resource.onRight { img ->
-                                            img.use {
-                                                group.sendImage(it)
-                                            }
-                                        }.onLeft { log.warn("未获取到图片，发送失败") }
                                     }
-                                    return null
+                                    resource.onRight { img ->
+                                        img.use {
+                                            group.sendImage(it)
+                                        }
+                                    }.onLeft { log.warn("未获取到图片，发送失败") }
                                 }
+                                return null
                             }
-                        )
-                    },
-                    feature = PSFeature.GRAB or PSFeature.FALLBACK
-                )
+                        }
+                    )
+                } + Feature(PSFeature.GRAB or PSFeature.FALLBACK)
             ) {
                 runCompletion { send() }
                 callFallback { send() }

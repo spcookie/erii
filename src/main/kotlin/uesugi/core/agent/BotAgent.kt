@@ -21,9 +21,9 @@ import uesugi.config.LLMModelsChoice
 import uesugi.core.PSFeature
 import uesugi.core.ProactiveSpeakEvent
 import uesugi.core.ProactiveSpeakFeature
+import uesugi.core.component.EventBus
+import uesugi.core.component.WebSearchTool
 import uesugi.core.has
-import uesugi.toolkit.EventBus
-import uesugi.toolkit.WebSearchTool
 import uesugi.toolkit.logger
 import uesugi.toolkit.ref
 import kotlin.time.Duration.Companion.minutes

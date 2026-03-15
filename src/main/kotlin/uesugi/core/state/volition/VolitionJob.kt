@@ -9,7 +9,7 @@ import uesugi.BotManage
 import uesugi.ENABLE_GROUPS
 import uesugi.MESSAGE_REDIRECT_GROUP_MAP
 import uesugi.core.InterruptionMode
-import uesugi.toolkit.EventBus
+import uesugi.core.component.EventBus
 import uesugi.toolkit.logger
 import kotlin.random.Random
 import kotlin.time.Clock

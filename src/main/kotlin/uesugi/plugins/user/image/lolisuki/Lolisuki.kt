@@ -20,6 +20,7 @@ import uesugi.config.LLMModelsChoice
 import uesugi.core.PSFeature
 import uesugi.core.agent.ChatToolSet
 import uesugi.core.plugin.*
+import uesugi.core.plugin.EmptyConfig.plus
 import uesugi.core.plugin.MetaToolSet.Companion.meta
 import uesugi.plugins.getGroup
 import uesugi.plugins.getLatestHistory
@@ -65,10 +66,16 @@ class Lolisuki : RoutePlugin, ClassNameMixin {
 
             meta.sendAgent(
                 input = "加入群聊天，你已经获取到了一张涩图，你需要调用工具发送一张涩图给群友。",
-                SendAgentConf(
-                    toolSetBuilder = { listOf(ImageTool(image, group, it, state)) },
-                    feature = PSFeature.GRAB or PSFeature.FALLBACK
-                )
+                ToolSetBuilder {
+                    listOf(
+                        ImageTool(
+                            image,
+                            group,
+                            it,
+                            state
+                        )
+                    )
+                } + Feature(PSFeature.GRAB or PSFeature.FALLBACK)
             ) {
                 runCompletion { send() }
 

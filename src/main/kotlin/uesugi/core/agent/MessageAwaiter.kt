@@ -12,9 +12,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import uesugi.BotManage
 import uesugi.config.LLMModelsChoice
+import uesugi.core.component.EventBus
 import uesugi.core.message.history.HistoryRecord
 import uesugi.core.message.history.HistorySavedEvent
-import uesugi.toolkit.EventBus
 import uesugi.toolkit.ref
 import kotlin.coroutines.CoroutineContext
 
@@ -45,9 +45,6 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
 
     val onChatUrgentContinue
         get() = chatChannel.onReceiveCatching
-
-    val onContinue
-        get() = continueChannel.onReceiveCatching
 
     fun fare() {
         launch {
@@ -88,9 +85,6 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
             }
         }
 
-        launch {
-//            relevanceChannel.send(RelevanceType.Continue)
-        }
     }
 
     override fun close() {

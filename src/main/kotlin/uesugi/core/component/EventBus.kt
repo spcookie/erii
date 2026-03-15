@@ -1,4 +1,4 @@
-package uesugi.toolkit
+package uesugi.core.component
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
