@@ -24,9 +24,9 @@ import net.mamoe.mirai.message.data.Face
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import top.mrxiaom.overflow.BotBuilder
+import uesugi.core.component.EventBus
 import uesugi.core.message.history.HistoryEntity
 import uesugi.core.message.history.MessageType
-import uesugi.toolkit.EventBus
 import kotlin.test.Test
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant

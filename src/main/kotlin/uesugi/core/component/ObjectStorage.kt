@@ -1,4 +1,4 @@
-package uesugi.toolkit
+package uesugi.core.component
 
 import okio.FileSystem
 import okio.Path

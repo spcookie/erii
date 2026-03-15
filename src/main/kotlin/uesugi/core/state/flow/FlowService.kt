@@ -5,9 +5,9 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.core.component.EventBus
 import uesugi.core.state.emotion.EmotionChangeEvent
 import uesugi.core.state.emotion.EmotionalTendencies
-import uesugi.toolkit.EventBus
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 

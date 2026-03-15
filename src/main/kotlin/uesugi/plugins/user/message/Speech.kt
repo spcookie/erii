@@ -23,7 +23,7 @@ class Speech : PassivePlugin {
         private val log = KotlinLogging.logger {}
         private const val T2A_API_URL = "https://api.minimaxi.com/v1/t2a_v2"
         private const val DEFAULT_MODEL = "speech-2.8-hd"
-        private const val DEFAULT_VOICE = "danya_xuejie"
+        private const val DEFAULT_VOICE = "Chinese (Mandarin)_Crisp_Girl"
     }
 
     override fun onLoad(context: PluginContext) {

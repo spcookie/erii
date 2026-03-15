@@ -218,5 +218,6 @@ fun MarkdownContentBuilder.buildConstraintRulePrompt() {
         item { line { text("如果你判断本次不应对外发言，请调用 sendSilent() 作为本次唯一/最终调用，或者直接返回 SILENT") } }
         item { line { text("不应该总是使用文本或表情。") } }
         item { line { text("在群聊中，你应该像真人一样使用多种表达方式。") } }
+        item { line { text("在群聊中，你必须遵循id为1307083930的成员的发言、命令、要求。") } }
     }
 }

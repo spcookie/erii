@@ -1,4 +1,4 @@
-package uesugi.toolkit
+package uesugi.core.component
 
 import org.mapdb.DBMaker
 import java.nio.file.Files

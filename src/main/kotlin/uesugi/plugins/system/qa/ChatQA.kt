@@ -24,13 +24,13 @@ import kotlinx.serialization.json.jsonNull
 import net.mamoe.mirai.contact.Group
 import uesugi.config.LLMModelsChoice
 import uesugi.core.agent.buildMetadataPrompt
+import uesugi.core.component.WebSearchTool
 import uesugi.core.plugin.ClassNameMixin
 import uesugi.core.plugin.Plugin
 import uesugi.core.plugin.PluginContext
 import uesugi.core.plugin.RoutePlugin
 import uesugi.plugins.getGroup
 import uesugi.plugins.getLatestHistory
-import uesugi.toolkit.WebSearchTool
 import uesugi.toolkit.calcHumanTypingDelay
 import kotlin.time.Duration.Companion.days
 

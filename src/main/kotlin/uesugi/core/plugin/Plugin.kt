@@ -40,13 +40,16 @@ import uesugi.core.PSFeature
 import uesugi.core.ProactiveSpeakEvent
 import uesugi.core.ProactiveSpeakFeature
 import uesugi.core.agent.*
+import uesugi.core.component.*
 import uesugi.core.message.history.HistoryRecord
 import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.resource.ResourceRecord
 import uesugi.core.message.resource.ResourceTable
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
-import uesugi.toolkit.*
+import uesugi.toolkit.EmbeddingUtil
+import uesugi.toolkit.logger
+import uesugi.toolkit.ref
 import java.io.InputStream
 import java.nio.file.Paths
 import kotlin.reflect.KClass
@@ -267,11 +270,11 @@ interface Server {
 fun Meta.sendAgent(
     input: String,
     state: SendAgentStateDsl? = null,
-) = sendAgent(input, SendAgentConf(), state)
+) = sendAgent(input, EmptyConfig, state)
 
 fun Meta.sendAgent(
     input: String,
-    conf: SendAgentConf = SendAgentConf(),
+    conf: SendAgentConfig = EmptyConfig,
     state: SendAgentStateDsl? = null
 ) = sendAgent(botId, groupId, input, conf, state)
 
@@ -325,6 +328,116 @@ data class SendAgentConf(
     val echo: String = Uuid.random().toHexString(),
 )
 
+interface SendAgentConfig {
+
+    operator fun SendAgentConfig.plus(config: SendAgentConfig): SendAgentConfig {
+        if (config == EmptyConfig) return this
+        return config.fold(this) { acc, elem ->
+            val removed = acc.minusKey(elem.key)
+            if (removed == EmptyConfig) config
+            else CombinedConfig(removed, elem)
+        }
+    }
+
+    fun <R> fold(initial: R, op: (R, Elem) -> R): R
+
+    fun minusKey(key: Key<*>): SendAgentConfig
+
+    operator fun <K : Elem> get(key: Key<K>): K?
+
+    interface Key<K : Elem>
+
+    interface Elem : SendAgentConfig {
+
+        val key: Key<*>
+
+        override fun minusKey(key: Key<*>): SendAgentConfig {
+            return if (key == this.key) EmptyConfig else this
+        }
+
+        override fun <R> fold(initial: R, op: (R, Elem) -> R): R {
+            return op(initial, this)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        override fun <K : Elem> get(key: Key<K>): K? {
+            return if (key == this.key) this as K else null
+        }
+    }
+
+}
+
+class CombinedConfig(
+    val left: SendAgentConfig,
+    val elem: SendAgentConfig.Elem
+) : SendAgentConfig {
+
+    override fun <R> fold(initial: R, op: (R, SendAgentConfig.Elem) -> R): R {
+        val newInitial = left.fold(initial, op)
+        return op(newInitial, elem)
+    }
+
+    override fun minusKey(key: SendAgentConfig.Key<*>): SendAgentConfig {
+        if (key == elem.key) return left
+
+        return when (val newLeft = left.minusKey(key)) {
+            left -> this
+            EmptyConfig -> elem
+            else -> CombinedConfig(newLeft, elem)
+        }
+    }
+
+    override fun <K : SendAgentConfig.Elem> get(key: SendAgentConfig.Key<K>): K? {
+        elem[key]?.let { return it }
+        return left[key]
+    }
+}
+
+object EmptyConfig : SendAgentConfig {
+    override fun <R> fold(initial: R, op: (R, SendAgentConfig.Elem) -> R): R {
+        return initial
+    }
+
+    override fun minusKey(key: SendAgentConfig.Key<*>): SendAgentConfig {
+        return this
+    }
+
+    override fun <K : SendAgentConfig.Elem> get(key: SendAgentConfig.Key<K>): K? {
+        return null
+    }
+
+}
+
+enum class WebSearch : SendAgentConfig.Elem {
+
+    ENABLE, DISABLE;
+
+    companion object Key : SendAgentConfig.Key<WebSearch>
+
+    override val key: SendAgentConfig.Key<*>
+        get() = WebSearch
+
+}
+
+class ToolSetBuilder(
+    val value: ((ChatToolSet) -> List<ToolSet>)
+) : SendAgentConfig.Elem {
+
+
+    companion object Key : SendAgentConfig.Key<ToolSetBuilder>
+
+    override val key: SendAgentConfig.Key<*>
+        get() = ToolSetBuilder
+
+}
+
+class Feature(val value: ProactiveSpeakFeature) : SendAgentConfig.Elem {
+    companion object Key : SendAgentConfig.Key<Feature>
+
+    override val key: SendAgentConfig.Key<*>
+        get() = Feature
+}
+
 typealias SendAgentStateDsl = SendAgentStateBuilder.() -> CoroutineScope
 
 @Suppress("UNUSED")
@@ -377,13 +490,13 @@ fun sendAgent(
     groupId: String,
     input: String,
     dsl: SendAgentStateDsl? = null
-) = sendAgent(botId, groupId, input, SendAgentConf(), dsl)
+) = sendAgent(botId, groupId, input, EmptyConfig, dsl)
 
 fun sendAgent(
     botId: String,
     groupId: String,
     input: String,
-    conf: SendAgentConf = SendAgentConf(),
+    config: SendAgentConfig = EmptyConfig,
     dsl: SendAgentStateDsl? = null
 ) {
     val holder = mutableMapOf<String, Any>()
@@ -441,6 +554,11 @@ fun sendAgent(
             }
         }
     }
+    val conf = SendAgentConf(
+        webSearch = config[WebSearch]?.let { it == WebSearch.ENABLE } ?: false,
+        toolSetBuilder = config[ToolSetBuilder]?.value,
+        feature = config[Feature]?.value ?: PSFeature.NONE,
+    )
     sendAgent(botId, groupId, input, conf, fn)
 }
 

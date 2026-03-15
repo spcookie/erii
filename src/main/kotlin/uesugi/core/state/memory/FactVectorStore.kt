@@ -5,8 +5,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import org.koin.core.parameter.parametersOf
+import uesugi.core.component.VectorStore
 import uesugi.toolkit.EmbeddingUtil
-import uesugi.toolkit.VectorStore
 import java.nio.file.Paths
 
 /**

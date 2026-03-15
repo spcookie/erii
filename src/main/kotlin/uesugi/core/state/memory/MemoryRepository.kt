@@ -154,6 +154,7 @@ class MemoryRepository {
     /**
      * 创建新的事实记忆
      */
+    @OptIn(ExperimentalTime::class)
     fun createFact(
         botMark: String,
         groupId: String,
@@ -172,6 +173,7 @@ class MemoryRepository {
                 this.values = values
                 this.subjects = subjects
                 this.scopeType = scopeType
+                this.validFrom = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }.id.value
         }
     }
