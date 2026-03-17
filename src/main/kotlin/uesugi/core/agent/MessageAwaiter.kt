@@ -8,15 +8,20 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import uesugi.BotManage
 import uesugi.config.LLMModelsChoice
+import uesugi.core.InterruptionMode
+import uesugi.core.ProactiveSpeakEvent
 import uesugi.core.component.EventBus
 import uesugi.core.message.history.HistoryRecord
 import uesugi.core.message.history.HistorySavedEvent
+import uesugi.core.plugin.MetaImpl
+import uesugi.core.plugin.MetaToolSet.Companion.meta
+import uesugi.core.route.MetaToolSetRegister
 import uesugi.toolkit.ref
 import kotlin.coroutines.CoroutineContext
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
 
@@ -24,17 +29,15 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
         private val log = KotlinLogging.logger {}
     }
 
-    private val recordsMutex = Mutex()
-    private val records = mutableListOf<HistoryRecord>()
-    private val historyChannel = Channel<List<HistoryRecord>>()
+    private val historyChannel = Channel<ProactiveSpeakEvent>()
     private lateinit var historyJob: Job
 
     private val relevanceChannel = Channel<RelevanceType>(Channel.CONFLATED)
 
-    private val chatChannel = Channel<ChatUrgentEvent>()
+    private val chatChannel = Channel<ProactiveSpeakEvent>()
     private lateinit var chatUrgentJob: Job
 
-    private val continueChannel = Channel<Unit>()
+    private val continueChannel = Channel<ProactiveSpeakEvent>()
 
     private enum class RelevanceType {
         Message, Continue
@@ -54,11 +57,11 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
                         if (isRelevanceContinue(context.histories(), context.currentBotId)) {
                             when (type) {
                                 RelevanceType.Message -> {
-                                    historyChannel.send(records)
+                                    historyChannel.send(speak(context.currentBotId, context.groupId))
                                 }
 
                                 RelevanceType.Continue -> {
-                                    continueChannel.send(Unit)
+                                    continueChannel.send(speak(context.currentBotId, context.groupId))
                                 }
                             }
                         }
@@ -71,7 +74,6 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
         historyJob = EventBus.subscribeAsync<HistorySavedEvent>(this) { event ->
             val record = event.historyRecord
             if (record.groupId == context.groupId && record.userId != context.currentBotId) {
-                recordsMutex.withLock { records += record }
                 if (!event.isAtBot) {
                     relevanceChannel.send(RelevanceType.Message)
                 }
@@ -81,10 +83,43 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
         chatUrgentJob = EventBus.subscribeAsync<ChatUrgentEvent>(this) { event ->
             val speak = event.urgent
             if (speak.groupId == context.groupId && speak.botId == context.currentBotId) {
-                chatChannel.send(event)
+                chatChannel.send(speak(context.currentBotId, context.groupId, speak.senderId, speak.input))
             }
         }
 
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun speak(
+        botId: String,
+        groupId: String,
+        senderId: String? = null,
+        input: String? = null
+    ): ProactiveSpeakEvent {
+        val echo = Uuid.random().toHexString()
+        val metaToolSets = MetaToolSetRegister.getAllToolSets()
+            .map { toolSetApply ->
+                toolSetApply().apply {
+                    meta = MetaImpl(
+                        botId = botId,
+                        groupId = groupId,
+                        senderId = senderId,
+                        roledBot = BotManage.getBot(botId),
+                        input = input,
+                        echo = echo
+                    )
+                }
+            }
+        return ProactiveSpeakEvent(
+            botId = botId,
+            _groupId = groupId,
+            senderId = senderId,
+            webSearch = true,
+            interruptionMode = InterruptionMode.Interrupt,
+            input = input,
+            echo = echo,
+            toolSetBuilder = { metaToolSets }
+        )
     }
 
     override fun close() {
