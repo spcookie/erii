@@ -23,7 +23,19 @@ class Speech : PassivePlugin {
         private val log = KotlinLogging.logger {}
         private const val T2A_API_URL = "https://api.minimaxi.com/v1/t2a_v2"
         private const val DEFAULT_MODEL = "speech-2.8-hd"
-        private const val DEFAULT_VOICE = "Chinese (Mandarin)_Crisp_Girl"
+
+        // 语言到音色ID的映射
+        private val VOICE_MAP = mapOf(
+            Language.CHINESE to "Chinese (Mandarin)_ExplorativeGirl",
+            Language.ENGLISH to "English_PlayfulGirl",
+            Language.JAPANESE to "Japanese_DecisivePrincess"
+        )
+    }
+
+    enum class Language {
+        CHINESE,   // 中文
+        ENGLISH,   // 英文
+        JAPANESE  // 日语
     }
 
     override fun onLoad(context: PluginContext) {
@@ -54,6 +66,8 @@ class Speech : PassivePlugin {
                             """
                         )
                         text: String,
+                        @LLMDescription("语言：chinese(中文)、english(英文)、japanese(日语)，默认为chinese")
+                        language: Language = Language.CHINESE,
                         @LLMDescription("语速，0.5-2.0，默认为1.0")
                         speed: Float = 1.0f,
                         @LLMDescription("情绪：happy(高兴)、sad(悲伤)、angry(愤怒)、fearful(害怕)、disgusted(厌恶)、surprised(惊讶)、calm(中性)，默认为calm")
@@ -65,13 +79,16 @@ class Speech : PassivePlugin {
                                 return "语音合成失败：未配置 MINIMAX_API_KEY"
                             }
 
-                            log.info { "Sending speech: text=${text.take(50)}, voiceId=$DEFAULT_VOICE, speed=$speed, emotion=$emotion" }
+
+                            val voiceId = VOICE_MAP[language] ?: VOICE_MAP[Language.CHINESE]!!
+
+                            log.info { "Sending speech: text=${text.take(50)}, language=$language, voiceId=$voiceId, speed=$speed, emotion=$emotion" }
 
                             val audioData = synthesizeSpeech(
                                 httpClient,
                                 apiKey,
                                 text,
-                                DEFAULT_VOICE,
+                                voiceId,
                                 speed,
                                 emotion
                             )
