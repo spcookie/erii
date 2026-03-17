@@ -157,17 +157,6 @@ object BotAgent {
                             context = context
                         )
 
-                        val toolSets = event.toolSetBuilder?.invoke(chatToolSet)
-
-                        val toolRegistry = ToolRegistry {
-                            tools(chatToolSet.asTools())
-                            tools(SilentToolSet.asTools())
-                            if (event.webSearch) {
-                                tools(WebSearchTool.asTools())
-                            }
-                            toolSets?.let { t -> t.forEach { tools(it.asTools()) } }
-                        }
-
                         var noCallTool = false
 
                         val strategy = strategy("chat") {
