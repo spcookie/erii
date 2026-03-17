@@ -2,6 +2,7 @@ package uesugi.core.agent
 
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import uesugi.core.ProactiveSpeakEvent
 
 
 sealed interface AgentToolCallEvent {
@@ -74,3 +75,5 @@ class AgentCallCompleteEvent(
     override val groupId: String,
     override val echo: String,
 ) : AgentDispatchEvent
+
+data class ChatUrgentEvent(val urgent: ProactiveSpeakEvent)

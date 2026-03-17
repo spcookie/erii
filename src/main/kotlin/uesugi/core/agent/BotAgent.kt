@@ -6,6 +6,7 @@ import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
 import ai.koog.agents.core.tools.ToolRegistry
+import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.agents.core.tools.reflect.asTools
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.executor.model.PromptExecutor
@@ -201,7 +202,6 @@ object BotAgent {
                                 model = LLMModelsChoice.Pro,
                                 maxAgentIterations = 20,
                             ),
-                            toolRegistry = toolRegistry,
                             strategy = strategy
                         ) {
                             handleEvents {
@@ -277,7 +277,7 @@ object BotAgent {
                             }
                         }
 
-                        suspend fun agentRun(input: String) {
+                        suspend fun agentRun(input: String, toolEnv: ToolEnv) {
                             EventBus.postSync(
                                 AgentRunStartEvent(
                                     event.botId,
@@ -293,7 +293,8 @@ object BotAgent {
                                         prompt = buildPrompt(context),
                                         model = LLMModelsChoice.Pro,
                                         maxAgentIterations = 20,
-                                    )
+                                    ),
+                                    additionalToolRegistry = with(toolEnv) { buildToolRegistry() },
                                 )
                                 log.info("Bot agent run result: {}", text)
                             } catch (e: Exception) {
@@ -311,7 +312,10 @@ object BotAgent {
                             }
                         }
 
-                        agentRun(event.input ?: DEFAULT_INPUT)
+                        agentRun(
+                            event.input ?: DEFAULT_INPUT,
+                            ToolEnv(chatToolSet, event.webSearch, event.toolSetBuilder)
+                        )
 
                         while (true) {
                             if (noCallTool) {
@@ -332,21 +336,25 @@ object BotAgent {
                                 chatToolSet.sendText(emoticon.random())
                             }
 
-                            MessageAwaiter(context)
+                            val newEvent = MessageAwaiter(context)
                                 .apply {
                                     fare()
                                 }.use { awaiter ->
-                                    val stop = select {
-                                        awaiter.onChatUrgentContinue { false }
-                                        awaiter.onReceiveMessageContinue { false }
-                                        onTimeout(5.minutes) { true }
-                                    }
-                                    if (stop) {
-                                        break
+                                    select {
+                                        awaiter.onChatUrgentContinue { it.getOrNull() }
+                                        awaiter.onReceiveMessageContinue { it.getOrNull() }
+                                        onTimeout(5.minutes) { null }
                                     }
                                 }
 
-                            agentRun(DEFAULT_INPUT)
+                            if (newEvent == null) {
+                                break
+                            }
+
+                            agentRun(
+                                DEFAULT_INPUT,
+                                ToolEnv(chatToolSet, newEvent.webSearch, newEvent.toolSetBuilder)
+                            )
                         }
                     } catch (e: Exception) {
                         error = e
@@ -378,6 +386,34 @@ object BotAgent {
         }
     }
 
-}
+    private data class ToolEnv(
+        val chatToolSet: ChatToolSet,
+        val webSearch: Boolean,
+        val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)?
+    )
 
-data class ChatUrgentEvent(val urgent: ProactiveSpeakEvent)
+    context(env: ToolEnv)
+    private fun baseTools() = buildList {
+        addAll(env.chatToolSet.asTools())
+        addAll(SilentToolSet.asTools())
+    }
+
+    context(env: ToolEnv)
+    private fun webTools() =
+        if (env.webSearch) WebSearchTool.asTools() else emptyList()
+
+    context(env: ToolEnv)
+    private fun extraTools() =
+        env.toolSetBuilder?.invoke(env.chatToolSet)
+            ?.flatMap { it.asTools() }
+            ?: emptyList()
+
+    context(env: ToolEnv)
+    private fun buildToolRegistry(): ToolRegistry =
+        ToolRegistry {
+            tools(baseTools())
+            tools(webTools())
+            tools(extraTools())
+        }
+
+}

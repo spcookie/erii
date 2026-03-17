@@ -71,9 +71,15 @@ dependencies {
     implementation(libs.clikt)
     implementation(libs.hutool.core)
     implementation(libs.jte.kotlin)
-    implementation("cn.6tail:lunar:1.7.5")
+    implementation(libs.lunar)
     compileOnly(libs.autoservice.annotations)
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xcontext-parameters")
+    }
 }
