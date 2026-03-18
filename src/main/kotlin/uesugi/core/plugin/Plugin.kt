@@ -280,14 +280,14 @@ fun Meta.sendAgent(
 
 interface SendAgentState {
     val scope: CoroutineScope
-    fun callToolStart(
+    suspend fun callToolStart(
         toolName: String,
         toolArgs: JsonObject
     ) {
 
     }
 
-    fun callToolCompletion(
+    suspend fun callToolCompletion(
         toolName: String,
         toolArgs: JsonObject,
         toolResult: JsonElement?,
@@ -295,27 +295,27 @@ interface SendAgentState {
     ) {
     }
 
-    fun runStart() {
+    suspend fun runStart() {
 
     }
 
-    fun runCompletion(error: Throwable?) {
+    suspend fun runCompletion(error: Throwable?) {
 
     }
 
-    fun callReject() {
+    suspend fun callReject() {
 
     }
 
-    fun callFallback() {
+    suspend fun callFallback() {
 
     }
 
-    fun callStart() {
+    suspend fun callStart() {
 
     }
 
-    fun callCompletion(error: Throwable?) {
+    suspend fun callCompletion(error: Throwable?) {
 
     }
 }
@@ -445,12 +445,12 @@ class SendAgentStateBuilder(
     private val holder: MutableMap<String, Any>
 ) {
 
-    fun callToolStart(builder: (String, JsonObject) -> Unit) {
+    fun callToolStart(builder: suspend (String, JsonObject) -> Unit) {
         holder["callToolStart"] = builder
     }
 
     fun callToolCompletion(
-        builder: (
+        builder: suspend (
             String,
             JsonObject,
             JsonElement?,
@@ -460,27 +460,27 @@ class SendAgentStateBuilder(
         holder["callToolCompletion"] = builder
     }
 
-    fun runStart(builder: () -> Unit) {
+    fun runStart(builder: suspend () -> Unit) {
         holder["runStart"] = builder
     }
 
-    fun runCompletion(builder: (Throwable?) -> Unit) {
+    fun runCompletion(builder: suspend (Throwable?) -> Unit) {
         holder["runCompletion"] = builder
     }
 
-    fun callReject(builder: () -> Unit) {
+    fun callReject(builder: suspend () -> Unit) {
         holder["callReject"] = builder
     }
 
-    fun callFallback(builder: () -> Unit) {
+    fun callFallback(builder: suspend () -> Unit) {
         holder["callFallback"] = builder
     }
 
-    fun callStart(builder: () -> Unit) {
+    fun callStart(builder: suspend () -> Unit) {
         holder["callStart"] = builder
     }
 
-    fun callCompletion(builder: (Throwable?) -> Unit) {
+    fun callCompletion(builder: suspend (Throwable?) -> Unit) {
         holder["callCompletion"] = builder
     }
 }
@@ -506,17 +506,17 @@ fun sendAgent(
         object : SendAgentState {
             override val scope = scope
 
-            override fun callToolStart(toolName: String, toolArgs: JsonObject) {
-                (holder["callToolStart"] as? (String, JsonObject) -> Unit)?.invoke(toolName, toolArgs)
+            override suspend fun callToolStart(toolName: String, toolArgs: JsonObject) {
+                (holder["callToolStart"] as? suspend (String, JsonObject) -> Unit)?.invoke(toolName, toolArgs)
             }
 
-            override fun callToolCompletion(
+            override suspend fun callToolCompletion(
                 toolName: String,
                 toolArgs: JsonObject,
                 toolResult: JsonElement?,
                 toolError: String?
             ) {
-                (holder["callToolCompletion"] as? (
+                (holder["callToolCompletion"] as? suspend (
                     String,
                     JsonObject,
                     JsonElement?,
@@ -529,28 +529,28 @@ fun sendAgent(
                 )
             }
 
-            override fun runStart() {
-                (holder["runStart"] as? () -> Unit)?.invoke()
+            override suspend fun runStart() {
+                (holder["runStart"] as? suspend () -> Unit)?.invoke()
             }
 
-            override fun runCompletion(error: Throwable?) {
-                (holder["runCompletion"] as? (Throwable?) -> Unit)?.invoke(error)
+            override suspend fun runCompletion(error: Throwable?) {
+                (holder["runCompletion"] as? suspend (Throwable?) -> Unit)?.invoke(error)
             }
 
-            override fun callReject() {
-                (holder["callReject"] as? () -> Unit)?.invoke()
+            override suspend fun callReject() {
+                (holder["callReject"] as? suspend () -> Unit)?.invoke()
             }
 
-            override fun callFallback() {
-                (holder["callFallback"] as? () -> Unit)?.invoke()
+            override suspend fun callFallback() {
+                (holder["callFallback"] as? suspend () -> Unit)?.invoke()
             }
 
-            override fun callStart() {
-                (holder["callStart"] as? () -> Unit)?.invoke()
+            override suspend fun callStart() {
+                (holder["callStart"] as? suspend () -> Unit)?.invoke()
             }
 
-            override fun callCompletion(error: Throwable?) {
-                (holder["callCompletion"] as? (Throwable?) -> Unit)?.invoke(error)
+            override suspend fun callCompletion(error: Throwable?) {
+                (holder["callCompletion"] as? suspend (Throwable?) -> Unit)?.invoke(error)
             }
         }
     }
@@ -594,21 +594,27 @@ private fun sendAgent(
         EventBus.subscribeOnceSync<AgentCallStartEvent> { event ->
             val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
             if (e != null) {
-                state.callStart()
+                runBlocking(state.scope.coroutineContext) {
+                    state.callStart()
+                }
             }
         }
 
         val runStart = EventBus.subscribeSync<AgentRunStartEvent> { event ->
             val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
             if (e != null) {
-                state.runStart()
+                runBlocking(state.scope.coroutineContext) {
+                    state.runStart()
+                }
             }
         }
 
         val runCompletion = EventBus.subscribeSync<AgentRunCompleteEvent> { event ->
             val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
             if (e != null) {
-                state.runCompletion(event.throwable)
+                runBlocking(state.scope.coroutineContext) {
+                    state.runCompletion(event.throwable)
+                }
             }
         }
 
@@ -623,15 +629,15 @@ private fun sendAgent(
         }
 
         EventBus.subscribeOnceSync<AgentCallRejectEvent> { event ->
-            event.call { state.callReject() }
+            event.call { runBlocking(state.scope.coroutineContext) { state.callReject() } }
         }
 
         EventBus.subscribeOnceSync<AgentCallFallbackEvent> { event ->
-            event.call { state.callFallback() }
+            event.call { runBlocking(state.scope.coroutineContext) { state.callFallback() } }
         }
 
         EventBus.subscribeOnceSync<AgentCallCompleteEvent> { event ->
-            event.call { state.callCompletion(event.throwable) }
+            event.call { runBlocking(state.scope.coroutineContext) { state.callCompletion(event.throwable) } }
         }
     }
 
