@@ -42,6 +42,7 @@ object ConfigHolder {
 
     private fun loadAppConfig(): Config {
         // 1. 首先加载配置文件（支持 -Dconfig.path 指定路径）
+        // ConfigFactory.load() 会自动解析 ${ENV_VAR} 占位符
         log.info { "Loading config from: $configPath" }
         val baseConfig = if (File(configPath).isAbsolute) {
             ConfigFactory.parseFile(File(configPath))
@@ -129,20 +130,85 @@ object ConfigHolder {
     fun getNapcatWs(): String = app.getString("napcat.ws")
     fun getNapcatToken(): String = app.getString("napcat.token")
 
+    /**
+     * 获取所有 bot 配置
+     * @return Map<botKey, BotConfig(ws, token, roleId)>
+     */
+    fun getNapcatBots(): Map<String, BotConfig> {
+        return try {
+            val botsConfig = app.getConfig("napcat.bots")
+            val result = mutableMapOf<String, BotConfig>()
+            botsConfig.root().keys.forEach { key ->
+                val keyStr = key.toString()
+                result[keyStr] = BotConfig(
+                    ws = botsConfig.getString("$keyStr.ws"),
+                    token = botsConfig.getString("$keyStr.token"),
+                    roleId = botsConfig.getString("$keyStr.role-id")
+                )
+            }
+            result
+        } catch (e: Exception) {
+            log.warn { "Failed to load napcat bots config: ${e.message}" }
+            emptyMap()
+        }
+    }
+
+    /**
+     * Bot 配置数据类
+     */
+    data class BotConfig(
+        val ws: String,
+        val token: String,
+        val roleId: String
+    )
+
     fun getWebSearchHost(): String = app.getString("web.search-host")
     fun getPlaywrightHost(): String = app.getString("web.playwright-host")
     fun getPlaywrightSkipBrowserDownload(): Boolean = app.getBoolean("web.playwright-skip-browser-download")
 
     fun getDebugGroupId(): String? = app.getString("groups.debug-group-id").takeIf { it.isNotBlank() }
-    fun getEnableGroups(): List<String> = app.getStringList("groups.enable-groups").filter { it.isNotBlank() }
+
+    fun getEnableGroups(): List<String> {
+        return try {
+            // 优先尝试获取字符串列表（从环境变量传入的逗号分隔字符串）
+            val raw = app.getString("groups.enable-groups")
+            if (raw.isNotBlank()) {
+                raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            try {
+                app.getStringList("groups.enable-groups").filter { it.isNotBlank() }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+    }
+
     fun getMessageRedirectMap(): Map<String, String> {
         return try {
-            val obj = app.getObject("groups.message-redirect-map")
-            obj.keys.associateWith { key ->
-                app.getString("groups.message-redirect-map.$key")
-            }.filterValues { it.isNotBlank() }
+            // 优先尝试获取字符串（从环境变量传入的 "key:value,key:value" 格式）
+            val raw = app.getString("groups.message-redirect-map")
+            if (raw.isNotBlank()) {
+                raw.split(",").map { it.trim() }
+                    .filter { it.contains(":") }
+                    .associate {
+                        val parts = it.split(":")
+                        parts[0].trim() to parts[1].trim()
+                    }
+            } else {
+                emptyMap()
+            }
         } catch (e: Exception) {
-            emptyMap()
+            try {
+                val obj = app.getObject("groups.message-redirect-map")
+                obj.keys.associateWith { key ->
+                    app.getString("groups.message-redirect-map.$key")
+                }.filterValues { it.isNotBlank() }
+            } catch (_: Exception) {
+                emptyMap()
+            }
         }
     }
 
