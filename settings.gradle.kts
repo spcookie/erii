@@ -5,3 +5,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
+include("erii-common")
+include("erii-spi")
+include("erii-core")
