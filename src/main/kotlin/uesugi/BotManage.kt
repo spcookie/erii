@@ -6,10 +6,11 @@ import net.mamoe.mirai.event.globalEventChannel
 import top.mrxiaom.overflow.BotBuilder
 import uesugi.config.ConfigHolder
 import uesugi.core.BotRole
-import uesugi.core.Erii
+import uesugi.core.BotRoleManager
 import uesugi.core.agent.BotAgent
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
+import uesugi.core.GroupMessageEventListener as MessageListener
 
 val DEBUG_GROUP_ID: String? = ConfigHolder.getDebugGroupId()
 
@@ -51,21 +52,38 @@ object BotManage {
 private val log = BotManage.logger()
 
 fun configureConnectBots() {
+    // 加载 BotRole 配置
+    BotRoleManager.loadRoles()
+
+    val botConfigs = ConfigHolder.getNapcatBots()
+
+    if (botConfigs.isEmpty()) {
+        log.warn("未配置任何机器人")
+        return
+    }
+    log.info("准备连接 ${botConfigs.size} 个机器人")
+
     runBlocking {
-        val erii = BotBuilder.positive(ConfigHolder.getNapcatWs())
-            .token(ConfigHolder.getNapcatToken())
-            .connect()
+        botConfigs.forEach { (key, config) ->
+            val role = BotRoleManager.getRole(config.roleId)
+                ?: BotRoleManager.getDefaultRole()
+            log.info("正在连接机器人 $key，使用角色: ${role.name}")
 
-        if (erii == null) {
-            log.error("机器人 erii 连接失败")
-        } else {
-            BotManage.registerBot(erii, Erii)
+            val bot = BotBuilder.positive(config.ws)
+                .token(config.token)
+                .connect()
 
-            erii.globalEventChannel()
-                .exceptionHandler { log.error("Bot exception handler: {}", it.message, it) }
-                .registerListenerHost(uesugi.core.GroupMessageEventListener)
-
-            log.info("机器人 erii 已连接: ${erii.id}")
+            if (bot != null) {
+                BotManage.registerBot(bot, role)
+                // 为每个 bot 创建独立的监听器实例
+                val listener = MessageListener(bot.id.toString(), role.name)
+                bot.globalEventChannel()
+                    .exceptionHandler { log.error("Bot $key exception: {}", it.message) }
+                    .registerListenerHost(listener)
+                log.info("机器人 $key (${role.name}) 已连接: ${bot.id}")
+            } else {
+                log.error("机器人 $key 连接失败")
+            }
         }
     }
 }

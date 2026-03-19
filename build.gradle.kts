@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.jte.kotlin)
     implementation(libs.lunar)
     implementation(libs.typesafe.config)
+    implementation(libs.snakeyaml)
     compileOnly(libs.autoservice.annotations)
     // 测试
     testImplementation(libs.ktor.server.test.host)

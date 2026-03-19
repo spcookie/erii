@@ -63,7 +63,10 @@ private data class MessageContext(
     val parsedMessage: ParsedMessage
 )
 
-object GroupMessageEventListener : SimpleListenerHost() {
+class GroupMessageEventListener(
+    private val botId: String,
+    private val roleName: String
+) : SimpleListenerHost() {
 
     private val log = logger()
 
@@ -83,6 +86,8 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
     private val serial = mutableMapOf<String, Channel<GroupAwareMessageEvent>>()
 
+    private fun channelKey(groupId: String) = "${botId}_$groupId"
+
     fun isCommand(text: String) = COMMAND_REGEX.matches(text)
 
     fun parseCommand(text: String): String? =
@@ -93,7 +98,10 @@ object GroupMessageEventListener : SimpleListenerHost() {
     @EventHandler
     suspend fun MessageEvent.onMessage() {
         if (this !is GroupMessageSyncEvent && this !is GroupMessageEvent) return
-        serial.computeIfAbsent(group.id.toString()) {
+        // 只处理属于当前监听器 bot 的消息
+        if (this.bot.id.toString() != botId) return
+
+        serial.computeIfAbsent(channelKey(group.id.toString())) {
             val channel = Channel<GroupAwareMessageEvent>(Channel.UNLIMITED)
             scope.launch {
                 for (event in channel) {
@@ -108,7 +116,6 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, MiraiInternalApi::class)
     suspend fun handleEvent(event: GroupAwareMessageEvent) {
-        val botId = event.bot.id.toString()
         val groupId = resolveGroupId(event.group.id.toString())
         if (groupId !in ENABLE_GROUPS) return
 
@@ -191,7 +198,7 @@ object GroupMessageEventListener : SimpleListenerHost() {
 
         if (parsed.isAtBot) {
             scope.launch {
-                log.info("机器人[${context.botId}]被@, 触发主动发言")
+                log.info("机器人[$roleName(${context.botId})]被@, 触发主动发言")
                 val route = RoutingAgent.route(context.botId, context.groupId, parsed.content)
                 log.info("路由结果：{}", route.name)
                 EventBus.postAsync(
