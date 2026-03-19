@@ -223,7 +223,7 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
     }
 }
 
-internal class ConfigImpl(val plugin: AgentPlugin) : PluginConfig {
+internal class ConfigImpl(val plugin: AgentExtension) : PluginConfig {
 
     override suspend fun read(path: String): InputStream {
         return withContext(Dispatchers.IO) {

@@ -28,8 +28,8 @@ import uesugi.spi.EmptyConfig.plus
 /**
  * 网易云音乐插件
  */
-@AutoService(AgentPlugin::class)
-class NetEaseMusic : RoutePlugin, ClassNameMixin, KoinComponent {
+@AutoService(AgentExtension::class)
+class NetEaseMusic : RouteExtension, ClassNameMixin, KoinComponent {
 
     private val log = logger()
 

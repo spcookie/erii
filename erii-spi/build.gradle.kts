@@ -3,17 +3,10 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
 }
 
-group = "uesugi"
-version = "0.0.1"
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    kapt("org.pf4j:pf4j:3.15.0")
-    implementation("org.pf4j:pf4j:3.15.0")
     compileOnly(project(":erii-common"))
+    kapt(libs.pf4j)
+    implementation(libs.pf4j)
     compileOnly(libs.jobrunr)
     compileOnly(libs.clikt)
     compileOnly(libs.okio)

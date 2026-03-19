@@ -14,8 +14,8 @@ import uesugi.plugins.getGroup
 import uesugi.spi.*
 
 
-@AutoService(AgentPlugin::class)
-class QQFace : PassivePlugin {
+@AutoService(AgentExtension::class)
+class QQFace : PassiveExtension {
 
     companion object {
         val log = KotlinLogging.logger {}

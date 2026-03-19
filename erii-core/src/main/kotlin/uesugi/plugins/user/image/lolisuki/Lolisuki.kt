@@ -29,8 +29,8 @@ import uesugi.toolkit.calcHumanTypingDelay
 import java.net.URL
 import kotlin.time.Duration.Companion.days
 
-@AutoService(AgentPlugin::class)
-class Lolisuki : RoutePlugin, ClassNameMixin {
+@AutoService(AgentExtension::class)
+class Lolisuki : RouteExtension, ClassNameMixin {
 
     private val log = logger()
 

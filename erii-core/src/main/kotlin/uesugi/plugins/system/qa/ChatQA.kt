@@ -27,15 +27,15 @@ import uesugi.core.agent.buildMetadataPrompt
 import uesugi.core.component.WebSearchTool
 import uesugi.plugins.getGroup
 import uesugi.plugins.getLatestHistory
-import uesugi.spi.AgentPlugin
+import uesugi.spi.AgentExtension
 import uesugi.spi.ClassNameMixin
 import uesugi.spi.PluginContext
-import uesugi.spi.RoutePlugin
+import uesugi.spi.RouteExtension
 import uesugi.toolkit.calcHumanTypingDelay
 import kotlin.time.Duration.Companion.days
 
-@AutoService(AgentPlugin::class)
-class ChatQA : RoutePlugin, ClassNameMixin {
+@AutoService(AgentExtension::class)
+class ChatQA : RouteExtension, ClassNameMixin {
 
     override fun onLoad(context: PluginContext) {
         fun toolValid(ret: ReceivedToolResult, require: Boolean): Boolean {
