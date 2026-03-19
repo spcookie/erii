@@ -19,6 +19,7 @@ arrow = "2.0.0"
 lucene = "9.12.3"
 lucene-analyzers = "8.11.4"
 clikt = "5.1.0"
+okio = "3.6.0"
 hutool = "5.8.26"
 jte = "3.2.1"
 lunar = "1.7.5"
@@ -65,6 +66,7 @@ mapdb = { module = "org.mapdb:mapdb", version.ref = "mapdb" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+okio = { module = "com.squareup.okio:okio-jvm", version.ref = "okio" }
 hutool-core = { module = "cn.hutool:hutool-core", version.ref = "hutool" }
 autoservice-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoservice" }
 autoservice-processor = { module = "com.google.auto.service:auto-service", version.ref = "autoservice" }
