@@ -17,8 +17,8 @@ import uesugi.common.ConfigHolder
 import uesugi.plugins.getGroup
 import uesugi.spi.*
 
-@AutoService(AgentPlugin::class)
-class Speech : PassivePlugin {
+@AutoService(AgentExtension::class)
+class Speech : PassiveExtension {
 
     companion object {
         private val log = KotlinLogging.logger {}

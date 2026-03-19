@@ -8,8 +8,8 @@ import org.koin.core.qualifier.named
 import uesugi.common.ref
 import uesugi.spi.*
 
-@AutoService(AgentPlugin::class)
-class RenderingStatus : CmdPlugin<Unit, ArgParserHolder.Empty>, ClassNameMixin {
+@AutoService(AgentExtension::class)
+class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty>, ClassNameMixin {
 
     override fun onLoad(context: PluginContext) {
         val webScreenshotTaker by ref<WebScreenshotTaker>()

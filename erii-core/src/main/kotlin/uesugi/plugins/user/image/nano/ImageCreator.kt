@@ -28,7 +28,7 @@ import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
 //@AutoService(Plugin::class)
-class ImageCreator : RoutePlugin, ClassNameMixin {
+class ImageCreator : RouteExtension, ClassNameMixin {
 
     val imageClient = ImageClient()
 

@@ -38,8 +38,8 @@ import uesugi.toolkit.calcHumanTypingDelay
 import java.net.URL
 import kotlin.io.encoding.Base64
 
-@AutoService(AgentPlugin::class)
-class SeedDream : RoutePlugin, ClassNameMixin {
+@AutoService(AgentExtension::class)
+class SeedDream : RouteExtension, ClassNameMixin {
 
     companion object {
 

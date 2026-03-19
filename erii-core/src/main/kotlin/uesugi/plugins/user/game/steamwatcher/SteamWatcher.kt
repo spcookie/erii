@@ -10,8 +10,8 @@ import uesugi.common.PSFeature
 import uesugi.common.logger
 import uesugi.spi.*
 
-@AutoService(AgentPlugin::class)
-class SteamWatcher : PassivePlugin {
+@AutoService(AgentExtension::class)
+class SteamWatcher : PassiveExtension {
 
     internal val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 

@@ -25,6 +25,7 @@ jte = "3.2.1"
 lunar = "1.7.5"
 typesafe = "1.4.0"
 snakeyaml = "2.2"
+pf4j = "3.15.0"
 
 [libraries]
 mirai-overflow = { module = "top.mrxiaom.mirai:overflow-core", version = "1.0.8" }
@@ -77,6 +78,7 @@ arrow-core = { group = "io.arrow-kt", name = "arrow-core", version.ref = "arrow"
 lucene-core = { module = "org.apache.lucene:lucene-core", version.ref = "lucene" }
 lucene-analyzers-common = { module = "org.apache.lucene:lucene-analyzers-common", version.ref = "lucene-analyzers" }
 jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
+pf4j = { module = "org.pf4j:pf4j", version.ref = "pf4j" }
 lunar = { module = "cn.6tail:lunar", version.ref = "lunar" }
 flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter", version.ref = "flexmark" }
 flexmark-ext-tables = { module = "com.vladsch.flexmark:flexmark-ext-tables", version.ref = "flexmark" }

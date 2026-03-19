@@ -3,22 +3,41 @@ package uesugi.core.plugin
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.dsl.onClose
+import org.pf4j.*
 import uesugi.config.HttpClientFactory
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteRuleRegister
 import uesugi.spi.*
 import java.util.*
 
-fun pluginModule() = module(createdAtStart = true) {
-    val plugins = ServiceLoader.load(AgentPlugin::class.java).toList()
 
-    plugins.filterIsInstance<RoutePlugin>()
+class AgentPluginFactory : DefaultPluginFactory() {
+    override fun create(pluginWrapper: PluginWrapper): Plugin {
+        return super.create(pluginWrapper)
+    }
+
+}
+
+class AgentPluginManager : DefaultPluginManager() {
+    override fun createPluginFactory(): PluginFactory? {
+        return super.createPluginFactory()
+    }
+
+}
+
+fun pluginModule() = module(createdAtStart = true) {
+
+    DefaultPluginManager()
+
+    val plugins = ServiceLoader.load(AgentExtension::class.java).toList()
+
+    plugins.filterIsInstance<RouteExtension>()
         .forEach { plugin ->
             val (name, description) = plugin.matcher
             RouteRuleRegister.addRule(name, description)
         }
 
-    plugins.filterIsInstance<CmdPlugin<*, *>>()
+    plugins.filterIsInstance<CmdExtension<*, *>>()
         .forEach { plugin ->
             val cmdName = plugin.cmd
             CmdRuleRegister.addRule(cmdName)
@@ -72,12 +91,12 @@ fun pluginModule() = module(createdAtStart = true) {
 
 }
 
-fun buildPluginDef(plugin: AgentPlugin): PluginDef {
+fun buildPluginDef(plugin: AgentExtension): PluginDef {
     val routeKeys = buildList {
-        if (plugin is RoutePlugin) {
+        if (plugin is RouteExtension) {
             add(LLMRouteKey(plugin.matcher.first))
         }
-        if (plugin is CmdPlugin<*, *>) {
+        if (plugin is CmdExtension<*, *>) {
             add(CmdRouteKey(plugin.cmd))
         }
     }
