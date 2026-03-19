@@ -12,6 +12,7 @@ import io.ktor.serialization.jackson.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import uesugi.config.ConfigHolder
 
 /**
  * SearXNG 搜索客户端
@@ -189,7 +190,7 @@ object ExaSearch {
             if (!query.isNullOrBlank()) {
                 val root: JsonNode = httpClient.post("https://api.exa.ai/search") {
                     contentType(ContentType.Application.Json)
-                    header("x-api-key", System.getenv("EXA_API_KEY"))
+                    header("x-api-key", ConfigHolder.getExaApiKey())
                     setBody(
                         mapOf(
                             "query" to query,
@@ -218,7 +219,7 @@ object ExaSearch {
             if (!urls.isNullOrEmpty()) {
                 val root: JsonNode = httpClient.post("https://api.exa.ai/contents") {
                     contentType(ContentType.Application.Json)
-                    header("x-api-key", System.getenv("EXA_API_KEY"))
+                    header("x-api-key", ConfigHolder.getExaApiKey())
                     setBody(
                         mapOf(
                             "ids" to urls,

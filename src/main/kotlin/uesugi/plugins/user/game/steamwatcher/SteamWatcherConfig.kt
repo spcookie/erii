@@ -1,9 +1,13 @@
 package uesugi.plugins.user.game.steamwatcher
 
 
+import uesugi.config.ConfigHolder
+
 object SteamWatcherConfig {
     // Steam API Key
-    var apiKey: String? = System.getenv("STEAM_API_KEY")
+    var apiKey: String? =
+        ConfigHolder.getPluginConfig(SteamWatcherConfig::class.java, "SteamWatcher").getString("api-key")
+            .takeIf { it.isNotBlank() }
 
     // 状态检查间隔 (毫秒), 修改后需重载插件
     var interval: Long = 60000L

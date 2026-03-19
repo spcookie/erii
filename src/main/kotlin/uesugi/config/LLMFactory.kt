@@ -21,15 +21,15 @@ import uesugi.toolkit.logger
 class LLMFactory {
 
     fun promptExecutor(): PromptExecutor {
-        val googleApiKey = System.getenv("GOOGLE_API_KEY")
-        val googleBaseUrl = System.getenv("GOOGLE_BASE_URL")
-        val deepSeekApiKey = System.getenv("DEEP_SEEK_API_KEY")
-        val deepSeekBaseUrl = System.getenv("DEEP_SEEK_BASE_URL")
-        val minimaxApiKey = System.getenv("MINIMAX_CODING_PLAN_KEY")
-        val minimaxBaseUrl = System.getenv("MINIMAX_BASE_URL")
+        val googleApiKey = ConfigHolder.getLlmGoogleApiKey()
+        val googleBaseUrl = ConfigHolder.getLlmGoogleBaseUrl()
+        val deepSeekApiKey = ConfigHolder.getLlmDeepSeekApiKey()
+        val deepSeekBaseUrl = ConfigHolder.getLlmDeepSeekBaseUrl()
+        val minimaxApiKey = ConfigHolder.getLlmMinimaxApiKey()
+        val minimaxBaseUrl = ConfigHolder.getLlmMinimaxBaseUrl()
 
         val llmClients = buildMap {
-            if (!googleApiKey.isNullOrBlank()) {
+            if (googleApiKey.isNotBlank()) {
                 put(
                     LLMProvider.Google,
                     RetryingLLMClient(
@@ -37,7 +37,7 @@ class LLMFactory {
                             apiKey = googleApiKey,
                             baseClient = HttpClient {
                                 engine {
-                                    val httpProxy = System.getenv("HTTP_PROXY")
+                                    val httpProxy = ConfigHolder.getProxyHttp()
                                     if (httpProxy != null) {
                                         proxy = ProxyBuilder.http(httpProxy)
                                     }
@@ -55,21 +55,21 @@ class LLMFactory {
                         config = RetryConfig.CONSERVATIVE
                     ))
             }
-            if (!deepSeekApiKey.isNullOrBlank()) {
+            if (deepSeekApiKey.isNotBlank()) {
                 put(
                     LLMProvider.DeepSeek,
                     RetryingLLMClient(
                         delegate = DeepSeekLLMClient(
                             apiKey = deepSeekApiKey,
                             settings = DeepSeekClientSettings(
-                                baseUrl = deepSeekBaseUrl.takeIf { !it.isNullOrBlank() } ?: "https://api.deepseek.com"
+                                baseUrl = deepSeekBaseUrl
                             )
                         ),
                         config = RetryConfig.CONSERVATIVE
                     )
                 )
             }
-            if (!minimaxApiKey.isNullOrBlank())
+            if (minimaxApiKey.isNotBlank())
                 put(
                     LLMProvider.Anthropic,
                     RetryingLLMClient(
@@ -88,8 +88,7 @@ class LLMFactory {
                                     LLMModelsChoice.Pro to "MiniMax-M2.5",
                                     LLMModelsChoice.Flash to "MiniMax-M2.1"
                                 ),
-                                baseUrl = minimaxBaseUrl.takeIf { !it.isNullOrBlank() }
-                                    ?: "https://api.minimaxi.com",
+                                baseUrl = minimaxBaseUrl,
                                 messagesPath = "anthropic/v1/messages"
                             )
                         ),
@@ -109,7 +108,7 @@ object LLMModelsChoice {
     private val log = logger()
 
     private val choice by lazy {
-        val choice = System.getenv("CHOICE_MODEL").takeIf { !it.isNullOrBlank() } ?: "GOOGLE"
+        val choice = ConfigHolder.getChoiceModel()
         log.info("apply llm choice: $choice")
         choice
     }

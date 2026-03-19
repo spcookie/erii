@@ -1,6 +1,7 @@
 package uesugi.plugins.user.game.steamwatcher
 
 import kotlinx.serialization.Serializable
+import uesugi.config.ConfigHolder
 
 object Subscribers {
     @Serializable
@@ -30,7 +31,9 @@ object Subscribers {
     }
 
     private fun loadSubscriptionsFromEnv() {
-        val subscriptionsEnv = System.getenv("STEAM_SUBSCRIPTIONS") ?: return
+        val subscriptionsEnv =
+            ConfigHolder.getPluginConfig(Subscribers::class.java, "SteamWatcher").getString("subscriptions")
+                .takeIf { it.isNotBlank() } ?: return
 
         subscriptionsEnv.split(";").forEach { entry ->
             val parts = entry.trim().split(",")

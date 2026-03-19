@@ -6,6 +6,7 @@ import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.options.ScreenshotType
 import com.microsoft.playwright.options.WaitUntilState
+import uesugi.config.ConfigHolder
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.encoding.Base64
@@ -19,7 +20,7 @@ class WebScreenshotTaker : AutoCloseable {
     // --- 资源隔离模式 (同 Scraper，确保并发安全) ---
     private class BrowserSession : AutoCloseable {
         val playwright: Playwright = Playwright.create()
-        val browser: Browser = playwright.chromium().connect(System.getenv("PLAYWRIGHT_HOST"))
+        val browser: Browser = playwright.chromium().connect(ConfigHolder.getPlaywrightHost())
 
         override fun close() {
             try {

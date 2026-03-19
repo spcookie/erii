@@ -4,28 +4,18 @@ import kotlinx.coroutines.runBlocking
 import net.mamoe.mirai.Bot
 import net.mamoe.mirai.event.globalEventChannel
 import top.mrxiaom.overflow.BotBuilder
+import uesugi.config.ConfigHolder
 import uesugi.core.BotRole
 import uesugi.core.Erii
 import uesugi.core.agent.BotAgent
 import uesugi.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 
-val DEBUG_GROUP_ID: String? = System.getenv("DEBUG_GROUP_ID")
+val DEBUG_GROUP_ID: String? = ConfigHolder.getDebugGroupId()
 
-val ENABLE_GROUPS: List<String> = System.getenv("ENABLE_GROUPS")
-    ?.split(",")
-    ?.map { it.trim() }
-    ?.filter { it.isNotEmpty() }
-    ?: emptyList()
+val ENABLE_GROUPS: List<String> = ConfigHolder.getEnableGroups()
 
-val MESSAGE_REDIRECT_GROUP_MAP: Map<String, String> = System.getenv("MESSAGE_REDIRECT_MAP")
-    ?.split(",")
-    ?.mapNotNull { entry ->
-        val parts = entry.trim().split(":")
-        if (parts.size == 2) parts[0] to parts[1] else null
-    }
-    ?.toMap()
-    ?: emptyMap()
+val MESSAGE_REDIRECT_GROUP_MAP: Map<String, String> = ConfigHolder.getMessageRedirectMap()
 
 object BotManage {
 
@@ -62,8 +52,8 @@ private val log = BotManage.logger()
 
 fun configureConnectBots() {
     runBlocking {
-        val erii = BotBuilder.positive(System.getenv("NAPCAT_WS"))
-            .token(System.getenv("NAPCAT_TOKEN"))
+        val erii = BotBuilder.positive(ConfigHolder.getNapcatWs())
+            .token(ConfigHolder.getNapcatToken())
             .connect()
 
         if (erii == null) {

@@ -13,6 +13,7 @@ import com.github.ajalt.mordant.terminal.TerminalInfo
 import com.github.ajalt.mordant.terminal.TerminalInterface
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.typesafe.config.Config
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
 import io.ktor.serialization.jackson.*
@@ -35,6 +36,7 @@ import org.jobrunr.scheduling.JobScheduler
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import uesugi.BotManage
+import uesugi.config.ConfigHolder
 import uesugi.core.InterruptionMode
 import uesugi.core.PSFeature
 import uesugi.core.ProactiveSpeakEvent
@@ -163,7 +165,7 @@ interface PluginContext : AutoCloseable {
     val blob: Blob
     val vector: Vector
 
-    val config: Config
+    val config: PluginConfig
 
     val database: Database
 
@@ -246,8 +248,20 @@ interface Vector : AutoCloseable {
     )
 }
 
-interface Config {
+/**
+ * 插件配置接口，用于读取插件配置文件
+ */
+interface PluginConfig {
     suspend fun read(path: String): InputStream
+
+    /**
+     * 获取插件的 Typesafe Config 对象
+     * 支持从以下位置读取配置：
+     * 1. -Dplugin.{PluginName}.config 参数指定的文件
+     * 2. -Dconfig.plugin.dir 参数指定的目录下的 {PluginName}.conf 文件
+     * 3. classpath 中的 /{PluginName}.conf 文件
+     */
+    fun getPluginConfig(): Config
 }
 
 interface Meta {
@@ -839,7 +853,7 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
     }
 }
 
-internal class ConfigImpl(val plugin: Plugin) : Config {
+internal class ConfigImpl(val plugin: Plugin) : PluginConfig {
 
     override suspend fun read(path: String): InputStream {
         return withContext(Dispatchers.IO) {
@@ -853,6 +867,19 @@ internal class ConfigImpl(val plugin: Plugin) : Config {
                 .getResourceAsStream(normalize)
                 ?: error("Config not found: $normalize")
         }
+    }
+
+    /**
+     * 获取插件的 Typesafe Config 对象
+     * 支持从以下位置读取配置：
+     * 1. -Dplugin.{PluginName}.config 参数指定的文件
+     * 2. -Dconfig.plugin.dir 参数指定的目录下的 {PluginName}.conf 文件
+     * 3. classpath 中的 /plugin/{PluginName}.conf 文件
+     * 4. 主配置文件 application.conf 中的 plugins.{PluginName} 部分
+     */
+    override fun getPluginConfig(): Config {
+        val pluginName = plugin::class.simpleName ?: error("Plugin name not found")
+        return ConfigHolder.getPluginConfig(plugin.javaClass, pluginName)
     }
 
 }
@@ -947,7 +974,7 @@ class PluginContextImpl(
     override val kv: Kv,
     override val blob: Blob,
     override val vector: Vector,
-    override val config: Config,
+    override val config: PluginConfig,
     override val database: Database,
     override val scheduler: JobScheduler,
     override val llm: PromptExecutor,
