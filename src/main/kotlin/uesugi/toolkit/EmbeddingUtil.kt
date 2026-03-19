@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import uesugi.config.ConfigHolder
 import uesugi.config.HttpClientFactory
 import java.io.IOException
 import kotlin.io.encoding.Base64
@@ -19,7 +20,7 @@ object EmbeddingUtil {
     suspend fun embedding(input: List<String>, images: List<ByteArray>): List<FloatArray> {
         val node: JsonNode = client.post("https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal") {
             contentType(ContentType.Application.Json)
-            bearerAuth(System.getenv("VOLCENGINE_API_KEY"))
+            bearerAuth(ConfigHolder.getEmbeddingApiKey())
             val text = input.map {
                 mapOf("type" to "text", "text" to it)
             }

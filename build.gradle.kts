@@ -72,6 +72,7 @@ dependencies {
     implementation(libs.hutool.core)
     implementation(libs.jte.kotlin)
     implementation(libs.lunar)
+    implementation(libs.typesafe.config)
     compileOnly(libs.autoservice.annotations)
     // 测试
     testImplementation(libs.ktor.server.test.host)

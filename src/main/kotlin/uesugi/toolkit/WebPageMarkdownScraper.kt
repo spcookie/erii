@@ -10,6 +10,7 @@ import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import uesugi.config.ConfigHolder
 import java.util.concurrent.ConcurrentHashMap
 
 class WebPageMarkdownScraper : AutoCloseable {
@@ -36,7 +37,7 @@ class WebPageMarkdownScraper : AutoCloseable {
     // 内部类：持有每个线程独立的浏览器实例
     private class BrowserSession : AutoCloseable {
         val playwright: Playwright = Playwright.create()
-        val browser: Browser = playwright.chromium().connect(System.getenv("PLAYWRIGHT_HOST"))
+        val browser: Browser = playwright.chromium().connect(ConfigHolder.getPlaywrightHost())
 
         override fun close() {
             try {

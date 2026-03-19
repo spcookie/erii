@@ -2,6 +2,7 @@ package uesugi.plugins.user.image.nano
 
 import com.google.genai.Client
 import com.google.genai.types.*
+import uesugi.config.ConfigHolder
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.Closeable
@@ -20,7 +21,7 @@ class ImageClient : Closeable {
                 .build()
         )
         .vertexAI(false)
-        .apiKey(System.getenv("GOOGLE_API_KEY"))
+        .apiKey(ConfigHolder.getLlmGoogleApiKey())
         .build()
 
     fun generate(

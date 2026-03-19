@@ -89,7 +89,7 @@ val infrastructureModule = module {
     single { LLMFactory().promptExecutor() }
     single { WebPageMarkdownScraper() }
     single { WebScreenshotTaker() }
-    single { WebSearchClient(System.getenv("WEB_SEARCH_HOST")) }
+    single { WebSearchClient(ConfigHolder.getWebSearchHost()) }
 }
 
 val appModule = module {

@@ -22,6 +22,7 @@ clikt = "5.1.0"
 hutool = "5.8.26"
 jte = "3.2.1"
 lunar = "1.7.5"
+typesafe = "1.4.0"
 
 [libraries]
 mirai-overflow = { module = "top.mrxiaom.mirai:overflow-core", version = "1.0.8" }
@@ -78,6 +79,7 @@ flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter",
 flexmark-ext-tables = { module = "com.vladsch.flexmark:flexmark-ext-tables", version.ref = "flexmark" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+typesafe-config = { module = "com.typesafe:config", version.ref = "typesafe" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
