@@ -20,8 +20,6 @@ import uesugi.common.ChatToolSet
 import uesugi.common.PSFeature
 import uesugi.common.logger
 import uesugi.config.LLMModelsChoice
-import uesugi.plugins.getGroup
-import uesugi.plugins.getLatestHistory
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
 import uesugi.spi.MetaToolSet.Companion.meta
@@ -30,7 +28,7 @@ import java.net.URL
 import kotlin.time.Duration.Companion.days
 
 @AutoService(AgentExtension::class)
-class Lolisuki : RouteExtension, ClassNameMixin {
+class Lolisuki : RouteExtension, PluginIdNameMixin {
 
     private val log = logger()
 

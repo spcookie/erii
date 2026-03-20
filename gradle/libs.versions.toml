@@ -1,4 +1,5 @@
 [versions]
+overflow = "1.0.8"
 exposed = "1.0.0-rc-3"
 hikari = '4.0.3'
 h2 = "2.3.232"
@@ -28,7 +29,7 @@ snakeyaml = "2.2"
 pf4j = "3.15.0"
 
 [libraries]
-mirai-overflow = { module = "top.mrxiaom.mirai:overflow-core", version = "1.0.8" }
+mirai-overflow = { module = "top.mrxiaom.mirai:overflow-core", version.ref = "overflow" }
 jobrunr = { module = "org.jobrunr:jobrunr", version.ref = "jobrunr" }
 koog-agents = { module = "ai.koog:koog-agents", version.ref = "koog" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }

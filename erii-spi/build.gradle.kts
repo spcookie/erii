@@ -7,6 +7,7 @@ dependencies {
     compileOnly(project(":erii-common"))
     kapt(libs.pf4j)
     implementation(libs.pf4j)
+    compileOnly(libs.mirai.overflow)
     compileOnly(libs.jobrunr)
     compileOnly(libs.clikt)
     compileOnly(libs.okio)
