@@ -9,5 +9,5 @@ dependencyResolutionManagement {
 include("erii-common")
 include("erii-spi")
 include("erii-core")
-include("erii-plugin")
-include("erii-plugin:speech")
+include("erii-plugins")
+include("erii-plugins:speech")

@@ -8,28 +8,31 @@ import uesugi.config.HttpClientFactory
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteRuleRegister
 import uesugi.spi.*
-import java.util.*
 
 
 class AgentPluginFactory : DefaultPluginFactory() {
     override fun create(pluginWrapper: PluginWrapper): Plugin {
-        return super.create(pluginWrapper)
+        val plugin = super.create(pluginWrapper)
+        plugin as AgentPlugin
+        plugin.wrapper = pluginWrapper
+        return plugin
     }
-
 }
 
 class AgentPluginManager : DefaultPluginManager() {
-    override fun createPluginFactory(): PluginFactory? {
-        return super.createPluginFactory()
+    override fun createPluginFactory(): PluginFactory {
+        return AgentPluginFactory()
     }
-
 }
 
 fun pluginModule() = module(createdAtStart = true) {
+    val pluginManager = AgentPluginManager()
 
-    DefaultPluginManager()
+    pluginManager.loadPlugins()
+    pluginManager.startPlugins()
 
-    val plugins = ServiceLoader.load(AgentExtension::class.java).toList()
+    val plugins = pluginManager.getExtensions(AgentExtension::class.java)
+
 
     plugins.filterIsInstance<RouteExtension>()
         .forEach { plugin ->

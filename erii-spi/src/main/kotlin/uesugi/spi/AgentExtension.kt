@@ -23,11 +23,11 @@ import kotlinx.serialization.json.JsonObject
 import okio.Path
 import org.jetbrains.exposed.v1.jdbc.Query
 import org.jobrunr.scheduling.JobScheduler
-import org.pf4j.*
+import org.pf4j.ExtensionPoint
+import org.pf4j.Plugin
+import org.pf4j.PluginWrapper
 import uesugi.common.*
 import java.io.InputStream
-import java.lang.reflect.ParameterizedType
-import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.full.createInstance
 import kotlin.time.Duration
@@ -35,77 +35,18 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 
-class PluginContextDelegate(
-    pluginManager: PluginManager,
-    descriptor: PluginDescriptor,
-    pluginPath: java.nio.file.Path,
-    pluginClassLoader: ClassLoader,
-    val context: PluginContext
-) : PluginWrapper(
-    pluginManager,
-    descriptor, pluginPath, pluginClassLoader
-)
+abstract class AgentPlugin : Plugin() {
 
-
-abstract class AgentPlugin<T : AgentExtension> : Plugin() {
-
-    private val type: Type
-
-    init {
-        val superClass = this::class.java.genericSuperclass
-        require(superClass is ParameterizedType) {
-            "Ref must be created with generic type information"
-        }
-        type = superClass.actualTypeArguments[0]
+    companion object {
+        @JvmStatic
+        var wrapper: PluginWrapper? = null
     }
 
-    private fun Type.toClass(): Class<*> {
-        return when (this) {
-            is Class<*> -> this
-            is ParameterizedType -> this.rawType as Class<*>
-            else -> throw IllegalArgumentException("Unsupported type: $this")
-        }
+    fun setWrapper(wrapper: PluginWrapper) {
+        super.wrapper = wrapper
+        Companion.wrapper = wrapper
     }
 
-    fun setContext(contenxt: PluginContextDelegate) {
-        wrapper = contenxt
-    }
-
-    final override fun start() {
-        doAction {
-            it.onLoad(context)
-        }
-    }
-
-    private val context: PluginContext
-        get() {
-            val wrapper = getWrapper() as PluginContextDelegate
-            return wrapper.context
-        }
-
-
-    private fun doAction(block: (AgentExtension) -> Unit) {
-        val wrapper = getWrapper() as PluginContextDelegate
-        val extensions = wrapper.pluginManager.getExtensions(type.toClass())
-        extensions.forEach {
-            it as AgentExtension
-            block(it)
-        }
-    }
-
-    final override fun stop() {
-        doAction {
-            it.onUnload()
-        }
-    }
-
-    final override fun delete() {
-        doAction {
-            it.exit()
-        }
-    }
-
-    abstract val extension: AgentExtension
 }
 
 interface AgentExtension : ExtensionPoint {
@@ -115,7 +56,6 @@ interface AgentExtension : ExtensionPoint {
 
     fun onUnload() {}
 
-    fun exit() {}
 }
 
 interface CmdExtension<Context, Arg : ArgParserHolder<Context>> : AgentExtension {
@@ -198,11 +138,13 @@ interface RouteExtension : AgentExtension {
     val matcher: Pair<String, String>
 }
 
-interface PassiveExtension : AgentExtension, ClassNameMixin
+interface PassiveExtension : AgentExtension, PluginIdNameMixin
 
-interface ClassNameMixin : AgentExtension {
+interface PluginIdNameMixin : AgentExtension {
+
     override val name: String
-        get() = this::class.simpleName!!
+        get() = (AgentPlugin.wrapper?.let { it.pluginId + "_" } ?: "") + this::class.simpleName!!
+
 }
 
 typealias Handler = suspend PluginContext.(meta: Meta) -> Unit

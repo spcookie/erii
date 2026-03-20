@@ -30,7 +30,6 @@ import uesugi.common.logger
 import uesugi.config.LLMModelsChoice
 import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.resource.ResourceTable
-import uesugi.plugins.getGroup
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
 import uesugi.spi.MetaToolSet.Companion.meta
@@ -39,7 +38,7 @@ import java.net.URL
 import kotlin.io.encoding.Base64
 
 @AutoService(AgentExtension::class)
-class SeedDream : RouteExtension, ClassNameMixin {
+class SeedDream : RouteExtension, PluginIdNameMixin {
 
     companion object {
 

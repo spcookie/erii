@@ -1,15 +1,15 @@
 package uesugi.plugins.system.status
 
-import com.google.auto.service.AutoService
 import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.koin.core.context.GlobalContext
 import org.koin.core.qualifier.named
+import org.pf4j.Extension
 import uesugi.common.ref
 import uesugi.spi.*
 
-@AutoService(AgentExtension::class)
-class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty>, ClassNameMixin {
+@Extension(points = [AgentExtension::class])
+class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty>, PluginIdNameMixin {
 
     override fun onLoad(context: PluginContext) {
         val webScreenshotTaker by ref<WebScreenshotTaker>()

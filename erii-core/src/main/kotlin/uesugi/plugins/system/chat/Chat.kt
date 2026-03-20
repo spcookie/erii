@@ -1,15 +1,15 @@
 package uesugi.plugins.system.chat
 
-import com.google.auto.service.AutoService
+import org.pf4j.Extension
 import uesugi.core.state.volition.speakV
 import uesugi.spi.AgentExtension
-import uesugi.spi.ClassNameMixin
 import uesugi.spi.PluginContext
+import uesugi.spi.PluginIdNameMixin
 import uesugi.spi.RouteExtension
 import kotlin.uuid.ExperimentalUuidApi
 
-@AutoService(AgentExtension::class)
-class Chat : RouteExtension, ClassNameMixin {
+@Extension(points = [AgentExtension::class])
+class Chat : RouteExtension, PluginIdNameMixin {
     override val matcher: Pair<String, String>
         get() = "CHAT" to """
                 当消息不属于其他类型时，默认归类为 CHAT。

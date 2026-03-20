@@ -1,13 +1,10 @@
-package uesugi.plugins
+package uesugi.spi
 
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import uesugi.common.HistoryRecord
-import uesugi.core.message.history.HistoryTable
-import uesugi.spi.Database
-import uesugi.spi.Meta
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime

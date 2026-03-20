@@ -21,7 +21,6 @@ import org.koin.core.component.KoinComponent
 import uesugi.common.PSFeature
 import uesugi.common.logger
 import uesugi.config.LLMModelsChoice
-import uesugi.plugins.getGroup
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
 
@@ -29,7 +28,7 @@ import uesugi.spi.EmptyConfig.plus
  * 网易云音乐插件
  */
 @AutoService(AgentExtension::class)
-class NetEaseMusic : RouteExtension, ClassNameMixin, KoinComponent {
+class NetEaseMusic : RouteExtension, PluginIdNameMixin, KoinComponent {
 
     private val log = logger()
 

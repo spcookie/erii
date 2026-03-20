@@ -1,4 +1,4 @@
-package uesugi.plugins.system.qa
+package uesugi.plugins.user.message
 
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
@@ -28,14 +28,14 @@ import uesugi.core.component.WebSearchTool
 import uesugi.plugins.getGroup
 import uesugi.plugins.getLatestHistory
 import uesugi.spi.AgentExtension
-import uesugi.spi.ClassNameMixin
 import uesugi.spi.PluginContext
+import uesugi.spi.PluginIdNameMixin
 import uesugi.spi.RouteExtension
 import uesugi.toolkit.calcHumanTypingDelay
 import kotlin.time.Duration.Companion.days
 
 @AutoService(AgentExtension::class)
-class ChatQA : RouteExtension, ClassNameMixin {
+class ChatQA : RouteExtension, PluginIdNameMixin {
 
     override fun onLoad(context: PluginContext) {
         fun toolValid(ret: ReceivedToolResult, require: Boolean): Boolean {
@@ -184,14 +184,14 @@ class ChatQA : RouteExtension, ClassNameMixin {
                 )
             }
 
-            val agent = AIAgent(
+            val agent = AIAgent.Companion(
                 promptExecutor = llm,
                 agentConfig = AIAgentConfig(
                     prompt = prompt,
                     model = LLMModelsChoice.Pro,
                     maxAgentIterations = 10
                 ),
-                toolRegistry = ToolRegistry {
+                toolRegistry = ToolRegistry.Companion {
                     tools(WebSearchTool.asTools())
                 },
                 strategy = getStrategy(group)

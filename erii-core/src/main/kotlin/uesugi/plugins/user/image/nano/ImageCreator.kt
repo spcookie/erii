@@ -18,7 +18,6 @@ import uesugi.common.PSFeature
 import uesugi.common.logger
 import uesugi.core.message.history.HistoryTable
 import uesugi.core.message.resource.ResourceTable
-import uesugi.plugins.getGroup
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
 import uesugi.toolkit.calcHumanTypingDelay
@@ -28,7 +27,7 @@ import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
 //@AutoService(Plugin::class)
-class ImageCreator : RouteExtension, ClassNameMixin {
+class ImageCreator : RouteExtension, PluginIdNameMixin {
 
     val imageClient = ImageClient()
 
