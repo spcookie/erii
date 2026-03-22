@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValueFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.server.config.tryGetString
 import java.io.File
 
 /**
@@ -109,23 +110,23 @@ object ConfigHolder {
 
     fun getLlmGoogleApiKey(): String = app.getString("llm.google-api-key")
     fun getLlmGoogleBaseUrl(): String =
-        app.getString("llm.google-base-url").takeIf { it.isNotBlank() } ?: "https://generativelanguage.googleapis.com"
+        app.tryGetString("llm.google-base-url") ?: "https://generativelanguage.googleapis.com"
 
     fun getLlmDeepSeekApiKey(): String = app.getString("llm.deep-seek-api-key")
     fun getLlmDeepSeekBaseUrl(): String =
-        app.getString("llm.deep-seek-base-url").takeIf { it.isNotBlank() } ?: "https://api.deepseek.com"
+        app.tryGetString("llm.deep-seek-base-url") ?: "https://api.deepseek.com"
 
     fun getLlmMinimaxApiKey(): String = app.getString("llm.minimax-coding-plan-key")
     fun getLlmMinimaxBaseUrl(): String =
-        app.getString("llm.minimax-base-url").takeIf { it.isNotBlank() } ?: "https://api.minimaxi.com"
+        app.tryGetString("llm.minimax-base-url") ?: "https://api.minimaxi.com"
 
     fun getChoiceModel(): String = app.getString("llm.choice-model")
 
     fun getEmbeddingApiKey(): String = app.getString("embedding.api-key")
     fun getExaApiKey(): String = app.getString("exa.api-key")
 
-    fun getProxyHttp(): String? = app.getString("proxy.http").takeIf { it.isNotBlank() }
-    fun getProxySocks(): String? = app.getString("proxy.socks").takeIf { it.isNotBlank() }
+    fun getProxyHttp(): String? = app.tryGetString("proxy.http")
+    fun getProxySocks(): String? = app.tryGetString("proxy.socks")
 
     fun getNapcatWs(): String = app.getString("napcat.ws")
     fun getNapcatToken(): String = app.getString("napcat.token")
@@ -162,11 +163,10 @@ object ConfigHolder {
         val roleId: String
     )
 
-    fun getWebSearchHost(): String = app.getString("web.search-host")
     fun getPlaywrightHost(): String = app.getString("web.playwright-host")
     fun getPlaywrightSkipBrowserDownload(): Boolean = app.getBoolean("web.playwright-skip-browser-download")
 
-    fun getDebugGroupId(): String? = app.getString("groups.debug-group-id").takeIf { it.isNotBlank() }
+    fun getDebugGroupId(): String? = app.tryGetString("groups.debug-group-id")
 
     fun getEnableGroups(): List<String> {
         return try {

@@ -17,7 +17,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import okio.Path
@@ -28,6 +27,7 @@ import org.pf4j.Plugin
 import org.pf4j.PluginWrapper
 import uesugi.common.*
 import java.io.InputStream
+import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.full.createInstance
 import kotlin.time.Duration
@@ -39,12 +39,12 @@ abstract class AgentPlugin : Plugin() {
 
     companion object {
         @JvmStatic
-        var wrapper: PluginWrapper? = null
+        var context: PluginWrapper? = null
     }
 
     fun setWrapper(wrapper: PluginWrapper) {
         super.wrapper = wrapper
-        Companion.wrapper = wrapper
+        context = wrapper
     }
 
 }
@@ -143,7 +143,7 @@ interface PassiveExtension : AgentExtension, PluginIdNameMixin
 interface PluginIdNameMixin : AgentExtension {
 
     override val name: String
-        get() = (AgentPlugin.wrapper?.let { it.pluginId + "_" } ?: "") + this::class.simpleName!!
+        get() = (AgentPlugin.context?.let { it.pluginId + "_" } ?: "") + this::class.simpleName!!
 
 }
 
@@ -283,7 +283,12 @@ fun Meta.sendAgent(
     input: String,
     conf: SendAgentConfig = EmptyConfig,
     state: SendAgentStateDsl? = null
-) = sendAgent(botId, groupId, input, conf, state)
+) {
+    for (sender in ServiceLoader.load(AgentSender::class.java)) {
+        sender.sendAgent(botId, groupId, input, conf, state)
+    }
+}
+
 
 interface SendAgentState {
     val scope: CoroutineScope
@@ -492,174 +497,22 @@ class SendAgentStateBuilder(
     }
 }
 
-fun sendAgent(
-    botId: String,
-    groupId: String,
-    input: String,
-    dsl: SendAgentStateDsl? = null
-) = sendAgent(botId, groupId, input, EmptyConfig, dsl)
 
-fun sendAgent(
-    botId: String,
-    groupId: String,
-    input: String,
-    config: SendAgentConfig = EmptyConfig,
-    dsl: SendAgentStateDsl? = null
-) {
-    val holder = mutableMapOf<String, Any>()
-    val fn = dsl?.let {
-        val scope = SendAgentStateBuilder(holder).dsl()
-        @Suppress("UNCHECKED_CAST")
-        object : SendAgentState {
-            override val scope = scope
+interface AgentSender {
 
-            override suspend fun callToolStart(toolName: String, toolArgs: JsonObject) {
-                (holder["callToolStart"] as? suspend (String, JsonObject) -> Unit)?.invoke(toolName, toolArgs)
-            }
-
-            override suspend fun callToolCompletion(
-                toolName: String,
-                toolArgs: JsonObject,
-                toolResult: JsonElement?,
-                toolError: String?
-            ) {
-                (holder["callToolCompletion"] as? suspend (
-                    String,
-                    JsonObject,
-                    JsonElement?,
-                    String?
-                ) -> Unit)?.invoke(
-                    toolName,
-                    toolArgs,
-                    toolResult,
-                    toolError
-                )
-            }
-
-            override suspend fun runStart() {
-                (holder["runStart"] as? suspend () -> Unit)?.invoke()
-            }
-
-            override suspend fun runCompletion(error: Throwable?) {
-                (holder["runCompletion"] as? suspend (Throwable?) -> Unit)?.invoke(error)
-            }
-
-            override suspend fun callReject() {
-                (holder["callReject"] as? suspend () -> Unit)?.invoke()
-            }
-
-            override suspend fun callFallback() {
-                (holder["callFallback"] as? suspend () -> Unit)?.invoke()
-            }
-
-            override suspend fun callStart() {
-                (holder["callStart"] as? suspend () -> Unit)?.invoke()
-            }
-
-            override suspend fun callCompletion(error: Throwable?) {
-                (holder["callCompletion"] as? suspend (Throwable?) -> Unit)?.invoke(error)
-            }
-        }
-    }
-    val conf = SendAgentConf(
-        webSearch = config[WebSearch]?.let { it == WebSearch.ENABLE } ?: false,
-        toolSetBuilder = config[ToolSetBuilder]?.value,
-        feature = config[Feature]?.value ?: PSFeature.NONE,
+    fun sendAgent(
+        botId: String,
+        groupId: String,
+        input: String,
+        dsl: SendAgentStateDsl? = null
     )
-    sendAgent(botId, groupId, input, conf, fn)
-}
 
-
-private fun sendAgent(
-    botId: String,
-    groupId: String,
-    input: String,
-    conf: SendAgentConf = SendAgentConf(),
-    state: SendAgentState? = null
-) {
-    val (webSearch, toolSets, flag, echo) = conf
-
-    if (state != null) {
-        val job = EventBus.subscribeAsync<AgentToolCallEvent>(state.scope) { event ->
-            val toolCallEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
-            if (toolCallEvent != null) {
-                when (toolCallEvent) {
-                    is AgentToolCallStartEvent -> state.callToolStart(
-                        toolCallEvent.toolName,
-                        toolCallEvent.toolArgs
-                    )
-
-                    is AgentToolCallCompleteEvent -> state.callToolCompletion(
-                        toolCallEvent.toolName,
-                        toolCallEvent.toolArgs,
-                        toolCallEvent.toolResult,
-                        toolCallEvent.toolError
-                    )
-                }
-            }
-        }
-
-        EventBus.subscribeOnceSync<AgentCallStartEvent> { event ->
-            val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
-            if (e != null) {
-                runBlocking(state.scope.coroutineContext) {
-                    state.callStart()
-                }
-            }
-        }
-
-        val runStart = EventBus.subscribeSync<AgentRunStartEvent> { event ->
-            val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
-            if (e != null) {
-                runBlocking(state.scope.coroutineContext) {
-                    state.runStart()
-                }
-            }
-        }
-
-        val runCompletion = EventBus.subscribeSync<AgentRunCompleteEvent> { event ->
-            val e = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
-            if (e != null) {
-                runBlocking(state.scope.coroutineContext) {
-                    state.runCompletion(event.throwable)
-                }
-            }
-        }
-
-        fun AgentDispatchEvent.call(block: () -> Unit) {
-            val e = this.takeIf { this.botId == botId && this.groupId == groupId && this.echo == echo }
-            if (e != null) {
-                runCatching { block() }
-                EventBus.unsubscribeAsync(job)
-                EventBus.unsubscribeSync(runStart)
-                EventBus.unsubscribeSync(runCompletion)
-            }
-        }
-
-        EventBus.subscribeOnceSync<AgentCallRejectEvent> { event ->
-            event.call { runBlocking(state.scope.coroutineContext) { state.callReject() } }
-        }
-
-        EventBus.subscribeOnceSync<AgentCallFallbackEvent> { event ->
-            event.call { runBlocking(state.scope.coroutineContext) { state.callFallback() } }
-        }
-
-        EventBus.subscribeOnceSync<AgentCallCompleteEvent> { event ->
-            event.call { runBlocking(state.scope.coroutineContext) { state.callCompletion(event.throwable) } }
-        }
-    }
-
-    EventBus.postAsync(
-        ProactiveSpeakEvent(
-            botId = botId,
-            _groupId = groupId,
-            interruptionMode = InterruptionMode.Interrupt,
-            input = input,
-            webSearch = webSearch,
-            toolSetBuilder = toolSets,
-            feature = flag,
-            echo = echo
-        )
+    fun sendAgent(
+        botId: String,
+        groupId: String,
+        input: String,
+        config: SendAgentConfig = EmptyConfig,
+        dsl: SendAgentStateDsl? = null
     )
 
 }

@@ -8,7 +8,7 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
-import uesugi.core.message.history.HistoryTable.DEFAULT_LENGTH
+import uesugi.core.state.emotion.EmotionTable.DEFAULT_LENGTH
 
 /**
  * 对话摘要表 - 存储群聊的摘要信息

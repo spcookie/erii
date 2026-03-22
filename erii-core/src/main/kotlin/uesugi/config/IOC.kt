@@ -9,7 +9,6 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
-import uesugi.common.ConfigHolder
 import uesugi.core.component.EmbeddedVectorStore
 import uesugi.core.component.LocalObjectStorage
 import uesugi.core.component.ObjectStorage
@@ -27,9 +26,8 @@ import uesugi.core.state.memory.MemoryJob
 import uesugi.core.state.memory.memoryModule
 import uesugi.core.state.volition.VolitionJob
 import uesugi.core.state.volition.volitionModule
-import uesugi.plugins.system.status.WebScreenshotTaker
+import uesugi.core.plugin.buildin.status.WebScreenshotTaker
 import uesugi.toolkit.WebPageMarkdownScraper
-import uesugi.toolkit.WebSearchClient
 import javax.sql.DataSource
 
 fun Application.warmUp() {
@@ -90,7 +88,6 @@ val infrastructureModule = module {
     single { LLMFactory().promptExecutor() }
     single { WebPageMarkdownScraper() }
     single { WebScreenshotTaker() }
-    single { WebSearchClient(ConfigHolder.getWebSearchHost()) }
 }
 
 val appModule = module {

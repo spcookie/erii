@@ -5,6 +5,7 @@ hikari = '4.0.3'
 h2 = "2.3.232"
 koin = "4.1.2-Beta1"
 kotlin = "2.2.21"
+kotlinx-coroutines = "1.9.0"
 ktor = "3.3.2"
 koog = "0.6.3"
 jobrunr = '8.3.1'
@@ -27,8 +28,10 @@ lunar = "1.7.5"
 typesafe = "1.4.0"
 snakeyaml = "2.2"
 pf4j = "3.15.0"
+kotlin-logging = "7.0.13"
 
 [libraries]
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 mirai-overflow = { module = "top.mrxiaom.mirai:overflow-core", version.ref = "overflow" }
 jobrunr = { module = "org.jobrunr:jobrunr", version.ref = "jobrunr" }
 koog-agents = { module = "ai.koog:koog-agents", version.ref = "koog" }
@@ -81,6 +84,7 @@ lucene-analyzers-common = { module = "org.apache.lucene:lucene-analyzers-common"
 jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
 pf4j = { module = "org.pf4j:pf4j", version.ref = "pf4j" }
 lunar = { module = "cn.6tail:lunar", version.ref = "lunar" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
 flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter", version.ref = "flexmark" }
 flexmark-ext-tables = { module = "com.vladsch.flexmark:flexmark-ext-tables", version.ref = "flexmark" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }

@@ -8,7 +8,7 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
-import uesugi.core.message.history.HistoryTable.DEFAULT_LENGTH
+import uesugi.core.state.emotion.EmotionTable.DEFAULT_LENGTH
 
 /**
  * 学习词汇表 - 存储从群聊中学习到的流行语、梗、黑话

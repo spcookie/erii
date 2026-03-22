@@ -9,4 +9,9 @@ dependencies {
     compileOnly(libs.typesafe.config)
     compileOnly(libs.koin.core)
     compileOnly(libs.snakeyaml)
+    compileOnly(libs.exposed.core)
+    compileOnly(libs.exposed.jdbc)
+    compileOnly(libs.exposed.dao)
+    compileOnly(libs.exposed.json)
+    compileOnly(libs.exposed.kotlin.datetime)
 }

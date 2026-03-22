@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
+import kotlin.random.Random
 
 inline fun <reified T : Any> T.logger() = LoggerFactory.getLogger(T::class.java)!!
 
@@ -37,3 +38,24 @@ fun ResultSet.rowMapMapper(): List<Map<String, Any?>> {
 }
 
 inline fun <reified T : Any> ref(): Lazy<T> = GlobalContext.get().inject<T>()
+
+/**
+ * 根据中文打字速度计算发送延迟
+ *
+ * @param text 要发送的文本
+ * @param cpm 字/分钟 (如 80)
+ * @param jitter 抖动比例 (0.1 = ±10%)
+ */
+fun calcHumanTypingDelay(
+    text: String,
+    cpm: Int = 160,
+    jitter: Double = 0.15
+): Long {
+    val charCount = text.count { !it.isWhitespace() }
+    val cps = cpm / 60.0
+
+    val baseDelayMs = (charCount / cps * 1000).toLong()
+    val jitterFactor = 1 + Random.nextDouble(-jitter, jitter)
+
+    return (baseDelayMs * jitterFactor).toLong().coerceAtLeast(300)
+}

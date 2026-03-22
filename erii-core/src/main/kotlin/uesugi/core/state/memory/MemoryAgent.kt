@@ -27,8 +27,8 @@ import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.common.DateTimeFormat
 import uesugi.common.HistoryRecord
+import uesugi.common.LLMModelsChoice
 import uesugi.common.logger
-import uesugi.config.LLMModelsChoice
 
 /**
  * 记忆代理 - 负责从历史消息中提取和生成各类记忆数据

@@ -8,9 +8,9 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.common.HistoryEntity
+import uesugi.common.HistoryTable
 import uesugi.common.logger
-import uesugi.core.message.history.HistoryEntity
-import uesugi.core.message.history.HistoryTable
 import kotlin.time.ExperimentalTime
 
 /**

@@ -19,8 +19,8 @@ import org.koin.core.context.GlobalContext
 import uesugi.BotManage
 import uesugi.common.DateTimeFormat
 import uesugi.common.EventBus
+import uesugi.common.LLMModelsChoice
 import uesugi.common.logger
-import uesugi.config.LLMModelsChoice
 
 enum class ChargeEventType {
     CoreInterest,

@@ -9,11 +9,11 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.BotManage
-import uesugi.ENABLE_GROUPS
+import uesugi.common.ENABLE_GROUPS
+import uesugi.common.HistoryTable
+import uesugi.common.MessageType
 import uesugi.common.logger
 import uesugi.core.component.ObjectStorage
-import uesugi.core.message.history.HistoryTable
-import uesugi.core.message.history.MessageType
 import uesugi.core.message.resource.ResourceService
 
 /**

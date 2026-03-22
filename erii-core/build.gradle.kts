@@ -22,7 +22,6 @@ dependencies {
     implementation(libs.jobrunr)
     // AI框架
     implementation(libs.koog.agents)
-    implementation(libs.google.genai)
     // 依赖注入
     implementation(libs.koin.core)
     implementation(libs.koin.ktor)
@@ -76,6 +75,7 @@ dependencies {
     implementation(libs.lunar)
     implementation(libs.typesafe.config)
     implementation(libs.snakeyaml)
+    implementation(libs.okio)
     implementation(libs.pf4j)
     compileOnly(libs.autoservice.annotations)
     // 测试

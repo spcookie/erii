@@ -6,8 +6,8 @@ import ai.koog.prompt.structure.StructureFixingParser
 import ai.koog.prompt.structure.executeStructured
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
+import uesugi.common.LLMModelsChoice
 import uesugi.common.logger
-import uesugi.config.LLMModelsChoice
 
 /**
  * 提炼层服务 - 梗与黑话提取引擎 (The Extractor)
