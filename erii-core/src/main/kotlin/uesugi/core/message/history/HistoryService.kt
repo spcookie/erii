@@ -4,7 +4,10 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.common.HistoryEntity
 import uesugi.common.HistoryRecord
+import uesugi.common.HistoryTable
+import uesugi.common.toRecord
 import uesugi.core.message.resource.ResourceEntity
 import kotlin.time.Clock
 import kotlin.time.Duration

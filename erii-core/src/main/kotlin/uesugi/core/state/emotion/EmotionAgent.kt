@@ -9,8 +9,8 @@ import kotlinx.datetime.format
 import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
 import uesugi.common.DateTimeFormat
+import uesugi.common.LLMModelsChoice
 import uesugi.common.PadScale12
-import uesugi.config.LLMModelsChoice
 
 /**
  * 群聊消息数据模型

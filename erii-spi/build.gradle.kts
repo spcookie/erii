@@ -1,12 +1,10 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.kapt)
 }
 
 dependencies {
     compileOnly(project(":erii-common"))
-    kapt(libs.pf4j)
-    implementation(libs.pf4j)
+    compileOnly(libs.pf4j)
     compileOnly(libs.mirai.overflow)
     compileOnly(libs.jobrunr)
     compileOnly(libs.clikt)
@@ -19,6 +17,5 @@ dependencies {
     compileOnly(libs.ktor.server.content.negotiation)
     compileOnly(libs.ktor.server.netty)
     compileOnly(libs.ktor.client.core)
-    compileOnly(libs.clikt)
     compileOnly(libs.typesafe.config)
 }

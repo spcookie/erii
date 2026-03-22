@@ -1,10 +1,19 @@
 package speech
 
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle
+import ai.koog.agents.core.tools.annotations.LLMDescription
+import ai.koog.agents.core.tools.annotations.Tool
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
+import uesugi.common.ConfigHolder
 import uesugi.spi.*
 
 class Speech : AgentPlugin()
@@ -18,7 +27,7 @@ class SpeechExtension : AgentExtension, PluginIdNameMixin {
 
         // 插件配置
         private val pluginConfig by lazy {
-            ConfigHolder.getPluginConfig(uesugi.plugins.user.message.Speech::class.java, "Speech")
+            ConfigHolder.getPluginConfig(Speech::class.java, "Speech")
         }
 
         // 语言到音色ID的映射
@@ -144,7 +153,7 @@ class SpeechExtension : AgentExtension, PluginIdNameMixin {
 
             val response = httpClient.post(T2A_API_URL) {
                 contentType(ContentType.Application.Json)
-                HtmlStyle.header("Authorization", "Bearer $apiKey")
+                header("Authorization", "Bearer $apiKey")
                 setBody(request)
             }
 
@@ -191,3 +200,62 @@ class SpeechExtension : AgentExtension, PluginIdNameMixin {
         }
     }
 }
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class T2aV2Request(
+    @field:JsonProperty("model") val model: String,
+    @field:JsonProperty("text") val text: String,
+    @field:JsonProperty("stream") val stream: Boolean = false,
+    @field:JsonProperty("voice_setting") val voiceSetting: VoiceSetting,
+    @field:JsonProperty("audio_setting") val audioSetting: AudioSetting? = null,
+    @field:JsonProperty("output_format") val outputFormat: String = "hex"
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class VoiceSetting(
+    @field:JsonProperty("voice_id") val voiceId: String,
+    @field:JsonProperty("speed") val speed: Float = 1.0f,
+    @field:JsonProperty("vol") val vol: Float = 1.0f,
+    @field:JsonProperty("pitch") val pitch: Int = 0,
+    @field:JsonProperty("emotion") val emotion: String = "happy"
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class AudioSetting(
+    @field:JsonProperty("sample_rate") val sampleRate: Int = 32000,
+    @field:JsonProperty("bitrate") val bitrate: Int = 128000,
+    @field:JsonProperty("format") val format: String = "mp3",
+    @field:JsonProperty("channel") val channel: Int = 1
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class T2aV2Response(
+    @field:JsonProperty("data") val data: AudioData? = null,
+    @field:JsonProperty("trace_id") val traceId: String? = null,
+    @field:JsonProperty("extra_info") val extraInfo: ExtraInfo? = null,
+    @field:JsonProperty("base_resp") val baseResp: BaseResp? = null
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class AudioData(
+    @field:JsonProperty("audio") val audio: String? = null,
+    @field:JsonProperty("subtitle_file") val subtitleFile: String? = null,
+    @field:JsonProperty("status") val status: Int = 0
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class ExtraInfo(
+    @field:JsonProperty("audio_length") val audioLength: Long = 0,
+    @field:JsonProperty("audio_sample_rate") val audioSampleRate: Long = 0,
+    @field:JsonProperty("audio_size") val audioSize: Long = 0,
+    @field:JsonProperty("bitrate") val bitrate: Long = 0,
+    @field:JsonProperty("audio_format") val audioFormat: String? = null,
+    @field:JsonProperty("audio_channel") val audioChannel: Long = 0,
+    @field:JsonProperty("usage_characters") val usageCharacters: Long = 0
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class BaseResp(
+    @field:JsonProperty("status_code") val statusCode: Int = 0,
+    @field:JsonProperty("status_msg") val statusMsg: String? = null
+)

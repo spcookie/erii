@@ -3,10 +3,10 @@ package uesugi.core.state.emotion
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.EmotionalTendencies
+import uesugi.common.HistoryEntity
+import uesugi.common.HistoryTable
 import uesugi.common.PAD
 import uesugi.common.logger
-import uesugi.core.message.history.HistoryEntity
-import uesugi.core.message.history.HistoryTable
 import kotlin.math.exp
 
 /**

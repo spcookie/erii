@@ -1,8 +1,7 @@
 package uesugi.core.message.resource
 
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.common.ResourceRecord
-import uesugi.core.message.history.toRecord
+import uesugi.common.toRecord
 
 class ResourceService {
 

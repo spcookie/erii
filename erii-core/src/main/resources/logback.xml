@@ -15,6 +15,7 @@
     </root>
 
     <!--        <logger name="uesugi" level="DEBUG"/>-->
+            <logger name="org.pf4j" level="TRACE"/>
 
     <!-- Ktor 日志 -->
     <logger name="io.ktor" level="INFO"/>

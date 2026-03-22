@@ -9,7 +9,7 @@ import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
 import uesugi.common.JSON
-import uesugi.common.ResourceRecord
+import uesugi.core.message.resource.ResourceRecord
 
 /**
  * 表情包数据模块

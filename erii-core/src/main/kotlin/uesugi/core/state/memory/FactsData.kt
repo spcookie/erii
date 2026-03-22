@@ -8,7 +8,7 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
-import uesugi.core.message.history.HistoryTable.DEFAULT_LENGTH
+import uesugi.core.state.emotion.EmotionTable.DEFAULT_LENGTH
 
 /**
  * 事实记忆表 - 存储从群聊中提取的事实信息

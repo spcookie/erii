@@ -25,8 +25,8 @@ import uesugi.common.*
 import uesugi.core.component.ObjectStorage
 import uesugi.core.message.history.HistorySavedEvent
 import uesugi.core.message.history.HistoryService
-import uesugi.core.message.history.toRecord
 import uesugi.core.message.resource.ResourceEntity
+import uesugi.core.message.resource.ResourceRecord
 import uesugi.core.message.resource.ResourceService
 import uesugi.core.message.resource.ResourceTable
 import uesugi.core.route.CmdRuleRegister

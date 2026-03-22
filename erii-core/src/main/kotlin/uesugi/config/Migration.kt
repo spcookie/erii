@@ -4,7 +4,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
-import uesugi.core.message.history.HistoryTable
+import uesugi.common.HistoryTable
 import uesugi.core.message.resource.ResourceTable
 import uesugi.core.state.emotion.EmotionTable
 import uesugi.core.state.evolution.LearnedVocabTable

@@ -7,11 +7,11 @@ import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import uesugi.common.HistoryEntity
 import uesugi.common.HistoryRecord
+import uesugi.common.HistoryTable
 import uesugi.common.logger
-import uesugi.core.message.history.HistoryEntity
-import uesugi.core.message.history.HistoryTable
-import uesugi.core.message.history.toRecord
+import uesugi.common.toRecord
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
