@@ -16,6 +16,10 @@ import org.pf4j.Extension
 import uesugi.common.ConfigHolder
 import uesugi.spi.*
 
+@PluginDefinition(
+    pluginId = "speech",
+    pluginClass = "speech.Speech"
+)
 class Speech : AgentPlugin()
 
 @Extension

@@ -9,7 +9,6 @@ import uesugi.config.HttpClientFactory
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteRuleRegister
 import uesugi.spi.*
-import java.nio.file.Path
 
 
 class AgentPluginFactory : DefaultPluginFactory() {
@@ -18,16 +17,6 @@ class AgentPluginFactory : DefaultPluginFactory() {
         if (plugin !is AgentPlugin) return null
         plugin.wrapper = pluginWrapper
         return plugin
-    }
-}
-
-class AgentPluginLoader(pluginManager: PluginManager) : DefaultPluginLoader(pluginManager) {
-    override fun createPluginClassLoader(
-        pluginPath: Path?,
-        pluginDescriptor: PluginDescriptor?
-    ): PluginClassLoader? {
-        return PluginClassLoader(pluginManager, pluginDescriptor, javaClass.getClassLoader())
-        return super.createPluginClassLoader(pluginPath, pluginDescriptor)
     }
 }
 
