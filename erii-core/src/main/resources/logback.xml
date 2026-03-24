@@ -1,5 +1,8 @@
 <configuration>
 
+    <!-- 日志目录 -->
+    <property name="LOG_HOME" value="./logs"/>
+
     <!-- Console 输出 -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -9,17 +12,47 @@
         </encoder>
     </appender>
 
+    <!--  ERROR 文件输出 -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+
+        <!-- 当前日志文件 -->
+        <file>${LOG_HOME}/error.log</file>
+
+        <!-- 只接收 ERROR -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+
+        <!-- 滚动策略 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+
+            <!-- 按天滚动 + gzip压缩 -->
+            <fileNamePattern>${LOG_HOME}/error.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+
+            <!-- 保留 15 天 -->
+            <maxHistory>15</maxHistory>
+
+            <!-- 总大小限制 -->
+            <totalSizeCap>2GB</totalSizeCap>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>
+                %date{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{50} - %msg%n%ex
+            </pattern>
+        </encoder>
+
+    </appender>
+
     <!-- 根日志 -->
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
+        <appender-ref ref="ERROR_FILE"/>
     </root>
-
-    <!--        <logger name="uesugi" level="DEBUG"/>-->
-            <logger name="org.pf4j" level="TRACE"/>
 
     <!-- Ktor 日志 -->
     <logger name="io.ktor" level="INFO"/>
-    <logger name="org.eclipse.jetty" level="INFO"/>
     <logger name="io.netty" level="INFO"/>
 
 </configuration>
