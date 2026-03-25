@@ -1,4 +1,4 @@
-package image.seeddream
+package uesugi.plugin
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
@@ -24,21 +24,18 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.pf4j.Extension
-import uesugi.common.HistoryTable
-import uesugi.common.LLMModelsChoice
-import uesugi.common.MessageType
-import uesugi.common.PSFeature
-import uesugi.common.logger
+import uesugi.common.*
 import uesugi.core.message.resource.ResourceTable
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
-import uesugi.spi.MetaToolSet.Companion.meta
-import uesugi.common.calcHumanTypingDelay
 import java.net.URL
 import kotlin.io.encoding.Base64
 
+@PluginDefinition("seed-dream")
+class SeedDream : AgentPlugin()
+
 @Extension
-class SeedDream : RouteExtension, PluginIdNameMixin {
+class SeedDreamExtension : RouteExtension, PluginIdNameMixin {
 
     companion object {
 
@@ -168,26 +165,6 @@ class SeedDream : RouteExtension, PluginIdNameMixin {
             """.trimIndent()
     }
 
-    @Serializable
-    @LLMDescription("群聊图片生成任务聚合引擎的输入参数")
-    data class SeedDreamRequest(
-        @property:LLMDescription("图片生成任务类型")
-        var taskType: SeedDreamType,
-        @property:LLMDescription("最终完整prompt")
-        var prompt: String,
-        @property:LLMDescription("被修改图片的id列表")
-        var imageIds: List<Int>? = null,
-        @property:LLMDescription("置信度，0~1之间的小数")
-        var confidence: Float = 0.0f
-    )
-
-    @Suppress("unused")
-    enum class SeedDreamType {
-        TEXT_TO_IMAGE,
-        IMAGE_TO_IMAGE_REFERENCE,
-        IMAGE_EDIT
-    }
-
     @OptIn(DelicateCoroutinesApi::class)
     override fun onLoad(context: PluginContext) {
         context.chain { meta ->
@@ -261,8 +238,8 @@ class SeedDream : RouteExtension, PluginIdNameMixin {
                     @Tool
                     @LLMDescription("回复消息，并生成图片发送")
                     suspend fun imageCreate(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
-                        val resource = image(this@tool, meta)
-                        val group = meta.getGroup()
+                        val resource = image(this@tool, MetaToolSet.Companion.meta)
+                        val group = MetaToolSet.Companion.meta.getGroup()
                         resource.onRight { img ->
                             img.use {
                                 for (sentence in sentences) {
@@ -329,7 +306,7 @@ class SeedDream : RouteExtension, PluginIdNameMixin {
                         } ?: return@mapNotNull null
                     }
                     .map { (bytes, fileName) ->
-                        val base64 = Base64.encode(bytes!!)
+                        val base64 = Base64.Default.encode(bytes!!)
                         val mimeType = getMimeType(fileName)
                         "data:$mimeType;base64,$base64"
                     }
@@ -419,4 +396,24 @@ class SeedDream : RouteExtension, PluginIdNameMixin {
             else -> throw IllegalArgumentException("Unsupported image type: $type")
         }
     }
+}
+
+@Serializable
+@LLMDescription("群聊图片生成任务聚合引擎的输入参数")
+data class SeedDreamRequest(
+    @property:LLMDescription("图片生成任务类型")
+    var taskType: SeedDreamType,
+    @property:LLMDescription("最终完整prompt")
+    var prompt: String,
+    @property:LLMDescription("被修改图片的id列表")
+    var imageIds: List<Int>? = null,
+    @property:LLMDescription("置信度，0~1之间的小数")
+    var confidence: Float = 0.0f
+)
+
+@Suppress("unused")
+enum class SeedDreamType {
+    TEXT_TO_IMAGE,
+    IMAGE_TO_IMAGE_REFERENCE,
+    IMAGE_EDIT
 }

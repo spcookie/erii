@@ -44,8 +44,9 @@ class PluginDefinitionProcessor : AbstractProcessor() {
                 )
                 return false
             }
+            val fullName: String = (element as TypeElement).qualifiedName.toString()
             val pluginProperties = buildString {
-                appendLine("pluginClass=${annotation.pluginClass}")
+                appendLine("pluginClass=$fullName")
                 appendLine("pluginId=${annotation.pluginId}")
                 appendLine("version=${annotation.version}")
                 appendLine("requires=${annotation.requires}")

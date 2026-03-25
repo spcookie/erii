@@ -1,4 +1,4 @@
-package image.lolisuki
+package uesugi.plugin
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
@@ -16,19 +16,17 @@ import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.utils.ExternalResource
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
-import uesugi.common.ChatToolSet
-import uesugi.common.LLMModelsChoice
-import uesugi.common.PSFeature
-import uesugi.common.logger
+import uesugi.common.*
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
-import uesugi.spi.MetaToolSet.Companion.meta
-import uesugi.common.calcHumanTypingDelay
 import java.net.URL
 import kotlin.time.Duration.Companion.days
 
+@PluginDefinition("lolisuki")
+class Lolisuki : AgentPlugin()
+
 @Extension
-class Lolisuki : RouteExtension, PluginIdNameMixin {
+class LolisukiExtension : RouteExtension, PluginIdNameMixin {
 
     private val log = logger()
 
@@ -81,7 +79,7 @@ class Lolisuki : RouteExtension, PluginIdNameMixin {
 
                 callFallback { send() }
 
-                this@Lolisuki.scope
+                this@LolisukiExtension.scope
             }
         }
 
@@ -91,8 +89,8 @@ class Lolisuki : RouteExtension, PluginIdNameMixin {
                     @Tool
                     @LLMDescription("回复消息，并发送一张涩图")
                     suspend fun sendSexImage(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
-                        val resource = getImage(meta)
-                        val group = meta.getGroup()
+                        val resource = getImage(MetaToolSet.Companion.meta)
+                        val group = MetaToolSet.Companion.meta.getGroup()
                         resource?.use {
                             for (sentence in sentences) {
                                 group.sendMessage(sentence)

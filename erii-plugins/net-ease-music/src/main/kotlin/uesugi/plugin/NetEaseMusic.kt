@@ -1,4 +1,4 @@
-package music
+package uesugi.plugin
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
@@ -26,8 +26,11 @@ import uesugi.spi.EmptyConfig.plus
 /**
  * 网易云音乐插件
  */
+@PluginDefinition("net-ease-music")
+class NetEaseMusic : AgentPlugin()
+
 @Extension
-class NetEaseMusic : RouteExtension, PluginIdNameMixin {
+class NetEaseMusicExtension : RouteExtension, PluginIdNameMixin {
 
     private val log = logger()
 
