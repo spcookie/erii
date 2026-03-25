@@ -1,4 +1,4 @@
-package message
+package uesugi.plugin
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
@@ -12,9 +12,11 @@ import net.mamoe.mirai.message.data.Face
 import org.pf4j.Extension
 import uesugi.spi.*
 
+@PluginDefinition("qq-face")
+class QQFace : AgentPlugin()
 
 @Extension
-class QQFace : PassiveExtension {
+class QQFaceExtension : PassiveExtension {
 
     companion object {
         val log = KotlinLogging.logger {}
@@ -41,7 +43,7 @@ class QQFace : PassiveExtension {
                         query: String
                     ): String {
                         ensureFace()
-                        return if (sendFace(MetaToolSet.meta, query)) {
+                        return if (sendFace(MetaToolSet.Companion.meta, query)) {
                             "表情发送成功"
                         } else {
                             "没有该表情，表情发送失败"
@@ -61,7 +63,7 @@ class QQFace : PassiveExtension {
 
                         // 读取 face_config.json
                         val inputStream = try {
-                            config.read("face_config.json")
+                            config.readResource("face_config.json")
                         } catch (e: Exception) {
                             throw IllegalStateException("face_config.json not found in resources", e)
                         }

@@ -2,8 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
-group = "uesugi.plugin"
-version = "0.0.1"
+val pluginsDir: Directory = rootProject.layout.projectDirectory.dir("plugins")
 
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
@@ -28,8 +27,6 @@ subprojects {
         compileOnly("io.arrow-kt:arrow-core:2.0.0")
         compileOnly("io.github.oshai:kotlin-logging-jvm:7.0.13")
     }
-
-    val pluginsDir = rootProject.layout.projectDirectory.dir("plugins")
 
     val plugin by tasks.registering(Zip::class) {
         archiveBaseName.set(project.name)
@@ -83,4 +80,8 @@ tasks.register<Copy>("assemblePlugins") {
 
 tasks.named("build") {
     dependsOn("assemblePlugins")
+}
+
+tasks.named<Delete>("clean") {
+    delete(pluginsDir.asFile)
 }

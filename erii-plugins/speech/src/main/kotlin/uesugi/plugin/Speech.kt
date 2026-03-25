@@ -1,4 +1,4 @@
-package speech
+package uesugi.plugin
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
@@ -16,10 +16,7 @@ import org.pf4j.Extension
 import uesugi.common.ConfigHolder
 import uesugi.spi.*
 
-@PluginDefinition(
-    pluginId = "speech",
-    pluginClass = "speech.Speech"
-)
+@PluginDefinition("speech")
 class Speech : AgentPlugin()
 
 @Extension

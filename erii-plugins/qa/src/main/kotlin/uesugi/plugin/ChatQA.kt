@@ -1,4 +1,4 @@
-package message
+package uesugi.plugin
 
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
@@ -13,7 +13,6 @@ import ai.koog.agents.core.environment.result
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.asTools
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.filterTextOnly
 import ai.koog.prompt.streaming.toMessageResponses
@@ -23,17 +22,16 @@ import kotlinx.serialization.json.jsonNull
 import net.mamoe.mirai.contact.Group
 import org.pf4j.Extension
 import uesugi.common.LLMModelsChoice
-import uesugi.spi.PluginContext
-import uesugi.spi.PluginIdNameMixin
-import uesugi.spi.RouteExtension
 import uesugi.common.calcHumanTypingDelay
 import uesugi.core.component.WebSearchTool
-import uesugi.spi.getGroup
-import uesugi.spi.getLatestHistory
+import uesugi.spi.*
 import kotlin.time.Duration.Companion.days
 
+@PluginDefinition("chat-qa")
+class ChatQA : AgentPlugin()
+
 @Extension
-class ChatQA : RouteExtension, PluginIdNameMixin {
+class ChatQAExtension : RouteExtension, PluginIdNameMixin {
 
     override fun onLoad(context: PluginContext) {
         fun toolValid(ret: ReceivedToolResult, require: Boolean): Boolean {

@@ -228,31 +228,24 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
 
 internal class ConfigImpl(val plugin: AgentExtension) : PluginConfig {
 
-    override suspend fun read(path: String): InputStream {
+    override suspend fun readResource(path: String): InputStream {
         return withContext(Dispatchers.IO) {
             val path = Paths.get(path)
-            val normalize = Paths.get("/plugin")
-                .resolve(Paths.get(plugin::class.simpleName!!))
+            val normalize = Paths.get(plugin::class.simpleName!!)
                 .resolve(path)
                 .normalize()
                 .toString()
             plugin.javaClass
                 .getResourceAsStream(normalize)
-                ?: error("Config not found: $normalize")
+                ?: error("Resource not found: $normalize")
         }
     }
 
     /**
      * 获取插件的 Typesafe Config 对象
-     * 支持从以下位置读取配置：
-     * 1. -Dplugin.{PluginName}.config 参数指定的文件
-     * 2. -Dconfig.plugin.dir 参数指定的目录下的 {PluginName}.conf 文件
-     * 3. classpath 中的 /plugin/{PluginName}.conf 文件
-     * 4. 主配置文件 application.conf 中的 plugins.{PluginName} 部分
      */
     override fun getPluginConfig(): Config {
-        val pluginName = plugin::class.simpleName ?: error("Plugin name not found")
-        return ConfigHolder.getPluginConfig(plugin.javaClass, pluginName)
+        return ConfigHolder.getPluginConfig(plugin.javaClass, plugin.name)
     }
 
 }
@@ -416,7 +409,7 @@ class PluginContextImpl(
 }
 
 @AutoService(AgentSender::class)
-class AgentSenderImpl: AgentSender {
+class AgentSenderImpl : AgentSender {
     override fun sendAgent(
         botId: String,
         groupId: String,
@@ -428,7 +421,7 @@ class AgentSenderImpl: AgentSender {
         botId: String,
         groupId: String,
         input: String,
-        config: SendAgentConfig ,
+        config: SendAgentConfig,
         dsl: SendAgentStateDsl?
     ) {
         val holder = mutableMapOf<String, Any>()
@@ -506,7 +499,8 @@ class AgentSenderImpl: AgentSender {
 
         if (state != null) {
             val job = EventBus.subscribeAsync<AgentToolCallEvent>(state.scope) { event ->
-                val toolCallEvent = event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
+                val toolCallEvent =
+                    event.takeIf { event.botId == botId && event.groupId == groupId && event.echo == echo }
                 if (toolCallEvent != null) {
                     when (toolCallEvent) {
                         is AgentToolCallStartEvent -> state.callToolStart(

@@ -4,7 +4,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValueFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.server.config.tryGetString
+import io.ktor.server.config.*
 import java.io.File
 
 /**
@@ -243,8 +243,8 @@ object ConfigHolder {
             }
         }
 
-        // 3. 从 classpath 读取 resources/plugin/{PluginName}.conf
-        val resourcePath = "/plugin/$pluginName.conf"
+        // 3. 从 classpath 读取 resources/plugin.conf
+        val resourcePath = "plugin.conf"
         val resourceAsStream = pluginClass.getResourceAsStream(resourcePath)
         if (resourceAsStream != null) {
             log.info { "Loading config for $pluginName from classpath: $resourcePath" }

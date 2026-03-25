@@ -245,15 +245,8 @@ interface Vector : AutoCloseable {
  * 插件配置接口，用于读取插件配置文件
  */
 interface PluginConfig {
-    suspend fun read(path: String): InputStream
+    suspend fun readResource(path: String): InputStream
 
-    /**
-     * 获取插件的 Typesafe Config 对象
-     * 支持从以下位置读取配置：
-     * 1. -Dplugin.{PluginName}.config 参数指定的文件
-     * 2. -Dconfig.plugin.dir 参数指定的目录下的 {PluginName}.conf 文件
-     * 3. classpath 中的 /{PluginName}.conf 文件
-     */
     fun getPluginConfig(): Config
 }
 
