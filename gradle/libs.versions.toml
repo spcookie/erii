@@ -1,13 +1,13 @@
 [versions]
 overflow = "1.0.8"
-exposed = "1.0.0-rc-3"
+exposed = "1.1.1"
 hikari = '4.0.3'
 h2 = "2.3.232"
 koin = "4.1.2-Beta1"
 kotlin = "2.2.21"
 kotlinx-coroutines = "1.9.0"
 ktor = "3.3.2"
-koog = "0.6.3"
+koog = "0.7.2"
 jobrunr = '8.3.1'
 logback = "1.4.14"
 caffeine = "3.1.8"
