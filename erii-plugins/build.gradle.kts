@@ -35,9 +35,13 @@ subprojects {
         archiveBaseName.set(project.name)
         archiveExtension.set("zip")
 
-        from(sourceSets.main.get().resources.srcDirs) {
-            include("plugin.properties")
-        }
+        from(
+            sourceSets.main.map {
+                it.output.asFileTree.matching {
+                    include("plugin.properties")
+                }
+            }
+        )
 
         into("classes") {
             from(
@@ -45,13 +49,25 @@ subprojects {
                     .flatMap { it.archiveFile }
                     .map { zipTree(it) }
             ) {
-                exclude("**/plugin.properties")
+                exclude("plugin.properties")
             }
         }
 
-        // 依赖
         into("lib") {
-            from(configurations.runtimeClasspath)
+            from(
+                configurations.runtimeClasspath.get()
+                    .filterNot { file ->
+                        val dep = configurations.runtimeClasspath.get()
+                            .resolvedConfiguration
+                            .resolvedArtifacts
+                            .find { it.file == file }
+                        dep?.moduleVersion?.id?.group in setOf(
+                            "org.jetbrains.kotlin",
+                            "org.jetbrains.kotlinx",
+                            "org.jetbrains"
+                        )
+                    }
+            )
         }
     }
 
