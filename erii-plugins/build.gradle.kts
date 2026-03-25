@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
-val pluginsDir: Directory = rootProject.layout.projectDirectory.dir("plugins")
+val pluginsDir: Provider<Directory> = project.layout.buildDirectory.dir("plugins")
 
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
@@ -80,8 +80,4 @@ tasks.register<Copy>("assemblePlugins") {
 
 tasks.named("build") {
     dependsOn("assemblePlugins")
-}
-
-tasks.named<Delete>("clean") {
-    delete(pluginsDir.asFile)
 }
