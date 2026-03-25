@@ -7,6 +7,7 @@ import org.koin.core.qualifier.named
 import org.pf4j.Extension
 import uesugi.common.ref
 import uesugi.spi.*
+import uesugi.toolkit.WebScreenshotTaker
 
 @Extension(points = [AgentExtension::class])
 class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty>, PluginIdNameMixin {

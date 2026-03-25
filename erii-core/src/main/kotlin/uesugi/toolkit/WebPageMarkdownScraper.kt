@@ -2,7 +2,6 @@ package uesugi.toolkit
 
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.options.WaitUntilState
 import com.vladsch.flexmark.ext.tables.TablesExtension
 import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter
@@ -10,9 +9,7 @@ import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import uesugi.common.ConfigHolder
 import uesugi.common.logger
-import java.util.concurrent.ConcurrentHashMap
 
 class WebPageMarkdownScraper : AutoCloseable {
 
@@ -34,34 +31,8 @@ class WebPageMarkdownScraper : AutoCloseable {
         }
     }
 
-
-    // 内部类：持有每个线程独立的浏览器实例
-    private class BrowserSession : AutoCloseable {
-        val playwright: Playwright = Playwright.create()
-        val browser: Browser = playwright.chromium().connect(ConfigHolder.getPlaywrightHost())
-
-        override fun close() {
-            try {
-                browser.close()
-            } catch (_: Exception) {
-            }
-            try {
-                playwright.close()
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    // 使用 ThreadLocal 确保每个线程获取到自己的 Session
-    private val threadLocalSession = ThreadLocal.withInitial {
-        val session = BrowserSession()
-        // 注册到全局集合中，以便 scraper.close() 时能关闭所有线程的浏览器
-        activeSessions.add(session)
-        session
-    }
-
-    // 用于记录所有活跃的 session，以便统一关闭
-    private val activeSessions = ConcurrentHashMap.newKeySet<BrowserSession>()
+    // 使用 BrowserSessionManager 管理线程本地的浏览器会话
+    private val sessionManager = BrowserSessionManager()
 
     private val readabilityJs: String by lazy {
         this::class.java.getResource("/js/readability.js")?.readText()
@@ -78,7 +49,7 @@ class WebPageMarkdownScraper : AutoCloseable {
         log.info("Scraping $url")
 
         // 1. 获取当前线程绑定的浏览器会话
-        val session = threadLocalSession.get()
+        val session = sessionManager.getSession()
 
         // 2. 在当前线程的浏览器中创建上下文
         val context = session.browser.newContext(
@@ -197,10 +168,7 @@ class WebPageMarkdownScraper : AutoCloseable {
      * 关闭资源时，遍历所有线程创建的 BrowserSession 并关闭
      */
     override fun close() {
-        activeSessions.forEach { session ->
-            session.close()
-        }
-        activeSessions.clear()
+        sessionManager.close()
     }
 }
 

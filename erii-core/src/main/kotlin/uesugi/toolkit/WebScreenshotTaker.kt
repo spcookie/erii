@@ -1,14 +1,11 @@
-package uesugi.core.plugin.buildin.status
+package uesugi.toolkit
 
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
-import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.options.ScreenshotType
 import com.microsoft.playwright.options.WaitUntilState
-import uesugi.common.ConfigHolder
 import uesugi.common.logger
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.encoding.Base64
 
 class WebScreenshotTaker : AutoCloseable {
@@ -17,30 +14,7 @@ class WebScreenshotTaker : AutoCloseable {
         private val log = logger()
     }
 
-    // --- 资源隔离模式 (同 Scraper，确保并发安全) ---
-    private class BrowserSession : AutoCloseable {
-        val playwright: Playwright = Playwright.create()
-        val browser: Browser = playwright.chromium().connect(ConfigHolder.getPlaywrightHost())
-
-        override fun close() {
-            try {
-                browser.close()
-            } catch (_: Exception) {
-            }
-            try {
-                playwright.close()
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    private val threadLocalSession = ThreadLocal.withInitial {
-        val session = BrowserSession()
-        activeSessions.add(session)
-        session
-    }
-
-    private val activeSessions = ConcurrentHashMap.newKeySet<BrowserSession>()
+    private val sessionManager = BrowserSessionManager()
 
     /**
      * 核心方法：URL -> 图片字节数组
@@ -61,7 +35,7 @@ class WebScreenshotTaker : AutoCloseable {
         username: String? = null,
         password: String? = null,
     ): ByteArray {
-        val session = threadLocalSession.get()
+        val session = sessionManager.getSession()
 
         // 创建上下文，设置视口
         // 注意：全屏截图只需定宽，高度设为 0 或任意值均可，Playwright 会自动扩展
@@ -76,7 +50,7 @@ class WebScreenshotTaker : AutoCloseable {
                 // 截图需要图片和CSS，但不需要媒体和字体
                 var token: String? = null
                 if (username != null && password != null) {
-                    token = Base64.encode("$username:$password".toByteArray())
+                    token = Base64.Default.encode("$username:$password".toByteArray())
                 }
                 page.route("**/*") { route ->
                     val headers = HashMap(route.request().headers())
@@ -117,7 +91,7 @@ class WebScreenshotTaker : AutoCloseable {
                             if(totalHeight >= scrollHeight){
                                 clearInterval(timer);
                                 // 滚到底后再滚回顶部，避免有些 sticky 元素挡住内容
-                                window.scrollTo(0, 0); 
+                                window.scrollTo(0, 0);
                                 resolve();
                             }
                         }, 50); // 每 50ms 滚一次
@@ -149,7 +123,6 @@ class WebScreenshotTaker : AutoCloseable {
     }
 
     override fun close() {
-        activeSessions.forEach { it.close() }
-        activeSessions.clear()
+        sessionManager.close()
     }
 }

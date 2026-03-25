@@ -26,8 +26,8 @@ import uesugi.core.state.memory.MemoryJob
 import uesugi.core.state.memory.memoryModule
 import uesugi.core.state.volition.VolitionJob
 import uesugi.core.state.volition.volitionModule
-import uesugi.core.plugin.buildin.status.WebScreenshotTaker
 import uesugi.toolkit.WebPageMarkdownScraper
+import uesugi.toolkit.WebScreenshotTaker
 import javax.sql.DataSource
 
 fun Application.warmUp() {
