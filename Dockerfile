@@ -4,7 +4,8 @@ ENV TZ=Asia/Shanghai
 ENV JAVA_OPTS=""
 
 WORKDIR /erii
-COPY build/install/erii .
+COPY erii-core/build/install/erii-core .
+COPY erii-plugins/build/plugins ./plugins
 RUN chmod +x /erii/bin/erii
 COPY fonts/*.ttc /usr/share/fonts/truetype/custom/
 RUN fc-cache -f -v
@@ -13,6 +14,5 @@ VOLUME /erii/store
 
 EXPOSE 8080
 EXPOSE 8082
-EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "exec /erii/bin/erii"]
+ENTRYPOINT ["sh", "-c", "exec ./bin/erii"]
