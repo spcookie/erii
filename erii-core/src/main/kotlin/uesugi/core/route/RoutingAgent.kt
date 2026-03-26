@@ -12,12 +12,14 @@ import uesugi.core.agent.buildSummaryPrompt
 import uesugi.core.message.history.HistoryService
 import uesugi.core.state.memory.MemoryService
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.ExperimentalTime
 
 
 object RoutingAgent {
 
     private val log = logger()
 
+    @OptIn(ExperimentalTime::class)
     suspend fun route(botId: String, groupId: String, message: String): LLMRouteRule {
         val promptExecutor by ref<PromptExecutor>()
         val historyService by ref<HistoryService>()

@@ -46,21 +46,21 @@ class PluginDefinitionProcessor : AbstractProcessor() {
             }
             val fullName: String = (element as TypeElement).qualifiedName.toString()
             val pluginProperties = buildString {
-                appendLine("pluginClass=$fullName")
-                appendLine("pluginId=${annotation.pluginId}")
-                appendLine("version=${annotation.version}")
-                appendLine("requires=${annotation.requires}")
+                appendLine("plugin.class=$fullName")
+                appendLine("plugin.id=${annotation.pluginId}")
+                appendLine("plugin.version=${annotation.version}")
+                appendLine("plugin.requires=${annotation.requires}")
                 if (annotation.dependencies.isNotEmpty()) {
-                    appendLine("dependencies=${annotation.dependencies}")
+                    appendLine("plugin.dependencies=${annotation.dependencies}")
                 }
                 if (annotation.description.isNotEmpty()) {
-                    appendLine("description=${annotation.description}")
+                    appendLine("plugin.description=${annotation.description}")
                 }
                 if (annotation.provider.isNotEmpty()) {
-                    appendLine("provider=${annotation.provider}")
+                    appendLine("plugin.provider=${annotation.provider}")
                 }
                 if (annotation.license.isNotEmpty()) {
-                    appendLine("license=${annotation.license}")
+                    appendLine("plugin.license=${annotation.license}")
                 }
             }
 

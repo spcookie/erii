@@ -1,7 +1,7 @@
 package uesugi.common
 
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
+import ai.koog.serialization.JSONElement
+import ai.koog.serialization.JSONObject
 
 
 sealed interface AgentToolCallEvent {
@@ -9,7 +9,7 @@ sealed interface AgentToolCallEvent {
     val groupId: String
     val echo: String
     val toolName: String
-    val toolArgs: JsonObject
+    val toolArgs: JSONObject
 }
 
 data class AgentToolCallStartEvent(
@@ -17,7 +17,7 @@ data class AgentToolCallStartEvent(
     override val groupId: String,
     override val echo: String,
     override val toolName: String,
-    override val toolArgs: JsonObject
+    override val toolArgs: JSONObject
 ) : AgentToolCallEvent
 
 data class AgentToolCallCompleteEvent(
@@ -25,8 +25,8 @@ data class AgentToolCallCompleteEvent(
     override val groupId: String,
     override val echo: String,
     override val toolName: String,
-    override val toolArgs: JsonObject,
-    val toolResult: JsonElement?,
+    override val toolArgs: JSONObject,
+    val toolResult: JSONElement?,
     val toolError: String?
 ) : AgentToolCallEvent
 
