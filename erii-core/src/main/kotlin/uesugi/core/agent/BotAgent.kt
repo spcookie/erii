@@ -2,12 +2,10 @@ package uesugi.core.agent
 
 import ai.koog.agents.core.agent.AIAgentService
 import ai.koog.agents.core.agent.config.AIAgentConfig
-import ai.koog.agents.core.dsl.builder.forwardTo
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.ToolSet
-import ai.koog.agents.core.tools.reflect.asTools
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.executor.model.PromptExecutor
 import kotlinx.coroutines.*
@@ -21,6 +19,7 @@ import uesugi.BotManage
 import uesugi.common.*
 import uesugi.core.component.WebSearchTool
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.ExperimentalTime
 
 
 object BotAgent {
@@ -117,7 +116,7 @@ object BotAgent {
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
     private suspend fun processChannel(key: BotGroupKey, channel: Channel<ProactiveSpeakEvent?>) {
         for (event in channel) {
             if (event == null) continue

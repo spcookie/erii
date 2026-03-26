@@ -22,6 +22,7 @@ import uesugi.common.PSFeature
 import uesugi.common.logger
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
+import kotlin.time.ExperimentalTime
 
 /**
  * 网易云音乐插件
@@ -108,6 +109,7 @@ class NetEaseMusicExtension : RouteExtension, PluginIdNameMixin {
     /**
      * 使用 LLM 从输入中提取搜索关键词
      */
+    @OptIn(ExperimentalTime::class)
     private suspend fun extractKeyword(input: String, llm: PromptExecutor): String {
         return try {
             val responses = llm.execute(

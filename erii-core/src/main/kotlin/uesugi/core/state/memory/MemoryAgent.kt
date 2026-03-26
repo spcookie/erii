@@ -3,7 +3,7 @@ package uesugi.core.state.memory
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
-import ai.koog.agents.core.dsl.builder.forwardTo
+import ai.koog.agents.core.dsl.builder.node
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.nodeExecuteTool
 import ai.koog.agents.core.dsl.extension.nodeLLMSendToolResult
@@ -13,12 +13,11 @@ import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
-import ai.koog.agents.core.tools.reflect.asTools
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.executor.model.StructureFixingParser
+import ai.koog.prompt.executor.model.executeStructured
 import ai.koog.prompt.message.Message
-import ai.koog.prompt.structure.StructureFixingParser
-import ai.koog.prompt.structure.executeStructured
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
@@ -29,6 +28,7 @@ import uesugi.common.DateTimeFormat
 import uesugi.common.HistoryRecord
 import uesugi.common.LLMModelsChoice
 import uesugi.common.logger
+import kotlin.time.ExperimentalTime
 
 /**
  * 记忆代理 - 负责从历史消息中提取和生成各类记忆数据
@@ -130,6 +130,7 @@ class MemoryAgent(
      * @param messages 用户的历史消息列表
      * @return 用户画像分析结果
      */
+    @OptIn(ExperimentalTime::class)
     suspend fun analyzeUserProfile(
         messages: List<MemoryMessage>,
         userProfileEntity: UserProfileRecord?
@@ -221,6 +222,7 @@ class MemoryAgent(
      * @param facts 当前已存在的相关事实（输入给 LLM 做参考）
      * @return 事实记忆操作列表
      */
+    @OptIn(ExperimentalTime::class)
     suspend fun extractFacts(messages: List<MemoryMessage>, facts: List<FactsAnalysisInput>): List<FactsAnalysis> {
         log.debug("开始提取事实记忆, 消息数=${messages.size}, 现有事实数=${facts.size}")
 
@@ -341,6 +343,7 @@ class MemoryAgent(
      * @param groupId 范围ID(群ID或用户ID)
      * @return 摘要分析结果
      */
+    @OptIn(ExperimentalTime::class)
     suspend fun generateSummary(messages: List<MemoryMessage>, groupId: String): SummaryAnalysis {
         log.debug("开始生成对话摘要, groupId=$groupId, 消息数=${messages.size}")
 
@@ -628,6 +631,7 @@ class MemoryAgent(
      * 整理群记忆 - 真正的 ReAct Agent
      * LLM 自主分析、决定调用工具、执行结果返回、循环直到完成
      */
+    @OptIn(ExperimentalTime::class)
     suspend fun organize(
         botMark: String,
         groupId: String,

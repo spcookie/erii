@@ -2,12 +2,13 @@ package uesugi.core.state.meme
 
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
-import ai.koog.prompt.structure.StructureFixingParser
-import ai.koog.prompt.structure.executeStructured
+import ai.koog.prompt.executor.model.StructureFixingParser
+import ai.koog.prompt.executor.model.executeStructured
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.common.LLMModelsChoice
 import uesugi.common.logger
+import kotlin.time.ExperimentalTime
 
 /**
  * 表情包分析 Agent
@@ -33,6 +34,7 @@ class MemeAgent {
      * @param contexts 表情包在群聊中出现的上下文列表
      * @return 表情包分析结果
      */
+    @OptIn(ExperimentalTime::class)
     suspend fun analyzeMeme(contexts: List<String>): MemoAnalysis? {
         if (contexts.isEmpty()) {
             log.debug("上下文为空，无法分析表情包")
@@ -99,6 +101,7 @@ class MemeAgent {
      * @param userQuery 用户输入的搜索文本（如"搞笑的表情包"）
      * @return 转换后的描述关键词
      */
+    @OptIn(ExperimentalTime::class)
     suspend fun transformSearchQuery(userQuery: String): String? {
         if (userQuery.isBlank()) {
             return null
