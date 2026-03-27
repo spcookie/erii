@@ -243,7 +243,7 @@ internal class ConfigImpl(val plugin: AgentExtension) : PluginConfig {
     /**
      * 获取插件的 Typesafe Config 对象
      */
-    override fun getPluginConfig(): Config {
+    override fun invoke(): Config {
         return ConfigHolder.getPluginConfig(plugin.javaClass, plugin.name)
     }
 

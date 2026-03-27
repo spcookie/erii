@@ -247,8 +247,7 @@ interface Vector : AutoCloseable {
  */
 interface PluginConfig {
     suspend fun readResource(path: String): InputStream
-
-    fun getPluginConfig(): Config
+    operator fun invoke(): Config
 }
 
 interface Meta {
@@ -425,16 +424,34 @@ enum class WebSearch : SendAgentConfig.Elem {
 
 }
 
-class ToolSetBuilder(
-    val value: ((ChatToolSet) -> List<ToolSet>)
-) : SendAgentConfig.Elem {
+class ToolSetBuilder private constructor() : SendAgentConfig.Elem {
 
+    private val providers = mutableListOf<(ChatToolSet) -> ToolSet>()
 
-    companion object Key : SendAgentConfig.Key<ToolSetBuilder>
+    val value: (ChatToolSet) -> List<ToolSet> = { chat ->
+        providers.map { it(chat) }
+    }
+
+    fun tool(tool: ToolSet) {
+        providers += { tool }
+    }
+
+    fun tool(block: (ChatToolSet) -> ToolSet) {
+        providers += block
+    }
+
+    companion object Key : SendAgentConfig.Key<ToolSetBuilder> {
+        operator fun invoke(builder: ToolSetBuilder.() -> Unit) =
+            ToolSetBuilder().apply(builder)
+
+        operator fun invoke(tool: ToolSet) =
+            ToolSetBuilder().apply {
+                tool(tool)
+            }
+    }
 
     override val key: SendAgentConfig.Key<*>
         get() = ToolSetBuilder
-
 }
 
 class Feature(val value: ProactiveSpeakFeature) : SendAgentConfig.Elem {
