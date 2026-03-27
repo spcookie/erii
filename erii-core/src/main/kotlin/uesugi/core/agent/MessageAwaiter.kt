@@ -15,6 +15,7 @@ import uesugi.core.plugin.MetaImpl
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.spi.MetaToolSet.Companion.meta
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -139,6 +140,7 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
                     log.info { "MessageAwaiter coroutine exception: $error" }
                 }
 
+    @OptIn(ExperimentalTime::class)
     private suspend fun isRelevanceContinue(histories: List<HistoryRecord>, currentBotId: String): Boolean {
         val promptExecutor by ref<PromptExecutor>()
 

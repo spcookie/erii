@@ -2,8 +2,8 @@ package uesugi.core.state.emotion
 
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
-import ai.koog.prompt.structure.StructureFixingParser
-import ai.koog.prompt.structure.executeStructured
+import ai.koog.prompt.executor.model.StructureFixingParser
+import ai.koog.prompt.executor.model.executeStructured
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import org.koin.core.context.GlobalContext
@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 import uesugi.common.DateTimeFormat
 import uesugi.common.LLMModelsChoice
 import uesugi.common.PadScale12
+import kotlin.time.ExperimentalTime
 
 /**
  * 群聊消息数据模型
@@ -49,6 +50,7 @@ data class GMessage(
  * @param history 群聊历史消息列表
  * @return Prompt 对象
  */
+@OptIn(ExperimentalTime::class)
 fun buildPrompt(history: List<GMessage>) = prompt(
     "提取群聊消息的情感 PAD 数值"
 ) {

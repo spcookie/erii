@@ -3,7 +3,7 @@ package uesugi.plugin
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.structure.executeStructured
+import ai.koog.prompt.executor.model.executeStructured
 import com.fasterxml.jackson.databind.JsonNode
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -21,6 +21,7 @@ import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
 import java.net.URL
 import kotlin.time.Duration.Companion.days
+import kotlin.time.ExperimentalTime
 
 @PluginDefinition("lolisuki")
 class Lolisuki : AgentPlugin()
@@ -104,6 +105,7 @@ class LolisukiExtension : RouteExtension, PluginIdNameMixin {
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun PluginContext.getImage(meta: Meta): ExternalResource? {
         val history = database.getLatestHistory(
             meta.botId,

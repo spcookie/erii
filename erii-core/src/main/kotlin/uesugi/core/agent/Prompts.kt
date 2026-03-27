@@ -18,6 +18,7 @@ import uesugi.core.state.memory.UserProfileEntity
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 internal suspend fun buildPrompt(context: Context): Prompt {
     val transient = context.toTransient()
     val constraints = buildConstraint(context, transient)

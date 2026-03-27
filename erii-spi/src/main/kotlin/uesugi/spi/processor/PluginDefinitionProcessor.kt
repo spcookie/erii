@@ -65,23 +65,23 @@ class PluginDefinitionProcessor : AbstractProcessor() {
             }
 
             val pluginProperties = buildString {
-                appendLine("pluginClass=$fullName")
-                appendLine("pluginId=$pluginId")
-                appendLine("version=$version")
+                appendLine("plugin.class=$fullName")
+                appendLine("plugin.id=$pluginId")
+                appendLine("plugin.version=$version")
                 if (annotation.requires.isNotEmpty()) {
-                    appendLine("requires=${annotation.requires}")
+                    appendLine("plugin.requires=${annotation.requires}")
                 }
                 if (annotation.dependencies.isNotEmpty()) {
-                    appendLine("dependencies=${annotation.dependencies}")
+                    appendLine("plugin.dependencies=${annotation.dependencies}")
                 }
                 if (annotation.description.isNotEmpty()) {
-                    appendLine("description=${annotation.description}")
+                    appendLine("plugin.description=${annotation.description}")
                 }
                 if (annotation.provider.isNotEmpty()) {
-                    appendLine("provider=${annotation.provider}")
+                    appendLine("plugin.provider=${annotation.provider}")
                 }
                 if (annotation.license.isNotEmpty()) {
-                    appendLine("license=${annotation.license}")
+                    appendLine("plugin.license=${annotation.license}")
                 }
             }
 
