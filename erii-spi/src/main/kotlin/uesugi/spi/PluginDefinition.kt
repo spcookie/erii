@@ -6,7 +6,7 @@ package uesugi.spi
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
 annotation class PluginDefinition(
-    val pluginId: String,
+    val pluginId: String = "",
     val version: String = "",
     val requires: String = "",
     val dependencies: String = "",

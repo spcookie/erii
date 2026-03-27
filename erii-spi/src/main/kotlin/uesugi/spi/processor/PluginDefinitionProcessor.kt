@@ -45,11 +45,32 @@ class PluginDefinitionProcessor : AbstractProcessor() {
                 return false
             }
             val fullName: String = (element as TypeElement).qualifiedName.toString()
+
+            val pluginId = annotation.pluginId.ifEmpty { processingEnv.options["plugin.id"] }
+
+            if (pluginId == null) {
+                processingEnv.messager.printMessage(
+                    Diagnostic.Kind.ERROR,
+                    "@PluginDefinition pluginId is missing"
+                )
+            }
+
+            val version = annotation.version.ifEmpty { processingEnv.options["plugin.version"] }
+
+            if (version == null) {
+                processingEnv.messager.printMessage(
+                    Diagnostic.Kind.ERROR,
+                    "@PluginDefinition version is missing"
+                )
+            }
+
             val pluginProperties = buildString {
                 appendLine("pluginClass=$fullName")
-                appendLine("pluginId=${annotation.pluginId}")
-                appendLine("version=${annotation.version}")
-                appendLine("requires=${annotation.requires}")
+                appendLine("pluginId=$pluginId")
+                appendLine("version=$version")
+                if (annotation.requires.isNotEmpty()) {
+                    appendLine("requires=${annotation.requires}")
+                }
                 if (annotation.dependencies.isNotEmpty()) {
                     appendLine("dependencies=${annotation.dependencies}")
                 }

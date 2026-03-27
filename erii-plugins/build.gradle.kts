@@ -1,11 +1,20 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.kapt)
 }
 
 val pluginsDir: Provider<Directory> = project.layout.buildDirectory.dir("plugins")
 
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "org.jetbrains.kotlin.kapt")
+
+    kapt {
+        arguments {
+            arg("plugin.id", project.name)
+            arg("plugin.version", project.version.toString())
+        }
+    }
 
     dependencies {
         compileOnly(project(":erii-common"))
