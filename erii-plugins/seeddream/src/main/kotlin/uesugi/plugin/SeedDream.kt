@@ -4,7 +4,7 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.structure.executeStructured
+import ai.koog.prompt.executor.model.executeStructured
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
@@ -30,6 +30,7 @@ import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
 import java.net.URL
 import kotlin.io.encoding.Base64
+import kotlin.time.ExperimentalTime
 
 @PluginDefinition("seed-dream")
 class SeedDream : AgentPlugin()
@@ -255,6 +256,7 @@ class SeedDreamExtension : RouteExtension, PluginIdNameMixin {
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun image(context: PluginContext, meta: Meta): Either<String, ExternalResource> {
         with(context) {
             val records = database.getHistory {

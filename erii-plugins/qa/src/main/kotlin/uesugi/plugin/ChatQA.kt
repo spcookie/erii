@@ -4,18 +4,18 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
 import ai.koog.agents.core.agent.session.AIAgentLLMWriteSession
-import ai.koog.agents.core.dsl.builder.forwardTo
+import ai.koog.agents.core.dsl.builder.node
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.onAssistantMessage
 import ai.koog.agents.core.dsl.extension.onToolCall
 import ai.koog.agents.core.environment.ReceivedToolResult
 import ai.koog.agents.core.environment.result
 import ai.koog.agents.core.tools.ToolRegistry
-import ai.koog.agents.core.tools.reflect.asTools
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.filterTextOnly
 import ai.koog.prompt.streaming.toMessageResponses
+import ai.koog.serialization.kotlinx.toKotlinxJsonElement
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.jsonNull
@@ -26,6 +26,7 @@ import uesugi.common.calcHumanTypingDelay
 import uesugi.core.component.WebSearchTool
 import uesugi.spi.*
 import kotlin.time.Duration.Companion.days
+import kotlin.time.ExperimentalTime
 
 @PluginDefinition("chat-qa")
 class ChatQA : AgentPlugin()
@@ -33,11 +34,12 @@ class ChatQA : AgentPlugin()
 @Extension
 class ChatQAExtension : RouteExtension, PluginIdNameMixin {
 
+    @OptIn(ExperimentalTime::class)
     override fun onLoad(context: PluginContext) {
         fun toolValid(ret: ReceivedToolResult, require: Boolean): Boolean {
             return try {
                 val result = ret.result ?: return require
-                result.jsonNull
+                result.toKotlinxJsonElement().jsonNull
                 require
             } catch (_: Exception) {
                 !require

@@ -2,12 +2,13 @@ package uesugi.core.state.evolution
 
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
-import ai.koog.prompt.structure.StructureFixingParser
-import ai.koog.prompt.structure.executeStructured
+import ai.koog.prompt.executor.model.StructureFixingParser
+import ai.koog.prompt.executor.model.executeStructured
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.common.LLMModelsChoice
 import uesugi.common.logger
+import kotlin.time.ExperimentalTime
 
 /**
  * 提炼层服务 - 梗与黑话提取引擎 (The Extractor)
@@ -35,6 +36,7 @@ class ExtractionAgent {
      * @param messages 群聊消息列表
      * @return 提取到的流行语列表，通常 3-5 个
      */
+    @OptIn(ExperimentalTime::class)
     suspend fun extractSlangWords(messages: List<String>): List<SlangWord> {
         if (messages.isEmpty()) {
             log.debug("消息列表为空，无法提取流行语")

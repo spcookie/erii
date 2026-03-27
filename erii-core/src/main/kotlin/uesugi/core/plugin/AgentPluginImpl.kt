@@ -1,6 +1,7 @@
 package uesugi.core.plugin
 
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.serialization.JSONElement
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.google.auto.service.AutoService
@@ -13,8 +14,6 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.*
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import net.mamoe.mirai.utils.ConcurrentHashMap
 import okio.Path
 import okio.Path.Companion.toPath
@@ -431,20 +430,20 @@ class AgentSenderImpl : AgentSender {
             object : SendAgentState {
                 override val scope = scope
 
-                override suspend fun callToolStart(toolName: String, toolArgs: JsonObject) {
-                    (holder["callToolStart"] as? suspend (String, JsonObject) -> Unit)?.invoke(toolName, toolArgs)
+                override suspend fun callToolStart(toolName: String, toolArgs: JSONElement) {
+                    (holder["callToolStart"] as? suspend (String, JSONElement) -> Unit)?.invoke(toolName, toolArgs)
                 }
 
                 override suspend fun callToolCompletion(
                     toolName: String,
-                    toolArgs: JsonObject,
-                    toolResult: JsonElement?,
+                    toolArgs: JSONElement,
+                    toolResult: JSONElement?,
                     toolError: String?
                 ) {
                     (holder["callToolCompletion"] as? suspend (
                         String,
-                        JsonObject,
-                        JsonElement?,
+                        JSONElement,
+                        JSONElement?,
                         String?
                     ) -> Unit)?.invoke(
                         toolName,

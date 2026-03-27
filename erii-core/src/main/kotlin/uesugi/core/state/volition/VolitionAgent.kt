@@ -3,18 +3,15 @@ package uesugi.core.state.volition
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
-import ai.koog.prompt.structure.StructureFixingParser
-import ai.koog.prompt.structure.executeStructured
+import ai.koog.prompt.executor.model.StructureFixingParser
+import ai.koog.prompt.executor.model.executeStructured
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
-import uesugi.common.DateTimeFormat
-import uesugi.common.EmotionalTendencies
-import uesugi.common.JSON
-import uesugi.common.LLMModelsChoice
-import uesugi.common.logger
+import uesugi.common.*
+import kotlin.time.ExperimentalTime
 
 
 @Serializable
@@ -49,6 +46,7 @@ class VolitionAgent {
         private val log = logger()
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun analysis(
         messages: List<VolitionMessage>,
         botInterests: String,

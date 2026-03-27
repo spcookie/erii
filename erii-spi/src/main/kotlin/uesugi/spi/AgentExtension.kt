@@ -3,6 +3,7 @@ package uesugi.spi
 
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.serialization.JSONElement
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.main
@@ -287,15 +288,15 @@ interface SendAgentState {
     val scope: CoroutineScope
     suspend fun callToolStart(
         toolName: String,
-        toolArgs: JsonObject
+        toolArgs: JSONElement
     ) {
 
     }
 
     suspend fun callToolCompletion(
         toolName: String,
-        toolArgs: JsonObject,
-        toolResult: JsonElement?,
+        toolArgs: JSONElement,
+        toolResult: JSONElement?,
         toolError: String?
     ) {
     }

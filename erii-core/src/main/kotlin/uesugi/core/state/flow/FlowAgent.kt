@@ -3,8 +3,8 @@ package uesugi.core.state.flow
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
-import ai.koog.prompt.structure.StructureFixingParser
-import ai.koog.prompt.structure.executeStructured
+import ai.koog.prompt.executor.model.StructureFixingParser
+import ai.koog.prompt.executor.model.executeStructured
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
@@ -21,6 +21,7 @@ import uesugi.common.DateTimeFormat
 import uesugi.common.EventBus
 import uesugi.common.LLMModelsChoice
 import uesugi.common.logger
+import kotlin.time.ExperimentalTime
 
 enum class ChargeEventType {
     CoreInterest,
@@ -147,6 +148,7 @@ class FlowAgent {
         private val log = logger()
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun analysis(messages: List<FlowMessage>, botMark: String, groupId: String) {
         if (messages.isEmpty()) return
 
