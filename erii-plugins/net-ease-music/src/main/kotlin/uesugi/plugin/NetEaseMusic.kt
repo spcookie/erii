@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.server.config.*
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -36,11 +37,20 @@ class NetEaseMusicExtension : RouteExtension, PluginIdNameMixin {
     private val log = logger()
 
     companion object {
-        private const val MUSIC_API_BASE = "http://127.0.0.1:13000"
+        private lateinit var MUSIC_API_BASE: String
     }
 
     override fun onLoad(context: PluginContext) {
         log.info("Loading NetEase Music plugin...")
+
+        val requireApiBase = context.config()
+            .tryGetString("api-base")
+            ?.also { MUSIC_API_BASE = it }
+
+        if (requireApiBase == null) {
+            log.warn("api-base is required for NetEase Music plugin")
+            return
+        }
 
         // 处理音乐搜索请求
         context.chain { meta ->
@@ -63,41 +73,38 @@ class NetEaseMusicExtension : RouteExtension, PluginIdNameMixin {
                     musicCards
                 }
 
-                val flag = atomic(false)
+                val tool = object : MetaToolSet {
 
-                suspend fun send() {
-                    if (flag.compareAndSet(expect = false, update = true)) {
-                        val musicCards = deferred.await()
-                        for (cardResult in musicCards) {
-                            meta.getGroup()
-                                .sendMessage(
-                                    MusicShare(
-                                        MusicKind.QQMusic,
-                                        cardResult.title,
-                                        cardResult.summary,
-                                        cardResult.jumpUrl,
-                                        cardResult.pictureUrl,
-                                        cardResult.musicUrl,
-                                        cardResult.brief
+                    val flag = atomic(false)
+
+                    @Tool
+                    @LLMDescription("发送音乐卡片")
+                    suspend fun sendMusicCards() {
+                        if (flag.compareAndSet(expect = false, update = true)) {
+                            val musicCards = deferred.await()
+                            for (cardResult in musicCards) {
+                                meta.getGroup()
+                                    .sendMessage(
+                                        MusicShare(
+                                            MusicKind.QQMusic,
+                                            cardResult.title,
+                                            cardResult.summary,
+                                            cardResult.jumpUrl,
+                                            cardResult.pictureUrl,
+                                            cardResult.musicUrl,
+                                            cardResult.brief
+                                        )
                                     )
-                                )
+                            }
                         }
                     }
                 }
 
-                val toolSet = object : MetaToolSet {
-                    @Tool
-                    @LLMDescription("发送音乐卡片")
-                    suspend fun sendMusicCards() {
-                        send()
-                    }
-                }
-
                 meta.sendAgent(
-                    "用户要求你发送 $keyword，请使用工具发送音乐卡片",
-                    Feature(PSFeature.CHAT_URGENT) + ToolSetBuilder { listOf(toolSet) }
+                    "用户要求你发送音乐 $keyword，请使用工具发送音乐卡片",
+                    Feature(PSFeature.CHAT_URGENT) + ToolSetBuilder(tool)
                 ) {
-                    runCompletion { send() }
+                    runCompletion { tool.sendMusicCards() }
                     this@coroutineScope
                 }
             }

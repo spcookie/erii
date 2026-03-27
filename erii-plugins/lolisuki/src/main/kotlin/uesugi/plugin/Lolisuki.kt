@@ -64,14 +64,14 @@ class LolisukiExtension : RouteExtension, PluginIdNameMixin {
             meta.sendAgent(
                 input = "加入群聊天，你已经获取到了一张涩图，你需要调用工具发送一张涩图给群友。",
                 ToolSetBuilder {
-                    listOf(
+                    tool {
                         ImageTool(
                             image,
                             group,
                             it,
                             state
                         )
-                    )
+                    }
                 } + Feature(PSFeature.GRAB or PSFeature.FALLBACK)
             ) {
                 runCompletion { send() }

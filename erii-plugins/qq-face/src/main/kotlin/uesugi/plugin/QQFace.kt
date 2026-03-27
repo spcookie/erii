@@ -43,7 +43,7 @@ class QQFaceExtension : PassiveExtension {
                         query: String
                     ): String {
                         ensureFace()
-                        return if (sendFace(MetaToolSet.Companion.meta, query)) {
+                        return if (sendFace(MetaToolSet.meta, query)) {
                             "表情发送成功"
                         } else {
                             "没有该表情，表情发送失败"
