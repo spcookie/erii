@@ -8,11 +8,13 @@ import org.koin.ktor.ext.inject
 import uesugi.BotManage
 import uesugi.common.ENABLE_GROUPS
 import uesugi.common.PAD
+import uesugi.core.plugin.ExtensionRegister
 import uesugi.core.state.emotion.BehaviorProfile
 import uesugi.core.state.emotion.EmotionService
 import uesugi.core.state.evolution.EvolutionService
 import uesugi.core.state.flow.FlowGaugeManager
 import uesugi.core.state.flow.FlowMeterState
+import uesugi.core.state.meme.MemoService
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
 import uesugi.core.state.volition.VolitionGaugeManager
@@ -38,6 +40,21 @@ fun Routing.configureBotStatus() {
                 val volitionGaugeManager by inject<VolitionGaugeManager>()
                 val evolutionService by inject<EvolutionService>()
                 val memoryService by inject<MemoryService>()
+                val memoService by inject<MemoService>()
+
+                val allExtensions = ExtensionRegister.getAllExtensions()
+                val pluginStats = BotStatus.PluginStats(
+                    totalExtensions = allExtensions.size,
+                    cmdExtensions = ExtensionRegister.getCmdExtensions().size,
+                    routeExtensions = ExtensionRegister.getRouteExtensions().size,
+                    passiveExtensions = ExtensionRegister.getPassiveExtensions().size,
+                    plugins = ExtensionRegister.getAllPlugins().map { (pluginId, extensions) ->
+                        BotStatus.PluginInfo(
+                            id = pluginId,
+                            extensionCount = extensions.size
+                        )
+                    }
+                )
 
                 val botStatusByGroups = groups.map { groupId ->
                     val emoticon = BotManage.getBot(id).role.emoticon
@@ -79,6 +96,21 @@ fun Routing.configureBotStatus() {
                         )
                     }
 
+                    val allMemes = memoService.getAllMemos(id, groupId)
+                    val analyzedMemes = allMemes.filter { it.description != null }
+                    val memeSize = allMemes.size.toLong()
+                    val analyzedMemeSize = analyzedMemes.size.toLong()
+                    val memes = analyzedMemes.sortedByDescending { it.usageCount }.map {
+                        BotStatus.Meme(
+                            id = it.id!!,
+                            description = it.description,
+                            purpose = it.purpose,
+                            tags = it.tags?.split(",")?.map { t -> t.trim() } ?: emptyList(),
+                            seenCount = it.seenCount,
+                            usageCount = it.usageCount
+                        )
+                    }
+
                     BotStatus.ByGroup(
                         groupId = groupId,
                         behaviorProfile = behaviorProfile,
@@ -90,11 +122,15 @@ fun Routing.configureBotStatus() {
                         factSize = factSize,
                         userProfileSize = userProfileSize,
                         facts = facts,
-                        userProfiles = userProfiles
+                        userProfiles = userProfiles,
+                        memeSize = memeSize,
+                        analyzedMemeSize = analyzedMemeSize,
+                        memes = memes
                     )
                 }.toList()
 
-                call.respond(BotStatus(id, groups, botStatusByGroups))
+                val botName = roledBot.role.name
+                call.respond(BotStatus(id, botName, groups, botStatusByGroups, pluginStats))
             }
         }
 
@@ -117,8 +153,27 @@ fun Routing.configureBotStatus() {
 
 @Serializable
 data class BotStatus(
-    val id: String, val groups: List<String>, val status: List<ByGroup>
+    val id: String,
+    val name: String,
+    val groups: List<String>,
+    val status: List<ByGroup>,
+    val pluginStats: PluginStats
 ) {
+    @Serializable
+    data class PluginStats(
+        val totalExtensions: Int,
+        val cmdExtensions: Int,
+        val routeExtensions: Int,
+        val passiveExtensions: Int,
+        val plugins: List<PluginInfo>
+    )
+
+    @Serializable
+    data class PluginInfo(
+        val id: String,
+        val extensionCount: Int
+    )
+
     @Serializable
     data class ByGroup(
         val groupId: String,
@@ -132,6 +187,19 @@ data class BotStatus(
         val userProfileSize: Long,
         val facts: Facts,
         val userProfiles: List<UserProfile>,
+        val memeSize: Long,
+        val analyzedMemeSize: Long,
+        val memes: List<Meme>
+    )
+
+    @Serializable
+    data class Meme(
+        val id: Int,
+        val description: String?,
+        val purpose: String?,
+        val tags: List<String>,
+        val seenCount: Int,
+        val usageCount: Int
     )
 
     @Serializable
