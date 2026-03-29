@@ -21,7 +21,6 @@ object BotManage : IBotManage {
     private val log = logger()
 
     override fun registerBot(bot: Bot, role: BotRole) {
-        bot as Bot
         val botId = bot.id.toString()
         bots[botId] = RoledBot(bot, role)
         log.info("机器人已注册: botId=$botId")
