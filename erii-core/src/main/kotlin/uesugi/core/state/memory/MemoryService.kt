@@ -74,7 +74,7 @@ class MemoryService(
                     }
                 }
 
-                // 4.2 事实记忆提取（使用新的 organize 方法）
+                // 4.2 事实记忆提取
                 launch {
                     organizeFacts(botMark, groupId, messages)
                 }

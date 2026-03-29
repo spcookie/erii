@@ -61,10 +61,14 @@ class MemoryAgent(
      * 用户画像分析结果
      */
     @Serializable
+    @LLMDescription("用户画像分析结果")
     data class UserProfileAnalysis(
+        @property:LLMDescription("用户ID")
         val userId: String,
-        val profile: String,        // 用户性格、行为特征
-        val preferences: String,    // 兴趣偏好
+        @property:LLMDescription("用户性格、行为特征")
+        val profile: String,
+        @property:LLMDescription("兴趣偏好")
+        val preferences: String
     )
 
     /**
@@ -192,7 +196,8 @@ class MemoryAgent(
                         append("之前分析的用户画像信息: ${userProfileEntity.profile}")
                         append("之前分析的用户偏好信息: ${userProfileEntity.preferences}")
                     }
-                    append("历史消息:\n$msg")
+                    append("历史消息：")
+                    append(msg)
                     append("请分析该用户的画像和偏好。")
                     append("只输出该用户当前最新的画像和偏好。")
                 }

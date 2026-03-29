@@ -51,9 +51,12 @@ fun pluginModule() = module(createdAtStart = true) {
 
     val extensions = buildList {
         val builtinExtensions = pluginManager.getExtensions(BuiltinExtension::class.java)
+        builtinExtensions.forEach { ExtensionRegister.add(null, it) }
         val pluginExtensions = pluginManager.startedPlugins.flatMap { pluginWrapper ->
             runCatching {
-                pluginManager.getExtensions(AgentExtension::class.java, pluginWrapper.pluginId)
+                val extensions = pluginManager.getExtensions(AgentExtension::class.java, pluginWrapper.pluginId)
+                extensions.forEach { ExtensionRegister.add(pluginWrapper.pluginId, it) }
+                extensions
             }.onFailure {
                 LOG.warn("Failed to get extensions for ${pluginWrapper.pluginId}", it)
             }.getOrDefault(emptyList())

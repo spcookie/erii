@@ -11,7 +11,6 @@ import io.ktor.server.resources.*
 import io.ktor.server.routing.*
 import uesugi.common.JSON
 import uesugi.routing.configureBotStatus
-import uesugi.routing.configureMeme
 
 fun Application.configureRouting() {
     install(Resources)
@@ -22,7 +21,6 @@ fun Application.configureRouting() {
     }
     routing {
         configureBotStatus()
-        configureMeme()
         authenticate("basic") {
             staticResources("/", "public")
         }

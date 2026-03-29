@@ -9,24 +9,8 @@
     <script src="/js/htmx.min.js?v=2"></script>
 </head>
 <body>
-<!-- 顶部装饰波浪 -->
-<div class="header-wave"></div>
-
 <!-- 主容器 -->
 <div class="container">
-    <!-- 头部 -->
-    <header class="site-header">
-        <div class="header-content">
-            <div class="header-logo">
-                <i class="fas fa-robot"></i>
-            </div>
-            <div class="header-text">
-                <h1 class="site-title">Erii Status</h1>
-                <p class="site-subtitle">机器人实时运行状态</p>
-            </div>
-        </div>
-    </header>
-
     <!-- 机器人选择区 -->
     <section class="bot-selector"
              hx-get="/bots"
@@ -213,7 +197,7 @@
                             <div class="meta-left">
                                 <span class="meta-badge bot-id">
                                     <i class="fas fa-robot"></i>
-                                    <span>${status.id}</span>
+                                    <span>${status.name} (${status.id})</span>
                                 </span>
                                 <span class="meta-badge timestamp">
                                     <i class="far fa-clock"></i>
@@ -253,6 +237,66 @@
                     </nav>
 
                     <div class="article-content">
+                        <section class="markdown-section" style="margin-top: 1.5rem;">
+                            <h2 class="section-title">
+                                <span class="title-prefix">#</span>
+                                插件统计
+                            </h2>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-label">
+                                        <i class="fas fa-puzzle-piece"></i>
+                                        <span>Extensions</span>
+                                    </div>
+                                    <div class="stat-value">${status.pluginStats.totalExtensions}</div>
+                                    <div class="stat-desc">个扩展总数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">
+                                        <i class="fas fa-terminal"></i>
+                                        <span>Cmd</span>
+                                    </div>
+                                    <div class="stat-value">${status.pluginStats.cmdExtensions}</div>
+                                    <div class="stat-desc">个命令扩展</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">
+                                        <i class="fas fa-route"></i>
+                                        <span>Route</span>
+                                    </div>
+                                    <div class="stat-value">${status.pluginStats.routeExtensions}</div>
+                                    <div class="stat-desc">个路由扩展</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">
+                                        <i class="fas fa-eye"></i>
+                                        <span>Passive</span>
+                                    </div>
+                                    <div class="stat-value">${status.pluginStats.passiveExtensions}</div>
+                                    <div class="stat-desc">个被动扩展</div>
+                                </div>
+                            </div>
+
+                            ${status.pluginStats.plugins && status.pluginStats.plugins.length > 0 ? `
+                            <h3 class="subsection-title">
+                                <i class="fas fa-cubes"></i> 已加载插件
+                            </h3>
+                            <div class="vocab-container">
+                                <div class="vocab-grid">
+                                    ${status.pluginStats.plugins.map((plugin, idx) => `
+                                        <span class="vocab-item">
+                                            <span class="vocab-index">${idx + 1}</span>
+                                            <span class="vocab-word">${plugin.id} (${plugin.extensionCount})</span>
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+
+                        </section>
+
+                        <hr class="section-divider" style="margin-bottom: 0;">
+
                         ${status.status.map((groupStatus, index) => renderGroupStatus(groupStatus, index, status.id)).join('')}
                     </div>
 
@@ -281,6 +325,7 @@
         const isFactsCollapsed = collapsedStates[`group-${index}-facts`];
         const isProfilesCollapsed = collapsedStates[`group-${index}-profiles`];
         const isVocabCollapsed = collapsedStates[`group-${index}-vocab`];
+        const isMemesCollapsed = collapsedStates[`group-${index}-memes`];
 
         return `
                 <section class="markdown-section" id="group-${index}">
@@ -386,17 +431,17 @@
                     </div>
                     ` : ''}
 
-                    ${groupStatus.userProfiles && groupStatus.userProfiles.length > 0 ? `
+                    ${groupStatus.userProfiles && groupStatus.userProfiles.filter(p => p.profile || p.preferences).length > 0 ? `
                     <h3 class="subsection-title collapsible ${isProfilesCollapsed ? 'collapsed' : ''}" 
                         id="title-group-${index}-profiles"
                         onclick="toggleModule(${index}, 'profiles')">
                         <i class="fas fa-id-card"></i> 用户画像
-                        <span class="vocab-count">${groupStatus.userProfiles.length}</span>
+                        <span class="vocab-count">${groupStatus.userProfiles.filter(p => p.profile || p.preferences).length}</span>
                         <i class="fas fa-chevron-down toggle-icon"></i>
                     </h3>
                     <div class="collapsible-content ${isProfilesCollapsed ? 'collapsed' : ''}" id="content-group-${index}-profiles">
                         <div class="user-profiles-container">
-                            ${groupStatus.userProfiles.map((profile, idx) => `
+                            ${groupStatus.userProfiles.filter(p => p.profile || p.preferences).map((profile, idx) => `
                             <div class="user-profile-item">
                                 <div class="user-profile-header">
                                     <i class="fas fa-user"></i>
@@ -424,6 +469,54 @@
                                 </div>
                             </div>
                             `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <h3 class="subsection-title">
+                        <i class="fas fa-images"></i> 表情包 & 词汇
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-images"></i>
+                                <span>Memes</span>
+                            </div>
+                            <div class="stat-value">${groupStatus.memeSize}</div>
+                            <div class="stat-desc">个表情包（${groupStatus.analyzedMemeSize} 已分析）</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-language"></i>
+                                <span>Vocabulary</span>
+                            </div>
+                            <div class="stat-value">${groupStatus.vocabularies ? groupStatus.vocabularies.length : 0}</div>
+                            <div class="stat-desc">个学习词汇</div>
+                        </div>
+                    </div>
+
+                    ${groupStatus.memes && groupStatus.memes.length > 0 ? `
+                    <h3 class="subsection-title collapsible ${isMemesCollapsed ? 'collapsed' : ''}" 
+                        id="title-group-${index}-memes"
+                        onclick="toggleModule(${index}, 'memes')">
+                        <i class="fas fa-images"></i> 表情包库
+                        <span class="vocab-count">${groupStatus.memes.length}</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </h3>
+                    <div class="collapsible-content ${isMemesCollapsed ? 'collapsed' : ''}" id="content-group-${index}-memes">
+                        <div class="facts-container">
+                            <div class="fact-list">
+                                ${groupStatus.memes.map(meme => `
+                                <div class="fact-item">
+                                    <div class="fact-header">
+                                        <span class="fact-keyword">${meme.description || '未分析'}</span>
+                                        <span class="fact-subjects">出现 ${meme.seenCount} 次 | 使用 ${meme.usageCount} 次</span>
+                                    </div>
+                                    ${meme.purpose ? `<div class="fact-description"><i class="fas fa-bullseye"></i> ${meme.purpose}</div>` : ''}
+                                    ${meme.tags && meme.tags.length > 0 ? `<div class="fact-values"><i class="fas fa-tags"></i> ${meme.tags.join(', ')}</div>` : ''}
+                                </div>
+                                `).join('')}
+                            </div>
                         </div>
                     </div>
                     ` : ''}
@@ -595,11 +688,6 @@
             'GETTING_BETTER': 'fa-circle-half-stroke',
             'FLOW_BURST': 'fa-circle-dot'
         };
-        const stateDesc = {
-            'STANDBY': '机器人处于低活跃状态，对话参与度较低（0-30）',
-            'GETTING_BETTER': '对话逐渐热络，机器人兴趣逐步提升（31-70）',
-            'FLOW_BURST': '高度专注状态，主动性和响应质量达到峰值（71-100）'
-        };
 
         return `
                 <div class="flow-state-container">
@@ -636,10 +724,6 @@
                         </span>
                     </div>
                     
-                    <div class="flow-description">
-                        <i class="fas fa-info-circle"></i>
-                        ${stateDesc[flow.state]}
-                    </div>
                 </div>
             `;
     }
