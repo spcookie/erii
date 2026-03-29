@@ -20,7 +20,7 @@ class FactVectorStore {
     private val stores = mutableMapOf<String, VectorStore>()
 
     /**
-     * 获取指定 botMark 和 groupId 的向量存储
+     * 获取指定 botId 和 groupId 的向量存储
      */
     fun getStore(botMark: String, groupId: String): VectorStore {
         val key = "${botMark}_$groupId"

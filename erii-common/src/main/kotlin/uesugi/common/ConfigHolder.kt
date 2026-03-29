@@ -6,6 +6,7 @@ import com.typesafe.config.ConfigValueFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.config.*
 import java.io.File
+import kotlin.reflect.KClass
 
 /**
  * 配置管理器，使用 Typesafe Config 读取配置文件
@@ -46,9 +47,9 @@ object ConfigHolder {
         // ConfigFactory.load() 会自动解析 ${ENV_VAR} 占位符
         log.info { "Loading config from: $configPath" }
         val baseConfig = if (File(configPath).isAbsolute) {
-            ConfigFactory.parseFile(File(configPath))
+            ConfigFactory.parseFile(File(configPath)).resolve()
         } else {
-            ConfigFactory.load(configPath)
+            ConfigFactory.load(configPath).resolve()
         }
         var config = baseConfig.getConfig("app")
 
@@ -62,9 +63,9 @@ object ConfigHolder {
     private fun loadPluginsConfig(): Config {
         // 1. 首先加载配置文件中的 plugins 部分
         val baseConfig = if (File(configPath).isAbsolute) {
-            ConfigFactory.parseFile(File(configPath))
+            ConfigFactory.parseFile(File(configPath)).resolve()
         } else {
-            ConfigFactory.load(configPath)
+            ConfigFactory.load(configPath).resolve()
         }
         var config = baseConfig.getConfig("plugins")
 
@@ -177,7 +178,7 @@ object ConfigHolder {
             } else {
                 emptyList()
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 app.getStringList("groups.enable-groups").filter { it.isNotBlank() }
             } catch (_: Exception) {
@@ -200,7 +201,7 @@ object ConfigHolder {
             } else {
                 emptyMap()
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 val obj = app.getObject("groups.message-redirect-map")
                 obj.keys.associateWith { key ->
@@ -217,47 +218,48 @@ object ConfigHolder {
     /**
      * 获取单个插件的配置
      * 加载顺序：
-     * 1. -Dplugin.{PluginName}.config 参数指定的文件
-     * 2. -Dconfig.plugin.dir 参数指定目录下的 {PluginName}.conf 文件
-     * 3. classpath 中的 /plugin/{PluginName}.conf 文件
-     * 4. 主配置文件 application.conf 中的 plugins.{PluginName} 部分
+     * 1. -Dplugin.{PluginId}.config 参数指定的文件
+     * 2. -Dconfig.plugin.dir 参数指定目录下的 {PluginId}.conf 文件
+     * 3. classpath 中的 /plugin/{PluginId}.conf 文件
+     * 4. 主配置文件 application.conf 中的 plugins.{PluginId} 部分
      *
      * @param pluginClass 插件类，用于从 classpath 加载配置
      * @param pluginName 插件名称
      */
-    fun getPluginConfig(pluginClass: Class<*>, pluginName: String): Config {
+    fun getPluginConfig(pluginClass: KClass<*>, pluginName: String): Config {
+        val pluginId = pluginName.substringBeforeLast("_")
         // 1. 检查 -Dplugin.{PluginName}.config 参数
-        val customPath = System.getProperty("plugin.$pluginName.config")
+        val customPath = System.getProperty("plugin.$pluginId.config")
         if (customPath != null) {
-            log.info { "Loading custom config for $pluginName from: $customPath" }
-            return ConfigFactory.parseFile(File(customPath))
+            log.info { "Loading custom config for $pluginId from: $customPath" }
+            return ConfigFactory.parseFile(File(customPath)).resolve()
         }
 
         // 2. 检查 -Dconfig.plugin.dir 参数
         val pluginConfigDir = System.getProperty("config.plugin.dir")
         if (pluginConfigDir != null) {
-            val pluginConfigFile = File(pluginConfigDir, "$pluginName.conf")
+            val pluginConfigFile = File(pluginConfigDir, "$pluginId.conf")
             if (pluginConfigFile.exists()) {
-                log.info { "Loading config for $pluginName from dir: ${pluginConfigFile.absolutePath}" }
-                return ConfigFactory.parseFile(pluginConfigFile)
+                log.info { "Loading config for $pluginId from dir: ${pluginConfigFile.absolutePath}" }
+                return ConfigFactory.parseFile(pluginConfigFile).resolve()
             }
         }
 
         // 3. 从 classpath 读取 resources/plugin.conf
         val resourcePath = "plugin.conf"
-        val resourceAsStream = pluginClass.getResourceAsStream(resourcePath)
+        val resourceAsStream = pluginClass.java.classLoader.getResourceAsStream(resourcePath)
         if (resourceAsStream != null) {
             log.info { "Loading config for $pluginName from classpath: $resourcePath" }
             return resourceAsStream.use { inputStream ->
-                ConfigFactory.parseReader(inputStream.reader())
+                ConfigFactory.parseReader(inputStream.reader()).resolve()
             }
         }
 
         // 4. 从主配置文件的 plugins 部分读取
         return try {
-            plugins.getConfig(pluginName)
+            plugins.getConfig(pluginId)
         } catch (_: Exception) {
-            log.warn { "Plugin config not found for: $pluginName" }
+            log.warn { "Plugin config not found for: $pluginId" }
             ConfigFactory.empty()
         }
     }

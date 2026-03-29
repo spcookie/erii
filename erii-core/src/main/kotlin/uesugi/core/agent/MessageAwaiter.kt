@@ -119,17 +119,19 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
     }
 
     override fun close() {
-        historyChannel.close()
-        chatChannel.close()
-        continueChannel.close()
-        relevanceChannel.close()
         if (::historyJob.isInitialized) {
             historyJob.cancel()
         }
         if (::chatUrgentJob.isInitialized) {
             chatUrgentJob.cancel()
         }
+
         cancel()
+
+        historyChannel.close()
+        chatChannel.close()
+        continueChannel.close()
+        relevanceChannel.close()
     }
 
     override val coroutineContext: CoroutineContext

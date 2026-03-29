@@ -2,208 +2,173 @@ package uesugi.plugin
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
-import ai.koog.prompt.dsl.prompt
-import ai.koog.prompt.executor.model.PromptExecutor
-import ai.koog.prompt.message.Message
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.http.*
 import io.ktor.server.config.*
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import net.mamoe.mirai.message.data.MusicKind
-import net.mamoe.mirai.message.data.MusicShare
 import org.pf4j.Extension
-import uesugi.common.LLMModelsChoice
-import uesugi.common.PSFeature
 import uesugi.common.logger
 import uesugi.spi.*
-import uesugi.spi.EmptyConfig.plus
-import kotlin.time.ExperimentalTime
+import uesugi.spi.MetaToolSet.Companion.meta
 
 /**
  * 网易云音乐插件
  */
-@PluginDefinition("net-ease-music")
+@PluginDefinition
 class NetEaseMusic : AgentPlugin()
 
 @Extension
-class NetEaseMusicExtension : RouteExtension, PluginIdNameMixin {
+class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
 
     private val log = logger()
 
     companion object {
         private lateinit var MUSIC_API_BASE: String
+        private lateinit var NAPCAT_HTTP_URL: String
+        private lateinit var NAPCAT_TOKEN: String
     }
 
     override fun onLoad(context: PluginContext) {
         log.info("Loading NetEase Music plugin...")
 
-        val requireApiBase = context.config()
-            .tryGetString("api-base")
-            ?.also { MUSIC_API_BASE = it }
-
-        if (requireApiBase == null) {
-            log.warn("api-base is required for NetEase Music plugin")
-            return
+        requireNotNull(
+            context.config()
+                .tryGetString("api-base")
+                ?.also { MUSIC_API_BASE = it }
+        ) {
+            "api-base is required for NetEase Music plugin"
         }
 
-        // 处理音乐搜索请求
-        context.chain { meta ->
-            val input = meta.input ?: return@chain
-
-            // 使用 LLM 提取搜索关键词
-            val keyword = extractKeyword(input, llm)
-
-            log.info("Extracted keyword: {}", keyword)
-
-            if (keyword.isBlank()) {
-                return@chain
-            }
-
-            coroutineScope {
-                val deferred = async {
-                    // 搜索音乐并返回音乐卡片列表
-                    val musicCards = searchMusic(keyword)
-                    log.info("Found {} music cards for keyword: {}", musicCards.size, keyword)
-                    musicCards
-                }
-
-                val tool = object : MetaToolSet {
-
-                    val flag = atomic(false)
-
-                    @Tool
-                    @LLMDescription("发送音乐卡片")
-                    suspend fun sendMusicCards() {
-                        if (flag.compareAndSet(expect = false, update = true)) {
-                            val musicCards = deferred.await()
-                            for (cardResult in musicCards) {
-                                meta.getGroup()
-                                    .sendMessage(
-                                        MusicShare(
-                                            MusicKind.QQMusic,
-                                            cardResult.title,
-                                            cardResult.summary,
-                                            cardResult.jumpUrl,
-                                            cardResult.pictureUrl,
-                                            cardResult.musicUrl,
-                                            cardResult.brief
-                                        )
-                                    )
-                            }
-                        }
-                    }
-                }
-
-                meta.sendAgent(
-                    "用户要求你发送音乐 $keyword，请使用工具发送音乐卡片",
-                    Feature(PSFeature.CHAT_URGENT) + ToolSetBuilder(tool)
-                ) {
-                    runCompletion { tool.sendMusicCards() }
-                    this@coroutineScope
-                }
-            }
+        val napcat = requireNotNull(
+            context.config().getConfig("napcat")
+        ) {
+            "napcat is required for NetEase Music plugin"
         }
+
+        requireNotNull(
+            napcat.tryGetString("http-url")
+                ?.also { NAPCAT_HTTP_URL = it }
+        ) {
+            "Napcat http-url is required for Napcat plugin"
+        }
+
+        requireNotNull(
+            napcat.tryGetString("token")
+                ?.also { NAPCAT_TOKEN = it }
+        ) {
+            "Napcat token is required for Napcat plugin"
+        }
+
+        context.tool { { ToolSet(context) } }
 
         log.info("NetEase Music plugin loaded")
     }
 
-    /**
-     * 使用 LLM 从输入中提取搜索关键词
-     */
-    @OptIn(ExperimentalTime::class)
-    private suspend fun extractKeyword(input: String, llm: PromptExecutor): String {
-        return try {
-            val responses = llm.execute(
-                prompt("extract") {
-                    system {
-                        text(
-                            """
-                            你是一个音乐搜索关键词提取助手。
-                            用户的输入可能包含口语化的表达，你需要从中提取出歌曲名或歌手名。
-                            只返回提取到的关键词，不要返回其他内容。
-                            如果用户只是表达想听音乐但没有具体歌曲，返回"无"。
-                            """
-                        )
+    class ToolSet(val context: PluginContext) : MetaToolSet {
+
+        private val log = logger()
+
+        val flag = atomic(false)
+
+        @Tool
+        @LLMDescription("当用户想要搜索或点播音乐时，调用此 tool 搜索音乐并发送音乐")
+        suspend fun searchMusic(keyword: String, limit: Int = 3): String {
+            log.info("Search music keyword: {}", keyword)
+            if (keyword.isBlank()) {
+                return "未提取到关键词"
+            }
+
+            val musicCards = context.search(keyword, limit)
+            log.info("Found {} music cards for keyword: {}", musicCards.size, keyword)
+
+            return sendMusicCards(musicCards)
+        }
+
+        /**
+         * 搜索音乐并返回音乐卡片列表
+         */
+        private suspend fun PluginContext.search(keyword: String, limit: Int = 5): List<MusicCardResult> {
+            return withContext(Dispatchers.IO) {
+                try {
+                    val response = http.get("$MUSIC_API_BASE/search") {
+                        parameter("keywords", keyword)
+                        parameter("limit", limit)
+                        parameter("type", 1)
                     }
-                    user { text(input) }
-                },
-                LLMModelsChoice.Flash
-            )
-            val content = responses.filterIsInstance<Message.Assistant>().firstOrNull()?.content
-            content?.trim()?.takeIf { it != "无" && it.isNotBlank() } ?: input
-        } catch (e: Exception) {
-            log.error("LLM 提取关键词失败: {}", e.message, e)
-            // LLM 失败时使用简单提取
-            simpleExtractKeyword(input)
-        }
-    }
 
-    /**
-     * 简单的关键词提取（LLM 失败时的后备方案）
-     */
-    private fun simpleExtractKeyword(input: String): String {
-        // 移除常见前缀
-        val keywords = listOf("听", "点歌", "播放", "搜歌", "音乐", "歌", "来一首", "一首")
-        var result = input
-        for (keyword in keywords) {
-            result = result.removePrefix(keyword).trim()
-        }
-        return result.ifBlank { input }
-    }
+                    val result = response.body<MusicSearchResult>()
 
-    /**
-     * 搜索音乐并返回音乐卡片列表
-     */
-    private suspend fun PluginContext.searchMusic(keyword: String, limit: Int = 5): List<MusicCardResult> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = http.get("$MUSIC_API_BASE/search") {
-                    parameter("keywords", keyword)
-                    parameter("limit", limit)
-                    parameter("type", 1)
+                    val songs = result.result?.songs
+                    if (songs.isNullOrEmpty()) {
+                        return@withContext emptyList()
+                    }
+
+                    // 为每首歌曲创建音乐卡片
+                    songs.map { song ->
+                        val musicUrl = getMusicUrl(song.id)
+                        MusicCardResult.fromSong(song, musicUrl)
+                    }
+                } catch (e: Exception) {
+                    log.error("搜索音乐失败: {}", e.message, e)
+                    emptyList()
                 }
-
-                val result = response.body<MusicSearchResult>()
-
-                val songs = result.result?.songs
-                if (songs.isNullOrEmpty()) {
-                    return@withContext emptyList()
-                }
-
-                // 为每首歌曲创建音乐卡片
-                songs.map { song ->
-                    val musicUrl = getMusicUrl(song.id)
-                    MusicCardResult.fromSong(song, musicUrl)
-                }
-            } catch (e: Exception) {
-                log.error("搜索音乐失败: {}", e.message, e)
-                emptyList()
             }
         }
-    }
 
-    /**
-     * 根据歌曲ID获取音乐URL
-     */
-    private suspend fun PluginContext.getMusicUrl(songId: Long): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = http.get("$MUSIC_API_BASE/song/url") {
-                    parameter("id", songId)
+        /**
+         * 根据歌曲ID获取音乐URL
+         */
+        private suspend fun PluginContext.getMusicUrl(songId: Long): String? {
+            return withContext(Dispatchers.IO) {
+                try {
+                    val response = http.get("$MUSIC_API_BASE/song/url") {
+                        parameter("id", songId)
+                    }
+
+                    val result = response.body<MusicUrlResult>()
+                    result.data?.firstOrNull()?.url
+                } catch (e: Exception) {
+                    log.error("获取音乐URL失败: {}", e.message, e)
+                    null
                 }
-
-                val result = response.body<MusicUrlResult>()
-                result.data?.firstOrNull()?.url
-            } catch (e: Exception) {
-                log.error("获取音乐URL失败: {}", e.message, e)
-                null
             }
+        }
+
+        private suspend fun sendMusicCards(musicCards: List<MusicCardResult>): String {
+            if (flag.compareAndSet(expect = false, update = true)) {
+                for (cardResult in musicCards) {
+                    try {
+                        context.http.post("$NAPCAT_HTTP_URL/send_msg") {
+                            bearerAuth("hG8dQqGk6jGC")
+                            contentType(ContentType.Application.Json)
+                            setBody(
+                                mapOf(
+                                    "message_type" to "group",
+                                    "group_id" to meta.groupId,
+                                    "message" to listOf(
+                                        mapOf(
+                                            "type" to "music",
+                                            "data" to mapOf(
+                                                "type" to "163",
+                                                "id" to cardResult.id
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        }
+                    } catch (e: Exception) {
+                        log.error("发送音乐卡片失败: {}", e.message, e)
+                        return "发送音乐卡片失败: ${e.message}"
+                    }
+                }
+            }
+            return "已发送音乐卡片"
         }
     }
 
@@ -211,17 +176,6 @@ class NetEaseMusicExtension : RouteExtension, PluginIdNameMixin {
         log.info("NetEase Music plugin unloaded")
     }
 
-    override val matcher: Pair<String, String>
-        get() = "MUSIC_SEARCH" to """
-            当用户想要搜索或点播音乐时，选择此分类。
-
-            判断标准（满足任一即可）：
-            - 用户发送的内容包含歌曲名、歌手名或歌词片段
-            - 用户明确要求播放音乐
-            - 消息以 "听" 开头或包含 "点歌"、"搜歌"、"音乐"、"来一首"、"播放" 等关键词
-
-            MUSIC_SEARCH 的消息应该进行音乐搜索并返回结果。
-        """.trimIndent()
 }
 
 /**
@@ -269,6 +223,7 @@ data class Album(
  * 音乐卡片结果 - 用于生成网易云音乐卡片消息
  */
 data class MusicCardResult(
+    val id: Long,
     /** 消息卡片标题. */
     val title: String,
     /** 消息卡片内容. */
@@ -293,6 +248,7 @@ data class MusicCardResult(
             val musicUrlFinal = musicUrl ?: "$NETEASE_BASE_URL/song/media/outer/url?id=${song.id}"
 
             return MusicCardResult(
+                id = song.id,
                 title = song.name,
                 summary = artists,
                 jumpUrl = "$NETEASE_BASE_URL/song/${song.id}/",

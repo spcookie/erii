@@ -28,11 +28,11 @@ import uesugi.spi.*
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
 
-@PluginDefinition("chat-qa")
+@PluginDefinition
 class ChatQA : AgentPlugin()
 
 @Extension
-class ChatQAExtension : RouteExtension, PluginIdNameMixin {
+class ChatQAExtension : RouteExtension<ChatQA> {
 
     @OptIn(ExperimentalTime::class)
     override fun onLoad(context: PluginContext) {

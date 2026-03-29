@@ -12,11 +12,11 @@ import net.mamoe.mirai.message.data.Face
 import org.pf4j.Extension
 import uesugi.spi.*
 
-@PluginDefinition("qq-face")
+@PluginDefinition
 class QQFace : AgentPlugin()
 
 @Extension
-class QQFaceExtension : PassiveExtension {
+class QQFaceExtension : PassiveExtension<QQFace> {
 
     companion object {
         val log = KotlinLogging.logger {}

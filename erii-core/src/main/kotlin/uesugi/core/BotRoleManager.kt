@@ -1,7 +1,10 @@
 package uesugi.core
 
 import org.yaml.snakeyaml.Yaml
-import uesugi.common.*
+import uesugi.common.BotRole
+import uesugi.common.ConfigBotRole
+import uesugi.common.EmotionalTendencies
+import uesugi.common.logger
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -42,8 +45,6 @@ object BotRoleManager {
                 val dirFile = File(resourceDir.path)
                 if (dirFile.isDirectory && dirFile.listFiles { f -> f.extension == "md" }?.isNotEmpty() == true) {
                     log.info("从配置目录覆盖加载 BotRole，目录: ${dirFile.absolutePath}")
-                    // 清空并重新加载
-                    roles.clear()
                     loadFromDirectory(dirFile)
                 }
             }

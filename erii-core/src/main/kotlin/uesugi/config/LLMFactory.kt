@@ -85,8 +85,8 @@ class LLMFactory {
                             apiKey = minimaxApiKey,
                             settings = AnthropicClientSettings(
                                 modelVersionsMap = mapOf(
-                                    LLMModelsChoice.Pro to "MiniMax-M2.5",
-                                    LLMModelsChoice.Flash to "MiniMax-M2.1"
+                                    LLMModelsChoice.Pro to "MiniMax-M2.7",
+                                    LLMModelsChoice.Flash to "MiniMax-M2.5"
                                 ),
                                 baseUrl = minimaxBaseUrl,
                                 messagesPath = "anthropic/v1/messages"
