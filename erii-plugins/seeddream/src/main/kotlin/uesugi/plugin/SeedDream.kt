@@ -32,11 +32,11 @@ import java.net.URL
 import kotlin.io.encoding.Base64
 import kotlin.time.ExperimentalTime
 
-@PluginDefinition("seed-dream")
+@PluginDefinition
 class SeedDream : AgentPlugin()
 
 @Extension
-class SeedDreamExtension : RouteExtension, PluginIdNameMixin {
+class SeedDreamExtension : RouteExtension<SeedDream> {
 
     companion object {
 

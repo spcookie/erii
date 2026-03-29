@@ -6,11 +6,19 @@ import org.koin.core.context.GlobalContext
 import org.koin.core.qualifier.named
 import org.pf4j.Extension
 import uesugi.common.ref
-import uesugi.spi.*
+import uesugi.core.plugin.buildin.Buildin
+import uesugi.core.plugin.buildin.BuildinExtension
+import uesugi.spi.AgentExtension
+import uesugi.spi.ArgParserHolder
+import uesugi.spi.CmdExtension
+import uesugi.spi.PluginContext
 import uesugi.toolkit.WebScreenshotTaker
 
 @Extension(points = [AgentExtension::class])
-class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty>, PluginIdNameMixin {
+class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Buildin>, BuildinExtension {
+
+    override val name: String
+        get() = "buildin_rendering"
 
     override fun onLoad(context: PluginContext) {
         val webScreenshotTaker by ref<WebScreenshotTaker>()

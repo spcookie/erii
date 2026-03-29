@@ -13,23 +13,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
-import uesugi.common.ConfigHolder
 import uesugi.spi.*
 
-@PluginDefinition("speech")
+@PluginDefinition
 class Speech : AgentPlugin()
 
 @Extension
-class SpeechExtension : AgentExtension, PluginIdNameMixin {
+class SpeechExtension : AgentExtension<Speech> {
     companion object {
         private val log = KotlinLogging.logger {}
         private const val T2A_API_URL = "https://api.minimaxi.com/v1/t2a_v2"
         private const val DEFAULT_MODEL = "speech-2.8-hd"
-
-        // 插件配置
-        private val pluginConfig by lazy {
-            ConfigHolder.getPluginConfig(Speech::class.java, "Speech")
-        }
 
         // 语言到音色ID的映射
         private val VOICE_MAP = mapOf(
@@ -81,7 +75,7 @@ class SpeechExtension : AgentExtension, PluginIdNameMixin {
                         emotion: String = "calm"
                     ): String {
                         return try {
-                            val apiKey = pluginConfig.getString("minimax-api-key")
+                            val apiKey = config().getString("minimax-api-key")
                             if (apiKey.isBlank()) {
                                 return "语音合成失败：未配置 minimax-api-key"
                             }

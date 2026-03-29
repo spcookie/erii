@@ -6,6 +6,7 @@ import org.koin.dsl.onClose
 import org.pf4j.*
 import uesugi.LOG
 import uesugi.config.HttpClientFactory
+import uesugi.core.plugin.buildin.BuildinExtension
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteRuleRegister
 import uesugi.spi.*
@@ -48,23 +49,28 @@ fun pluginModule() = module(createdAtStart = true) {
 
     LOG.info("Loaded ${pluginManager.startedPlugins.size} plugins")
 
-    val extensions = pluginManager.startedPlugins.flatMap { pluginWrapper ->
-        runCatching {
-            pluginManager.getExtensions(AgentExtension::class.java, pluginWrapper.pluginId)
-        }.onFailure {
-            LOG.warn("Failed to get extensions for ${pluginWrapper.pluginId}", it)
-        }.getOrDefault(emptyList())
+    val extensions = buildList {
+        val buildinExtensions = pluginManager.getExtensions(BuildinExtension::class.java)
+        val pluginExtensions = pluginManager.startedPlugins.flatMap { pluginWrapper ->
+            runCatching {
+                pluginManager.getExtensions(AgentExtension::class.java, pluginWrapper.pluginId)
+            }.onFailure {
+                LOG.warn("Failed to get extensions for ${pluginWrapper.pluginId}", it)
+            }.getOrDefault(emptyList())
+        }
+        addAll(buildinExtensions)
+        addAll(pluginExtensions)
     }
 
     LOG.info("Loaded ${extensions.size} extensions")
 
-    extensions.filterIsInstance<RouteExtension>()
+    extensions.filterIsInstance<RouteExtension<*>>()
         .forEach { plugin ->
             val (name, description) = plugin.matcher
             RouteRuleRegister.addRule(name, description)
         }
 
-    extensions.filterIsInstance<CmdExtension<*, *>>()
+    extensions.filterIsInstance<CmdExtension<*, *, *>>()
         .forEach { plugin ->
             val cmdName = plugin.cmd
             CmdRuleRegister.addRule(cmdName)
@@ -86,26 +92,30 @@ fun pluginModule() = module(createdAtStart = true) {
         var context: PluginContext? = null
 
         single(named(pluginDef.name)) {
-            plugin.apply {
-                context = PluginContextImpl(
-                    pluginDef,
-                    mem,
-                    kv,
-                    blob,
-                    vector,
-                    config,
-                    database,
-                    get(),
-                    get(),
-                    get(named(HttpClientFactory.Type.NO_PROXY)),
-                    server,
-                    get(named(HttpClientFactory.Type.PROXY)),
-                ).apply {
-                    open()
-                    plugin.onLoad(this)
-                    ready()
+            runCatching {
+                plugin.apply {
+                    context = PluginContextImpl(
+                        pluginDef,
+                        mem,
+                        kv,
+                        blob,
+                        vector,
+                        config,
+                        database,
+                        get(),
+                        get(),
+                        get(named(HttpClientFactory.Type.NO_PROXY)),
+                        server,
+                        get(named(HttpClientFactory.Type.PROXY)),
+                    ).apply {
+                        open()
+                        plugin.onLoad(this)
+                        ready()
+                    }
                 }
-            }
+            }.onFailure {
+                LOG.warn("Failed to load extension ${plugin.name}", it)
+            }.getOrDefault(plugin)
         } onClose {
             mem.close()
             kv.close()
@@ -114,16 +124,17 @@ fun pluginModule() = module(createdAtStart = true) {
             context?.close()
             it?.onUnload()
         }
+
     }
 
 }
 
-fun buildPluginDef(plugin: AgentExtension): PluginDef {
+fun buildPluginDef(plugin: AgentExtension<*>): PluginDef {
     val routeKeys = buildList {
         if (plugin is RouteExtension) {
             add(LLMRouteKey(plugin.matcher.first))
         }
-        if (plugin is CmdExtension<*, *>) {
+        if (plugin is CmdExtension<*, *, *>) {
             add(CmdRouteKey(plugin.cmd))
         }
     }

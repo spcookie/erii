@@ -1,15 +1,19 @@
 package uesugi.core.plugin.buildin.chat
 
 import org.pf4j.Extension
+import uesugi.core.plugin.buildin.Buildin
+import uesugi.core.plugin.buildin.BuildinExtension
 import uesugi.core.state.volition.speakV
 import uesugi.spi.AgentExtension
 import uesugi.spi.PluginContext
-import uesugi.spi.PluginIdNameMixin
 import uesugi.spi.RouteExtension
 import kotlin.uuid.ExperimentalUuidApi
 
 @Extension(points = [AgentExtension::class])
-class Chat : RouteExtension, PluginIdNameMixin {
+class Chat : RouteExtension<Buildin>, BuildinExtension {
+    override val name: String
+        get() = "buildin_chat"
+
     override val matcher: Pair<String, String>
         get() = "CHAT" to """
                 当消息不属于其他类型时，默认归类为 CHAT。

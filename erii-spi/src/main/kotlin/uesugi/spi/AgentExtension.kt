@@ -30,36 +30,51 @@ import uesugi.common.*
 import java.io.InputStream
 import java.util.*
 import kotlin.reflect.KClass
+import kotlin.reflect.full.allSupertypes
 import kotlin.reflect.full.createInstance
 import kotlin.time.Duration
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 
+private val PLUGIN_CONTEXT_HOLDER = mutableMapOf<KClass<*>, PluginWrapper>()
+
+private val REF_CACHE = mutableMapOf<KClass<*>, KClass<*>>()
+
 abstract class AgentPlugin : Plugin() {
 
-    companion object {
-        @JvmStatic
-        var context: PluginWrapper? = null
-    }
-
     fun setWrapper(wrapper: PluginWrapper) {
-        super.wrapper = wrapper
-        context = wrapper
+        PLUGIN_CONTEXT_HOLDER[this::class] = wrapper
     }
 
 }
 
-interface AgentExtension : ExtensionPoint {
+interface AgentExtension<T : AgentPlugin> : ExtensionPoint {
+
     val name: String
+        get() = (PLUGIN_CONTEXT_HOLDER[ref]?.let { it.pluginId + "_" } ?: "") + this::class.simpleName!!
 
     fun onLoad(context: PluginContext)
 
     fun onUnload() {}
 
+    @Suppress("UNCHECKED_CAST")
+    val ref: KClass<T>
+        get() {
+            return REF_CACHE.getOrPut(this::class) {
+                this::class.allSupertypes
+                    .firstOrNull { it.classifier == AgentExtension::class }
+                    ?.arguments
+                    ?.firstOrNull()
+                    ?.type
+                    ?.classifier as? KClass<*>
+                    ?: error("Cannot determine generic type for AgentExtension: ${this::class}")
+            } as KClass<T>
+        }
+
 }
 
-interface CmdExtension<Context, Arg : ArgParserHolder<Context>> : AgentExtension {
+interface CmdExtension<Context, Arg : ArgParserHolder<Context>, Plugin : AgentPlugin> : AgentExtension<Plugin> {
     val cmd: String
 
     fun Meta.parser(context: Context): Arg {
@@ -135,18 +150,11 @@ abstract class ArgParserHolder<Context> : CliktCommand() {
 
 }
 
-interface RouteExtension : AgentExtension {
+interface RouteExtension<Plugin : AgentPlugin> : AgentExtension<Plugin> {
     val matcher: Pair<String, String>
 }
 
-interface PassiveExtension : AgentExtension, PluginIdNameMixin
-
-interface PluginIdNameMixin : AgentExtension {
-
-    override val name: String
-        get() = (AgentPlugin.context?.let { it.pluginId + "_" } ?: "") + this::class.simpleName!!
-
-}
+interface PassiveExtension<Plugin : AgentPlugin> : AgentExtension<Plugin>
 
 typealias Handler = suspend PluginContext.(meta: Meta) -> Unit
 typealias MetaToolSetCreator = () -> MetaToolSet

@@ -225,7 +225,7 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
     }
 }
 
-internal class ConfigImpl(val plugin: AgentExtension) : PluginConfig {
+internal class ConfigImpl(val plugin: AgentExtension<*>) : PluginConfig {
 
     override suspend fun readResource(path: String): InputStream {
         return withContext(Dispatchers.IO) {
@@ -240,11 +240,12 @@ internal class ConfigImpl(val plugin: AgentExtension) : PluginConfig {
         }
     }
 
-    /**
-     * 获取插件的 Typesafe Config 对象
-     */
+    private val config by lazy {
+        ConfigHolder.getPluginConfig(plugin::class, plugin.name)
+    }
+
     override fun invoke(): Config {
-        return ConfigHolder.getPluginConfig(plugin.javaClass, plugin.name)
+        return config
     }
 
 }

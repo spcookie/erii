@@ -65,7 +65,7 @@ object LLMModelsChoice {
         when (choice) {
             "GOOGLE" -> GoogleModels.Gemini2_5Pro
             "DEEP_SEEK" -> DeepSeekChat
-            "MINIMAX" -> miniMaxChat("MiniMax-M2.5")
+            "MINIMAX" -> miniMaxChat("MiniMax-M2.7")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }

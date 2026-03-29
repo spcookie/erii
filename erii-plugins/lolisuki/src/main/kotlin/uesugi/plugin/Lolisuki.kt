@@ -23,11 +23,11 @@ import java.net.URL
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
 
-@PluginDefinition("lolisuki")
+@PluginDefinition
 class Lolisuki : AgentPlugin()
 
 @Extension
-class LolisukiExtension : RouteExtension, PluginIdNameMixin {
+class LolisukiExtension : RouteExtension<Lolisuki> {
 
     private val log = logger()
 

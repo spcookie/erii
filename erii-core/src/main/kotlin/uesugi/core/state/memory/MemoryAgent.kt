@@ -433,7 +433,9 @@ class MemoryAgent(
      */
     class FactOrganizeTools(
         val memoryRepository: MemoryRepository,
-        val factVectorStore: FactVectorStore
+        val factVectorStore: FactVectorStore,
+        val botId: String,
+        val groupId: String
     ) : ToolSet {
 
         /**
@@ -442,8 +444,6 @@ class MemoryAgent(
         @Tool
         @LLMDescription("添加新的事实记忆到数据库（自动同步向量索引）")
         suspend fun addFact(
-            @LLMDescription("机器人标识") botMark: String = DEFAULT_BOT_MARK,
-            @LLMDescription("群 ID") groupId: String,
             @LLMDescription("事实关键词") keyword: String,
             @LLMDescription("事实描述") description: String,
             @LLMDescription("相关值/属性，逗号分隔") values: String,
@@ -456,13 +456,13 @@ class MemoryAgent(
 
                 // 1. 添加到数据库
                 withContext(Dispatchers.IO) {
-                    repo.createFact(botMark, groupId, keyword, description, values, subjects, scope)
+                    repo.createFact(botId, groupId, keyword, description, values, subjects, scope)
                 }
 
                 // 2. 同步创建向量索引
                 val newFact = withContext(Dispatchers.IO) {
                     repo.getLatestFact(
-                        botMark, groupId, keyword,
+                        botId, groupId, keyword,
                         if (scope == Scopes.USER) MemoryScopes.USER else MemoryScopes.GROUP
                     )
                 }
@@ -487,8 +487,6 @@ class MemoryAgent(
         @Tool
         @LLMDescription("标记过时或不成立的事实为废弃（自动删除向量索引）")
         suspend fun deprecateFact(
-            @LLMDescription("机器人标识") botMark: String = DEFAULT_BOT_MARK,
-            @LLMDescription("群 ID") groupId: String,
             @LLMDescription("要废弃的事实的关键词") keyword: String,
             @LLMDescription("涉及的主体(用户ID)，逗号分隔") subjects: String,
             @LLMDescription("范围类型: USER 或 GROUP") scope: Scopes,
@@ -500,19 +498,19 @@ class MemoryAgent(
 
                 // 1. 标记废弃
                 withContext(Dispatchers.IO) {
-                    repo.deprecateFacts(botMark, groupId, keyword, subjects, scope)
+                    repo.deprecateFacts(botId, groupId, keyword, subjects, scope)
                 }
 
                 // 2. 删除向量索引
                 val factEntity = withContext(Dispatchers.IO) {
                     repo.getFactByKeywordAndSubjects(
-                        botMark, groupId, keyword, subjects,
+                        botId, groupId, keyword, subjects,
                         if (scope == Scopes.USER) MemoryScopes.USER else MemoryScopes.GROUP
                     )
                 }
                 factEntity?.let { entity ->
                     entity.vectorId?.let { vectorId ->
-                        vectorStore.deleteVector(vectorId, botMark, groupId)
+                        vectorStore.deleteVector(vectorId, botId, groupId)
                         log.debug("事实向量索引已删除, factId=${entity.id}, vectorId=$vectorId")
                     }
                 }
@@ -701,7 +699,7 @@ class MemoryAgent(
             )
         }
 
-        val factTools = FactOrganizeTools(memoryRepository, factVectorStore)
+        val factTools = FactOrganizeTools(memoryRepository, factVectorStore, botMark, groupId)
 
         // 格式化消息
         val msgText =
