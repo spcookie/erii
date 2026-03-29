@@ -1,8 +1,8 @@
-package uesugi.core.plugin.buildin.chat
+package uesugi.core.plugin.builtin.chat
 
 import org.pf4j.Extension
-import uesugi.core.plugin.buildin.Buildin
-import uesugi.core.plugin.buildin.BuildinExtension
+import uesugi.core.plugin.builtin.Builtin
+import uesugi.core.plugin.builtin.BuiltinExtension
 import uesugi.core.state.volition.speakV
 import uesugi.spi.AgentExtension
 import uesugi.spi.PluginContext
@@ -10,9 +10,9 @@ import uesugi.spi.RouteExtension
 import kotlin.uuid.ExperimentalUuidApi
 
 @Extension(points = [AgentExtension::class])
-class Chat : RouteExtension<Buildin>, BuildinExtension {
+class Chat : RouteExtension<Builtin>, BuiltinExtension {
     override val name: String
-        get() = "buildin_chat"
+        get() = "builtin_chat"
 
     override val matcher: Pair<String, String>
         get() = "CHAT" to """
