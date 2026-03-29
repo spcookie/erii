@@ -4,15 +4,16 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.PSFeature
 import uesugi.spi.AgentSender
 import uesugi.spi.Feature
 import uesugi.spi.PluginContext
+import uesugi.spi.Scheduler
 import java.util.*
+import kotlin.time.Duration.Companion.seconds
 
 class ReminderScheduler(
-    private val scheduler: JobScheduler,
+    private val scheduler: Scheduler,
     private val wheel: ReminderWheel,
     private val context: PluginContext
 ) {
@@ -20,21 +21,21 @@ class ReminderScheduler(
     private val store = ReminderStoreImpl(context.kv)
 
     companion object {
-        private const val SCAN_INTERVAL_SECONDS = 30L
+        private const val SCAN_JOB_ID = "reminder-scan"
+        private const val SCAN_INTERVAL_SECONDS = 30
     }
 
     fun start() {
         // 每 30 秒扫描一次
-        scheduler.scheduleRecurrently(
-            java.time.Duration.ofSeconds(SCAN_INTERVAL_SECONDS)
-        ) {
+        scheduler.scheduleRecurrently(SCAN_JOB_ID, SCAN_INTERVAL_SECONDS.seconds) {
             scanDueReminders()
         }
         logger.info { "ReminderScheduler started, scanning every $SCAN_INTERVAL_SECONDS seconds" }
     }
 
     fun stop() {
-        logger.info { "ReminderScheduler stopping" }
+        scheduler.cancel(SCAN_JOB_ID)
+        logger.info { "ReminderScheduler stopped" }
     }
 
     private fun scanDueReminders() {

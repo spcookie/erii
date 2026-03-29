@@ -105,7 +105,7 @@ fun pluginModule() = module(createdAtStart = true) {
                         vector,
                         config,
                         database,
-                        get(),
+                        SchedulerImpl(pluginDef.name, get()),
                         get(),
                         get(named(HttpClientFactory.Type.NO_PROXY)),
                         server,

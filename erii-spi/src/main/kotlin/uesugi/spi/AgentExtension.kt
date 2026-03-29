@@ -22,7 +22,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import okio.Path
 import org.jetbrains.exposed.v1.jdbc.Query
-import org.jobrunr.scheduling.JobScheduler
+
 import org.pf4j.ExtensionPoint
 import org.pf4j.Plugin
 import org.pf4j.PluginWrapper
@@ -159,6 +159,23 @@ interface PassiveExtension<Plugin : AgentPlugin> : AgentExtension<Plugin>
 typealias Handler = suspend PluginContext.(meta: Meta) -> Unit
 typealias MetaToolSetCreator = () -> MetaToolSet
 
+interface Scheduler : AutoCloseable {
+    /** 周期调度 - cron 表达式 */
+    fun scheduleRecurrently(id: String, cron: String, action: () -> Unit)
+
+    /** 周期调度 - Kotlin Duration 间隔 */
+    fun scheduleRecurrently(id: String, interval: Duration, action: () -> Unit)
+
+    /** 一次性延迟任务 */
+    fun schedule(id: String, delay: Duration, action: () -> Unit)
+
+    /** 立即入队执行 */
+    fun enqueue(id: String, action: () -> Unit)
+
+    /** 取消任务 */
+    fun cancel(id: String)
+}
+
 interface PluginContext : AutoCloseable {
     val defined: PluginDef
 
@@ -171,7 +188,7 @@ interface PluginContext : AutoCloseable {
 
     val database: Database
 
-    val scheduler: JobScheduler
+    val scheduler: Scheduler
 
     val llm: PromptExecutor
     val http: HttpClient

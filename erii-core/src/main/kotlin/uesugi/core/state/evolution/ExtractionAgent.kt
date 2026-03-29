@@ -4,6 +4,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.common.LLMModelsChoice
 import uesugi.common.logger
@@ -20,6 +21,11 @@ class ExtractionAgent {
     companion object {
         private val log = logger()
     }
+
+    @Serializable
+    data class SlangWordList(
+        val words: List<SlangWord>
+    )
 
     /**
      * 从群聊消息中提取流行语
@@ -73,7 +79,7 @@ class ExtractionAgent {
 
             val promptExecutor: PromptExecutor by GlobalContext.get().inject()
 
-            val result = promptExecutor.executeStructured<List<SlangWord>>(
+            val result = promptExecutor.executeStructured<SlangWordList>(
                 prompt = userPromptObj,
                 model = LLMModelsChoice.Flash,
                 fixingParser = StructureFixingParser(
@@ -82,7 +88,7 @@ class ExtractionAgent {
                 )
             )
 
-            val slangWords = result.getOrThrow().data
+            val slangWords = result.getOrThrow().data.words
             log.debug("流行语提取成功, 提取数量=${slangWords.size}, 词汇=${slangWords.joinToString(", ") { word -> word.word }}")
             slangWords
         } catch (e: Exception) {
