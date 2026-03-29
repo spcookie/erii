@@ -6,7 +6,7 @@ import org.koin.dsl.onClose
 import org.pf4j.*
 import uesugi.LOG
 import uesugi.config.HttpClientFactory
-import uesugi.core.plugin.buildin.BuildinExtension
+import uesugi.core.plugin.builtin.BuiltinExtension
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteRuleRegister
 import uesugi.spi.*
@@ -50,7 +50,7 @@ fun pluginModule() = module(createdAtStart = true) {
     LOG.info("Loaded ${pluginManager.startedPlugins.size} plugins")
 
     val extensions = buildList {
-        val buildinExtensions = pluginManager.getExtensions(BuildinExtension::class.java)
+        val builtinExtensions = pluginManager.getExtensions(BuiltinExtension::class.java)
         val pluginExtensions = pluginManager.startedPlugins.flatMap { pluginWrapper ->
             runCatching {
                 pluginManager.getExtensions(AgentExtension::class.java, pluginWrapper.pluginId)
@@ -58,7 +58,7 @@ fun pluginModule() = module(createdAtStart = true) {
                 LOG.warn("Failed to get extensions for ${pluginWrapper.pluginId}", it)
             }.getOrDefault(emptyList())
         }
-        addAll(buildinExtensions)
+        addAll(builtinExtensions)
         addAll(pluginExtensions)
     }
 
