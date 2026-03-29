@@ -8,7 +8,6 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.config.*
-import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.pf4j.Extension
@@ -72,8 +71,6 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
     class ToolSet(val context: PluginContext) : MetaToolSet {
 
         private val log = logger()
-
-        val flag = atomic(false)
 
         @Tool
         @LLMDescription("当用户想要搜索或点播音乐时，调用此 tool 搜索音乐并发送音乐")
@@ -140,32 +137,30 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
         }
 
         private suspend fun sendMusicCards(musicCards: List<MusicCardResult>): String {
-            if (flag.compareAndSet(expect = false, update = true)) {
-                for (cardResult in musicCards) {
-                    try {
-                        context.http.post("$NAPCAT_HTTP_URL/send_msg") {
-                            bearerAuth("hG8dQqGk6jGC")
-                            contentType(ContentType.Application.Json)
-                            setBody(
-                                mapOf(
-                                    "message_type" to "group",
-                                    "group_id" to meta.groupId,
-                                    "message" to listOf(
-                                        mapOf(
-                                            "type" to "music",
-                                            "data" to mapOf(
-                                                "type" to "163",
-                                                "id" to cardResult.id
-                                            )
+            for (cardResult in musicCards) {
+                try {
+                    context.http.post("$NAPCAT_HTTP_URL/send_msg") {
+                        bearerAuth("hG8dQqGk6jGC")
+                        contentType(ContentType.Application.Json)
+                        setBody(
+                            mapOf(
+                                "message_type" to "group",
+                                "group_id" to meta.groupId,
+                                "message" to listOf(
+                                    mapOf(
+                                        "type" to "music",
+                                        "data" to mapOf(
+                                            "type" to "163",
+                                            "id" to cardResult.id
                                         )
                                     )
                                 )
                             )
-                        }
-                    } catch (e: Exception) {
-                        log.error("发送音乐卡片失败: {}", e.message, e)
-                        return "发送音乐卡片失败: ${e.message}"
+                        )
                     }
+                } catch (e: Exception) {
+                    log.error("发送音乐卡片失败: {}", e.message, e)
+                    return "发送音乐卡片失败: ${e.message}"
                 }
             }
             return "已发送音乐卡片"
