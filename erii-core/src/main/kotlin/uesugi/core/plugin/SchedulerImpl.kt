@@ -18,7 +18,7 @@ class SchedulerImpl(
     // One-time jobs: 映射用户 ID -> JobRunr UUID，通过 delete(UUID) 删除
     private val oneTimeJobIds = ConcurrentHashMap<String, UUID>()
 
-    private fun qualifiedId(id: String) = "$pluginName:$id"
+    private fun qualifiedId(id: String) = "$pluginName.$id"
 
     override fun scheduleRecurrently(id: String, cron: String, action: () -> Unit) {
         val qid = qualifiedId(id)
