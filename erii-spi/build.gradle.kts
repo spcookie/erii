@@ -6,7 +6,6 @@ dependencies {
     compileOnly(project(":erii-common"))
     compileOnly(libs.pf4j)
     compileOnly(libs.mirai.overflow)
-    compileOnly(libs.jobrunr)
     compileOnly(libs.clikt)
     compileOnly(libs.okio)
     compileOnly(libs.koog.agents)

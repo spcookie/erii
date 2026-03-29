@@ -74,11 +74,14 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
 
         @Tool
         @LLMDescription("当用户想要搜索或点播音乐时，调用此 tool 搜索音乐并发送音乐")
-        suspend fun searchMusic(keyword: String, limit: Int = 3): String {
+        suspend fun searchMusic(keyword: String, limit: Int = 5): String {
             log.info("Search music keyword: {}", keyword)
             if (keyword.isBlank()) {
                 return "未提取到关键词"
             }
+
+            var limit = limit
+            if (limit > 5) limit = 5
 
             val musicCards = context.search(keyword, limit)
             log.info("Found {} music cards for keyword: {}", musicCards.size, keyword)
