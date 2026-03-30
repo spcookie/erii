@@ -188,7 +188,7 @@ object BotAgent {
                         ) {
                             handleEvents {
                                 onLLMCallStarting {
-                                    if (log.isInfoEnabled) {
+                                    if (log.isDebugEnabled) {
                                         val info = buildString {
                                             appendLine()
                                             for (message in it.prompt.messages) {
@@ -198,12 +198,12 @@ object BotAgent {
                                                 appendLine()
                                             }
                                         }
-                                        log.info("Bot agent onLLMCallStarting: {}", info)
+                                        log.debug("Bot agent onLLMCallStarting: {}", info)
                                     }
                                 }
 
                                 onLLMCallCompleted {
-                                    if (log.isInfoEnabled) {
+                                    if (log.isDebugEnabled) {
                                         val info = buildString {
                                             appendLine()
                                             for (message in it.responses) {
@@ -213,7 +213,7 @@ object BotAgent {
                                                 appendLine()
                                             }
                                         }
-                                        log.info("Bot agent onLLMCallCompleted: {}", info)
+                                        log.debug("Bot agent onLLMCallCompleted: {}", info)
                                     }
                                 }
 
