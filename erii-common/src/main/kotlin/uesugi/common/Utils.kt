@@ -8,6 +8,8 @@ import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 import kotlin.random.Random
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.microseconds
 
 inline fun <reified T : Any> T.logger() = LoggerFactory.getLogger(T::class.java)!!
 
@@ -50,12 +52,12 @@ fun calcHumanTypingDelay(
     text: String,
     cpm: Int = 160,
     jitter: Double = 0.15
-): Long {
+): Duration {
     val charCount = text.count { !it.isWhitespace() }
     val cps = cpm / 60.0
 
     val baseDelayMs = (charCount / cps * 1000).toLong()
     val jitterFactor = 1 + Random.nextDouble(-jitter, jitter)
 
-    return (baseDelayMs * jitterFactor).toLong().coerceAtLeast(300)
+    return (baseDelayMs * jitterFactor).toLong().coerceAtLeast(300).microseconds
 }

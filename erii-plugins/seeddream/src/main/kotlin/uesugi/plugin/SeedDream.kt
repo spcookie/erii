@@ -222,7 +222,7 @@ class SeedDreamExtension : RouteExtension<SeedDream> {
             meta.sendAgent(
                 input = resource.fold(
                     { error -> "生成图片失败，调用 Tool 发送消息告诉用户生成失败，错误: $error" },
-                    { _ -> "你已经生成了一张图片，必须调用图片 Tool 发送生成图片。" }
+                    { _ -> "你已经生成了一张图片，必须调用 `imageCreate` Tool 发送生成图片。" }
                 ),
                 ToolSetBuilder { tool(toolSet) } + Feature(PSFeature.GRAB or PSFeature.FALLBACK)
             ) {
