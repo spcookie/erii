@@ -21,15 +21,8 @@ object ConfigHolder {
     /**
      * 配置文件路径，可通过 -Dconfig.path 指定
      */
-    private val configPath: String by lazy {
-        System.getProperty("config.path") ?: "application.conf"
-    }
-
-    /**
-     * 配置文件目录（用于插件配置）
-     */
-    private val configDir: String by lazy {
-        System.getProperty("config.plugin.dir") ?: File(configPath).parentFile?.absolutePath ?: "."
+    private val configPath: String? by lazy {
+        System.getProperty("config.path")
     }
 
     /**
@@ -43,36 +36,34 @@ object ConfigHolder {
     val plugins: Config by lazy { loadPluginsConfig() }
 
     private fun loadAppConfig(): Config {
-        // 1. 首先加载配置文件（支持 -Dconfig.path 指定路径）
-        // ConfigFactory.load() 会自动解析 ${ENV_VAR} 占位符
-        log.info { "Loading config from: $configPath" }
-        val baseConfig = if (File(configPath).isAbsolute) {
-            ConfigFactory.parseFile(File(configPath)).resolve()
-        } else {
-            ConfigFactory.load(configPath).resolve()
-        }
-        var config = baseConfig.getConfig("app")
-
-        // 2. 检查 -D 参数覆盖
-        config = overrideWithSystemProperties(config, "app")
-
-        log.info { "App config loaded successfully" }
-        return config
+        return loadConfig("app") { log.info { "App config loaded successfully" } }
     }
 
     private fun loadPluginsConfig(): Config {
-        // 1. 首先加载配置文件中的 plugins 部分
-        val baseConfig = if (File(configPath).isAbsolute) {
-            ConfigFactory.parseFile(File(configPath)).resolve()
-        } else {
-            ConfigFactory.load(configPath).resolve()
-        }
-        var config = baseConfig.getConfig("plugins")
+        return loadConfig("plugins") { log.info { "Plugins config loaded successfully" } }
+    }
 
-        // 2. 检查 -D 参数覆盖
-        config = overrideWithSystemProperties(config, "plugins")
+    private fun loadConfig(path: String, onSuccess: () -> Unit): Config {
+        // 1. 先加载 classpath 下的默认配置
+        val classpathConfig = ConfigFactory.load("application.conf").resolve()
 
-        log.info { "Plugins config loaded successfully" }
+        // 2. 仅当 configPath 与默认值不同时，再加载文件覆盖
+        val fileConfig = configPath?.takeIf { it != "application.conf" }?.let { p ->
+            if (File(p).isAbsolute) {
+                ConfigFactory.parseFile(File(p)).resolve()
+            } else {
+                ConfigFactory.load(p).resolve()
+            }
+        } ?: ConfigFactory.empty()
+
+        // fileConfig 优先级高于 classpathConfig
+        val baseConfig = classpathConfig.withFallback(fileConfig)
+        var config = baseConfig.getConfig(path)
+
+        // 3. 检查 -D 参数覆盖
+        config = overrideWithSystemProperties(config, path)
+
+        onSuccess()
         return config
     }
 
@@ -130,6 +121,7 @@ object ConfigHolder {
     fun getProxySocks(): String? = app.tryGetString("proxy.socks")
 
     fun getNapcatWs(): String = app.getString("napcat.ws")
+    fun getNapcatHttp(): String = app.getString("napcat.http")
     fun getNapcatToken(): String = app.getString("napcat.token")
 
     /**
@@ -165,7 +157,6 @@ object ConfigHolder {
     )
 
     fun getPlaywrightHost(): String = app.getString("web.playwright-host")
-    fun getPlaywrightSkipBrowserDownload(): Boolean = app.getBoolean("web.playwright-skip-browser-download")
 
     fun getDebugGroupId(): String? = app.tryGetString("groups.debug-group-id")
 
