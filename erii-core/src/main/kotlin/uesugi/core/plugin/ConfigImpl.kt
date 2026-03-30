@@ -13,9 +13,7 @@ internal class ConfigImpl(val plugin: AgentExtension<*>) : PluginConfig {
 
     override suspend fun readResource(path: String): InputStream {
         return withContext(Dispatchers.IO) {
-            val path = Paths.get(path)
-            val normalize = Paths.get(plugin::class.simpleName!!)
-                .resolve(path)
+            val normalize = Paths.get(path)
                 .normalize()
                 .toString()
             plugin.javaClass
