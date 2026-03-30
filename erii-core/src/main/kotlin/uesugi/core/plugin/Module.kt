@@ -1,5 +1,6 @@
 package uesugi.core.plugin
 
+import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.dsl.onClose
@@ -81,6 +82,10 @@ fun pluginModule() = module(createdAtStart = true) {
 
     val database = DatabaseImpl()
 
+    factory<Scheduler> {
+        SchedulerImpl(it[0], get())
+    }
+
     extensions.forEach { plugin ->
         val pluginDef = buildPluginDef(plugin)
         val mem = MemImpl()
@@ -105,7 +110,7 @@ fun pluginModule() = module(createdAtStart = true) {
                         vector,
                         config,
                         database,
-                        SchedulerImpl(pluginDef.name, get()),
+                        get { parametersOf(pluginDef.name) },
                         get(),
                         get(named(HttpClientFactory.Type.NO_PROXY)),
                         server,
