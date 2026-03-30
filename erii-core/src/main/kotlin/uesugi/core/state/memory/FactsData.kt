@@ -1,5 +1,6 @@
 package uesugi.core.state.memory
 
+import ai.koog.agents.core.tools.annotations.LLMDescription
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
@@ -39,8 +40,11 @@ object FactsTable : IntIdTable("memory_facts") {
  * 记忆作用范围枚举
  */
 enum class Scopes {
-    USER,   // 个人属性
-    GROUP   // 群组共识/规则
+    @LLMDescription("个人属性 USER")
+    USER,
+
+    @LLMDescription("群组共识 GROUP")
+    GROUP
 }
 
 /**
