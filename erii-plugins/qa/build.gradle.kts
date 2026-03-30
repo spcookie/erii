@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.kotlin.plugin.serialization)
 }
 
 group = "uesugi.plugin"
