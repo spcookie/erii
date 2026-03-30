@@ -28,8 +28,8 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
 
     companion object {
         private lateinit var MUSIC_API_BASE: String
-        private lateinit var NAPCAT_HTTP_URL: String
-        private lateinit var NAPCAT_TOKEN: String
+        private lateinit var ONEBOT_HTTP_URL: String
+        private lateinit var ONEBOT_TOKEN: String
     }
 
     override fun onLoad(context: PluginContext) {
@@ -43,24 +43,24 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
             "api-base is required for NetEase Music plugin"
         }
 
-        val napcat = requireNotNull(
-            context.config().getConfig("napcat")
+        val onebot = requireNotNull(
+            context.config().getConfig("onebot")
         ) {
-            "napcat is required for NetEase Music plugin"
+            "onebot is required for NetEase Music plugin"
         }
 
         requireNotNull(
-            napcat.tryGetString("http-url")
-                ?.also { NAPCAT_HTTP_URL = it }
+            onebot.tryGetString("http-url")
+                ?.also { ONEBOT_HTTP_URL = it }
         ) {
-            "Napcat http-url is required for Napcat plugin"
+            "OneBot http-url is required for OneBot plugin"
         }
 
         requireNotNull(
-            napcat.tryGetString("token")
-                ?.also { NAPCAT_TOKEN = it }
+            onebot.tryGetString("token")
+                ?.also { ONEBOT_TOKEN = it }
         ) {
-            "Napcat token is required for Napcat plugin"
+            "OneBot token is required for OneBot plugin"
         }
 
         context.tool { { ToolSet(context) } }
@@ -142,7 +142,7 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
         private suspend fun sendMusicCards(musicCards: List<MusicCardResult>): String {
             for (cardResult in musicCards) {
                 try {
-                    context.http.post("$NAPCAT_HTTP_URL/send_msg") {
+                    context.http.post("$ONEBOT_HTTP_URL/send_msg") {
                         bearerAuth("hG8dQqGk6jGC")
                         contentType(ContentType.Application.Json)
                         setBody(

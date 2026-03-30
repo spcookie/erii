@@ -41,7 +41,6 @@ class MemoryAgent(
 
     companion object {
         private val log = logger()
-        private const val DEFAULT_BOT_MARK = "default"
     }
 
     /**
@@ -71,49 +70,13 @@ class MemoryAgent(
         val preferences: String
     )
 
-    /**
-     * 事实记忆提取结果
-     */
-    @Serializable
-    data class FactsAnalysis(
-        val id: Int,
-        val action: MemoryAction,   // ADD / DEPRECATE
-        val reason: String,         // 为什么这么判断
-        val keyword: String,        // 关键词
-        val description: String,    // 事实描述
-        val values: List<String>,   // 相关值/属性
-        val subjects: List<String>, // 涉及的主体(用户ID)
-        val scopeType: MemoryScopes, // 范围类型: USER/GROUP
-        val confidence: Double
-    )
-
-    @Serializable
-    data class FactsAnalysisInput(
-        val id: Int,
-        val keyword: String,        // 关键词
-        val description: String,    // 事实描述
-        val values: List<String>,   // 相关值/属性
-        val subjects: List<String>, // 涉及的主体(用户ID)
-        val scopeType: MemoryScopes // 范围类型: USER/GROUP
-    )
-
-    @Serializable
-    enum class MemoryAction {
-        ADD,        // 新增事实
-        DEPRECATE,  // 废弃不成立的事实
-        MERGE,      // 合并相似事实
-        UPDATE      // 修改事实
-    }
-
     enum class MemoryScopes {
+        @LLMDescription("用户作用域 USER")
         USER,
+
+        @LLMDescription("群组作用域 GROUP")
         GROUP
     }
-
-    @Serializable
-    data class FactsAnalysisList(
-        val facts: List<FactsAnalysis>
-    )
 
     /**
      * 摘要总结结果
@@ -217,127 +180,6 @@ class MemoryAgent(
 
         return result.getOrThrow().data.also {
             log.debug("用户画像分析完成, userId=${it.userId}")
-        }
-    }
-
-    /**
-     * 提取事实记忆
-     *
-     * @param messages 历史消息列表
-     * @param facts 当前已存在的相关事实（输入给 LLM 做参考）
-     * @return 事实记忆操作列表
-     */
-    @OptIn(ExperimentalTime::class)
-    suspend fun extractFacts(messages: List<MemoryMessage>, facts: List<FactsAnalysisInput>): List<FactsAnalysis> {
-        log.debug("开始提取事实记忆, 消息数=${messages.size}, 现有事实数=${facts.size}")
-
-        // 1. 预处理现有事实，使其对 LLM 更易读
-        val existingFactsContext = if (facts.isEmpty()) {
-            "当前无相关历史记忆。"
-        } else {
-            facts.joinToString("\n") {
-                "ID: ${it.id} | 内容: ${it.description} | 主体: ${it.subjects} | 值: ${it.values}"
-            }
-        }
-
-        // 2. 预处理消息，带上发送者信息
-        val msgContext = messages.joinToString("\n") {
-            "[${it.userId}]: ${it.content}"
-        }
-
-        val prompt = prompt("提取事实记忆") {
-            system(
-                """
-            你是一个由高级人工智能驱动的“长期记忆管理员”。你的核心目标是**维护记忆库的一致性和时效性**。
-            
-            你拥有两份数据：
-            1. [现有记忆库]：已经存储的事实（带有 ID）。
-            2. [最新群聊]：刚刚发生的对话。
-
-            你的任务是分析对话，对记忆库执行操作。
-            
-            ### 核心原则
-            1. **高价值原则**：只记录长久有效的信息（如职业、居住地、人际关系、重大经历、性格特质）。忽略闲聊、情绪宣泄或临时状态（如“我在吃饭”、“哈哈哈哈”）。
-            2. **动态更新原则**：当新信息与[现有记忆库]冲突时，必须 **DEPRECATE（废弃）** 旧事实，并 **ADD（新增）** 新事实。
-            3. **置信度原则**：不确定的推测不要记录。
-
-            ### 操作指令详解
-            
-            **Action: ADD**
-            - 场景：出现了此前未记录的新事实，或作为旧事实的更新版。
-            - 要求：必须提取准确的 values 和 subjects。
-            
-            **Action: DEPRECATE**
-            - 场景：
-              1. **状态变更**：旧事实不再成立（例如：搬家了、分手了、换工作了）。
-              2. **纠错**：用户明确表示之前的信息是错的。
-            - ⚠️ **重要**：如果发生状态变更（如从“单身”变为“恋爱”），你必须输出两条记录：一条 DEPRECATE 旧 ID，一条 ADD 新状态。
-            
-            ### JSON 输出字段说明
-            - action: "ADD" | "DEPRECATE"
-            - id: 仅 DEPRECATE 时必须填写对应[现有记忆库]中的 ID。ADD 时留空。
-            - reason: **(关键)** 必须先简述推理过程。例如："用户明确说搬到了上海，与旧记忆(ID 101 北京)冲突，故废弃旧记忆并新增。"
-            - description: 事实的自然语言描述（第三人称，例如 "UserA 现在的职业是医生"）。
-            - subjects: 相关主体列表（如 ["UserA", "UserB"]）。
-            - scopeType: "USER" (个人属性) | "GROUP" (群组共识/规则)。
-            - confidence: 0.0 ~ 1.0
-            
-            ### 少样本示例 (Few-Shot)
-            
-            [现有记忆库]
-            ID: 101 | 内容: Alice 住在伦敦
-            
-            [最新群聊]
-            [Alice]: 我终于搬到纽约了，刚落地。
-            
-            [输出]
-            [
-              {
-                "action": "DEPRECATE",
-                "id": 101,
-                "reason": "Alice 明确表示搬到了纽约，'住在伦敦'已成过去式。",
-                "description": "Alice 住在伦敦",
-                ...
-              },
-              {
-                "action": "ADD",
-                "reason": "Alice 说明了新的居住地。",
-                "description": "Alice 目前居住在纽约",
-                "subjects": ["Alice"],
-                "values": ["纽约"],
-                ...
-              }
-            ]
-            """.trimIndent()
-            )
-
-            user(
-                """
-            === [现有记忆库] ===
-            $existingFactsContext
-                
-            === [最新群聊] ===
-            $msgContext
-            
-            请基于以上信息生成 JSON 操作列表。
-            """.trimIndent()
-            )
-        }
-
-        val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
-
-        // 使用 Flash 模型速度快，但需要结构化强制
-        val result = promptExecutor.executeStructured<FactsAnalysisList>(
-            prompt = prompt,
-            model = LLMModelsChoice.Flash,
-            fixingParser = StructureFixingParser(
-                model = LLMModelsChoice.Lite,
-                retries = 2
-            )
-        )
-
-        return result.getOrThrow().data.facts.also { list ->
-            log.debug("提取结束: 新增/更新=${list.count { it.action == MemoryAction.ADD }}, 废弃=${list.count { it.action == MemoryAction.DEPRECATE }}")
         }
     }
 
@@ -533,8 +375,6 @@ class MemoryAgent(
         @Tool
         @LLMDescription("合并相似的多条事实，保留最完整的一条（自动处理向量索引）")
         suspend fun mergeFacts(
-            @LLMDescription("机器人标识") botMark: String = DEFAULT_BOT_MARK,
-            @LLMDescription("群 ID") groupId: String,
             @LLMDescription("被合并的事实ID") factIdToRemove: Int,
             @LLMDescription("保留的事实ID") factIdToKeep: Int,
             @LLMDescription("范围类型: USER 或 GROUP") scope: Scopes
@@ -549,14 +389,14 @@ class MemoryAgent(
                 }
                 oldFact?.let { entity ->
                     entity.vectorId?.let { vectorId ->
-                        vectorStore.deleteVector(vectorId, botMark, groupId)
+                        vectorStore.deleteVector(vectorId, botId, groupId)
                         log.debug("合并事实向量索引已删除, factId=$factIdToRemove, vectorId=$vectorId")
                     }
                 }
 
                 // 2. 废弃被合并的事实
                 withContext(Dispatchers.IO) {
-                    repo.deprecateFactsById(botMark, groupId, factIdToRemove, scope)
+                    repo.deprecateFactsById(botId, groupId, factIdToRemove, scope)
                 }
 
                 "事实已合并: $factIdToRemove -> $factIdToKeep, 向量已清理"
@@ -572,8 +412,6 @@ class MemoryAgent(
         @Tool
         @LLMDescription("更新已有事实的内容（自动更新向量索引）")
         suspend fun updateFact(
-            @LLMDescription("机器人标识") botMark: String = DEFAULT_BOT_MARK,
-            @LLMDescription("群 ID") groupId: String,
             @LLMDescription("要更新的事实ID") factId: Int,
             @LLMDescription("新的关键词") newKeyword: String,
             @LLMDescription("新的描述") newDescription: String,
@@ -591,25 +429,25 @@ class MemoryAgent(
                 }
                 oldFact?.let { entity ->
                     entity.vectorId?.let { vectorId ->
-                        vectorStore.deleteVector(vectorId, botMark, groupId)
+                        vectorStore.deleteVector(vectorId, botId, groupId)
                         log.debug("更新事实旧向量索引已删除, factId=$factId, vectorId=$vectorId")
                     }
                 }
 
                 // 2. 废弃旧事实
                 withContext(Dispatchers.IO) {
-                    repo.deprecateFactsById(botMark, groupId, factId, scope)
+                    repo.deprecateFactsById(botId, groupId, factId, scope)
                 }
 
                 // 3. 添加新事实
                 withContext(Dispatchers.IO) {
-                    repo.createFact(botMark, groupId, newKeyword, newDescription, newValues, subjects, scope)
+                    repo.createFact(botId, groupId, newKeyword, newDescription, newValues, subjects, scope)
                 }
 
                 // 4. 创建新向量
                 val newFact = withContext(Dispatchers.IO) {
                     repo.getLatestFact(
-                        botMark, groupId, newKeyword,
+                        botId, groupId, newKeyword,
                         if (scope == Scopes.USER) MemoryScopes.USER else MemoryScopes.GROUP
                     )
                 }

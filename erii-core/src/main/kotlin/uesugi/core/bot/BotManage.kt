@@ -1,4 +1,4 @@
-package uesugi
+package uesugi.core.bot
 
 import kotlinx.coroutines.*
 import net.mamoe.mirai.Bot
@@ -9,7 +9,6 @@ import uesugi.common.ConfigHolder
 import uesugi.common.IBotManage
 import uesugi.common.IBotManage.RoledBot
 import uesugi.common.logger
-import uesugi.core.BotRoleManager
 import uesugi.core.agent.BotAgent
 import java.util.concurrent.ConcurrentHashMap
 import uesugi.core.GroupMessageEventListener as MessageListener
@@ -46,7 +45,7 @@ fun configureConnectBots() {
     // 加载 BotRole 配置
     BotRoleManager.loadRoles()
 
-    val botConfigs = ConfigHolder.getNapcatBots()
+    val botConfigs = ConfigHolder.getOnebotBots()
 
     if (botConfigs.isEmpty()) {
         log.warn("未配置任何机器人")

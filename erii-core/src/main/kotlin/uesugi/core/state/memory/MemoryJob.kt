@@ -3,8 +3,8 @@ package uesugi.core.state.memory
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import org.jobrunr.scheduling.JobScheduler
-import uesugi.BotManage
 import uesugi.common.logger
+import uesugi.core.bot.BotManage
 
 /**
  * 记忆任务 - 定时调度记忆处理

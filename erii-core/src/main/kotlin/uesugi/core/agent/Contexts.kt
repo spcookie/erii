@@ -5,11 +5,13 @@ import kotlinx.coroutines.withContext
 import okio.Path.Companion.toPath
 import okio.buffer
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.BotManage
 import uesugi.common.*
+import uesugi.core.bot.BotManage
 import uesugi.core.component.ObjectStorage
 import uesugi.core.message.history.HistoryService
 import uesugi.core.message.resource.ResourceService
+import uesugi.core.rule.Rule
+import uesugi.core.rule.RuleManager
 import uesugi.core.state.emotion.*
 import uesugi.core.state.emotion.EmojiLevel.*
 import uesugi.core.state.evolution.EvolutionService
@@ -259,6 +261,8 @@ data class Context(
     val summary: suspend () -> SummaryEntity?,
     val histories: suspend () -> List<HistoryRecord>,
     val moreHistories: suspend () -> List<HistoryRecord>,
+    val rules: suspend () -> List<Rule>,
+    val admins: () -> List<String>,
     val memo: suspend (String) -> MemeResource?,
 ) {
 
@@ -271,7 +275,9 @@ data class Context(
         val vocabulary: List<LearnedVocabEntity>,
         val summary: SummaryEntity?,
         val histories: List<HistoryRecord>,
-        val moreHistories: List<HistoryRecord>
+        val moreHistories: List<HistoryRecord>,
+        val rules: List<Rule>,
+        val admins: List<String>
     )
 
     suspend fun toTransient() = Transient(
@@ -283,7 +289,9 @@ data class Context(
         vocabulary = vocabulary(),
         summary = summary(),
         histories = histories(),
-        moreHistories = moreHistories()
+        moreHistories = moreHistories(),
+        rules = rules(),
+        admins = admins()
     )
 
 }
@@ -379,6 +387,16 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
                         historyService.getLatestHistory(currentBotId, groupId, 30, 12.hours)
                     }
                 }
+            },
+            rules = {
+                withContext(Dispatchers.IO) {
+                    RuleManager.getRulesFor(currentBotId, groupId)
+                }
+            },
+            admins = {
+                ConfigHolder.getOnebotBots().values
+                    .flatMap { it.groups[groupId]?.admins ?: emptyList() }
+                    .distinct()
             },
             memo = { key ->
                 withContext(Dispatchers.IO) {
