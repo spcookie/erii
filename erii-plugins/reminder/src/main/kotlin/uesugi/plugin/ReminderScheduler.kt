@@ -10,7 +10,7 @@ import kotlin.time.Duration.Companion.seconds
 class ReminderScheduler(
     private val scheduler: Scheduler,
     private val wheel: ReminderWheel,
-    private val sendReminderMessage: (ReminderTask) -> Unit
+    private val sendReminderMessage: suspend (ReminderTask) -> Unit
 ) {
     private val logger = KotlinLogging.logger {}
 
