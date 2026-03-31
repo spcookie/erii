@@ -2,7 +2,8 @@ package uesugi.core.state.meme
 
 import org.koin.core.context.GlobalContext
 import org.koin.core.parameter.parametersOf
-import uesugi.core.component.embedding.EmbeddingUtil
+import uesugi.common.EmbeddingInput
+import uesugi.common.EmbeddingManager
 import uesugi.core.component.storage.VectorStore
 import java.nio.file.Paths
 
@@ -31,7 +32,8 @@ class MemoVectorStore {
      * 将文本编码为向量
      */
     suspend fun encode(text: String, image: ByteArray? = null): FloatArray {
-        val vector = EmbeddingUtil.embedding(text, image)
+        val images = if (image != null) listOf(image) else emptyList()
+        val vector = EmbeddingManager.get().embeddingMultiModal(listOf(EmbeddingInput(text, images))).first()
         return vector
     }
 

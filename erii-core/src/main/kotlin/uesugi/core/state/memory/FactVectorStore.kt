@@ -5,7 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import org.koin.core.parameter.parametersOf
-import uesugi.core.component.embedding.EmbeddingUtil
+import uesugi.common.EmbeddingManager
 import uesugi.core.component.storage.VectorStore
 import java.nio.file.Paths
 
@@ -57,7 +57,7 @@ class FactVectorStore {
         }
 
         val vector: FloatArray = withContext(Dispatchers.IO) {
-            EmbeddingUtil.embedding(content, null)
+            EmbeddingManager.get().embedding(listOf(content)).first()
         }
         val store = getStore(botMark, groupId)
         store.upsert(vectorId, content, fact.scopeType.name, vector)
@@ -75,7 +75,7 @@ class FactVectorStore {
         topK: Int
     ): List<FactSearchResult> {
         val vector: FloatArray = withContext(Dispatchers.IO) {
-            EmbeddingUtil.embedding(query, null)
+            EmbeddingManager.get().embedding(listOf(query)).first()
         }
         val store = getStore(botMark, groupId)
         val results = store.search(vector, topK)

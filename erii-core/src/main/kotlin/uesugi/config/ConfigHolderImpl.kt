@@ -86,7 +86,12 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getChoiceModel(): String = app.getString("llm.choice-model")
 
     override fun getEmbeddingApiKey(): String = app.getString("embedding.api-key")
-    override fun getExaApiKey(): String = app.getString("exa.api-key")
+    override fun getEmbeddingProvider(): String =
+        app.tryGetString("embedding.provider") ?: "bytedance"
+
+    override fun getSearchApiKey(): String = app.getString("search.api-key")
+    override fun getSearchProvider(): String =
+        app.tryGetString("search.provider") ?: "exa"
 
     override fun getProxyHttp(): String? = app.tryGetString("proxy.http")
     override fun getProxySocks(): String? = app.tryGetString("proxy.socks")

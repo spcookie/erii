@@ -8,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import java.util.*
 
 object WebSearchTool : ToolSet {
 
@@ -64,7 +63,7 @@ suspend fun appendExaWebPagePrompt(
     specificUrls: List<String>?,
     maxResults: Int = 3
 ) {
-    val searchService = ServiceLoader.load(ISearch::class.java).first()
+    val searchService = SearchManager.get()
     searchService.search(query, specificUrls, maxResults).also { item ->
         builder.apply {
             if (item.isNotEmpty()) {
@@ -78,14 +77,3 @@ suspend fun appendExaWebPagePrompt(
         }
     }
 }
-
-interface ISearch {
-    suspend fun search(query: String? = null, urls: List<String>? = null, maxResult: Int = 10): List<SearchResultItem>
-}
-
-data class SearchResultItem(
-    val url: String,
-    val title: String,
-    val content: String,
-    val score: Double
-)

@@ -17,6 +17,8 @@ import uesugi.common.logger
 @AutoService(ISearch::class)
 class ExaSearch : ISearch {
 
+    override val id: String = "exa"
+
     private val log = logger()
 
     private val httpClient = HttpClient(CIO) {

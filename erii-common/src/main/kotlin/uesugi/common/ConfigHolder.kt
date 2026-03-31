@@ -26,7 +26,9 @@ object ConfigHolder {
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()
-    fun getExaApiKey(): String = provider.getExaApiKey()
+    fun getEmbeddingProvider(): String = provider.getEmbeddingProvider()
+    fun getExaApiKey(): String = provider.getSearchApiKey()
+    fun getSearchProvider(): String = provider.getSearchProvider()
 
     // ===== 代理 =====
     fun getProxyHttp(): String? = provider.getProxyHttp()
