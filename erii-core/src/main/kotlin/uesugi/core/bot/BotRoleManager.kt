@@ -1,4 +1,4 @@
-package uesugi.core
+package uesugi.core.bot
 
 import org.yaml.snakeyaml.Yaml
 import uesugi.common.BotRole
@@ -6,7 +6,9 @@ import uesugi.common.ConfigBotRole
 import uesugi.common.EmotionalTendencies
 import uesugi.common.logger
 import java.io.File
+import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.jar.JarFile
 
 /**
  * BotRole 管理器，负责从配置文件动态加载角色
@@ -18,24 +20,24 @@ object BotRoleManager {
     /**
      * 加载所有角色配置
      * 加载顺序：
-     * 1. 先加载 classpath 下的默认角色配置 (botroles/)
+     * 1. 先加载 classpath 下的默认角色配置 (souls/)
      * 2. 再加载配置目录，覆盖默认配置
      *
      * @param configDir 配置文件目录，支持：
-     *  - 系统属性 -Dbotrole.dir
-     *  - 环境变量 BOTROLE_DIR
-     *  - 默认值 "botroles"（相对于 classpath）
+     *  - 系统属性 -Dconfig.souls.dir
+     *  - 环境变量 CONFIG_SOULS_DIR
+     *  - 默认值 "souls"（相对于 classpath）
      */
     fun loadRoles(configDir: String? = null) {
         // 1. 先加载 classpath 下的默认角色配置
-        loadFromClasspath("botroles")
+        loadFromClasspath("souls")
         if (roles.isNotEmpty()) {
             log.info("已从 classpath 加载 ${roles.size} 个默认 BotRole")
         }
 
         // 2. 再加载配置目录，覆盖默认配置
         val customDir = resolveConfigDir(configDir)
-        if (customDir != "botroles") {
+        if (customDir != "souls") {
             log.info("开始从配置目录加载 BotRole，目录: $customDir")
             loadFromDirectoryOrClasspath(customDir)
         } else {
@@ -78,9 +80,9 @@ object BotRoleManager {
 
     private fun resolveConfigDir(configDir: String?): String {
         return configDir
-            ?: System.getProperty("botrole.dir")
-            ?: System.getenv("BOTROLE_DIR")
-            ?: "botroles"
+            ?: System.getProperty("config.souls.dir")
+            ?: System.getenv("CONFIG_SOULS_DIR")
+            ?: "souls"
     }
 
     private fun loadFromDirectory(dir: File) {
@@ -108,7 +110,7 @@ object BotRoleManager {
                 // 获取 JAR 文件并列出条目
                 if (jarUrl.startsWith("jar:")) {
                     val jarFileUrl = jarUrl.substring(4, jarUrl.indexOf("!"))
-                    val jarFile = java.util.jar.JarFile(java.net.URLDecoder.decode(jarFileUrl, "UTF-8"))
+                    val jarFile = JarFile(URLDecoder.decode(jarFileUrl, "UTF-8"))
                     val entries = jarFile.entries()
                     while (entries.hasMoreElements()) {
                         val entry = entries.nextElement()
@@ -165,17 +167,16 @@ object BotRoleManager {
 
         // 组装 personality，将 body 作为人格描述的一部分
         val personality = """
-        你是群聊中的一名成员，名字叫 $name。
-        你在群聊中的ID是：{{botId}}。
-        
-        你不是聊天机器人。你正在成为某个人。
-
-        $body
-
-        ## 话题偏好
-
-        $character
-        """.trimIndent()
+            |你是群聊中的一名成员，名字叫 $name。
+            |你在群聊中的ID是：{{botId}}。
+            |你不是聊天机器人。你正在成为某个人。
+            |
+            |$body
+            |
+            |## 话题偏好
+            |
+            |$character
+        """.trimMargin()
 
         return ConfigBotRole(
             id = id,

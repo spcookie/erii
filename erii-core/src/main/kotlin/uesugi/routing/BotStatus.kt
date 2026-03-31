@@ -1,13 +1,14 @@
 package uesugi.routing
 
+import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
-import uesugi.BotManage
 import uesugi.common.ENABLE_GROUPS
 import uesugi.common.PAD
+import uesugi.core.bot.BotManage
 import uesugi.core.plugin.ExtensionRegister
 import uesugi.core.state.emotion.BehaviorProfile
 import uesugi.core.state.emotion.EmotionService
@@ -18,6 +19,10 @@ import uesugi.core.state.meme.MemoService
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
 import uesugi.core.state.volition.VolitionGaugeManager
+
+private val groupStatusHtml by lazy {
+    BotStatus::class.java.classLoader.getResource("assets/group-status.html")!!.readText()
+}
 
 fun Routing.configureBotStatus() {
     authenticate("basic") {
@@ -142,10 +147,7 @@ fun Routing.configureBotStatus() {
             if (botId == null || groupId == null) {
                 call.respondRedirect("/")
             } else {
-                call.respondText(
-                    this::class.java.classLoader.getResource("public/group-status.html")!!.readText(),
-                    io.ktor.http.ContentType.Text.Html
-                )
+                call.respondText(groupStatusHtml, ContentType.Text.Html)
             }
         }
     }

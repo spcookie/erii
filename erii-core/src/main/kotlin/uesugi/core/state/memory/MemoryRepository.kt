@@ -7,11 +7,7 @@ import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import uesugi.common.HistoryEntity
-import uesugi.common.HistoryRecord
-import uesugi.common.HistoryTable
-import uesugi.common.logger
-import uesugi.common.toRecord
+import uesugi.common.*
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -134,6 +130,25 @@ class MemoryRepository {
                 this.preferences = ""
             }
             entity.toRecord()
+        }
+    }
+
+    /**
+     * 更新或创建用户画像
+     */
+    fun updateUserProfile(botMark: String, groupId: String, userId: String, profile: String, preferences: String) {
+        transaction {
+            val entity = UserProfileEntity.find(
+                (UserProfileTable.botMark eq botMark) and
+                        (UserProfileTable.groupId eq groupId) and
+                        (UserProfileTable.userId eq userId)
+            ).firstOrNull() ?: UserProfileEntity.new {
+                this.botMark = botMark
+                this.groupId = groupId
+                this.userId = userId
+            }
+            entity.profile = profile
+            entity.preferences = preferences
         }
     }
 

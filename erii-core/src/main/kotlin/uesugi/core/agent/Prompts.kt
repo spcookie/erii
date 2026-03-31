@@ -8,9 +8,10 @@ import com.nlf.calendar.Solar
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
-import uesugi.BotManage
 import uesugi.common.DateTimeFormat
 import uesugi.common.HistoryRecord
+import uesugi.core.bot.BotManage
+import uesugi.core.rule.Rule
 import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.memory.FactsEntity
 import uesugi.core.state.memory.SummaryEntity
@@ -27,25 +28,19 @@ internal suspend fun buildPrompt(context: Context): Prompt {
         system {
             markdown {
                 text(context.botRole.personality(context.currentBotId))
-                horizontalRule()
                 buildConstraintsPrompt(constraints)
-                horizontalRule()
                 buildVocabularyPrompt(transient.vocabulary)
                 buildFactsPrompt(transient.facts)
-                horizontalRule()
+                buildRulesPrompt(transient.rules)
+                buildAdminInfoPrompt(transient.admins)
                 buildUserProfilesPrompt(transient.userProfiles)
-                horizontalRule()
-                buildFusion()
-                horizontalRule()
                 buildMetadataPrompt()
-                horizontalRule()
                 buildConstraintRulePrompt()
             }
         }
         user {
             markdown {
                 buildSummaryPrompt(transient.summary)
-
                 buildHistoriesPrompt(transient.histories, context.currentBotId)
             }
         }
@@ -130,7 +125,7 @@ fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechConstraints
 
 fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<LearnedVocabEntity>) {
     if (vocabulary.isNotEmpty()) {
-        h2("群聊常用语（可自然使用，不必每条都用）")
+        h2("群聊常用语（可参考语气与场景，自然融入对话，不必每条都用）")
         for (learnedVocabEntity in vocabulary) {
             bulleted {
                 item {
@@ -138,7 +133,6 @@ fun MarkdownContentBuilder.buildVocabularyPrompt(vocabulary: List<LearnedVocabEn
                 }
             }
         }
-        line { text("使用提示：可参考语气与场景，自然融入对话") }
     }
 }
 
@@ -199,18 +193,6 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
     }
 }
 
-fun MarkdownContentBuilder.buildFusion() {
-    h2("群聊融合机制（优先级高于表达细节）")
-    bulleted {
-        item { line { text("你的语气应贴近当前群聊最近发言的节奏与风格") } }
-        item { line { text("果群聊偏随意 → 你更随意") } }
-        item { line { text("如果群聊偏认真 → 你更收敛") } }
-        item { line { text("不要使用明显“角色化语言模板”") } }
-        item { line { text("允许轻微模仿群友用词，但不要完全复制") } }
-    }
-    line { text("原则：你是群里的成员，不是设定展示者") }
-}
-
 fun MarkdownContentBuilder.buildConstraintRulePrompt() {
     h2("约束规则【重要】")
     bulleted {
@@ -218,7 +200,24 @@ fun MarkdownContentBuilder.buildConstraintRulePrompt() {
         item { line { text("你只能调用工具回复消息或执行任务，但不要一直调用工具频繁发言。") } }
         item { line { text("绝对禁止直接在模型输出中写要发送的文字；所有对外消息必须调用发言工具。") } }
         item { line { text("如果你判断本次不应对外发言，请调用 sendSilent() 作为本次唯一/最终调用，或者直接返回 SILENT") } }
-        item { line { text("不应该总是使用文本或表情。") } }
         item { line { text("在群聊中，你应该像真人一样使用多种表达方式。") } }
+    }
+}
+
+fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {
+    if (rules.isNotEmpty()) {
+        h2("当前生效规则")
+        for (rule in rules) {
+            line { text("【${rule.fileName}】") }
+            line { text(rule.content) }
+        }
+    }
+}
+
+fun MarkdownContentBuilder.buildAdminInfoPrompt(admins: List<String>) {
+    if (admins.isNotEmpty()) {
+        h2("群组管理员")
+        line { text("当前群组的管理员ID列表：${admins.joinToString("、")}") }
+        line { text("管理员有权限通过指令管理当前群组的规则。") }
     }
 }
