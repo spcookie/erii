@@ -4,13 +4,23 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class ReminderWheel(
-    private val store: ReminderStore
+    val store: ReminderStore
 ) {
     // 按 botId-groupId 分组，每组一个待触发队列
     private val wheel = ConcurrentHashMap<BotGroupKey, ConcurrentLinkedQueue<ReminderTask>>()
 
     // 维护注册的 bot-group 组合
     private val registeredKeys = ConcurrentHashMap.newKeySet<BotGroupKey>()
+
+    suspend fun init() {
+        store.getAllBotGroupKeys().forEach { key ->
+            register(key.botId, key.groupId)
+            // 先从 store 加载该群组的待触发任务
+            store.getAllActiveTasks(key.botId, key.groupId)
+                .forEach { task -> pushTask(task) }
+        }
+
+    }
 
     fun register(botId: String, groupId: String) {
         val key = BotGroupKey(botId, groupId)
@@ -24,7 +34,7 @@ class ReminderWheel(
         store.saveTask(task)
     }
 
-    fun getAndClearDueTasks(botId: String, groupId: String, now: Long): List<ReminderTask> {
+    suspend fun getAndClearDueTasks(botId: String, groupId: String, now: Long): List<ReminderTask> {
         val key = BotGroupKey(botId, groupId)
         val queue = wheel[key] ?: return emptyList()
 
@@ -35,6 +45,7 @@ class ReminderWheel(
             val task = iterator.next()
             if (task.triggerTime <= now) {
                 iterator.remove()
+                store.deleteTask(task.botId, task.groupId, task.reminderId)
                 dueTasks.add(task)
             }
         }
