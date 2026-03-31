@@ -24,10 +24,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
-import uesugi.common.DateTimeFormat
-import uesugi.common.HistoryRecord
-import uesugi.common.LLMModelsChoice
-import uesugi.common.logger
+import uesugi.common.*
 import kotlin.time.ExperimentalTime
 
 /**
@@ -204,7 +201,7 @@ class MemoryAgent(
             )
         }
 
-        val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
+        val promptExecutor by ref<PromptExecutor>()
 
         val result = promptExecutor.executeStructured<UserProfileAnalysis>(
             prompt = prompt,
