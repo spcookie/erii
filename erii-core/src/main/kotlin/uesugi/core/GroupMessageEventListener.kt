@@ -22,7 +22,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.common.*
-import uesugi.core.component.ObjectStorage
+import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.history.HistorySavedEvent
 import uesugi.core.message.history.HistoryService
 import uesugi.core.message.resource.ResourceEntity

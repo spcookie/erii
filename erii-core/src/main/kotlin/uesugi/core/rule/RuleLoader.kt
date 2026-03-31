@@ -20,7 +20,7 @@ object RuleLoader {
         val rules = mutableListOf<Rule>()
 
         // 1. 加载文件系统中的规则
-        val rulesDir = System.getProperty("config.rules.dir") ?: DEFAULT_RULES_DIR
+        val rulesDir = resolveConfigDir()
         val rulesDirFile = File(rulesDir)
         if (rulesDirFile.exists() && rulesDirFile.isDirectory) {
             rulesDirFile.listFiles { file -> file.extension == "md" }?.forEach { file ->
@@ -43,6 +43,13 @@ object RuleLoader {
         }
 
         return rules
+    }
+
+    private fun resolveConfigDir(configDir: String? = null): String {
+        return configDir
+            ?: System.getProperty("config.rules.dir")
+            ?: System.getenv("CONFIG_RULES_DIR")
+            ?: DEFAULT_RULES_DIR
     }
 
     /**

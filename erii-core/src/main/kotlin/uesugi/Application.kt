@@ -12,11 +12,12 @@ import uesugi.server.*
 internal val LOG = logger("uesugi")
 
 fun main(args: Array<String>) {
-    ConfigHolder.init(ConfigHolderImpl())
     io.ktor.server.netty.EngineMain.main(args)
 }
 
 fun Application.module() {
+    ConfigHolder.init(ConfigHolderImpl())
+
     configureFrameworks()
     configureMonitoring()
     configureSecurity()

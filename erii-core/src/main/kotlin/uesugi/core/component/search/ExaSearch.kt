@@ -1,4 +1,4 @@
-package uesugi.toolkit
+package uesugi.core.component.search
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.google.auto.service.AutoService

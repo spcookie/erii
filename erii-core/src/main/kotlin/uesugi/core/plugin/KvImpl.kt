@@ -5,7 +5,7 @@ import kotlinx.coroutines.withContext
 import net.mamoe.mirai.utils.ConcurrentHashMap
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
-import uesugi.core.component.MapDB
+import uesugi.core.component.storage.MapDB
 import uesugi.spi.ExpireStrategy
 import uesugi.spi.Kv
 import uesugi.spi.PluginDef

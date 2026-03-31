@@ -1,10 +1,10 @@
 package uesugi.core.plugin
 
 import okio.Path.Companion.toPath
-import uesugi.core.component.EmbeddedVectorStore
+import uesugi.core.component.embedding.EmbeddingUtil
+import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.spi.PluginDef
 import uesugi.spi.Vector
-import uesugi.toolkit.EmbeddingUtil
 
 internal class VectorImpl(val defined: PluginDef) : Vector {
 

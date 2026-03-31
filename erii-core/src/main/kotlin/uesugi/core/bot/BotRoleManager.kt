@@ -16,6 +16,7 @@ import java.util.jar.JarFile
 object BotRoleManager {
     private val roles = ConcurrentHashMap<String, BotRole>()
     private val log = logger()
+    private const val DEFAULT_SOULS_DIR = "souls"
 
     /**
      * 加载所有角色配置
@@ -41,7 +42,7 @@ object BotRoleManager {
             log.info("开始从配置目录加载 BotRole，目录: $customDir")
             loadFromDirectoryOrClasspath(customDir)
         } else {
-            // 如果配置的目录就是 botroles，检查是否是外部目录
+            // 如果配置的目录就是 souls，检查是否是外部目录
             val resourceDir = BotRoleManager::class.java.classLoader.getResource(customDir)
             if (resourceDir != null && resourceDir.protocol == "file") {
                 val dirFile = File(resourceDir.path)
@@ -82,7 +83,7 @@ object BotRoleManager {
         return configDir
             ?: System.getProperty("config.souls.dir")
             ?: System.getenv("CONFIG_SOULS_DIR")
-            ?: "souls"
+            ?: DEFAULT_SOULS_DIR
     }
 
     private fun loadFromDirectory(dir: File) {
@@ -142,7 +143,10 @@ object BotRoleManager {
      */
     private fun parseMarkdown(content: String, defaultId: String): BotRole? {
         // 分离 Front Matter 和正文
-        val fmRegex = Regex("^---\\n([\\s\\S]*?)\\n---\\n([\\s\\S]*)$")
+        val fmRegex = Regex(
+            "^---\\s*\\R([\\s\\S]*?)\\R---\\s*\\R([\\s\\S]*)$",
+            RegexOption.MULTILINE
+        )
         val match = fmRegex.find(content) ?: return null
 
         val frontMatter = match.groupValues[1]

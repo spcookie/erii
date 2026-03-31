@@ -9,7 +9,7 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.common.*
-import uesugi.core.component.ObjectStorage
+import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.resource.ResourceService
 
 /**

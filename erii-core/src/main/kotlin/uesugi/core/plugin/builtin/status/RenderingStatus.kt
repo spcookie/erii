@@ -6,13 +6,13 @@ import org.koin.core.context.GlobalContext
 import org.koin.core.qualifier.named
 import org.pf4j.Extension
 import uesugi.common.ref
+import uesugi.core.component.browser.WebScreenshotTaker
 import uesugi.core.plugin.builtin.Builtin
 import uesugi.core.plugin.builtin.BuiltinExtension
 import uesugi.spi.AgentExtension
 import uesugi.spi.ArgParserHolder
 import uesugi.spi.CmdExtension
 import uesugi.spi.PluginContext
-import uesugi.toolkit.WebScreenshotTaker
 
 @Extension(points = [AgentExtension::class])
 class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, BuiltinExtension {
