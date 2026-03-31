@@ -159,7 +159,7 @@ interface PassiveExtension<Plugin : AgentPlugin> : AgentExtension<Plugin>
 typealias Handler = suspend PluginContext.(meta: Meta) -> Unit
 typealias MetaToolSetCreator = () -> MetaToolSet
 
-interface Scheduler : AutoCloseable {
+interface Scheduler {
     /** 周期调度 - cron 表达式 */
     fun scheduleRecurrently(id: String, cron: String, action: () -> Unit)
 
@@ -302,11 +302,20 @@ fun Meta.sendAgent(
     conf: SendAgentConfig = EmptyConfig,
     state: SendAgentStateDsl? = null
 ) {
+    sendAgent(this.botId, this.groupId, input, conf, state)
+}
+
+fun sendAgent(
+    botId: String,
+    groupId: String,
+    input: String,
+    conf: SendAgentConfig = EmptyConfig,
+    state: SendAgentStateDsl? = null
+) {
     for (sender in ServiceLoader.load(AgentSender::class.java)) {
         sender.sendAgent(botId, groupId, input, conf, state)
     }
 }
-
 
 interface SendAgentState {
     val scope: CoroutineScope

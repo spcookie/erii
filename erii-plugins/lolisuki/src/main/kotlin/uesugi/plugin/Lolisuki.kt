@@ -88,17 +88,14 @@ class LolisukiExtension : RouteExtension<Lolisuki> {
             {
                 object : MetaToolSet {
                     @Tool
-                    @LLMDescription("回复消息，并发送一张涩图")
-                    suspend fun sendSexImage(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
-                        val resource = getImage(MetaToolSet.Companion.meta)
-                        val group = MetaToolSet.Companion.meta.getGroup()
+                    @LLMDescription("发送一张涩图")
+                    suspend fun sendSexImage(): String {
+                        val resource = getImage(MetaToolSet.meta)
+                        val group = MetaToolSet.meta.getGroup()
                         resource?.use {
-                            for (sentence in sentences) {
-                                group.sendMessage(sentence)
-                            }
                             group.sendImage(resource)
                         }
-                        return "ok"
+                        return "发送成功"
                     }
                 }
             }
