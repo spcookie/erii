@@ -193,21 +193,13 @@ class SeedDreamExtension : RouteExtension<SeedDream> {
                 }
             }
 
-            val toolSet = { chatToolSet: ChatToolSet ->
+            val toolSet = { _: ChatToolSet ->
                 object : ToolSet {
-                    @LLMDescription("回复消息，并发送图片，返回群其他人的回复")
+                    @LLMDescription("发送图片")
                     @Tool
-                    fun sendMessageAndImage(@LLMDescription("回复 2～3 句为主，最多 5 句") sentences: List<String>): String? {
+                    fun sendImage(): String? {
                         state.value = true
                         GlobalScope.launch {
-                            for ((i, v) in sentences.withIndex()) {
-                                if (i == 0) {
-                                    chatToolSet.sendText(v)
-                                } else {
-                                    delay(calcHumanTypingDelay(v))
-                                    chatToolSet.sendText(v)
-                                }
-                            }
                             resource.onRight { img ->
                                 img.use {
                                     group.sendImage(it)
@@ -237,15 +229,12 @@ class SeedDreamExtension : RouteExtension<SeedDream> {
             {
                 object : MetaToolSet {
                     @Tool
-                    @LLMDescription("回复消息，并生成图片发送")
-                    suspend fun imageCreate(@LLMDescription("回复 2～3 句") sentences: List<String>): String {
-                        val resource = image(this@tool, MetaToolSet.Companion.meta)
-                        val group = MetaToolSet.Companion.meta.getGroup()
+                    @LLMDescription("生成一张图片发送")
+                    suspend fun imageCreate(): String {
+                        val resource = image(this@tool, MetaToolSet.meta)
+                        val group = MetaToolSet.meta.getGroup()
                         resource.onRight { img ->
                             img.use {
-                                for (sentence in sentences) {
-                                    group.sendMessage(sentence)
-                                }
                                 group.sendImage(it)
                             }
                         }

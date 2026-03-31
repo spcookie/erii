@@ -17,7 +17,7 @@ class QQChatToolSet(
 ) : ChatToolSet {
 
     companion object {
-        private val AT_PATTERN = Regex("""\[at:(\d+)]""")
+        private val AT_PATTERN = Regex("""@(\d+)""")
     }
 
     override suspend fun sendText(text: String): String {

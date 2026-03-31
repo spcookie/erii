@@ -80,7 +80,6 @@ class PluginContextImpl(
         if (this::job.isInitialized) {
             EventBus.unsubscribeAsync(job)
         }
-        scheduler.close()
     }
 
 }

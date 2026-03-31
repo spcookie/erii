@@ -68,20 +68,4 @@ class SchedulerImpl(
         SchedulerBridge.unregister(qid)
     }
 
-    override fun close() {
-        // 先取快照再遍历，避免并发修改
-        val recurringIds = recurringJobIds.toList()
-        recurringIds.forEach { qid ->
-            runCatching { jobScheduler.deleteRecurringJob(qid) }
-            SchedulerBridge.unregister(qid)
-        }
-        recurringJobIds.clear()
-
-        val oneTimeIds = oneTimeJobIds.toMap()
-        oneTimeIds.forEach { (qid, uuid) ->
-            runCatching { jobScheduler.delete(uuid) }
-            SchedulerBridge.unregister(qid)
-        }
-        oneTimeJobIds.clear()
-    }
 }
