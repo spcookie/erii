@@ -1,4 +1,4 @@
-package uesugi.core.component
+package uesugi.common
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
@@ -8,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import uesugi.common.logger
 import java.util.*
 
 object WebSearchTool : ToolSet {
