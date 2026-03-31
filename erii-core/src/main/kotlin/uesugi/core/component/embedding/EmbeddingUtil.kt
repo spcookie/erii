@@ -1,4 +1,4 @@
-package uesugi.toolkit
+package uesugi.core.component.embedding
 
 import cn.hutool.core.io.FileTypeUtil
 import com.fasterxml.jackson.databind.JsonNode

@@ -8,8 +8,8 @@ services:
     ports:
       - "13001:3000"
     environment:
-      - HTTP_PROXY=http://hostmachine:7890
-      - HTTPS_PROXY=http://hostmachine:7890
+      #      - HTTP_PROXY=http://hostmachine:7890
+      #      - HTTPS_PROXY=http://hostmachine:7890
       - NO_PROXY=localhost,127.0.0.1,hostmachine
     extra_hosts:
       - "hostmachine:host-gateway"

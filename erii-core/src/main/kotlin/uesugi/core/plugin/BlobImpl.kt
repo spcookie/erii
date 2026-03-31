@@ -6,7 +6,7 @@ import okio.Path
 import okio.Path.Companion.toPath
 import okio.buffer
 import okio.source
-import uesugi.core.component.LocalObjectStorage
+import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.spi.Blob
 import uesugi.spi.PluginDef
 import java.io.InputStream

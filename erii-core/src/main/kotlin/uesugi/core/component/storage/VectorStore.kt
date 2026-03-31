@@ -1,4 +1,4 @@
-package uesugi.core.component
+package uesugi.core.component.storage
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.*

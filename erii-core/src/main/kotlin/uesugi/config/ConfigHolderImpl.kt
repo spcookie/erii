@@ -17,6 +17,8 @@ class ConfigHolderImpl : ConfigProvider {
 
     private val configPath: String? by lazy {
         System.getProperty("config.path")
+            ?: System.getenv("CONFIG_PATH")
+            ?: "application.conf"
     }
 
     val app: Config by lazy { loadAppConfig() }

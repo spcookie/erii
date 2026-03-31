@@ -11,6 +11,9 @@ services:
       - .env.local
     volumes:
       - ./store:/erii/store
+      - ./souls:/erii/souls
+      - ./rules:/erii/rules
+      - ./logs:/erii/logs
     ports:
       - "8080:8080"
       - "8082:8082"

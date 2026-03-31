@@ -9,7 +9,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.HistoryRecord
 import uesugi.common.HistoryTable
 import uesugi.common.ref
-import uesugi.core.component.ObjectStorage
+import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.resource.ResourceRecord
 import uesugi.core.message.resource.ResourceTable
 import uesugi.spi.Database

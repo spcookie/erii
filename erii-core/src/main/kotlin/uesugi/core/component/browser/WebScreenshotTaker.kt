@@ -1,4 +1,4 @@
-package uesugi.toolkit
+package uesugi.core.component.browser
 
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
@@ -50,7 +50,7 @@ class WebScreenshotTaker : AutoCloseable {
                 // 截图需要图片和CSS，但不需要媒体和字体
                 var token: String? = null
                 if (username != null && password != null) {
-                    token = Base64.Default.encode("$username:$password".toByteArray())
+                    token = Base64.encode("$username:$password".toByteArray())
                 }
                 page.route("**/*") { route ->
                     val headers = HashMap(route.request().headers())

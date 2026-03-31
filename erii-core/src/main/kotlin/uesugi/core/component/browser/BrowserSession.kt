@@ -1,4 +1,4 @@
-package uesugi.toolkit
+package uesugi.core.component.browser
 
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Playwright
