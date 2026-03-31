@@ -131,6 +131,7 @@ class MemoryService(
             val existing = withContext(Dispatchers.IO) {
                 memoryRepository.findOrCreateUserProfile(botMark, groupId, userId)
             }
+
             val analysis = memoryAgent.analyzeUserProfile(messages, existing)
 
             // 保存到数据库
