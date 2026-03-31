@@ -1,5 +1,6 @@
 package uesugi.plugin
 
+import kotlinx.coroutines.runBlocking
 import org.pf4j.Extension
 import uesugi.spi.AgentExtension
 import uesugi.spi.AgentPlugin
@@ -12,19 +13,26 @@ class Reminder : AgentPlugin()
 @Extension
 class ReminderExtension : AgentExtension<Reminder> {
 
-    private var store: ReminderStore? = null
-    private var wheel: ReminderWheel? = null
     private var scheduler: ReminderScheduler? = null
 
     override fun onLoad(context: PluginContext) {
-        store = ReminderStoreImpl(context.kv)
-        wheel = ReminderWheel(store!!)
-        scheduler = ReminderScheduler(context.scheduler, wheel!!, context)
+        val store = ReminderStoreImpl(context.kv)
+        val wheel = ReminderWheel(store)
+
+        runBlocking { wheel.init() }
+
+        scheduler = ReminderScheduler(context.scheduler, wheel) {
+            val targetMention = task.targetUserId?.let { "@$it " } ?: ""
+            "$targetMention${task.content}"
+
+        }
+
+        scheduler!!.enqueueImmediateScan()
 
         // 注册工具集
         context.tool {
             {
-                ReminderToolSet(store!!, wheel!!)
+                ReminderToolSet(store, wheel)
             }
         }
 
