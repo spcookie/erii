@@ -92,3 +92,7 @@ kotlin {
 tasks.shadowJar {
     isZip64 = true
 }
+
+tasks.named("build") {
+    dependsOn("assemblePlugins")
+}

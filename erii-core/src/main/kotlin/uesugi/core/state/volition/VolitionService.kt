@@ -5,7 +5,6 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.core.bot.BotManage
 import uesugi.common.*
 import uesugi.common.PSFeature.CHAT_URGENT
 import uesugi.common.PSFeature.GRAB
