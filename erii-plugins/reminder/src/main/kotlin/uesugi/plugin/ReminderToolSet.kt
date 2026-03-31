@@ -14,7 +14,7 @@ class ReminderToolSet(
 ) : MetaToolSet {
 
     @Tool
-    @LLMDescription("添加一个新的定时提醒。参数 content 是提醒内容，triggerTime 是触发时间（如'明天下午3点'、'5分钟后'等自然语言描述），targetUserId 是被提醒的用户 ID（可选），repeatType 是重复类型（none/daily/weekly，可选）")
+    @LLMDescription("添加一个新的定时提醒。参数 content 是提醒内容，triggerTime 是触发时间（如'明天下午3点'、'5分钟后'等自然语言描述），targetUserId 是被提醒的用户 ID，可选，不填则是全体成员，repeatType 是重复类型（none/daily/weekly）")
     suspend fun addReminder(
         @LLMDescription("提醒内容")
         content: String,
@@ -22,7 +22,7 @@ class ReminderToolSet(
         @LLMDescription("触发时间，自然语言描述，如'明天下午3点'、'5分钟后'、'下周一早上9点'等")
         triggerTime: String,
 
-        @LLMDescription("被提醒的用户 ID，可选，默认提醒创建者")
+        @LLMDescription("被提醒的用户 ID，可选，不填则是全体成员")
         targetUserId: String? = null,
 
         @LLMDescription("重复类型：none（不重复）、daily（每天）、weekly（每周），默认 none")
@@ -71,7 +71,7 @@ class ReminderToolSet(
 
     @Tool
     @LLMDescription("列出当前群组所有活跃的定时提醒")
-    suspend fun list_reminders(): String {
+    suspend fun listReminders(): String {
         val botId = meta.botId
         val groupId = meta.groupId
 
@@ -96,7 +96,7 @@ class ReminderToolSet(
 
     @Tool
     @LLMDescription("修改一个已有的提醒。可修改内容、触发时间或目标用户")
-    suspend fun modify_reminder(
+    suspend fun modifyReminder(
         @LLMDescription("要修改的提醒 ID")
         reminderId: String,
 
@@ -144,7 +144,7 @@ class ReminderToolSet(
 
     @Tool
     @LLMDescription("删除一个定时提醒")
-    suspend fun delete_reminder(
+    suspend fun deleteReminder(
         @LLMDescription("要删除的提醒 ID")
         reminderId: String
     ): String {
@@ -158,13 +158,6 @@ class ReminderToolSet(
         wheel.removeTask(existingTask)
 
         return "提醒已删除：${existingTask.content}"
-    }
-
-    @Tool
-    @LLMDescription("手动检查是否有待触发的提醒并立即触发")
-    fun checkReminders(): String {
-        // JobRunr 调度器每 30 秒自动扫描，这里只是提示用户
-        return "提醒检查已就绪，调度器会每 30 秒自动检查待触发的提醒"
     }
 
     // 时间解析辅助函数
