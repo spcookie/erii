@@ -1,7 +1,10 @@
 package uesugi.plugin
 
 import kotlinx.coroutines.runBlocking
+import net.mamoe.mirai.message.data.At
+import net.mamoe.mirai.message.data.buildMessageChain
 import org.pf4j.Extension
+import uesugi.common.BotManage
 import uesugi.spi.AgentExtension
 import uesugi.spi.AgentPlugin
 import uesugi.spi.PluginContext
@@ -21,9 +24,19 @@ class ReminderExtension : AgentExtension<Reminder> {
 
         runBlocking { wheel.init() }
 
-        scheduler = ReminderScheduler(context.scheduler, wheel) {
+        scheduler = ReminderScheduler(context.scheduler, wheel) { task ->
             val targetMention = task.targetUserId?.let { "@$it " } ?: ""
             "$targetMention${task.content}"
+
+            val messages = buildMessageChain {
+                task.targetUserId?.let { +At(it.toLong()) }
+                +task.content
+            }
+
+            BotManage.getBot(task.botId)
+                .refBot
+                .getGroupOrFail(task.groupId.toLong())
+                .sendMessage(messages)
 
         }
 
