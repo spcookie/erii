@@ -88,3 +88,7 @@ kotlin {
         freeCompilerArgs.add("-Xcontext-parameters")
     }
 }
+
+tasks.shadowJar {
+    isZip64 = true
+}
