@@ -16,7 +16,9 @@ class QQChatToolSet(
     val context: Context
 ) : ChatToolSet {
 
-    private val AT_PATTERN = Regex("""\[at:(\d+)]""")
+    companion object {
+        private val AT_PATTERN = Regex("""\[at:(\d+)]""")
+    }
 
     override suspend fun sendText(text: String): String {
         val matches = AT_PATTERN.findAll(text).toList()
