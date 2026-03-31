@@ -17,7 +17,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonNull
 import uesugi.common.*
-import uesugi.core.bot.BotManage
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 

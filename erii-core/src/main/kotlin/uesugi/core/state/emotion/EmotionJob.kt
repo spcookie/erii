@@ -5,8 +5,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.jobrunr.scheduling.JobScheduler
+import uesugi.common.BotManage
 import uesugi.common.logger
-import uesugi.core.bot.BotManage
 
 /**
  * 情绪任务 - 定时调度情绪分析和衰减

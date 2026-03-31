@@ -6,9 +6,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
+import uesugi.common.BotManage
 import uesugi.common.ENABLE_GROUPS
 import uesugi.common.logger
-import uesugi.core.bot.BotManage
 import kotlin.time.ExperimentalTime
 
 class FlowJob(

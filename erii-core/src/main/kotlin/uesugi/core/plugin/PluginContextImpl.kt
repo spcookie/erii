@@ -3,9 +3,9 @@ package uesugi.core.plugin
 import ai.koog.prompt.executor.model.PromptExecutor
 import io.ktor.client.*
 import kotlinx.coroutines.*
+import uesugi.common.BotManage
 import uesugi.common.EventBus
 import uesugi.common.logger
-import uesugi.core.bot.BotManage
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.spi.*

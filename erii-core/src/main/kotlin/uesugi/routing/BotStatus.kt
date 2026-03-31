@@ -6,9 +6,9 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
+import uesugi.common.BotManage
 import uesugi.common.ENABLE_GROUPS
 import uesugi.common.PAD
-import uesugi.core.bot.BotManage
 import uesugi.core.plugin.ExtensionRegister
 import uesugi.core.state.emotion.BehaviorProfile
 import uesugi.core.state.emotion.EmotionService

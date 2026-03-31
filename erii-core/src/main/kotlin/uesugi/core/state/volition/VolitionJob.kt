@@ -5,7 +5,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.*
 import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
-import uesugi.core.bot.BotManage
 import uesugi.common.*
 import kotlin.random.Random
 import kotlin.time.Clock
