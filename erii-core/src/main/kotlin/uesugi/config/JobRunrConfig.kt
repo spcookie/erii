@@ -23,7 +23,7 @@ class JobRunrConfig(
 
     object Activator : JobActivator {
         override fun <T : Any> activateJob(type: Class<T>): T {
-            return GlobalContext.get().get(type.kotlin)
+            return type.kotlin.objectInstance ?: GlobalContext.get().get(type.kotlin)
         }
     }
 }

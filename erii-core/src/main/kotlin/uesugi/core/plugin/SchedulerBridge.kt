@@ -13,7 +13,6 @@ object SchedulerBridge {
         tasks.remove(id)
     }
 
-    /** JobRunr 调用入口 - 在主 ClassLoader 中 */
     fun execute(id: String) {
         val action = tasks[id] ?: error("Scheduled task not found: $id")
         action()
