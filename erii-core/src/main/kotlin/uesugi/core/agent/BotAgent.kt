@@ -8,6 +8,7 @@ import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.serialization.kotlinx.toKotlinxJsonElement
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.onTimeout
@@ -15,8 +16,8 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonNull
-import uesugi.BotManage
 import uesugi.common.*
+import uesugi.core.bot.BotManage
 import uesugi.core.component.WebSearchTool
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
@@ -164,11 +165,11 @@ object BotAgent {
                             edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
                             edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
                                 val result = it.result ?: return@onCondition false
-                                result !is JsonNull
+                                result.toKotlinxJsonElement() !is JsonNull
                             })
                             edge(nodeExecuteTool forwardTo nodeFinish onCondition {
                                 val result = it.result ?: return@onCondition true
-                                result is JsonNull
+                                result.toKotlinxJsonElement() is JsonNull
                             } transformed { it.content })
                             edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
                             edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
@@ -293,9 +294,41 @@ object BotAgent {
                             }
                         }
 
+                        // 创建 RuleToolSet
+                        val ruleToolSet = event.senderId?.let { senderId ->
+                            // 首选当前 botId 对应的配置
+                            val botConfigs = ConfigHolder.getOnebotBots()
+                            val botConfigKey = if (botConfigs.containsKey(event.botId)) {
+                                event.botId
+                            } else {
+                                // 退回到按 groupId 反查
+                                botConfigs.entries
+                                    .find { (_, config) -> config.groups.containsKey(groupId) }
+                                    ?.key
+                            }
+
+                            if (botConfigKey != null) {
+                                val admins = ConfigHolder.getAdmins(botConfigKey, groupId)
+                                RuleToolSet(
+                                    botId = event.botId,
+                                    groupId = groupId,
+                                    userId = senderId,
+                                    admins = admins
+                                )
+                            } else {
+                                // 未找到配置，使用空管理员列表
+                                RuleToolSet(
+                                    botId = event.botId,
+                                    groupId = groupId,
+                                    userId = senderId,
+                                    admins = emptyList()
+                                )
+                            }
+                        }
+
                         agentRun(
                             event.input ?: DEFAULT_INPUT,
-                            ToolEnv(chatToolSet, event.webSearch, event.toolSetBuilder)
+                            ToolEnv(chatToolSet, event.webSearch, event.toolSetBuilder, ruleToolSet)
                         )
 
                         while (true) {
@@ -334,7 +367,7 @@ object BotAgent {
 
                             agentRun(
                                 DEFAULT_INPUT,
-                                ToolEnv(chatToolSet, newEvent.webSearch, newEvent.toolSetBuilder)
+                                ToolEnv(chatToolSet, newEvent.webSearch, newEvent.toolSetBuilder, ruleToolSet)
                             )
                         }
                     } catch (e: Exception) {
@@ -370,7 +403,8 @@ object BotAgent {
     private data class ToolEnv(
         val chatToolSet: ChatToolSet,
         val webSearch: Boolean,
-        val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)?
+        val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)?,
+        val ruleToolSet: RuleToolSet?
     )
 
     context(env: ToolEnv)
@@ -390,11 +424,16 @@ object BotAgent {
             ?: emptyList()
 
     context(env: ToolEnv)
+    private fun ruleTools() =
+        env.ruleToolSet?.asTools() ?: emptyList()
+
+    context(env: ToolEnv)
     private fun buildToolRegistry(): ToolRegistry =
         ToolRegistry {
             tools(baseTools())
             tools(webTools())
             tools(extraTools())
+            tools(ruleTools())
         }
 
 }

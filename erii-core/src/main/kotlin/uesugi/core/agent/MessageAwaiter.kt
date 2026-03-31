@@ -8,8 +8,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
-import uesugi.BotManage
 import uesugi.common.*
+import uesugi.core.bot.BotManage
 import uesugi.core.message.history.HistorySavedEvent
 import uesugi.core.plugin.MetaImpl
 import uesugi.core.route.MetaToolSetRegister
@@ -128,10 +128,10 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
 
         cancel()
 
+        relevanceChannel.close()
+        continueChannel.close()
         historyChannel.close()
         chatChannel.close()
-        continueChannel.close()
-        relevanceChannel.close()
     }
 
     override val coroutineContext: CoroutineContext

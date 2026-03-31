@@ -8,15 +8,13 @@ import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.logger
-import kotlin.time.ExperimentalTime
 
 /**
  * 记忆服务 - 负责记忆处理的业务逻辑
  */
 class MemoryService(
     private val memoryAgent: MemoryAgent,
-    private val memoryRepository: MemoryRepository,
-    private val factVectorStore: FactVectorStore
+    private val memoryRepository: MemoryRepository
 ) {
 
     companion object {
@@ -136,250 +134,12 @@ class MemoryService(
 
             // 保存到数据库
             withContext(Dispatchers.IO) {
-                transaction {
-                    existing.profile = analysis.profile
-                    existing.preferences = analysis.preferences
-                    log.info("用户画像已更新, botId=$botMark, groupId=$groupId, userId=$userId")
-                }
+                memoryRepository.updateUserProfile(botMark, groupId, userId, analysis.profile, analysis.preferences)
+                log.info("用户画像已更新, botId=$botMark, groupId=$groupId, userId=$userId")
             }
 
         } catch (e: Exception) {
             log.error("处理用户画像失败, groupId=$groupId, userId=$userId", e)
-        }
-    }
-
-    /**
-     * 处理事实记忆
-     */
-    @OptIn(ExperimentalTime::class)
-    private suspend fun processFacts(
-        botMark: String,
-        groupId: String,
-        messages: List<MemoryAgent.MemoryMessage>
-    ) {
-        try {
-            log.debug("开始提取事实记忆, groupId=$groupId")
-
-            val existFacts = withContext(Dispatchers.IO) {
-                memoryRepository.getValidFacts(botMark, groupId)
-            }.map {
-                MemoryAgent.FactsAnalysisInput(
-                    id = it.id,
-                    keyword = it.keyword,
-                    description = it.description,
-                    values = it.values.split(","),
-                    subjects = it.subjects.split(","),
-                    scopeType = when (it.scopeType) {
-                        Scopes.USER -> MemoryAgent.MemoryScopes.USER
-                        Scopes.GROUP -> MemoryAgent.MemoryScopes.GROUP
-                    }
-                )
-            }
-
-            log.debug("已存在 ${existFacts.size} 条事实记忆, groupId=$groupId")
-
-            val factsList = memoryAgent.extractFacts(messages, existFacts)
-
-            // 批量保存到数据库
-            withContext(Dispatchers.IO) {
-                var addCounted = 0
-                var deprecateCounted = 0
-                var mergeCounted = 0
-                var updateCounted = 0
-                for (fact in factsList) {
-                    if (fact.confidence < 0.7) continue
-                    when (fact.action) {
-                        MemoryAgent.MemoryAction.ADD -> {
-                            addCounted++
-                            memoryRepository.createFact(
-                                botMark = botMark,
-                                groupId = groupId,
-                                keyword = fact.keyword,
-                                description = fact.description,
-                                values = fact.values.joinToString(","),
-                                subjects = fact.subjects.joinToString(","),
-                                scopeType = when (fact.scopeType) {
-                                    MemoryAgent.MemoryScopes.USER -> Scopes.USER
-                                    MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
-                                }
-                            )
-                        }
-
-                        MemoryAgent.MemoryAction.DEPRECATE -> {
-                            deprecateCounted++
-                            val existFact = existFacts.find {
-                                it.id == fact.id || (it.keyword == fact.keyword &&
-                                        it.subjects == fact.subjects &&
-                                        it.scopeType == fact.scopeType)
-                            }
-                            if (existFact != null) {
-                                memoryRepository.deprecateFacts(
-                                    botMark = botMark,
-                                    groupId = groupId,
-                                    keyword = existFact.keyword,
-                                    subjects = existFact.subjects.joinToString(","),
-                                    scopeType = when (existFact.scopeType) {
-                                        MemoryAgent.MemoryScopes.USER -> Scopes.USER
-                                        MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
-                                    }
-                                )
-                            }
-                        }
-
-                        MemoryAgent.MemoryAction.MERGE -> {
-                            mergeCounted++
-                            // 合并：废弃被合并的事实
-                            fact.id.let { id ->
-                                val existFact = existFacts.find { it.id == id }
-                                existFact?.let {
-                                    memoryRepository.deprecateFacts(
-                                        botMark = botMark,
-                                        groupId = groupId,
-                                        keyword = it.keyword,
-                                        subjects = it.subjects.joinToString(","),
-                                        scopeType = when (it.scopeType) {
-                                            MemoryAgent.MemoryScopes.USER -> Scopes.USER
-                                            MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        MemoryAgent.MemoryAction.UPDATE -> {
-                            updateCounted++
-                            // 更新：先废弃旧事实，再添加新事实
-                            fact.id.let { id ->
-                                val existFact = existFacts.find { it.id == id }
-                                existFact?.let {
-                                    memoryRepository.deprecateFacts(
-                                        botMark = botMark,
-                                        groupId = groupId,
-                                        keyword = it.keyword,
-                                        subjects = it.subjects.joinToString(","),
-                                        scopeType = when (it.scopeType) {
-                                            MemoryAgent.MemoryScopes.USER -> Scopes.USER
-                                            MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
-                                        }
-                                    )
-                                    memoryRepository.createFact(
-                                        botMark = botMark,
-                                        groupId = groupId,
-                                        keyword = fact.keyword,
-                                        description = fact.description,
-                                        values = fact.values.joinToString(","),
-                                        subjects = fact.subjects.joinToString(","),
-                                        scopeType = when (fact.scopeType) {
-                                            MemoryAgent.MemoryScopes.USER -> Scopes.USER
-                                            MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                log.info("事实记忆分析完成, botId=$botMark, groupId=$groupId, size=${factsList.size}, add=$addCounted, deprecate=$deprecateCounted, merge=$mergeCounted, update=$updateCounted")
-            }
-
-            // 更新向量索引
-            updateFactVectorIndex(botMark, groupId, factsList, existFacts)
-        } catch (e: Exception) {
-            log.error("提取事实记忆失败, groupId=$groupId", e)
-        }
-    }
-
-    /**
-     * 更新事实向量索引
-     */
-    private suspend fun updateFactVectorIndex(
-        botMark: String,
-        groupId: String,
-        factsList: List<MemoryAgent.FactsAnalysis>,
-        existFacts: List<MemoryAgent.FactsAnalysisInput>
-    ) {
-        try {
-            for (fact in factsList) {
-                if (fact.confidence < 0.7) continue
-
-                when (fact.action) {
-                    MemoryAgent.MemoryAction.ADD -> {
-                        // 获取刚创建的事实并索引
-                        val newFact = withContext(Dispatchers.IO) {
-                            memoryRepository.getLatestFact(botMark, groupId, fact.keyword, fact.scopeType)
-                        }
-                        newFact?.let {
-                            val vectorId = factVectorStore.indexFact(it)
-                            // 保存 vectorId 到数据库
-                            withContext(Dispatchers.IO) {
-                                memoryRepository.updateFactVectorId(it.id, vectorId)
-                            }
-                            log.debug("事实向量索引已创建, factId=${it.id}, vectorId=$vectorId")
-                        }
-                    }
-
-                    MemoryAgent.MemoryAction.DEPRECATE -> {
-                        // 找到被废弃的事实并删除向量索引
-                        val deprecatedFact = existFacts.find {
-                            it.id == fact.id || (it.keyword == fact.keyword &&
-                                    it.subjects == fact.subjects &&
-                                    it.scopeType == fact.scopeType)
-                        }
-                        deprecatedFact?.let {
-                            val factEntity = withContext(Dispatchers.IO) {
-                                memoryRepository.getFactByKeywordAndSubjects(
-                                    botMark, groupId,
-                                    it.keyword, it.subjects.joinToString(","),
-                                    it.scopeType
-                                )
-                            }
-                            factEntity?.let { entity ->
-                                entity.vectorId?.let { vectorId ->
-                                    factVectorStore.deleteVector(vectorId, botMark, groupId)
-                                    log.debug("事实向量索引已删除, factId=${entity.id}, vectorId=$vectorId")
-                                }
-                            }
-                        }
-                    }
-
-                    MemoryAgent.MemoryAction.MERGE, MemoryAgent.MemoryAction.UPDATE -> {
-                        // 合并和更新的处理：先删除旧向量，再创建新向量
-                        fact.id.let { id ->
-                            val oldFact = existFacts.find { it.id == id }
-                            oldFact?.let {
-                                val factEntity = withContext(Dispatchers.IO) {
-                                    memoryRepository.getFactByKeywordAndSubjects(
-                                        botMark, groupId,
-                                        it.keyword, it.subjects.joinToString(","),
-                                        it.scopeType
-                                    )
-                                }
-                                factEntity?.let { entity ->
-                                    // 删除旧向量
-                                    entity.vectorId?.let { vectorId ->
-                                        factVectorStore.deleteVector(vectorId, botMark, groupId)
-                                    }
-                                }
-                            }
-                        }
-                        // 如果是 UPDATE，还需要创建新向量
-                        if (fact.action == MemoryAgent.MemoryAction.UPDATE) {
-                            val newFact = withContext(Dispatchers.IO) {
-                                memoryRepository.getLatestFact(botMark, groupId, fact.keyword, fact.scopeType)
-                            }
-                            newFact?.let {
-                                val vectorId = factVectorStore.indexFact(it)
-                                withContext(Dispatchers.IO) {
-                                    memoryRepository.updateFactVectorId(it.id, vectorId)
-                                }
-                                log.debug("事实向量索引已更新, factId=${it.id}, vectorId=$vectorId")
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            log.error("更新事实向量索引失败, groupId=$groupId", e)
         }
     }
 

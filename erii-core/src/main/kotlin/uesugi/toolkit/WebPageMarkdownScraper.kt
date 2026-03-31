@@ -35,7 +35,7 @@ class WebPageMarkdownScraper : AutoCloseable {
     private val sessionManager = BrowserSessionManager()
 
     private val readabilityJs: String by lazy {
-        this::class.java.getResource("/js/readability.js")?.readText()
+        this::class.java.getResource("readability.js")?.readText()
             ?: throw IllegalStateException("readability.js not found!")
     }
 

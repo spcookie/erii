@@ -22,7 +22,7 @@ fun Application.configureRouting() {
     routing {
         configureBotStatus()
         authenticate("basic") {
-            staticResources("/", "public")
+            staticResources("/", "assets")
         }
     }
 }

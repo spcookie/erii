@@ -120,32 +120,14 @@ object ConfigHolder {
     fun getProxyHttp(): String? = app.tryGetString("proxy.http")
     fun getProxySocks(): String? = app.tryGetString("proxy.socks")
 
-    fun getNapcatWs(): String = app.getString("napcat.ws")
-    fun getNapcatHttp(): String = app.getString("napcat.http")
-    fun getNapcatToken(): String = app.getString("napcat.token")
+    fun getOnebotWs(): String = app.getString("onebot.ws")
+    fun getOnebotHttp(): String = app.getString("onebot.http")
+    fun getOnebotToken(): String = app.getString("onebot.token")
 
     /**
-     * 获取所有 bot 配置
-     * @return Map<botKey, BotConfig(ws, token, roleId)>
+     * 群组配置数据类
      */
-    fun getNapcatBots(): Map<String, BotConfig> {
-        return try {
-            val botsConfig = app.getConfig("napcat.bots")
-            val result = mutableMapOf<String, BotConfig>()
-            botsConfig.root().keys.forEach { key ->
-                val keyStr = key.toString()
-                result[keyStr] = BotConfig(
-                    ws = botsConfig.getString("$keyStr.ws"),
-                    token = botsConfig.getString("$keyStr.token"),
-                    roleId = botsConfig.getString("$keyStr.role-id")
-                )
-            }
-            result
-        } catch (e: Exception) {
-            log.warn { "Failed to load napcat bots config: ${e.message}" }
-            emptyMap()
-        }
-    }
+    data class GroupConfig(val admins: List<String>)
 
     /**
      * Bot 配置数据类
@@ -153,8 +135,74 @@ object ConfigHolder {
     data class BotConfig(
         val ws: String,
         val token: String,
-        val roleId: String
+        val roleId: String,
+        val groups: Map<String, GroupConfig> = emptyMap()
     )
+
+    /**
+     * 获取所有 bot 配置
+     * @return Map<botKey, BotConfig(ws, token, roleId, groups)>
+     */
+    fun getOnebotBots(): Map<String, BotConfig> {
+        return try {
+            val botsConfig = app.getConfig("onebot.bots")
+            val result = mutableMapOf<String, BotConfig>()
+            botsConfig.root().keys.forEach { key ->
+                val keyStr = key.toString()
+                val botConfig = botsConfig.getConfig(keyStr)
+
+                // 解析 groups 配置（可选）
+                val groups = if (botConfig.hasPath("groups")) {
+                    parseGroupsConfig(botConfig.getConfig("groups"))
+                } else {
+                    emptyMap()
+                }
+                
+                result[keyStr] = BotConfig(
+                    ws = botConfig.getString("ws"),
+                    token = botConfig.getString("token"),
+                    roleId = botConfig.getString("role-id"),
+                    groups = groups
+                )
+            }
+            result
+        } catch (e: Exception) {
+            log.warn { "Failed to load onebot bots config: ${e.message}" }
+            emptyMap()
+        }
+    }
+
+    /**
+     * 解析 groups 配置
+     * @param groupsConfig groups 配置对象
+     * @return Map<groupId, GroupConfig>
+     */
+    private fun parseGroupsConfig(groupsConfig: Config): Map<String, GroupConfig> {
+        val result = mutableMapOf<String, GroupConfig>()
+        groupsConfig.root().keys.forEach { groupId ->
+            val groupIdStr = groupId.toString()
+            val admins = try {
+                groupsConfig.getStringList("$groupIdStr.admins")
+            } catch (_: Exception) {
+                emptyList()
+            }
+            result[groupIdStr] = GroupConfig(admins = admins)
+        }
+        return result
+    }
+
+    /**
+     * 获取指定 bot 和群组的管理员列表
+     * @param botConfigKey bot 配置 key（如 "erii"）
+     * @param groupId 群组 ID
+     * @return 管理员列表，未配置则返回空列表
+     */
+    fun getAdmins(botConfigKey: String, groupId: String): List<String> {
+        val bots = getOnebotBots()
+        val botConfig = bots[botConfigKey] ?: return emptyList()
+        val groupConfig = botConfig.groups[groupId] ?: return emptyList()
+        return groupConfig.admins
+    }
 
     fun getPlaywrightHost(): String = app.getString("web.playwright-host")
 

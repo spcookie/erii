@@ -3,6 +3,8 @@ package uesugi
 import io.ktor.server.application.*
 import uesugi.common.logger
 import uesugi.config.configureH2Console
+import uesugi.core.bot.configureBotAgent
+import uesugi.core.bot.configureConnectBots
 import uesugi.server.*
 
 internal val LOG = logger("uesugi")
