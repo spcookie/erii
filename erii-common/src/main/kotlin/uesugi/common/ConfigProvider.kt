@@ -34,7 +34,9 @@ interface ConfigProvider {
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String
-    fun getExaApiKey(): String
+    fun getEmbeddingProvider(): String
+    fun getSearchApiKey(): String
+    fun getSearchProvider(): String
 
     // ===== 代理 =====
     fun getProxyHttp(): String?

@@ -1,7 +1,8 @@
 package uesugi.core.plugin
 
 import okio.Path.Companion.toPath
-import uesugi.core.component.embedding.EmbeddingUtil
+import uesugi.common.EmbeddingInput
+import uesugi.common.EmbeddingManager
 import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.spi.PluginDef
 import uesugi.spi.Vector
@@ -16,7 +17,10 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
     }
 
     override suspend fun embedding(input: List<String>, images: List<ByteArray>): FloatArray {
-        return EmbeddingUtil.embedding(input, images).first()
+        val inputs = input.mapIndexed { idx, text ->
+            EmbeddingInput(text, if (idx == 0) images else emptyList())
+        }
+        return EmbeddingManager.get().embeddingMultiModal(inputs).first()
     }
 
     override suspend fun search(

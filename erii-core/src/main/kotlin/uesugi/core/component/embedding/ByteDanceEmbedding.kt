@@ -2,22 +2,37 @@ package uesugi.core.component.embedding
 
 import cn.hutool.core.io.FileTypeUtil
 import com.fasterxml.jackson.databind.JsonNode
+import com.google.auto.service.AutoService
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import uesugi.common.ConfigHolder
+import uesugi.common.EmbeddingInput
+import uesugi.common.IEmbedding
 import uesugi.config.HttpClientFactory
 import java.io.IOException
 import kotlin.io.encoding.Base64
 
-object EmbeddingUtil {
-    private val client = HttpClientFactory().createClient()
+@AutoService(IEmbedding::class)
+class ByteDanceEmbedding : IEmbedding {
 
-    suspend fun embedding(input: String, image: ByteArray?): FloatArray {
-        return embedding(listOf(input), if (image != null) listOf(image) else emptyList()).first()
+    override val id: String = "bytedance"
+
+    companion object {
+        private val client = HttpClientFactory().createClient()
     }
 
-    suspend fun embedding(input: List<String>, images: List<ByteArray>): List<FloatArray> {
+    override suspend fun embedding(texts: List<String>): List<FloatArray> {
+        return embeddingInternal(texts, emptyList())
+    }
+
+    override suspend fun embeddingMultiModal(inputs: List<EmbeddingInput>): List<FloatArray> {
+        val texts = inputs.map { it.text }
+        val images = inputs.flatMap { it.images }
+        return embeddingInternal(texts, images)
+    }
+
+    private suspend fun embeddingInternal(input: List<String>, images: List<ByteArray>): List<FloatArray> {
         val node: JsonNode = client.post("https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal") {
             contentType(ContentType.Application.Json)
             bearerAuth(ConfigHolder.getEmbeddingApiKey())
