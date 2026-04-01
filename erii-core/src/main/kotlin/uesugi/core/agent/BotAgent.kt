@@ -1,11 +1,10 @@
 package uesugi.core.agent
 
 import ai.koog.agents.core.agent.AIAgentService
+import ai.koog.agents.core.agent.GraphAIAgentService
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
-import ai.koog.agents.core.tools.ToolRegistry
-import ai.koog.agents.core.tools.reflect.ToolSet
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.serialization.kotlinx.toKotlinxJsonElement
@@ -136,18 +135,6 @@ object BotAgent {
                             states[key] = BotGroupState(event.feature, null)
                         }
 
-                        val currentBot = BotManage.getBot(event.botId)
-                        val groupId = event.groupId
-                        val bot = currentBot.refBot
-
-                        val context = buildContext(event)
-
-                        val chatToolSet = QQChatToolSet(
-                            bot = bot,
-                            groupId = groupId.toLong(),
-                            context = context
-                        )
-
                         var noCallTool = false
 
                         val strategy = strategy("chat") {
@@ -174,6 +161,8 @@ object BotAgent {
                         }
 
                         val promptExecutor by ref<PromptExecutor>()
+
+                        val context = buildContext(event)
 
                         val aiAgent = AIAgentService(
                             promptExecutor = promptExecutor,
@@ -257,78 +246,10 @@ object BotAgent {
                             }
                         }
 
-                        fun buildRuleToolSet(event: ProactiveSpeakEvent): RuleToolSet? {
-                            return event.senderId?.let { senderId ->
-                                // 首选当前 botId 对应的配置
-                                val botConfigs = ConfigHolder.getOnebotBots()
-                                val botConfigKey = if (botConfigs.containsKey(event.botId)) {
-                                    event.botId
-                                } else {
-                                    // 退回到按 groupId 反查
-                                    botConfigs.entries
-                                        .find { (_, config) -> config.groups.containsKey(groupId) }
-                                        ?.key
-                                }
 
-                                if (botConfigKey != null) {
-                                    val admins = ConfigHolder.getAdmins(botConfigKey, groupId)
-                                    RuleToolSet(
-                                        botId = event.botId,
-                                        groupId = groupId,
-                                        userId = senderId,
-                                        admins = admins
-                                    )
-                                } else {
-                                    // 未找到配置，使用空管理员列表
-                                    RuleToolSet(
-                                        botId = event.botId,
-                                        groupId = groupId,
-                                        userId = senderId,
-                                        admins = emptyList()
-                                    )
-                                }
-                            }
-                        }
+                        val roundAgentRun = (::agentRun).curry()(aiAgent)(context)
 
-                        suspend fun agentRun(input: String, toolEnv: ToolEnv) {
-                            EventBus.postSync(
-                                AgentRunStartEvent(
-                                    event.botId,
-                                    event.groupId,
-                                    event.echo
-                                )
-                            )
-                            var error: Exception? = null
-                            try {
-                                val text = aiAgent.createAgentAndRun(
-                                    agentInput = input,
-                                    agentConfig = AIAgentConfig(
-                                        prompt = buildPrompt(context),
-                                        model = LLMModelsChoice.Pro,
-                                        maxAgentIterations = 20,
-                                    ),
-                                    additionalToolRegistry = with(toolEnv) { buildToolRegistry() },
-                                )
-                                log.info("Bot agent run result: {}", text)
-                            } catch (e: Exception) {
-                                error = e
-                                throw e
-                            } finally {
-                                EventBus.postSync(
-                                    AgentRunCompleteEvent(
-                                        error,
-                                        event.botId,
-                                        event.groupId,
-                                        event.echo
-                                    )
-                                )
-                            }
-                        }
-
-                        agentRun(
-                            event.input ?: DEFAULT_INPUT,
-                            ToolEnv(chatToolSet, event.webSearch, event.toolSetBuilder, buildRuleToolSet(event))
-                        )
+                        roundAgentRun(event)
 
                         while (true) {
                             if (noCallTool) {
@@ -346,7 +267,7 @@ object BotAgent {
                                     "(._.)"
                                 )
                                 log.info("LLM no call tool: {}", emoticon)
-                                chatToolSet.sendText(emoticon.random())
+                                buildChatToolSet(event, context).sendText(emoticon.random())
                             }
 
                             val newEvent = MessageAwaiter(context)
@@ -364,15 +285,7 @@ object BotAgent {
                                 break
                             }
 
-                            agentRun(
-                                DEFAULT_INPUT,
-                                ToolEnv(
-                                    chatToolSet,
-                                    newEvent.webSearch,
-                                    newEvent.toolSetBuilder,
-                                    buildRuleToolSet(newEvent)
-                                )
-                            )
+                            roundAgentRun(newEvent)
                         }
                     } catch (e: Exception) {
                         error = e
@@ -404,40 +317,52 @@ object BotAgent {
         }
     }
 
-    private data class ToolEnv(
-        val chatToolSet: ChatToolSet,
-        val webSearch: Boolean,
-        val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)?,
-        val ruleToolSet: RuleToolSet?
-    )
-
-    context(env: ToolEnv)
-    private fun baseTools() = buildList {
-        addAll(env.chatToolSet.asTools())
-        addAll(SilentToolSet.asTools())
+    @OptIn(ExperimentalTime::class)
+    private suspend fun agentRun(
+        aiAgent: GraphAIAgentService<String, String>,
+        context: Context,
+        event: ProactiveSpeakEvent
+    ) {
+        EventBus.postSync(
+            AgentRunStartEvent(
+                event.botId,
+                event.groupId,
+                event.echo
+            )
+        )
+        var error: Exception? = null
+        try {
+            val text = aiAgent.createAgentAndRun(
+                agentInput = event.input ?: DEFAULT_INPUT,
+                agentConfig = AIAgentConfig(
+                    prompt = buildPrompt(context),
+                    model = LLMModelsChoice.Pro,
+                    maxAgentIterations = 20,
+                ),
+                additionalToolRegistry = with(buildToolEnv(event, context)) { buildToolRegistry() },
+            )
+            log.info("Bot agent run result: {}", text)
+        } catch (e: Exception) {
+            error = e
+            throw e
+        } finally {
+            EventBus.postSync(
+                AgentRunCompleteEvent(
+                    error,
+                    event.botId,
+                    event.groupId,
+                    event.echo
+                )
+            )
+        }
     }
 
-    context(env: ToolEnv)
-    private fun webTools() =
-        if (env.webSearch) WebSearchTool.asTools() else emptyList()
-
-    context(env: ToolEnv)
-    private fun extraTools() =
-        env.toolSetBuilder?.invoke(env.chatToolSet)
-            ?.flatMap { it.asTools() }
-            ?: emptyList()
-
-    context(env: ToolEnv)
-    private fun ruleTools() =
-        env.ruleToolSet?.asTools() ?: emptyList()
-
-    context(env: ToolEnv)
-    private fun buildToolRegistry(): ToolRegistry =
-        ToolRegistry {
-            tools(baseTools())
-            tools(ruleTools())
-            tools(webTools())
-            tools(extraTools())
+    fun <A, B, C, R> (suspend (A, B, C) -> R).curry(): suspend (A) -> suspend (B) -> suspend (C) -> R =
+        { a ->
+            { b ->
+                { c ->
+                    this(a, b, c)
+                }
+            }
         }
-
 }
