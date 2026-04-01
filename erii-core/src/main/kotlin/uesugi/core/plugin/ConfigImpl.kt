@@ -16,7 +16,7 @@ internal class ConfigImpl(val plugin: AgentExtension<*>) : PluginConfig {
             val normalize = Paths.get(path)
                 .normalize()
                 .toString()
-            plugin.javaClass
+            plugin.javaClass.classLoader
                 .getResourceAsStream(normalize)
                 ?: error("Resource not found: $normalize")
         }
