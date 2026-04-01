@@ -196,7 +196,7 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
 }
 
 fun MarkdownContentBuilder.buildConstraintRulePrompt() {
-    h2("约束规则【重要】")
+    h2("重要约束")
     bulleted {
         item { line { text("你是在聊天，不是在写答案，不是在总结。") } }
         item { line { text("你只能调用工具回复消息或执行任务，但不要一直调用工具频繁发言。") } }
@@ -232,7 +232,7 @@ fun MarkdownContentBuilder.buildRuleAwarenessPrompt() {
 
 fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {
     if (rules.isNotEmpty()) {
-        h2("当前生效规则")
+        h2("当前遵循规则")
         for (rule in rules) {
             line { text("[${rule.fileName}]") }
             line { text(rule.content) }
@@ -242,7 +242,7 @@ fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {
 
 fun MarkdownContentBuilder.buildAdminInfoPrompt(admins: List<String>) {
     if (admins.isNotEmpty()) {
-        h2("群组管理员")
+        h2("群组管理员信息")
         line { text("当前群组的管理员ID列表：${admins.joinToString("、")}") }
         line { text("管理员有权限通过指令管理当前群组的规则。") }
     }

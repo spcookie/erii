@@ -60,9 +60,7 @@ class EmotionJob(
                         for (group in groups) {
                             emotionService.analyzeGroupEmotion(
                                 currentBotId,
-                                group,
-                                groupSize = 10,
-                                adminPresent = false
+                                group
                             )
                         }
 
@@ -76,9 +74,7 @@ class EmotionJob(
                         for (group in decayGroups) {
                             emotionService.decayGroupEmotion(
                                 currentBotId,
-                                group,
-                                groupSize = 10,
-                                adminPresent = false
+                                group
                             )
                         }
                     }

@@ -3,10 +3,13 @@ package uesugi.common
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
+import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.executor.model.StructureFixingParser
+import ai.koog.prompt.executor.model.executeStructured
 import ai.koog.prompt.markdown.MarkdownContentBuilder
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
+import ai.koog.prompt.message.Message
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 
 object WebSearchTool : ToolSet {
@@ -23,57 +26,212 @@ object WebSearchTool : ToolSet {
         val maxResults: Int? = null
     )
 
-    @Tool
-    @LLMDescription(
-        """
-        全能联网工具，具备【搜索引擎】和【网页阅读器】功能。
-        请在以下情况务必调用此工具：
-        1. 用户询问最新的新闻、事件、或超出你的训练数据范围的信息。
-        2. 需要查询特定事实、数据或进行事实核查，以确保回复的准确性。
-        3. 用户提供了具体的 URL 链接并要求总结、分析或读取内容。
-        不要猜测，请通过搜索获取最新、最准确的信息来回答。
-        **参数使用指南**：
-        - 查询简单事实（如“今天几号”、“某人是谁”）：maxResults 设为 1 或 3。
-        - 深度调研/总结（如“分析某事件的影响”）：maxResults 设为 4 或 5。
-    """
+    /**
+     * Query Rewrite 子 Agent 的输出结构
+     */
+    @Serializable
+    data class SearchPlan(
+        val queries: List<String>  // 优化后的搜索查询（最多使用前 3 个）
     )
-    suspend fun webSearch(input: Input): String {
-        val (query, specificUrls, maxResults) = input
-        log.info("webSearch query=$query, specificUrls=$specificUrls, maxResults=$maxResults")
-        return try {
-            withContext(Dispatchers.IO) {
-                coroutineScope {
-                    MarkdownContentBuilder()
-                        .apply {
-                            appendExaWebPagePrompt(this, query, specificUrls, maxResults ?: 3)
-                        }
-                        .build()
-                }
-            }
-        } catch (e: Exception) {
-            log.error("webSearch failed: {}", e.message, e)
-            "搜索/抓取失败"
-        }
-    }
-}
 
-suspend fun appendExaWebPagePrompt(
-    builder: MarkdownContentBuilder,
-    query: String? = null,
-    specificUrls: List<String>?,
-    maxResults: Int = 3
-) {
-    val searchService = SearchManager.get()
-    searchService.search(query, specificUrls, maxResults).also { item ->
-        builder.apply {
-            if (item.isNotEmpty()) {
-                item.forEach { item ->
-                    line { text(item.title) }
+    /**
+     * Query Rewrite 子 Agent：将用户原始问题转化为高质量搜索查询
+     */
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    private suspend fun rewriteQuery(originalQuery: String): SearchPlan {
+        val promptExecutor by ref<PromptExecutor>()
+
+        val rewritePrompt = prompt("query-rewrite") {
+            system(
+                """
+                你是一个搜索查询优化专家。将用户的原始问题转化为 1-3 个高质量搜索引擎查询。
+                
+                规则：
+                1. 提取核心关键词，去除无关词语
+                2. 技术问题优先使用英文查询（搜索引擎英文资源覆盖更全）
+                3. 模糊问题改写为具体明确的查询
+                4. 对比分析类问题拆分为独立查询
+                5. 添加有助于精确搜索的限定词（如 "best practice"、"official docs"）
+                6. 每个查询简洁有力，不超过 10 个词
+                7. 简单事实查询只需 1 个查询，复杂问题 2-3 个
+                """.trimIndent()
+            )
+            user("原始问题：$originalQuery")
+        }
+
+        val result = promptExecutor.executeStructured<SearchPlan>(
+            prompt = rewritePrompt,
+            model = LLMModelsChoice.Lite,
+            fixingParser = StructureFixingParser(
+                model = LLMModelsChoice.Lite,
+                retries = 2
+            )
+        )
+
+        return result.getOrThrow().data
+    }
+
+    /**
+     * 构建富格式 Markdown 输出
+     */
+    private fun buildResultMarkdown(results: List<SearchResultItem>): String {
+        return MarkdownContentBuilder().apply {
+            if (results.isNotEmpty()) {
+                results.forEachIndexed { index, item ->
+                    header(3, "${index + 1}. ${item.title}")
+                    line { text("**来源**: ${item.url}") }
+                    line { text("**相关度**: ${"%.2f".format(item.score)}") }
                     line { text(item.content) }
                 }
             } else {
                 line { text("暂未搜索到内容") }
             }
+        }.build()
+    }
+
+    /**
+     * 使用 LLM 对搜索结果进行信息融合聚合
+     */
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    private suspend fun synthesizeResults(
+        originalQuery: String,
+        results: List<SearchResultItem>
+    ): String {
+        val promptExecutor by ref<PromptExecutor>()
+
+        val resultsText = results.mapIndexed { index, item ->
+            """
+            [${index + 1}] ${item.title}
+            URL: ${item.url}
+            相关度: ${"%.2f".format(item.score)}
+            内容: ${item.content}
+            """.trimIndent()
+        }.joinToString("\n\n---\n\n")
+
+        val synthesizePrompt = prompt("result-synthesis") {
+            system(
+                """
+                你是一个信息整合专家。根据以下搜索结果，为用户的问题提供一个准确、结构化的综合回答。
+
+                整合规则：
+                1. 交叉验证：多个来源一致的信息可信度更高
+                2. 优先级：官方文档 > 知名技术社区 > 普通博客
+                3. 矛盾处理：如果不同来源信息矛盾，明确指出分歧
+                4. 来源标注：关键信息标注来源 URL
+                5. 结构化输出：使用清晰的分点/分段组织
+                6. 时效性：优先采用最新信息
+                7. 不要编造搜索结果中没有的信息
+                """.trimIndent()
+            )
+            user(
+                """
+                用户问题：$originalQuery
+
+                搜索结果：
+                $resultsText
+                """.trimIndent()
+            )
+        }
+
+        val result = promptExecutor.execute(synthesizePrompt, model = LLMModelsChoice.Lite)
+        return result.filterIsInstance<Message.Assistant>().firstOrNull()?.content
+            ?: throw IllegalStateException("LLM synthesis returned no assistant message")
+    }
+
+    @Tool
+    @LLMDescription(
+        """
+        联网搜索与网页阅读工具。
+
+        【触发决策】
+        - 用户询问时效性信息（新闻、事件、最新动态）→ 高概率需要搜索
+        - 需要事实核查或验证数据准确性 → 建议搜索确认
+        - 用户提供 URL 并要求读取/总结 → 使用 specificUrls 直读
+        - 你对答案有较高把握且非时效敏感 → 可直接回答，无需搜索
+
+        【使用方式】
+        - query: 直接传入用户的原始问题或意图，工具内部会自动进行 Query Rewrite 优化
+        - specificUrls: 用户提供具体 URL 时使用，直接读取网页内容。仅传入 specificUrls（query 为空）时不触发 Query Rewrite
+        - maxResults: 简单查询 1-2，普通问题 3，深度研究/对比分析 4-5
+
+        【多轮搜索策略】
+        支持多次调用进行迭代搜索：粗搜（广泛了解）→ 精搜（聚焦细节）→ 验证（交叉确认）
+
+        【结果解读】
+        - 每条结果附带来源 URL 和相关度评分（0-1）
+        - 评分越高表示与查询越相关，应据此评估信息可信度
+        - 重要信息建议交叉验证多个来源
+
+        【禁止行为】
+        - 已知答案时滥用搜索（浪费资源）
+        - 仅依赖单一来源做重要判断
+        - 忽略相关度评分盲目采信
+    """
+    )
+    suspend fun webSearch(input: Input): String {
+        val (query, specificUrls, maxResults) = input
+        log.info("webSearch query=$query, specificUrls=$specificUrls, maxResults=$maxResults")
+
+        return try {
+            withContext(Dispatchers.IO) {
+                coroutineScope {
+                    val effectiveMaxResults = maxResults?.let { if (it > 5) 5 else it } ?: 3
+
+                    // Step 1: Query Rewrite（仅对关键词搜索生效）
+                    val searchQueries = if (!query.isNullOrBlank()) {
+                        try {
+                            val plan = rewriteQuery(query)
+                            log.info("Query rewrite: original='$query' -> rewritten=${plan.queries}")
+                            plan.queries.take(3)
+                        } catch (e: Exception) {
+                            log.warn("Query rewrite failed, using original: {}", e.message)
+                            listOf(query)
+                        }
+                    } else {
+                        emptyList()
+                    }
+
+                    // Step 2: 并行搜索
+                    val searchService = SearchManager.get()
+                    val allResults = if (searchQueries.isNotEmpty()) {
+                        searchQueries.map { q ->
+                            async { searchService.search(q, null, effectiveMaxResults) }
+                        }.awaitAll().flatten()
+                    } else {
+                        emptyList()
+                    }
+
+                    // URL 直读结果
+                    val urlResults = if (!specificUrls.isNullOrEmpty()) {
+                        searchService.search(null, specificUrls, effectiveMaxResults)
+                    } else {
+                        emptyList()
+                    }
+
+                    // Step 3: 合并 + 去重 + 排序 + 截取
+                    val mergedResults = (allResults + urlResults)
+                        .distinctBy { it.url }
+                        .sortedByDescending { it.score }
+                        .take(effectiveMaxResults)
+
+                    // Step 4: 信息聚合合成
+                    // 条件：有关键词搜索结果且结果数 >= 2 时使用 LLM 聚合
+                    // 仅 URL 直读或单条结果时直接格式化输出
+                    if (!query.isNullOrBlank() && mergedResults.size >= 2) {
+                        try {
+                            synthesizeResults(query, mergedResults)
+                        } catch (e: Exception) {
+                            log.warn("Result synthesis failed, falling back to raw results: {}", e.message)
+                            buildResultMarkdown(mergedResults)
+                        }
+                    } else {
+                        buildResultMarkdown(mergedResults)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            log.error("webSearch failed: {}", e.message, e)
+            "搜索/抓取失败"
         }
     }
 }

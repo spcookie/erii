@@ -48,15 +48,7 @@ class ExaSearch : ISearch {
                         )
                     )
                 }.body()
-                for (result in root.path("results")) {
-                    val item = SearchResultItem(
-                        url = result.path("url").asText(),
-                        title = result.path("title").asText(),
-                        content = result.path("highlights").path(0).asText(),
-                        score = result.path("highlightScores").path(0).asDouble()
-                    )
-                    items.add(item)
-                }
+                convert(root, items)
             }
 
             if (!urls.isNullOrEmpty()) {
@@ -72,21 +64,28 @@ class ExaSearch : ISearch {
                         )
                     )
                 }.body()
-                for (result in root.path("results")) {
-                    val item = SearchResultItem(
-                        url = result.path("url").asText(),
-                        title = result.path("title").asText(),
-                        content = result.path("highlights").path(0).asText(),
-                        score = result.path("highlightScores").path(0).asDouble()
-                    )
-                    items.add(item)
-                }
+                convert(root, items)
             }
 
             return items
         } catch (e: Exception) {
             log.error("Search failed: ${e.message}", e)
             return emptyList()
+        }
+    }
+
+    private fun convert(
+        root: JsonNode,
+        items: MutableList<SearchResultItem>
+    ) {
+        for (result in root.path("results")) {
+            val item = SearchResultItem(
+                url = result.path("url").asText(),
+                title = result.path("title").asText(),
+                content = result.path("highlights").path(0).asText(),
+                score = result.path("highlightScores").path(0).asDouble()
+            )
+            items.add(item)
         }
     }
 }
