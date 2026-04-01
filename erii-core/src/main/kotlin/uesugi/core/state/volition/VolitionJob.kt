@@ -38,7 +38,7 @@ class VolitionJob(
             "*/2 * * * *",
             ::doVolitionAnalysis
         )
-        log.info("主动意愿任务定时器已启动, 执行周期: 每2分钟")
+        log.info("Proactive task timer has been started, with an execution cycle of every 2 minutes")
 
         startDailyTasks()
         startSilentMonitor()

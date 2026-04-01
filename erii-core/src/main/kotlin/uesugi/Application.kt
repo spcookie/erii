@@ -12,6 +12,7 @@ import uesugi.server.*
 internal val LOG = logger("uesugi")
 
 fun main(args: Array<String>) {
+    printBanner()
     io.ktor.server.netty.EngineMain.main(args)
 }
 
@@ -27,4 +28,12 @@ fun Application.module() {
     configureBotAgent()
     configureConnectBots()
     configureH2Console()
+}
+
+fun printBanner() {
+    val banner = ::main.javaClass.classLoader.getResourceAsStream("banner.txt")?.bufferedReader()?.readText()
+    if (banner != null) {
+        println(banner)
+    }
+    println("Version: ${Version.CURRENT}")
 }

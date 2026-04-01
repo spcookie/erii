@@ -93,6 +93,26 @@ tasks.shadowJar {
     isZip64 = true
 }
 
-tasks.named("build") {
-    dependsOn("assemblePlugins")
+val generateVersionFile by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/source/version/kotlin")
+
+    outputs.dir(outputDir)
+
+    doLast {
+        val file = outputDir.get().file("uesugi/Version.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            package uesugi
+
+            object Version {
+                const val CURRENT = "${project.version}"
+            }
+            """.trimIndent()
+        )
+    }
+}
+
+kotlin {
+    sourceSets["main"].kotlin.srcDir(generateVersionFile)
 }

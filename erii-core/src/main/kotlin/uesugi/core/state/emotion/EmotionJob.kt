@@ -35,7 +35,7 @@ class EmotionJob(
             "* * * * *",  // 每分钟
             ::doAnalysis
         )
-        log.info("情绪任务定时器已启动, 执行周期: 每分钟")
+        log.info("Emotional task timer has started, execution cycle: every minute")
     }
 
     /**
