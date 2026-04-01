@@ -35,7 +35,7 @@ class FlowJob(
             "*/1 * * * *",
             ::doFlowAnalysis
         )
-        log.info("心流任务定时器已启动, 执行周期: 每分钟")
+        log.info("Flow task timer started, execution cycle: per minute")
     }
 
     fun doFlowAnalysis() {

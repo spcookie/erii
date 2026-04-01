@@ -30,7 +30,7 @@ class EvolutionJob(
             "0 */1 * * *",  // 每 1 小时一次
             ::doEvolutionProcessing
         )
-        log.info("模因进化任务定时器已启动, 执行周期: 每小时")
+        log.info("Evolution task timer has started, execution cycle: per hour")
     }
 
     /**

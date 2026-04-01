@@ -63,7 +63,7 @@ class MemeJob(
             ::doExtracting
         )
 
-        log.info("表情包任务已启动 - 收集: 30分钟, 提取: 1小时")
+        log.info("Emoji task started - Collect: 30 minutes, Extract: 1 hour")
     }
 
     /**

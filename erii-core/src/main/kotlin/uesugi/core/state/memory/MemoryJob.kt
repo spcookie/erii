@@ -33,7 +33,7 @@ class MemoryJob(
             "*/5 * * * *",  // 每 5 分钟
             ::doMemoryProcessing
         )
-        log.info("记忆任务定时器已启动, 执行周期: 每5分钟")
+        log.info("Memory task timer started, execution cycle: every 5 minutes")
     }
 
     /**
