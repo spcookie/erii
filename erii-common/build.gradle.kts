@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.plugin.serialization)
 }
 
+group = "uesugi"
+version = "0.0.1"
+
 dependencies {
     compileOnly(libs.mirai.overflow)
     compileOnly(libs.koog.agents)

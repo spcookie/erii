@@ -14,6 +14,7 @@ object RuleLoader {
     /**
      * 加载所有规则文件
      * - 从系统属性 config.rules.dir 指定的目录加载
+     * - 重环境变量 CONFIG_RULES_DIR 指定的目录加载
      * - 从类路径 rules/ 目录加载
      */
     fun loadRules(): List<Rule> {
@@ -64,9 +65,9 @@ object RuleLoader {
                 when {
                     // JAR 内资源：遍历 JAR 条目
                     resourceUrl.startsWith("jar:") -> {
-                        val jarFileUrl = resourceUrl.substring(4, resourceUrl.indexOf("!"))
+                        val jarFileUrl = resourceUrl.substring(4, resourceUrl.indexOf("!")).removePrefix("file:")
                         val jarFile = JarFile(URLDecoder.decode(jarFileUrl, "UTF-8"))
-                        try {
+                        jarFile.use { jarFile ->
                             val entries = jarFile.entries()
                             while (entries.hasMoreElements()) {
                                 val entry = entries.nextElement()
@@ -84,8 +85,6 @@ object RuleLoader {
                                     }
                                 }
                             }
-                        } finally {
-                            jarFile.close()
                         }
                     }
                     // 文件系统资源（IDE 开发环境）

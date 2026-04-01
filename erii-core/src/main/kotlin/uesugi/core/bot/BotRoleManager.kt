@@ -27,56 +27,50 @@ object BotRoleManager {
      * @param configDir 配置文件目录，支持：
      *  - 系统属性 -Dconfig.souls.dir
      *  - 环境变量 CONFIG_SOULS_DIR
-     *  - 默认值 "souls"（相对于 classpath）
+     *  - 默认值 "souls"
      */
     fun loadRoles(configDir: String? = null) {
         // 1. 先加载 classpath 下的默认角色配置
-        loadFromClasspath("souls")
-        if (roles.isNotEmpty()) {
-            log.info("已从 classpath 加载 ${roles.size} 个默认 BotRole")
-        }
+        loadFromClasspath(DEFAULT_SOULS_DIR)
 
-        // 2. 再加载配置目录，覆盖默认配置
+        // 2. 加载自定义配置目录
         val customDir = resolveConfigDir(configDir)
-        if (customDir != "souls") {
-            log.info("开始从配置目录加载 BotRole，目录: $customDir")
-            loadFromDirectoryOrClasspath(customDir)
-        } else {
-            // 如果配置的目录就是 souls，检查是否是外部目录
-            val resourceDir = BotRoleManager::class.java.classLoader.getResource(customDir)
-            if (resourceDir != null && resourceDir.protocol == "file") {
-                val dirFile = File(resourceDir.path)
-                if (dirFile.isDirectory && dirFile.listFiles { f -> f.extension == "md" }?.isNotEmpty() == true) {
-                    log.info("从配置目录覆盖加载 BotRole，目录: ${dirFile.absolutePath}")
-                    loadFromDirectory(dirFile)
-                }
-            }
-        }
+        log.info("开始从自定义配置目录加载 BotRole，目录: $customDir")
+        loadFromDirectoryOrClasspath(customDir)
 
-        log.info("BotRole 加载完成，共加载 ${roles.size} 个角色: ${roles.keys}")
+        log.info("BotRole 加载完成，共加载 ${roles.size} 个配置: ${roles.keys}")
     }
 
     /**
      * 从目录或 classpath 加载配置
      */
     private fun loadFromDirectoryOrClasspath(dir: String) {
+        // 1. 先尝试作为文件系统路径查找（支持绝对路径和相对路径）
+        val fileDir = File(dir)
+        if (fileDir.isDirectory) {
+            log.info("从文件系统目录加载 BotRole: ${fileDir.absolutePath}")
+            loadFromDirectory(fileDir)
+            return
+        }
+
+        // 2. 再尝试从 classpath 查找
         val resourceDir = BotRoleManager::class.java.classLoader.getResource(dir)
         if (resourceDir == null) {
             log.warn("BotRole 配置目录不存在: $dir")
             return
         }
 
-        val dirFile = if (resourceDir.protocol == "file") {
-            File(resourceDir.path)
-        } else {
-            null
+        // 3. classpath 资源如果是 file 协议，作为目录加载
+        if (resourceDir.protocol == "file") {
+            val dirFile = File(resourceDir.path)
+            if (dirFile.isDirectory) {
+                loadFromDirectory(dirFile)
+                return
+            }
         }
 
-        if (dirFile != null && dirFile.isDirectory) {
-            loadFromDirectory(dirFile)
-        } else {
-            loadFromClasspath(dir)
-        }
+        // 4. 其他情况（JAR 内资源等），从 classpath 加载
+        loadFromClasspath(dir)
     }
 
     private fun resolveConfigDir(configDir: String?): String {
@@ -110,7 +104,7 @@ object BotRoleManager {
                 val jarUrl = resource.toString()
                 // 获取 JAR 文件并列出条目
                 if (jarUrl.startsWith("jar:")) {
-                    val jarFileUrl = jarUrl.substring(4, jarUrl.indexOf("!"))
+                    val jarFileUrl = jarUrl.substring(4, jarUrl.indexOf("!")).removePrefix("file:")
                     val jarFile = JarFile(URLDecoder.decode(jarFileUrl, "UTF-8"))
                     val entries = jarFile.entries()
                     while (entries.hasMoreElements()) {
