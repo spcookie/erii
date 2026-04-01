@@ -33,7 +33,6 @@ fun Application.module() {
 fun printBanner() {
     val banner = ::main.javaClass.classLoader.getResourceAsStream("banner.txt")?.bufferedReader()?.readText()
     if (banner != null) {
-        println(banner)
+        println(banner.replace("{version}", Version.CURRENT))
     }
-    println("Version: ${Version.CURRENT}")
 }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.sync.withLock
 import net.mamoe.mirai.message.data.Face
 import org.pf4j.Extension
 import uesugi.spi.*
+import kotlin.time.Duration.Companion.milliseconds
 
 @PluginDefinition
 class QQFace : AgentPlugin()
@@ -39,7 +40,7 @@ class QQFaceExtension : PassiveExtension<QQFace> {
                     @Tool
                     @LLMDescription("在群聊中发送一个QQ表情，用来表达情绪或对当前对话作出反应。当发送表情比发送文字更自然时可以调用此工具。")
                     suspend fun sendFace(
-                        @LLMDescription("要发送的QQ表情名称，例如：微笑、大笑、哭、点赞等，应选择最符合当前语气或情绪的表情。")
+                        @LLMDescription("要发送的QQ表情名称，应选择最符合当前语气或情绪的表情。")
                         query: String
                     ): String {
                         ensureFace()
@@ -109,7 +110,7 @@ class QQFaceExtension : PassiveExtension<QQFace> {
         } catch (e: Exception) {
             if (retryCount < MAX_RETRIES) {
                 log.warn { "Embedding failed (retry ${retryCount + 1}/$MAX_RETRIES): ${e.message}" }
-                delay(RETRY_DELAY_MS * (retryCount + 1)) // 指数退避
+                delay((RETRY_DELAY_MS * (retryCount + 1)).milliseconds)
                 return embeddingWithRetry(texts, images, retryCount + 1)
             } else {
                 log.error(e) { "Embedding failed after $MAX_RETRIES retries" }
@@ -126,6 +127,12 @@ class QQFaceExtension : PassiveExtension<QQFace> {
             return false
         }
         val search = vector.search(embedding, 5)
+
+        if (search.isEmpty()) {
+            log.info { "No face found for query: $query" }
+            return false
+        }
+
         val (id, content, _, score) = search.first()
 
         if (score < 0.5) {
