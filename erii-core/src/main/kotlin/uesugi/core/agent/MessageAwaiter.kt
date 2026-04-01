@@ -52,11 +52,11 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
                         if (isRelevanceContinue(context.histories(), context.currentBotId)) {
                             when (type) {
                                 RelevanceType.Message -> {
-                                    historyChannel.send(speak(context.currentBotId, context.groupId))
+                                    historyChannel.trySend(speak(context.currentBotId, context.groupId))
                                 }
 
                                 RelevanceType.Continue -> {
-                                    continueChannel.send(speak(context.currentBotId, context.groupId))
+                                    continueChannel.trySend(speak(context.currentBotId, context.groupId))
                                 }
                             }
                         }
