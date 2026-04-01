@@ -208,7 +208,7 @@ fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {
     if (rules.isNotEmpty()) {
         h2("当前生效规则")
         for (rule in rules) {
-            line { text("【${rule.fileName}】") }
+            line { text("[${rule.fileName}]") }
             line { text(rule.content) }
         }
     }
