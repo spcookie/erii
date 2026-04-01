@@ -1,13 +1,14 @@
 package uesugi.routing
 
-import io.ktor.http.*
 import io.ktor.server.auth.*
+import io.ktor.server.jte.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
 import uesugi.common.BotManage
 import uesugi.common.ENABLE_GROUPS
+import uesugi.common.EmotionalTendencies
 import uesugi.common.PAD
 import uesugi.core.plugin.ExtensionRegister
 import uesugi.core.state.emotion.BehaviorProfile
@@ -20,12 +21,121 @@ import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
 import uesugi.core.state.volition.VolitionGaugeManager
 
-private val groupStatusHtml by lazy {
-    BotStatus::class.java.classLoader.getResource("assets/group-status.html")!!.readText()
+// ==================== 私有辅助函数 ====================
+
+/**
+ * 构建 PluginStats
+ */
+private fun buildPluginStats(): BotStatus.PluginStats {
+    val allExtensions = ExtensionRegister.getAllExtensions()
+    return BotStatus.PluginStats(
+        totalExtensions = allExtensions.size,
+        cmdExtensions = ExtensionRegister.getCmdExtensions().size,
+        routeExtensions = ExtensionRegister.getRouteExtensions().size,
+        passiveExtensions = ExtensionRegister.getPassiveExtensions().size,
+        plugins = ExtensionRegister.getAllPlugins().map { (pluginId, extensions) ->
+            BotStatus.PluginInfo(
+                id = pluginId,
+                extensionCount = extensions.size
+            )
+        }
+    )
+}
+
+/**
+ * 构建单个群组的 ByGroup 状态
+ */
+private fun buildGroupStatus(
+    botId: String,
+    groupId: String,
+    emoticon: EmotionalTendencies,
+    emotionService: EmotionService,
+    flowGaugeManager: FlowGaugeManager,
+    volitionGaugeManager: VolitionGaugeManager,
+    evolutionService: EvolutionService,
+    memoryService: MemoryService,
+    memoService: MemoService
+): BotStatus.ByGroup {
+    val behaviorProfile = emotionService.getCurrentBehaviorProfile(botId, groupId)
+    val pad = emotionService.getCurrentMood(botId, groupId)
+    val flowState = flowGaugeManager.getOrCreate(botId, groupId, emoticon)
+        .let { it.state.value to it.mapToState() }
+    val volitionState = volitionGaugeManager.getOrCreate(botId, groupId, emoticon)
+        .let { Triple(it.state.stimulus, it.state.fatigue, it.shouldSpeak()) }
+    val vocabularies = evolutionService.getActiveVocabulary(botId, groupId, 999).map { it.word }
+    val summary = memoryService.getSummary(botId, groupId)?.content
+    val factSize = memoryService.getFactSize(botId, groupId)
+    val userProfileSize = memoryService.getUserProfileSize(botId, groupId)
+    val allFactsByGroup = memoryService.getAllFactsByGroup(botId, groupId)
+    val allUserProfilesByGroup = memoryService.getAllUserProfilesByGroup(botId, groupId)
+
+    val scopeByFacts = allFactsByGroup.groupBy(
+        { it.scopeType },
+        {
+            BotStatus.Fact(
+                it.keyword,
+                it.description,
+                it.values,
+                it.subjects.split(",")
+            )
+        }
+    )
+
+    val facts = BotStatus.Facts(
+        group = scopeByFacts[Scopes.GROUP] ?: emptyList(),
+        user = scopeByFacts[Scopes.USER] ?: emptyList()
+    )
+
+    val userProfiles = allUserProfilesByGroup.map {
+        BotStatus.UserProfile(
+            id = it.userId,
+            profile = it.profile,
+            preferences = it.preferences
+        )
+    }
+
+    val allMemes = memoService.getAllMemos(botId, groupId)
+    val analyzedMemes = allMemes.filter { it.description != null }
+    val memeSize = allMemes.size.toLong()
+    val analyzedMemeSize = analyzedMemes.size.toLong()
+    val memes = analyzedMemes.sortedByDescending { it.usageCount }.map {
+        BotStatus.Meme(
+            id = it.id!!,
+            description = it.description,
+            purpose = it.purpose,
+            tags = it.tags?.split(",")?.map { t -> t.trim() } ?: emptyList(),
+            seenCount = it.seenCount,
+            usageCount = it.usageCount
+        )
+    }
+
+    return BotStatus.ByGroup(
+        groupId = groupId,
+        behaviorProfile = behaviorProfile,
+        pad = pad,
+        flowState = BotStatus.FlowState.fromPair(flowState),
+        volitionState = BotStatus.VolitionState.fromTriple(volitionState),
+        vocabularies = vocabularies,
+        summary = summary,
+        factSize = factSize,
+        userProfileSize = userProfileSize,
+        facts = facts,
+        userProfiles = userProfiles,
+        memeSize = memeSize,
+        analyzedMemeSize = analyzedMemeSize,
+        memes = memes
+    )
 }
 
 fun Routing.configureBotStatus() {
     authenticate("basic") {
+        val emotionService by inject<EmotionService>()
+        val flowGaugeManager by inject<FlowGaugeManager>()
+        val volitionGaugeManager by inject<VolitionGaugeManager>()
+        val evolutionService by inject<EvolutionService>()
+        val memoryService by inject<MemoryService>()
+        val memoService by inject<MemoService>()
+
         get("/bots") {
             call.respond(BotManage.getAllBotIds())
         }
@@ -35,120 +145,75 @@ fun Routing.configureBotStatus() {
                 call.respond(mapOf("error" to "id is null"))
             } else {
                 val roledBot = BotManage.getBot(id)
-
                 val refBot = roledBot.refBot
-                val groups =
-                    refBot.groups.map { it.id.toString() }.filter { ENABLE_GROUPS.contains(it) }.toList()
+                val groups = refBot.groups.map { it.id.toString() }
+                    .filter { ENABLE_GROUPS.contains(it) }.toList()
 
-                val emotionService by inject<EmotionService>()
-                val flowGaugeManager by inject<FlowGaugeManager>()
-                val volitionGaugeManager by inject<VolitionGaugeManager>()
-                val evolutionService by inject<EvolutionService>()
-                val memoryService by inject<MemoryService>()
-                val memoService by inject<MemoService>()
-
-                val allExtensions = ExtensionRegister.getAllExtensions()
-                val pluginStats = BotStatus.PluginStats(
-                    totalExtensions = allExtensions.size,
-                    cmdExtensions = ExtensionRegister.getCmdExtensions().size,
-                    routeExtensions = ExtensionRegister.getRouteExtensions().size,
-                    passiveExtensions = ExtensionRegister.getPassiveExtensions().size,
-                    plugins = ExtensionRegister.getAllPlugins().map { (pluginId, extensions) ->
-                        BotStatus.PluginInfo(
-                            id = pluginId,
-                            extensionCount = extensions.size
-                        )
-                    }
-                )
-
+                val pluginStats = buildPluginStats()
+                val emoticon = roledBot.role.emoticon
                 val botStatusByGroups = groups.map { groupId ->
-                    val emoticon = BotManage.getBot(id).role.emoticon
-                    val behaviorProfile = emotionService.getCurrentBehaviorProfile(id, groupId)
-                    val pad = emotionService.getCurrentMood(id, groupId)
-                    val flowState =
-                        flowGaugeManager.getOrCreate(id, groupId, emoticon).let { it.state.value to it.mapToState() }
-                    val volitionState = volitionGaugeManager.getOrCreate(id, groupId, emoticon)
-                        .let { Triple(it.state.stimulus, it.state.fatigue, it.shouldSpeak()) }
-                    val vocabularies = evolutionService.getActiveVocabulary(id, groupId, 999).map { it.word }
-                    val summary = memoryService.getSummary(id, groupId)?.content
-                    val factSize = memoryService.getFactSize(id, groupId)
-                    val userProfileSize = memoryService.getUserProfileSize(id, groupId)
-                    val allFactsByGroup = memoryService.getAllFactsByGroup(id, groupId)
-                    val allUserProfilesByGroup = memoryService.getAllUserProfilesByGroup(id, groupId)
-
-                    val scopeByFacts = allFactsByGroup.groupBy(
-                        { it.scopeType },
-                        {
-                            BotStatus.Fact(
-                                it.keyword,
-                                it.description,
-                                it.values,
-                                it.subjects.split(",")
-                            )
-                        }
-                    )
-
-                    val facts = BotStatus.Facts(
-                        group = scopeByFacts[Scopes.GROUP] ?: emptyList(),
-                        user = scopeByFacts[Scopes.USER] ?: emptyList()
-                    )
-
-                    val userProfiles = allUserProfilesByGroup.map {
-                        BotStatus.UserProfile(
-                            id = it.userId,
-                            profile = it.profile,
-                            preferences = it.preferences
-                        )
-                    }
-
-                    val allMemes = memoService.getAllMemos(id, groupId)
-                    val analyzedMemes = allMemes.filter { it.description != null }
-                    val memeSize = allMemes.size.toLong()
-                    val analyzedMemeSize = analyzedMemes.size.toLong()
-                    val memes = analyzedMemes.sortedByDescending { it.usageCount }.map {
-                        BotStatus.Meme(
-                            id = it.id!!,
-                            description = it.description,
-                            purpose = it.purpose,
-                            tags = it.tags?.split(",")?.map { t -> t.trim() } ?: emptyList(),
-                            seenCount = it.seenCount,
-                            usageCount = it.usageCount
-                        )
-                    }
-
-                    BotStatus.ByGroup(
+                    buildGroupStatus(
+                        botId = id,
                         groupId = groupId,
-                        behaviorProfile = behaviorProfile,
-                        pad = pad,
-                        flowState = BotStatus.FlowState.fromPair(flowState),
-                        volitionState = BotStatus.VolitionState.fromTriple(volitionState),
-                        vocabularies = vocabularies,
-                        summary = summary,
-                        factSize = factSize,
-                        userProfileSize = userProfileSize,
-                        facts = facts,
-                        userProfiles = userProfiles,
-                        memeSize = memeSize,
-                        analyzedMemeSize = analyzedMemeSize,
-                        memes = memes
+                        emoticon = emoticon,
+                        emotionService = emotionService,
+                        flowGaugeManager = flowGaugeManager,
+                        volitionGaugeManager = volitionGaugeManager,
+                        evolutionService = evolutionService,
+                        memoryService = memoryService,
+                        memoService = memoService
                     )
-                }.toList()
+                }
 
                 val botName = roledBot.role.name
                 call.respond(BotStatus(id, botName, groups, botStatusByGroups, pluginStats))
             }
         }
 
-        // 新增：单群组状态页面路由
+        // 单群组状态页面路由（JTE 服务端渲染）
         get("/view/{botId}/{groupId}") {
             val botId = call.parameters["botId"]
             val groupId = call.parameters["groupId"]
 
             if (botId == null || groupId == null) {
                 call.respondRedirect("/")
-            } else {
-                call.respondText(groupStatusHtml, ContentType.Text.Html)
+                return@get
             }
+
+            val roledBot = BotManage.getBot(botId)
+            val refBot = roledBot.refBot
+            val groups = refBot.groups.map { it.id.toString() }
+                .filter { ENABLE_GROUPS.contains(it) }.toList()
+
+            if (!groups.contains(groupId)) {
+                call.respondRedirect("/")
+                return@get
+            }
+
+            val pluginStats = buildPluginStats()
+            val groupStatus = buildGroupStatus(
+                botId = botId,
+                groupId = groupId,
+                emoticon = roledBot.role.emoticon,
+                emotionService = emotionService,
+                flowGaugeManager = flowGaugeManager,
+                volitionGaugeManager = volitionGaugeManager,
+                evolutionService = evolutionService,
+                memoryService = memoryService,
+                memoService = memoService
+            )
+
+            val viewModel = GroupStatusViewModel(
+                botId = botId,
+                botName = roledBot.role.name,
+                groupId = groupId,
+                groupStatus = groupStatus,
+                pluginStats = pluginStats,
+                currentTime = formatCurrentTime(),
+                basePath = ""
+            )
+
+            call.respond(JteContent("group-status.kte", mapOf("vm" to viewModel)))
         }
     }
 }
