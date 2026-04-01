@@ -90,42 +90,13 @@ object BehaviorMapper {
         }
 }
 
-object SafetyGate {
-
-    fun apply(
-        profile: BehaviorProfile,
-        groupSize: Int,
-        adminPresent: Boolean,
-        recentNegativeCount: Int
-    ): BehaviorProfile {
-
-        var result = profile
-
-        // 群大 or 管理员在场 → 禁止任何攻击倾向
-        if (groupSize > 20 || adminPresent) {
-            result = result.copy(
-                aggressiveness = Aggressiveness.NONE
-            )
-        }
-
-        // 连续负面 → 强制冷却
-        if (recentNegativeCount >= 2) {
-            result = result.copy(
-                emojiLevel = EmojiLevel.NONE,
-            )
-        }
-
-        return result
-    }
-}
-
 class BehaviorAnalysis(
     private val currentEmotionEntity: EmotionEntity?,
     private val baseLine: EmotionalTendencies? = null
 ) {
 
     companion object {
-        private const val y = 0.1
+        private const val y = 0.25
     }
 
     fun decideEmotion(
@@ -160,9 +131,6 @@ class BehaviorAnalysis(
     }
 
     fun decideBehavior(
-        groupSize: Int,
-        adminPresent: Boolean,
-        recentNegativeCount: Int,
         currentStimulus: Stimulus,
         decay: Decay,
         applyEmotion: Boolean = true
@@ -180,14 +148,7 @@ class BehaviorAnalysis(
 
         val emotional = EmotionalTendencies.findClosest(if (applyEmotion) emotion else mood)
 
-        val baseProfile = BehaviorMapper.fromEmotion(emotional)
-
-        return SafetyGate.apply(
-            profile = baseProfile,
-            groupSize = groupSize,
-            adminPresent = adminPresent,
-            recentNegativeCount = recentNegativeCount
-        )
+        return BehaviorMapper.fromEmotion(emotional)
     }
 }
 
@@ -201,8 +162,6 @@ class EmotionService(
     suspend fun analyzeGroupEmotion(
         currentBotId: String,
         groupId: String,
-        groupSize: Int,
-        adminPresent: Boolean
     ) {
         // 获取当前情绪状态和新消息
         val emotionEntity = emotionRepository.getLatestEmotion(currentBotId, groupId)
@@ -258,9 +217,6 @@ class EmotionService(
 
         // 计算行为表现
         val behaviorProfile = behaviorAnalysis.decideBehavior(
-            groupSize = groupSize,
-            adminPresent = adminPresent,
-            recentNegativeCount = 0,
             currentStimulus = stimulus,
             decay = decay
         )
@@ -288,9 +244,7 @@ class EmotionService(
     @OptIn(ExperimentalTime::class)
     fun decayGroupEmotion(
         currentBotId: String,
-        groupId: String,
-        groupSize: Int,
-        adminPresent: Boolean
+        groupId: String
     ) {
         val currentEmotionEntity = emotionRepository.getLatestEmotion(currentBotId, groupId) ?: return
 
@@ -312,9 +266,6 @@ class EmotionService(
         val hours = (now - currentEmotionEntity.createdAt.toInstant(tz)).inWholeHours.coerceAtLeast(0)
         val applyEmotion = hours < 1
         val behaviorProfile = BehaviorAnalysis(currentEmotionEntity).decideBehavior(
-            groupSize = groupSize,
-            adminPresent = adminPresent,
-            recentNegativeCount = 0,
             currentStimulus = PAD.ZERO,
             decay = Decay.LOW,
             applyEmotion = applyEmotion
