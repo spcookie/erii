@@ -69,8 +69,6 @@ class ConfigHolderImpl : ConfigProvider {
         return base.withFallback(overrideConfig)
     }
 
-    // ===== App 配置读取方法（实现 ConfigProvider 接口）=====
-
     override fun getLlmGoogleApiKey(): String = app.getString("llm.google-api-key")
     override fun getLlmGoogleBaseUrl(): String =
         app.tryGetString("llm.google-base-url") ?: "https://generativelanguage.googleapis.com"
@@ -147,7 +145,7 @@ class ConfigHolderImpl : ConfigProvider {
         return groupConfig.admins
     }
 
-    override fun getPlaywrightHost(): String = app.getString("web.playwright-host")
+    override fun getPlaywrightHost(): String = app.getString("browser.playwright-host")
 
     override fun getDebugGroupId(): String? = app.tryGetString("groups.debug-group-id")
 

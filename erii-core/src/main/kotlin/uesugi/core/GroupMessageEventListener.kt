@@ -66,7 +66,11 @@ class GroupMessageEventListener(
     private val roleName: String
 ) : SimpleListenerHost() {
 
-    private val log = logger()
+    companion object {
+        private val log = logger()
+
+        private val COMMAND_REGEX = Regex("^\\s*/(\\S+)(?:\\s+.*)?$")
+    }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -79,8 +83,6 @@ class GroupMessageEventListener(
     private val resourceService by GlobalContext.get().inject<ResourceService>()
 
     private val storage by GlobalContext.get().inject<ObjectStorage>()
-
-    private val COMMAND_REGEX = Regex("^\\s*/(\\S+)(?:\\s+.*)?$")
 
     private val serial = mutableMapOf<String, Channel<GroupAwareMessageEvent>>()
 
@@ -169,6 +171,12 @@ class GroupMessageEventListener(
                     }
 
                     is PlainText -> { /* 纯文本，直接追加内容 */
+                    }
+
+                    is QuoteReply -> {
+                        appendLine("---QUOTE MESSAGE START---")
+                        append(singleMessage.source.originalMessage.content)
+                        appendLine("---QUOTE MESSAGE END---")
                     }
 
                     is MessageSource -> { /* 消息源，跳过 */

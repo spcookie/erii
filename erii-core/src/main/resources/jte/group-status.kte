@@ -1,0 +1,362 @@
+@import uesugi.routing.GroupStatusViewModel
+@import uesugi.routing.EmotionMap
+@import uesugi.routing.displayName
+@import uesugi.routing.info
+@import uesugi.routing.normalizeForDisplay
+@import uesugi.routing.emotionTendency
+
+@param vm: GroupStatusViewModel
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>群组状态监控 - Erii Bot</title>
+    <link href="${vm.basePath}/styles.css?v=19" rel="stylesheet">
+    <link href="${vm.basePath}/css/fontawesome.min.css?v=3" rel="stylesheet">
+    <style>
+        .status-detail {
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <section class="status-detail" id="group-status-detail">
+        <article class="blog-article">
+            <header class="article-header">
+                <div class="article-meta-bar">
+                    <div class="meta-left">
+                        <span class="meta-badge bot-id">
+                            <i class="fas fa-robot"></i>
+                            <span>${vm.botName} (${vm.botId})</span>
+                        </span>
+                        <span class="meta-badge timestamp">
+                            <i class="fas fa-users"></i>
+                            <span>群组 ${vm.groupId}</span>
+                        </span>
+                        <span class="meta-badge timestamp">
+                            <i class="far fa-clock"></i>
+                            <span>${vm.currentTime}</span>
+                        </span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="article-content">
+                <section class="markdown-section">
+                    <h3 class="subsection-title">
+                        <i class="fas fa-puzzle-piece"></i> 插件
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-puzzle-piece"></i>
+                                <span>Extensions</span>
+                            </div>
+                            <div class="stat-value">${vm.pluginStats.totalExtensions}</div>
+                            <div class="stat-desc">个扩展总数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-cubes"></i>
+                                <span>Plugins</span>
+                            </div>
+                            <div class="stat-value">${vm.pluginStats.plugins.size}</div>
+                            <div class="stat-desc">个已加载插件</div>
+                        </div>
+                    </div>
+
+                    @if(vm.groupStatus.behaviorProfile != null && vm.groupStatus.pad != null)
+                        <h3 class="subsection-title">
+                            <i class="fas fa-smile"></i> 情绪状态
+                        </h3>
+                        <div class="emotion-container">
+                            <div class="emotion-header">
+                                <div class="emotion-current">
+                                    <span class="emotion-name">${EmotionMap.get(vm.groupStatus.behaviorProfile!!.emotion).name}</span>
+                                    <span class="emotion-code">${vm.groupStatus.behaviorProfile!!.emotion}</span>
+                                </div>
+                                <div class="emotion-tendency">${vm.groupStatus.pad!!.emotionTendency()}</div>
+                            </div>
+
+                            <div class="emotion-description">
+                                <i class="fas fa-quote-left"></i>
+                                ${EmotionMap.get(vm.groupStatus.behaviorProfile!!.emotion).desc}
+                            </div>
+
+                            <div class="pad-grid">
+                                <div class="pad-item">
+                                    <div class="pad-header">
+                                        <div class="pad-label">
+                                            <i class="fas fa-smile"></i>
+                                            <span>Pleasure</span>
+                                        </div>
+                                        <div class="pad-value">${String.format("%.2f", vm.groupStatus.pad!!.p)}</div>
+                                    </div>
+                                    <div class="pad-bar-wrapper">
+                                        <div class="pad-bar pleasure"
+                                             style="width: ${vm.groupStatus.pad!!.p.normalizeForDisplay()}%"></div>
+                                    </div>
+                                    <div class="pad-scale">
+                                        <span>-4</span>
+                                        <span class="scale-center">0</span>
+                                        <span>+4</span>
+                                    </div>
+                                </div>
+
+                                <div class="pad-item">
+                                    <div class="pad-header">
+                                        <div class="pad-label">
+                                            <i class="fas fa-bolt"></i>
+                                            <span>Arousal</span>
+                                        </div>
+                                        <div class="pad-value">${String.format("%.2f", vm.groupStatus.pad!!.a)}</div>
+                                    </div>
+                                    <div class="pad-bar-wrapper">
+                                        <div class="pad-bar arousal"
+                                             style="width: ${vm.groupStatus.pad!!.a.normalizeForDisplay()}%"></div>
+                                    </div>
+                                    <div class="pad-scale">
+                                        <span>-4</span>
+                                        <span class="scale-center">0</span>
+                                        <span>+4</span>
+                                    </div>
+                                </div>
+
+                                <div class="pad-item">
+                                    <div class="pad-header">
+                                        <div class="pad-label">
+                                            <i class="fas fa-crown"></i>
+                                            <span>Dominance</span>
+                                        </div>
+                                        <div class="pad-value">${String.format("%.2f", vm.groupStatus.pad!!.d)}</div>
+                                    </div>
+                                    <div class="pad-bar-wrapper">
+                                        <div class="pad-bar dominance"
+                                             style="width: ${vm.groupStatus.pad!!.d.normalizeForDisplay()}%"></div>
+                                    </div>
+                                    <div class="pad-scale">
+                                        <span>-4</span>
+                                        <span class="scale-center">0</span>
+                                        <span>+4</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="behavior-profile">
+                                <div class="profile-label">行为特征</div>
+                                <div class="profile-tags">
+                                    <span class="profile-tag">
+                                        <i class="fas fa-comment-dots"></i>
+                                        ${vm.groupStatus.behaviorProfile!!.tone.displayName()}
+                                    </span>
+                                    <span class="profile-tag">
+                                        <i class="fas fa-hand-rock"></i>
+                                        ${vm.groupStatus.behaviorProfile!!.aggressiveness.displayName()}
+                                    </span>
+                                    <span class="profile-tag">
+                                        <i class="fas fa-icons"></i>
+                                        ${vm.groupStatus.behaviorProfile!!.emojiLevel.displayName()}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <blockquote class="info-box"><i class="fas fa-exclamation-triangle"></i> 暂无情绪数据
+                        </blockquote>
+                    @endif
+
+                    <h3 class="subsection-title">
+                        <i class="fas fa-water"></i> 心流投入度
+                    </h3>
+                    <div class="flow-state-container">
+                        <div class="flow-header">
+                            <div class="flow-current-state"
+                                 style="color: ${vm.groupStatus.flowState.state.info().color}">
+                                <i class="fas ${vm.groupStatus.flowState.state.info().icon}"></i>
+                                <span class="state-name">${vm.groupStatus.flowState.state.info().name}</span>
+                            </div>
+                            <div class="flow-meter-value">${String.format("%.1f", vm.groupStatus.flowState.meter)}</div>
+                        </div>
+
+                        <div class="flow-bar-wrapper">
+                            <div class="flow-bar"
+                                 style="width: ${vm.groupStatus.flowState.meter}%; background: ${vm.groupStatus.flowState.state.info().color}"></div>
+                            <div class="flow-marker" style="left: 30%" data-label="30"></div>
+                            <div class="flow-marker" style="left: 70%" data-label="70"></div>
+                        </div>
+
+                        <div class="flow-scale">
+                            <span class="scale-point">
+                                <span class="scale-value">0</span>
+                                <span class="scale-label">待机</span>
+                            </span>
+                            <span class="scale-point">
+                                <span class="scale-value">30</span>
+                                <span class="scale-label">阈值</span>
+                            </span>
+                            <span class="scale-point">
+                                <span class="scale-value">70</span>
+                                <span class="scale-label">阈值</span>
+                            </span>
+                            <span class="scale-point">
+                                <span class="scale-value">100</span>
+                                <span class="scale-label">爆发</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <h3 class="subsection-title">
+                        <i class="fas fa-brain"></i> 冲动值
+                    </h3>
+                    <div class="volition-container">
+                        <div class="volition-header">
+                            <div class="volition-title">
+                                <i class="fas fa-brain"></i>
+                                <span>冲动值累积</span>
+                            </div>
+                            @if(vm.groupStatus.volitionState.shouldSpeak)
+                                <div class="volition-status active">
+                                    <i class="fas fa-circle-check"></i>
+                                    <span>已触发主动发言阈值</span>
+                                </div>
+                            @else
+                                <div class="volition-status inactive">
+                                    <i class="fas fa-circle-pause"></i>
+                                    <span>保持观察状态</span>
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="volition-metrics">
+                            <div class="volition-metric">
+                                <div class="metric-header">
+                                    <div class="metric-label">
+                                        <i class="fas fa-bolt"></i>
+                                        <span>Stimulus</span>
+                                    </div>
+                                    <div class="metric-value">${String.format("%.1f", vm.groupStatus.volitionState.stimulus)}</div>
+                                </div>
+                                <div class="metric-bar-wrapper">
+                                    <div class="metric-bar stimulus"
+                                         style="width: ${vm.groupStatus.volitionState.stimulus}%"></div>
+                                </div>
+                                <div class="metric-scale">
+                                    <span>0</span>
+                                    <span class="scale-center">50</span>
+                                    <span>100</span>
+                                </div>
+                            </div>
+
+                            <div class="volition-metric">
+                                <div class="metric-header">
+                                    <div class="metric-label">
+                                        <i class="fas fa-bed"></i>
+                                        <span>Fatigue</span>
+                                    </div>
+                                    <div class="metric-value">${String.format("%.1f", vm.groupStatus.volitionState.fatigue)}</div>
+                                </div>
+                                <div class="metric-bar-wrapper">
+                                    <div class="metric-bar fatigue"
+                                         style="width: ${vm.groupStatus.volitionState.fatigue}%"></div>
+                                </div>
+                                <div class="metric-scale">
+                                    <span>0</span>
+                                    <span class="scale-center">50</span>
+                                    <span>100</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="subsection-title">
+                        <i class="fas fa-database"></i> 记忆
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-file-alt"></i>
+                                <span>Facts</span>
+                            </div>
+                            <div class="stat-value">${vm.groupStatus.factSize}</div>
+                            <div class="stat-desc">条事实记忆</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-user"></i>
+                                <span>UserProfile</span>
+                            </div>
+                            <div class="stat-value">${vm.groupStatus.userProfileSize}</div>
+                            <div class="stat-desc">个用户档案</div>
+                        </div>
+                    </div>
+
+                    <h3 class="subsection-title">
+                        <i class="fas fa-images"></i> 表情包 & 词汇
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-images"></i>
+                                <span>Memes</span>
+                            </div>
+                            <div class="stat-value">${vm.groupStatus.memeSize}</div>
+                            <div class="stat-desc">个表情包（${vm.groupStatus.analyzedMemeSize} 已分析）</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">
+                                <i class="fas fa-language"></i>
+                                <span>Vocabulary</span>
+                            </div>
+                            <div class="stat-value">${vm.groupStatus.vocabularies.size}</div>
+                            <div class="stat-desc">个学习词汇</div>
+                        </div>
+                    </div>
+
+                    @if(vm.groupStatus.summary != null)
+                        <h3 class="subsection-title">
+                            <i class="fas fa-book-open"></i> 会话摘要
+                        </h3>
+                        <div class="summary-container">
+                            <div class="summary-content">
+                                <i class="fas fa-quote-left"></i>
+                                <div class="summary-text">${vm.groupStatus.summary}</div>
+                            </div>
+                        </div>
+                    @endif
+                </section>
+            </div>
+
+            <footer style="padding: 0 0 1rem 0; -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent); mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);">
+                <div style="display: flex; gap: 4px; height: 6px; margin-bottom: 8px;">
+                    <div style="flex: 3; background: #6366f1; border-radius: 3px;"></div>
+                    <div style="flex: 2; background: #8b5cf6; border-radius: 3px;"></div>
+                    <div style="flex: 1; background: #a78bfa; border-radius: 3px;"></div>
+                    <div style="flex: 2; background: #c084fc; border-radius: 3px;"></div>
+                    <div style="flex: 1; background: #e879f9; border-radius: 3px;"></div>
+                    <div style="flex: 3; background: #f472b6; border-radius: 3px;"></div>
+                    <div style="flex: 1; background: #fb923c; border-radius: 3px;"></div>
+                    <div style="flex: 2; background: #fbbf24; border-radius: 3px;"></div>
+                </div>
+                <div style="display: flex; gap: 4px; height: 32px;">
+                    <div style="flex: 2; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 6px; opacity: 0.9;"></div>
+                    <div style="flex: 1; background: linear-gradient(135deg, #a78bfa, #c084fc); border-radius: 6px; opacity: 0.7;"></div>
+                    <div style="flex: 3; background: linear-gradient(135deg, #818cf8, #6366f1); border-radius: 6px; opacity: 0.15;"></div>
+                    <div style="flex: 1; background: linear-gradient(135deg, #e879f9, #f472b6); border-radius: 6px; opacity: 0.5;"></div>
+                    <div style="flex: 2; background: linear-gradient(135deg, #f472b6, #fb923c); border-radius: 6px; opacity: 0.3;"></div>
+                </div>
+                <div style="display: flex; gap: 4px; height: 4px; margin-top: 4px;">
+                    <div style="flex: 1; background: #fbbf24; border-radius: 2px; opacity: 0.6;"></div>
+                    <div style="flex: 4; background: #6366f1; border-radius: 2px; opacity: 0.2;"></div>
+                    <div style="flex: 2; background: #e879f9; border-radius: 2px; opacity: 0.4;"></div>
+                    <div style="flex: 1; background: #34d399; border-radius: 2px; opacity: 0.5;"></div>
+                    <div style="flex: 3; background: #8b5cf6; border-radius: 2px; opacity: 0.15;"></div>
+                </div>
+            </footer>
+        </article>
+    </section>
+</div>
+</body>
+</html>

@@ -257,6 +257,39 @@ object BotAgent {
                             }
                         }
 
+                        fun buildRuleToolSet(event: ProactiveSpeakEvent): RuleToolSet? {
+                            return event.senderId?.let { senderId ->
+                                // 首选当前 botId 对应的配置
+                                val botConfigs = ConfigHolder.getOnebotBots()
+                                val botConfigKey = if (botConfigs.containsKey(event.botId)) {
+                                    event.botId
+                                } else {
+                                    // 退回到按 groupId 反查
+                                    botConfigs.entries
+                                        .find { (_, config) -> config.groups.containsKey(groupId) }
+                                        ?.key
+                                }
+
+                                if (botConfigKey != null) {
+                                    val admins = ConfigHolder.getAdmins(botConfigKey, groupId)
+                                    RuleToolSet(
+                                        botId = event.botId,
+                                        groupId = groupId,
+                                        userId = senderId,
+                                        admins = admins
+                                    )
+                                } else {
+                                    // 未找到配置，使用空管理员列表
+                                    RuleToolSet(
+                                        botId = event.botId,
+                                        groupId = groupId,
+                                        userId = senderId,
+                                        admins = emptyList()
+                                    )
+                                }
+                            }
+                        }
+
                         suspend fun agentRun(input: String, toolEnv: ToolEnv) {
                             EventBus.postSync(
                                 AgentRunStartEvent(
@@ -292,41 +325,9 @@ object BotAgent {
                             }
                         }
 
-                        // 创建 RuleToolSet
-                        val ruleToolSet = event.senderId?.let { senderId ->
-                            // 首选当前 botId 对应的配置
-                            val botConfigs = ConfigHolder.getOnebotBots()
-                            val botConfigKey = if (botConfigs.containsKey(event.botId)) {
-                                event.botId
-                            } else {
-                                // 退回到按 groupId 反查
-                                botConfigs.entries
-                                    .find { (_, config) -> config.groups.containsKey(groupId) }
-                                    ?.key
-                            }
-
-                            if (botConfigKey != null) {
-                                val admins = ConfigHolder.getAdmins(botConfigKey, groupId)
-                                RuleToolSet(
-                                    botId = event.botId,
-                                    groupId = groupId,
-                                    userId = senderId,
-                                    admins = admins
-                                )
-                            } else {
-                                // 未找到配置，使用空管理员列表
-                                RuleToolSet(
-                                    botId = event.botId,
-                                    groupId = groupId,
-                                    userId = senderId,
-                                    admins = emptyList()
-                                )
-                            }
-                        }
-
                         agentRun(
                             event.input ?: DEFAULT_INPUT,
-                            ToolEnv(chatToolSet, event.webSearch, event.toolSetBuilder, ruleToolSet)
+                            ToolEnv(chatToolSet, event.webSearch, event.toolSetBuilder, buildRuleToolSet(event))
                         )
 
                         while (true) {
@@ -365,7 +366,12 @@ object BotAgent {
 
                             agentRun(
                                 DEFAULT_INPUT,
-                                ToolEnv(chatToolSet, newEvent.webSearch, newEvent.toolSetBuilder, ruleToolSet)
+                                ToolEnv(
+                                    chatToolSet,
+                                    newEvent.webSearch,
+                                    newEvent.toolSetBuilder,
+                                    buildRuleToolSet(newEvent)
+                                )
                             )
                         }
                     } catch (e: Exception) {
@@ -429,9 +435,9 @@ object BotAgent {
     private fun buildToolRegistry(): ToolRegistry =
         ToolRegistry {
             tools(baseTools())
+            tools(ruleTools())
             tools(webTools())
             tools(extraTools())
-            tools(ruleTools())
         }
 
 }
