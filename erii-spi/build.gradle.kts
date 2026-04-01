@@ -2,6 +2,9 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
+group = "uesugi"
+version = "0.0.1"
+
 dependencies {
     compileOnly(project(":erii-common"))
     compileOnly(libs.pf4j)
