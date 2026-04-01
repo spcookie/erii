@@ -1,6 +1,7 @@
 package uesugi.core.agent
 
 import ai.koog.agents.core.agent.AIAgentService
+import ai.koog.agents.core.agent.GraphAIAgent
 import ai.koog.agents.core.agent.GraphAIAgentService
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.dsl.builder.strategy
@@ -160,9 +161,9 @@ object BotAgent {
                             edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
                         }
 
-                        val promptExecutor by ref<PromptExecutor>()
-
                         val context = buildContext(event)
+
+                        val promptExecutor by ref<PromptExecutor>()
 
                         val aiAgent = AIAgentService(
                             promptExecutor = promptExecutor,
@@ -172,79 +173,7 @@ object BotAgent {
                                 maxAgentIterations = 20,
                             ),
                             strategy = strategy
-                        ) {
-                            handleEvents {
-                                onLLMCallStarting {
-                                    if (log.isDebugEnabled) {
-                                        val info = buildString {
-                                            appendLine()
-                                            for (message in it.prompt.messages) {
-                                                append("${message.role.name}:")
-                                                appendLine()
-                                                append(message.content)
-                                                appendLine()
-                                            }
-                                        }
-                                        log.debug("Bot agent onLLMCallStarting: {}", info)
-                                    }
-                                }
-
-                                onLLMCallCompleted {
-                                    if (log.isDebugEnabled) {
-                                        val info = buildString {
-                                            appendLine()
-                                            for (message in it.responses) {
-                                                append("${message.role.name}:")
-                                                appendLine()
-                                                append(message.content)
-                                                appendLine()
-                                            }
-                                        }
-                                        log.debug("Bot agent onLLMCallCompleted: {}", info)
-                                    }
-                                }
-
-                                onToolCallStarting {
-                                    EventBus.postAsync(
-                                        AgentToolCallStartEvent(
-                                            event.botId,
-                                            event.groupId,
-                                            event.echo,
-                                            it.toolName,
-                                            it.toolArgs
-                                        )
-                                    )
-                                }
-
-                                onToolCallCompleted {
-                                    EventBus.postAsync(
-                                        AgentToolCallCompleteEvent(
-                                            event.botId,
-                                            event.groupId,
-                                            event.echo,
-                                            it.toolName,
-                                            it.toolArgs,
-                                            it.toolResult,
-                                            null
-                                        )
-                                    )
-                                }
-
-                                onToolCallFailed {
-                                    EventBus.postAsync(
-                                        AgentToolCallCompleteEvent(
-                                            event.botId,
-                                            event.groupId,
-                                            event.echo,
-                                            it.toolName,
-                                            it.toolArgs,
-                                            null,
-                                            it.message
-                                        )
-                                    )
-                                }
-                            }
-                        }
+                        ) { handleEvents(event) }
 
 
                         val roundAgentRun = (::agentRun).curry()(aiAgent)(context)
@@ -354,6 +283,80 @@ object BotAgent {
                     event.echo
                 )
             )
+        }
+    }
+
+    private fun GraphAIAgent.FeatureContext.handleEvents(event: ProactiveSpeakEvent) {
+        handleEvents {
+            onLLMCallStarting {
+                if (log.isDebugEnabled) {
+                    val info = buildString {
+                        appendLine()
+                        for (message in it.prompt.messages) {
+                            append("${message.role.name}:")
+                            appendLine()
+                            append(message.content)
+                            appendLine()
+                        }
+                    }
+                    log.debug("Bot agent onLLMCallStarting: {}", info)
+                }
+            }
+
+            onLLMCallCompleted {
+                if (log.isDebugEnabled) {
+                    val info = buildString {
+                        appendLine()
+                        for (message in it.responses) {
+                            append("${message.role.name}:")
+                            appendLine()
+                            append(message.content)
+                            appendLine()
+                        }
+                    }
+                    log.debug("Bot agent onLLMCallCompleted: {}", info)
+                }
+            }
+
+            onToolCallStarting {
+                EventBus.postAsync(
+                    AgentToolCallStartEvent(
+                        event.botId,
+                        event.groupId,
+                        event.echo,
+                        it.toolName,
+                        it.toolArgs
+                    )
+                )
+            }
+
+            onToolCallCompleted {
+                EventBus.postAsync(
+                    AgentToolCallCompleteEvent(
+                        event.botId,
+                        event.groupId,
+                        event.echo,
+                        it.toolName,
+                        it.toolArgs,
+                        it.toolResult,
+                        null
+                    )
+                )
+            }
+
+            onToolCallFailed {
+                EventBus.postAsync(
+                    AgentToolCallCompleteEvent(
+                        event.botId,
+                        event.groupId,
+                        event.echo,
+                        it.toolName,
+                        it.toolArgs,
+                        null,
+                        it.message
+                    )
+                )
+            }
         }
     }
 
