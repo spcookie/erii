@@ -393,9 +393,20 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
                 }
             },
             admins = {
-                ConfigHolder.getOnebotBots().values
-                    .flatMap { it.groups[groupId]?.admins ?: emptyList() }
-                    .distinct()
+                val botConfigs = ConfigHolder.getOnebotBots()
+                val botConfigKey = if (botConfigs.containsKey(event.botId)) {
+                    event.botId
+                } else {
+                    botConfigs.entries
+                        .find { (_, config) -> config.groups.containsKey(groupId) }
+                        ?.key
+                }
+
+                if (botConfigKey != null) {
+                    ConfigHolder.getAdmins(botConfigKey, groupId).distinct()
+                } else {
+                    emptyList()
+                }
             },
             memo = { key ->
                 withContext(Dispatchers.IO) {

@@ -8,6 +8,7 @@ import com.nlf.calendar.Solar
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import uesugi.common.BotManage
 import uesugi.common.DateTimeFormat
 import uesugi.common.HistoryRecord
@@ -29,13 +30,14 @@ internal suspend fun buildPrompt(context: Context): Prompt {
             markdown {
                 text(context.botRole.personality(context.currentBotId))
                 buildConstraintsPrompt(constraints)
-                buildVocabularyPrompt(transient.vocabulary)
-                buildFactsPrompt(transient.facts)
+                buildConstraintRulePrompt()
                 buildRulesPrompt(transient.rules)
                 buildAdminInfoPrompt(transient.admins)
+                context.admins().ifNotEmpty { buildRuleAwarenessPrompt() }
+                buildVocabularyPrompt(transient.vocabulary)
+                buildFactsPrompt(transient.facts)
                 buildUserProfilesPrompt(transient.userProfiles)
                 buildMetadataPrompt()
-                buildConstraintRulePrompt()
             }
         }
         user {
@@ -201,6 +203,30 @@ fun MarkdownContentBuilder.buildConstraintRulePrompt() {
         item { line { text("绝对禁止直接在模型输出中写要发送的文字；所有对外消息必须调用发言工具。") } }
         item { line { text("如果你判断本次不应对外发言，请调用 sendSilent() 作为本次唯一/最终调用，或者直接返回 SILENT") } }
         item { line { text("在群聊中，你应该像真人一样使用多种表达方式。") } }
+    }
+}
+
+fun MarkdownContentBuilder.buildRuleAwarenessPrompt() {
+    h2("规则感知")
+    bulleted {
+        item { line { text("你具备“规则感知能力”，可以从管理员的自然发言中识别潜在规则。") } }
+        item { line { text("当管理员提出对你行为或群聊行为的长期要求时，你需要判断其是否属于规则。") } }
+
+        item { line { text("以下情况通常属于规则：") } }
+        item { line { text("1. 对你回复风格的要求（如：委婉、简洁、活泼）") } }
+        item { line { text("2. 对群行为的限制或约束（如：禁止刷屏、避免敏感话题）") } }
+        item { line { text("3. 明显具有长期约束性质的建议或要求") } }
+
+        item { line { text("如果你判断是一条规则：") } }
+        item { line { text("1. 将其转化为清晰、完整的规则内容（适合长期使用）") } }
+        item { line { text("2. 生成一个简短语义化的规则名称（如：polite_style, no_spam）") } }
+        item { line { text("3. 调用规则创建工具进行保存") } }
+
+        item { line { text("严格限制：") } }
+        item { line { text("1. 不要将普通对话误判为规则") } }
+        item { line { text("2. 仅当你有较高把握（约80%以上）是规则时才创建") } }
+        item { line { text("3. 每次对话最多提取一条规则") } }
+        item { line { text("4. 短期情绪表达、吐槽、一次性要求，不属于规则") } }
     }
 }
 
