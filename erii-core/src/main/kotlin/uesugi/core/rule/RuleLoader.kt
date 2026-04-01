@@ -167,7 +167,7 @@ object RuleLoader {
      * 获取文件系统规则目录
      */
     fun getRulesDirectory(): File {
-        val rulesDir = System.getProperty("config.rules.dir") ?: DEFAULT_RULES_DIR
+        val rulesDir = resolveConfigDir()
         return File(rulesDir).also {
             if (!it.exists()) it.mkdirs()
         }
