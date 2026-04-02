@@ -14,32 +14,21 @@ object RuleLoader {
     /**
      * 加载所有规则文件
      * - 从系统属性 config.rules.dir 指定的目录加载
-     * - 重环境变量 CONFIG_RULES_DIR 指定的目录加载
-     * - 从类路径 rules/ 目录加载
+     * - 从环境变量 CONFIG_RULES_DIR 指定的目录加载
+     * - 从类路径 rules/index.idx 索引指定的规则加载
      */
     fun loadRules(): List<Rule> {
         val rules = mutableListOf<Rule>()
 
-        // 1. 加载文件系统中的规则
+        // 1. 先加载 classpath 下 rules/index.idx 索引指定的规则
+        loadFromClasspathIndex(rules)
+
+        // 2. 加载文件系统中的规则
         val rulesDir = resolveConfigDir()
         val rulesDirFile = File(rulesDir)
         if (rulesDirFile.exists() && rulesDirFile.isDirectory) {
             rulesDirFile.listFiles { file -> file.extension == "md" }?.forEach { file ->
-                parseRuleFile(file.name, file.readText(), file.absolutePath)?.let { rules.add(it) }
-            }
-        }
-
-        // 2. 加载类路径中的规则
-        val classLoader = Thread.currentThread().contextClassLoader ?: RuleLoader::class.java.classLoader
-        classLoader.getResource("rules")?.let { url ->
-            if (url.protocol == "file") {
-                File(url.toURI()).listFiles { file -> file.extension == "md" }?.forEach { file ->
-                    val classpathPath = "$CLASSPATH_PREFIX$DEFAULT_RULES_DIR/${file.name}"
-                    parseRuleFile(file.name, file.readText(), classpathPath)?.let { rules.add(it) }
-                }
-            } else if (url.protocol == "jar") {
-                // JAR 内资源通过枚举方式加载
-                loadRulesFromJar(classLoader, rules)
+                parseRuleFile(file.name, file.readText(), file.absolutePath).let { rules.add(it) }
             }
         }
 
@@ -51,6 +40,42 @@ object RuleLoader {
             ?: System.getProperty("config.rules.dir")
             ?: System.getenv("CONFIG_RULES_DIR")
             ?: DEFAULT_RULES_DIR
+    }
+
+    /**
+     * 从 classpath 索引文件加载规则
+     * 读取 rules/index.idx 索引文件，按索引加载指定的 md 文件
+     */
+    private fun loadFromClasspathIndex(rules: MutableList<Rule>) {
+        val classLoader = Thread.currentThread().contextClassLoader ?: RuleLoader::class.java.classLoader
+        val indexResource = classLoader.getResource("$DEFAULT_RULES_DIR/index.idx")
+        if (indexResource == null) {
+            // 索引文件不存在，尝试从 JAR 枚举方式加载
+            loadRulesFromJar(classLoader, rules)
+            return
+        }
+
+        try {
+            val indexContent = indexResource.openStream().bufferedReader().readText()
+            val fileNames = indexContent.lines().map { it.trim() }.filter { it.isNotEmpty() && it.endsWith(".md") }
+
+            for (fileName in fileNames) {
+                val resourcePath = "$DEFAULT_RULES_DIR/$fileName"
+                val resource = classLoader.getResource(resourcePath)
+                if (resource != null) {
+                    try {
+                        val content = resource.openStream().bufferedReader().readText()
+                        val classpathPath = "$CLASSPATH_PREFIX$resourcePath"
+                        parseRuleFile(fileName, content, classpathPath).let { rules.add(it) }
+                    } catch (_: Exception) {
+                        // 忽略单个文件加载失败
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // 索引加载失败，尝试降级到枚举方式
+            loadRulesFromJar(classLoader, rules)
+        }
     }
 
     /**
@@ -81,7 +106,7 @@ object RuleLoader {
                                     jarFile.getInputStream(entry).use { inputStream ->
                                         val content = inputStream.bufferedReader().readText()
                                         val classpathPath = "$CLASSPATH_PREFIX$entryName"
-                                        parseRuleFile(fileName, content, classpathPath)?.let { rules.add(it) }
+                                        parseRuleFile(fileName, content, classpathPath).let { rules.add(it) }
                                     }
                                 }
                             }
@@ -93,12 +118,12 @@ object RuleLoader {
                         if (dir.isDirectory) {
                             dir.listFiles { file -> file.extension == "md" }?.forEach { file ->
                                 val classpathPath = "$CLASSPATH_PREFIX$DEFAULT_RULES_DIR/${file.name}"
-                                parseRuleFile(file.name, file.readText(), classpathPath)?.let { rules.add(it) }
+                                parseRuleFile(file.name, file.readText(), classpathPath).let { rules.add(it) }
                             }
                         }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // 忽略单个资源加载失败，继续处理其他资源
             }
         }
@@ -107,7 +132,7 @@ object RuleLoader {
     /**
      * 解析单个规则文件
      */
-    private fun parseRuleFile(fileName: String, fileContent: String, filePath: String): Rule? {
+    private fun parseRuleFile(fileName: String, fileContent: String, filePath: String): Rule {
         val (meta, content) = parseFrontmatter(fileContent)
         return Rule(
             fileName = fileName,
@@ -157,7 +182,7 @@ object RuleLoader {
                 botId = map["botId"]?.toString(),
                 groupId = map["groupId"]?.toString()
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             RuleMeta()
         }
     }
