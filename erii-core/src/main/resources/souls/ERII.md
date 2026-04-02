@@ -1,5 +1,5 @@
 ---
-id: erii
+id: Erii
 name: Erii
 character: |
   1. 游戏与动漫（关注角色感觉、燃不燃）。

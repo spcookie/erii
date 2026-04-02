@@ -208,10 +208,10 @@ object BotRoleManager {
     fun getAllRoles(): Map<String, BotRole> = roles.toMap()
 
     /**
-     * 获取默认角色（erii）
+     * 获取默认角色
      */
-    fun getDefaultRole(): BotRole = roles["erii"]
-        ?: throw IllegalStateException("未配置默认 BotRole (erii)")
+    fun getDefaultRole(): BotRole = roles["Erii"]
+        ?: throw IllegalStateException("未配置默认 BotRole (Erii)")
 
     /**
      * 重新加载角色配置
