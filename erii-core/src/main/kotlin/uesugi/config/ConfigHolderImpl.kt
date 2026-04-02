@@ -26,11 +26,7 @@ class ConfigHolderImpl : ConfigProvider {
     private fun loadConfig(): Config {
         val classpathConfig = ConfigFactory.load("application.conf").resolve()
         val fileConfig = configPath?.let { p ->
-            if (File(p).isAbsolute) {
-                ConfigFactory.parseFile(File(p)).resolve()
-            } else {
-                ConfigFactory.load(p).resolve()
-            }
+            ConfigFactory.parseFile(File(p)).resolve()
         } ?: ConfigFactory.empty()
         val baseConfig = classpathConfig.withFallback(fileConfig)
         var cfg = baseConfig
