@@ -36,7 +36,6 @@ object ConfigHolder {
 
     // ===== OneBot =====
     fun getOnebotWs(): String = provider.getOnebotWs()
-    fun getOnebotHttp(): String = provider.getOnebotHttp()
     fun getOnebotToken(): String = provider.getOnebotToken()
     fun getOnebotBots(): Map<String, BotConfig> = provider.getOnebotBots()
     fun getAdmins(botConfigKey: String, groupId: String): List<String> = provider.getAdmins(botConfigKey, groupId)
