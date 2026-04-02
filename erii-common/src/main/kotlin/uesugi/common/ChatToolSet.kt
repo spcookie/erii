@@ -17,6 +17,22 @@ interface ChatToolSet : ToolSet {
     ): String
 
     @Tool
+    @LLMDescription("发送图片消息")
+    suspend fun sendImageByUrl(@LLMDescription("发送图片的 URL") url: String): String
+
+    @Tool
     @LLMDescription("发送 At 消息")
-    suspend fun sendAt(@LLMDescription("At 的用户 ID") userId: Long): String
+    suspend fun sendAt(@LLMDescription("At 的用户 ID") userIds: List<Long>): String
+
+    @Tool
+    @LLMDescription("发送 At 消息和文本消息")
+    suspend fun sendAtAndText(
+        @LLMDescription("At 的用户 ID") userIds: List<Long>,
+        @LLMDescription("文本消息") text: String
+    ): String
+
+    @Tool
+    @LLMDescription("发送 At 全体成员消息")
+    suspend fun sendAtAll(): String
+
 }
