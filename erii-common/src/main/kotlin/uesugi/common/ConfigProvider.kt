@@ -44,7 +44,6 @@ interface ConfigProvider {
 
     // ===== OneBot =====
     fun getOnebotWs(): String
-    fun getOnebotHttp(): String
     fun getOnebotToken(): String
     fun getOnebotBots(): Map<String, BotConfig>
     fun getAdmins(botConfigKey: String, groupId: String): List<String>

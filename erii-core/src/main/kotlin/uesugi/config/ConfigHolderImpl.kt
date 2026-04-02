@@ -21,20 +21,11 @@ class ConfigHolderImpl : ConfigProvider {
             ?: "application.conf"
     }
 
-    val app: Config by lazy { loadAppConfig() }
-    val plugins: Config by lazy { loadPluginsConfig() }
+    private val config: Config by lazy { loadConfig() }
 
-    private fun loadAppConfig(): Config {
-        return loadConfig("app") { log.info { "App config loaded successfully" } }
-    }
-
-    private fun loadPluginsConfig(): Config {
-        return loadConfig("plugins") { log.info { "Plugins config loaded successfully" } }
-    }
-
-    private fun loadConfig(path: String, onSuccess: () -> Unit): Config {
+    private fun loadConfig(): Config {
         val classpathConfig = ConfigFactory.load("application.conf").resolve()
-        val fileConfig = configPath?.takeIf { it != "application.conf" }?.let { p ->
+        val fileConfig = configPath?.let { p ->
             if (File(p).isAbsolute) {
                 ConfigFactory.parseFile(File(p)).resolve()
             } else {
@@ -42,20 +33,18 @@ class ConfigHolderImpl : ConfigProvider {
             }
         } ?: ConfigFactory.empty()
         val baseConfig = classpathConfig.withFallback(fileConfig)
-        var config = baseConfig.getConfig(path)
-        config = overrideWithSystemProperties(config, path)
-        onSuccess()
-        return config
+        var cfg = baseConfig
+        cfg = overrideWithSystemProperties(cfg)
+        log.info { "Config loaded successfully" }
+        return cfg
     }
 
-    private fun overrideWithSystemProperties(base: Config, prefix: String): Config {
+    private fun overrideWithSystemProperties(base: Config): Config {
         val overrides = mutableMapOf<String, Any>()
         System.getProperties().stringPropertyNames()
-            .filter { it.startsWith("$prefix.") }
             .forEach { key ->
-                val configPath = key.removePrefix("$prefix.")
                 val value = System.getProperty(key)
-                overrides[configPath] = value
+                overrides[key] = value
                 log.info { "Override config: $key = $value" }
             }
         if (overrides.isEmpty()) return base
@@ -69,38 +58,32 @@ class ConfigHolderImpl : ConfigProvider {
         return base.withFallback(overrideConfig)
     }
 
-    override fun getLlmGoogleApiKey(): String = app.getString("llm.google-api-key")
-    override fun getLlmGoogleBaseUrl(): String =
-        app.tryGetString("llm.google-base-url") ?: "https://generativelanguage.googleapis.com"
+    override fun getLlmGoogleApiKey(): String = config.getString("llm.google-api-key")
+    override fun getLlmGoogleBaseUrl(): String = config.getString("llm.google-base-url")
 
-    override fun getLlmDeepSeekApiKey(): String = app.getString("llm.deep-seek-api-key")
-    override fun getLlmDeepSeekBaseUrl(): String =
-        app.tryGetString("llm.deep-seek-base-url") ?: "https://api.deepseek.com"
+    override fun getLlmDeepSeekApiKey(): String = config.getString("llm.deep-seek-api-key")
+    override fun getLlmDeepSeekBaseUrl(): String = config.getString("llm.deep-seek-base-url")
 
-    override fun getLlmMinimaxApiKey(): String = app.getString("llm.minimax-coding-plan-key")
-    override fun getLlmMinimaxBaseUrl(): String =
-        app.tryGetString("llm.minimax-base-url") ?: "https://api.minimaxi.com"
+    override fun getLlmMinimaxApiKey(): String = config.getString("llm.minimax-coding-plan-key")
+    override fun getLlmMinimaxBaseUrl(): String = config.getString("llm.minimax-base-url")
 
-    override fun getChoiceModel(): String = app.getString("llm.choice-model")
+    override fun getChoiceModel(): String = config.getString("llm.choice-model")
 
-    override fun getEmbeddingApiKey(): String = app.getString("embedding.api-key")
-    override fun getEmbeddingProvider(): String =
-        app.tryGetString("embedding.provider") ?: "bytedance"
+    override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
+    override fun getEmbeddingProvider(): String = config.getString("embedding.provider")
 
-    override fun getSearchApiKey(): String = app.getString("search.api-key")
-    override fun getSearchProvider(): String =
-        app.tryGetString("search.provider") ?: "exa"
+    override fun getSearchApiKey(): String = config.getString("search.api-key")
+    override fun getSearchProvider(): String = config.getString("search.provider")
 
-    override fun getProxyHttp(): String? = app.tryGetString("proxy.http")
-    override fun getProxySocks(): String? = app.tryGetString("proxy.socks")
+    override fun getProxyHttp(): String? = config.tryGetString("proxy.http")
+    override fun getProxySocks(): String? = config.tryGetString("proxy.socks")
 
-    override fun getOnebotWs(): String = app.getString("onebot.ws")
-    override fun getOnebotHttp(): String = app.getString("onebot.http")
-    override fun getOnebotToken(): String = app.getString("onebot.token")
+    override fun getOnebotWs(): String = config.getString("onebot.ws")
+    override fun getOnebotToken(): String = config.getString("onebot.token")
 
     override fun getOnebotBots(): Map<String, BotConfig> {
         return try {
-            val botsConfig = app.getConfig("onebot.bots")
+            val botsConfig = config.getConfig("onebot.bots")
             val result = mutableMapOf<String, BotConfig>()
             botsConfig.root().keys.forEach { key ->
                 val keyStr = key.toString()
@@ -145,13 +128,13 @@ class ConfigHolderImpl : ConfigProvider {
         return groupConfig.admins
     }
 
-    override fun getPlaywrightHost(): String = app.getString("browser.playwright-host")
+    override fun getPlaywrightHost(): String = config.getString("browser.playwright-host")
 
-    override fun getDebugGroupId(): String? = app.tryGetString("groups.debug-group-id")
+    override fun getDebugGroupId(): String? = config.tryGetString("groups.debug-group-id")
 
     override fun getEnableGroups(): List<String> {
         return try {
-            val raw = app.getString("groups.enable-groups")
+            val raw = config.getString("groups.enable-groups")
             if (raw.isNotBlank()) {
                 raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
             } else {
@@ -159,7 +142,7 @@ class ConfigHolderImpl : ConfigProvider {
             }
         } catch (_: Exception) {
             try {
-                app.getStringList("groups.enable-groups").filter { it.isNotBlank() }
+                config.getStringList("groups.enable-groups").filter { it.isNotBlank() }
             } catch (_: Exception) {
                 emptyList()
             }
@@ -168,7 +151,7 @@ class ConfigHolderImpl : ConfigProvider {
 
     override fun getMessageRedirectMap(): Map<String, String> {
         return try {
-            val raw = app.getString("groups.message-redirect-map")
+            val raw = config.getString("groups.message-redirect-map")
             if (raw.isNotBlank()) {
                 raw.split(",").map { it.trim() }
                     .filter { it.contains(":") }
@@ -181,9 +164,9 @@ class ConfigHolderImpl : ConfigProvider {
             }
         } catch (_: Exception) {
             try {
-                val obj = app.getObject("groups.message-redirect-map")
+                val obj = config.getObject("groups.message-redirect-map")
                 obj.keys.associateWith { key ->
-                    app.getString("groups.message-redirect-map.$key")
+                    config.getString("groups.message-redirect-map.$key")
                 }.filterValues { it.isNotBlank() }
             } catch (_: Exception) {
                 emptyMap()
@@ -216,11 +199,7 @@ class ConfigHolderImpl : ConfigProvider {
                 ConfigFactory.parseReader(inputStream.reader()).resolve()
             }
         }
-        return try {
-            plugins.getConfig(pluginId)
-        } catch (_: Exception) {
-            log.warn { "Plugin config not found for: $pluginId" }
-            ConfigFactory.empty()
-        }
+        // 插件没有配置时直接返回空配置
+        return ConfigFactory.empty()
     }
 }
