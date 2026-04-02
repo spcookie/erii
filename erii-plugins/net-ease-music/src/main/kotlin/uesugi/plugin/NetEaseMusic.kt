@@ -11,6 +11,7 @@ import io.ktor.server.config.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.pf4j.Extension
+import uesugi.common.BotManage
 import uesugi.common.logger
 import uesugi.spi.*
 import uesugi.spi.MetaToolSet.Companion.meta
@@ -28,8 +29,6 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
 
     companion object {
         private lateinit var MUSIC_API_BASE: String
-        private lateinit var ONEBOT_HTTP_URL: String
-        private lateinit var ONEBOT_TOKEN: String
     }
 
     override fun onLoad(context: PluginContext) {
@@ -41,26 +40,6 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
                 ?.also { MUSIC_API_BASE = it }
         ) {
             "api-base is required for NetEase Music plugin"
-        }
-
-        val onebot = requireNotNull(
-            context.config().getConfig("onebot")
-        ) {
-            "onebot is required for NetEase Music plugin"
-        }
-
-        requireNotNull(
-            onebot.tryGetString("http-url")
-                ?.also { ONEBOT_HTTP_URL = it }
-        ) {
-            "OneBot http-url is required for OneBot plugin"
-        }
-
-        requireNotNull(
-            onebot.tryGetString("token")
-                ?.also { ONEBOT_TOKEN = it }
-        ) {
-            "OneBot token is required for OneBot plugin"
         }
 
         context.tool { { ToolSet(context) } }
@@ -86,7 +65,7 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
             val musicCards = context.search(keyword, limit)
             log.info("Found {} music cards for keyword: {}", musicCards.size, keyword)
 
-            return sendMusicCards(musicCards)
+            return context.sendMusicCards(musicCards)
         }
 
         /**
@@ -139,11 +118,15 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
             }
         }
 
-        private suspend fun sendMusicCards(musicCards: List<MusicCardResult>): String {
+        private suspend fun PluginContext.sendMusicCards(musicCards: List<MusicCardResult>): String {
+            val configKey = BotManage.getConfigKey(meta.botId)
+            val cfg = config().getConfig("onebot.$configKey")
+            val httpUrl = cfg.getString("http-url")
+            val token = cfg.getString("token")
             for (cardResult in musicCards) {
                 try {
-                    context.http.post("$ONEBOT_HTTP_URL/send_msg") {
-                        bearerAuth("hG8dQqGk6jGC")
+                    context.http.post("$httpUrl/send_msg") {
+                        bearerAuth(token)
                         contentType(ContentType.Application.Json)
                         setBody(
                             mapOf(

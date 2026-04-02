@@ -11,8 +11,10 @@ interface IBotManage {
         val role: BotRole,
     )
 
-    fun registerBot(bot: Bot, role: BotRole)
+    fun registerBot(configKey: String, bot: Bot, role: BotRole)
     fun getBot(botId: String): RoledBot
+    fun getBotByConfigKey(configKey: String): RoledBot
+    fun getConfigKey(botId: String): String
     fun getAllBots(): Collection<RoledBot>
     fun getAllBotIds(): Set<String>
 }
@@ -20,17 +22,30 @@ interface IBotManage {
 object BotManage : IBotManage {
 
     private val bots = ConcurrentHashMap<String, RoledBot>()
+    private val configKeys = ConcurrentHashMap<String, String>()
+    private val botKeys = ConcurrentHashMap<String, String>()
 
     private val log = logger()
 
-    override fun registerBot(bot: Bot, role: BotRole) {
+    override fun registerBot(configKey: String, bot: Bot, role: BotRole) {
         val botId = bot.id.toString()
         bots[botId] = RoledBot(bot, role)
+        configKeys[configKey] = botId
+        botKeys[botId] = configKey
         log.info("机器人已注册: botId=$botId")
     }
 
     override fun getBot(botId: String): RoledBot {
         return bots.getValue(botId)
+    }
+
+    override fun getBotByConfigKey(configKey: String): RoledBot {
+        val botId = configKeys.getValue(configKey)
+        return bots.getValue(botId)
+    }
+
+    override fun getConfigKey(botId: String): String {
+        return botKeys.getValue(botId)
     }
 
     override fun getAllBots(): Collection<RoledBot> {
