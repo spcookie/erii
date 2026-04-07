@@ -108,9 +108,9 @@ class MemoryService(
             // 调用 organize 方法（内部使用 Agent + Tool 方式，向量同步已内联）
             memoryAgent.organize(botMark, groupId, messages)
 
-            log.info("事实记忆整理完成, botId=$botMark, groupId=$groupId")
+            log.info("Fact memory sorting completed, botId=$botMark, groupId=$groupId")
         } catch (e: Exception) {
-            log.error("整理事实记忆失败, groupId=$groupId", e)
+            log.error("Failed to organize fact memory, groupId=$groupId", e)
         }
     }
 
@@ -135,11 +135,11 @@ class MemoryService(
             // 保存到数据库
             withContext(Dispatchers.IO) {
                 memoryRepository.updateUserProfile(botMark, groupId, userId, analysis.profile, analysis.preferences)
-                log.info("用户画像已更新, botId=$botMark, groupId=$groupId, userId=$userId")
+                log.info("User portrait has been updated, botId=$botMark, groupId=$groupId, userId=$userId")
             }
 
         } catch (e: Exception) {
-            log.error("处理用户画像失败, groupId=$groupId, userId=$userId", e)
+            log.error("Failed to process user portrait, groupId=$groupId, userId=$userId", e)
         }
     }
 
@@ -167,10 +167,10 @@ class MemoryService(
                 participantCount = summary.participantIds.distinct().size,
                 messageCount = summary.messageCount
             )
-            log.info("对话摘要分析完成, botId=$botMark, groupId=$groupId")
+            log.info("Conversation summary analysis completed, botId=$botMark, groupId=$groupId")
 
         } catch (e: Exception) {
-            log.error("生成对话摘要失败, groupId=$groupId", e)
+            log.error("Failed to generate conversation summary, groupId=$groupId", e)
         }
     }
 

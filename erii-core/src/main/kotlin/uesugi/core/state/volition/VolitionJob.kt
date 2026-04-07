@@ -127,7 +127,7 @@ class VolitionJob(
             log.debug("群组 $groupId 主动意愿处理完成, 最大 historyId=$maxHistoryId")
 
         } catch (e: Exception) {
-            log.error("处理群组 $groupId 主动意愿失败", e)
+            log.error("Processing group $groupId voluntary request failed", e)
         }
     }
 
@@ -143,7 +143,7 @@ class VolitionJob(
 
         val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
 
-        log.info("冲动值分析完成, botId=$botMark, groupId=$groupId, $result")
+        log.info("Impulsive value analysis completed, botId=$botMark, groupId=$groupId, $result")
 
         EventBus.postAsync(ResetStimulusEvent(botMark, groupId))
 
@@ -194,7 +194,7 @@ class VolitionJob(
                     } else {
                         groupId
                     }
-                log.info("决策: 群组 $groupId 定时发言")
+                log.info("Decision: Group $groupId speaks regularly")
                 speakV(
                     botId = botMark,
                     groupId = groupId,
@@ -229,7 +229,7 @@ class VolitionJob(
                             val hour = dateTime.hour
                             val inRange = hour in 8 until 22
                             if (inRange) {
-                                log.info("决策: 群组 $groupId 4 小时内无消息，主动发言")
+                                log.info("Decision: No message from group $groupId within 4 hours, take the initiative to speak")
                                 speakV(
                                     botId = botMark,
                                     groupId = groupId

@@ -89,7 +89,7 @@ class EvolutionJob(
             val recentMessages = evolutionService.getMostActiveMessages(botMark, groupId, 500, range)
 
             if (recentMessages.isEmpty()) {
-                log.warn("群组 $groupId 没有最近的消息，跳过处理")
+                log.warn("Group $groupId has no recent messages, skip processing")
                 return
             }
 
@@ -99,9 +99,9 @@ class EvolutionJob(
             val slangWords = extractionAgent.extractSlangWords(recentMessages)
 
             if (slangWords.isEmpty()) {
-                log.warn("未提取到流行语")
+                log.warn("Evolutions not extracted")
             } else {
-                log.debug("流行语提取完成, 提取数量=${slangWords.size}")
+                log.info("Evolutions extracted, size=${slangWords.size}")
                 slangWords.forEachIndexed { index, slang ->
                     log.debug("  ${index + 1}. ${slang.word} (${slang.type}) - ${slang.meaning}")
                 }
