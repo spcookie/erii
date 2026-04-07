@@ -35,10 +35,10 @@ object BotRoleManager {
 
         // 2. 加载自定义配置目录
         val customDir = resolveConfigDir(configDir)
-        log.info("开始从自定义配置目录加载 BotRole，目录: $customDir")
+        log.info("Start loading BotRole from custom configuration directory, directory: $customDir")
         loadFromDirectory(File(customDir))
 
-        log.info("BotRole 加载完成，共加载 ${roles.size} 个配置: ${roles.keys}")
+        log.info("BotRole loading completed, with a total of ${roles.size} configurations loaded: ${roles.keys}")
     }
 
     private fun resolveConfigDir(configDir: String?): String {
@@ -55,10 +55,10 @@ object BotRoleManager {
                 val role = parseMarkdown(content, file.nameWithoutExtension)
                 if (role != null) {
                     roles[role.id] = role
-                    log.info("从目录加载 BotRole: ${role.id} (${role.name})")
+                    log.info("Loaded BotRole from directory: ${role.id} (${role.name})")
                 }
             } catch (e: Exception) {
-                log.error("加载 BotRole 配置文件失败: ${file.name}", e)
+                log.error("Failed to load BotRole configuration file: ${file.name}", e)
             }
         }
     }
@@ -87,7 +87,7 @@ object BotRoleManager {
                                 val role = parseMarkdown(content, fileName.removeSuffix(".md"))
                                 if (role != null) {
                                     roles[role.id] = role
-                                    log.info("从类路径文件加载 BotRole: ${role.id} (${role.name})")
+                                    log.info("Load BotRole from the classpath file: ${role.id} (${role.name})")
                                 }
                             }
                         }
@@ -95,7 +95,7 @@ object BotRoleManager {
                     jarFile.close()
                 }
             } catch (e: Exception) {
-                log.error("读取 BotRole 资源失败: $resource", e)
+                log.error("Failed to read BotRole resource: $resource", e)
             }
         }
     }
@@ -108,7 +108,7 @@ object BotRoleManager {
         val classLoader = BotRoleManager::class.java.classLoader
         val indexResource = classLoader.getResource("$DEFAULT_SOULS_DIR/index.idx")
         if (indexResource == null) {
-            log.warn("BotRole 索引文件不存在: $DEFAULT_SOULS_DIR/index.idx，尝试直接从 classpath 加载")
+            log.warn("BotRole index file does not exist: $DEFAULT_SOULS_DIR/index.idx，attempt to load from classpath directly")
             loadFromClasspath()
             return
         }
@@ -118,7 +118,7 @@ object BotRoleManager {
                 ?: indexResource.openStream().bufferedReader().readText()
             val fileNames = indexContent.lines().map { it.trim() }.filter { it.isNotEmpty() && it.endsWith(".md") }
 
-            log.info("从索引文件加载 BotRole，索引文件: $DEFAULT_SOULS_DIR/index.idx，包含 ${fileNames.size} 个文件")
+            log.info("Load BotRole from index file, index file: $DEFAULT_SOULS_DIR/index.idx，include ${fileNames.size} files")
 
             for (fileName in fileNames) {
                 val resourcePath = "$DEFAULT_SOULS_DIR/$fileName"
@@ -129,17 +129,17 @@ object BotRoleManager {
                         val role = parseMarkdown(content, fileName.removeSuffix(".md"))
                         if (role != null) {
                             roles[role.id] = role
-                            log.info("从索引加载 BotRole: ${role.id} (${role.name})")
+                            log.info("Load BotRole from index: ${role.id} (${role.name})")
                         }
                     } catch (e: Exception) {
-                        log.error("加载 BotRole 失败: $resourcePath", e)
+                        log.error("Loading BotRole failed: $resourcePath", e)
                     }
                 } else {
-                    log.warn("索引中指定的 BotRole 文件不存在: $resourcePath")
+                    log.warn(" BotRole file specified in index does not exist: $resourcePath")
                 }
             }
         } catch (e: Exception) {
-            log.error("读取 BotRole 索引文件失败: $DEFAULT_SOULS_DIR/index.idx", e)
+            log.error("Failed to read BotRole index file: $DEFAULT_SOULS_DIR/index.idx", e)
             loadFromClasspath()
         }
     }
@@ -171,7 +171,7 @@ object BotRoleManager {
         val emoticon = try {
             emoticonName?.let { EmotionalTendencies.valueOf(it) } ?: EmotionalTendencies.MILDNESS
         } catch (_: IllegalArgumentException) {
-            log.warn("未知的 EmotionalTendencies: $emoticonName，使用默认值 MILDNESS")
+            log.warn("Unknown EmotionalTendencies: $emoticonName, Use default values MILDNESS")
             EmotionalTendencies.MILDNESS
         }
 
@@ -211,7 +211,7 @@ object BotRoleManager {
      * 获取默认角色
      */
     fun getDefaultRole(): BotRole = roles["Erii"]
-        ?: throw IllegalStateException("未配置默认 BotRole (Erii)")
+        ?: throw IllegalStateException("Default BotRole (Erii) not configured")
 
     /**
      * 重新加载角色配置

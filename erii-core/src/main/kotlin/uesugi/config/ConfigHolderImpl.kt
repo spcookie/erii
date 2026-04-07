@@ -15,6 +15,47 @@ class ConfigHolderImpl : ConfigProvider {
 
     private val log = KotlinLogging.logger {}
 
+    companion object {
+        private val DEFAULT_GOOGLE_MODELS = mapOf(
+            "lite" to "gemini-2.0-flash-lite",
+            "flash" to "gemini-2.0-flash",
+            "pro" to "gemini-2.5-pro"
+        )
+        private val DEFAULT_DEEP_SEEK_MODELS = mapOf(
+            "lite" to "deepseek-chat",
+            "flash" to "deepseek-chat",
+            "pro" to "deepseek-chat"
+        )
+        private val DEFAULT_MINIMAX_MODELS = mapOf(
+            "lite" to "MiniMax-M2.5",
+            "flash" to "MiniMax-M2.5",
+            "pro" to "MiniMax-M2.7"
+        )
+    }
+
+    private fun getLlmModelsHierarchical(provider: String, defaults: Map<String, String>): Map<String, String> {
+        val hierarchicalPath = "llm.$provider.models"
+        return try {
+            val hierarchicalConfig = config.getConfig(hierarchicalPath)
+            val result = defaults.toMutableMap()
+            // Read all tier keys from config
+            hierarchicalConfig.root().keys.forEach { key ->
+                val keyStr = key.toString()
+                if (keyStr != "all") {
+                    result[keyStr] = hierarchicalConfig.getString(keyStr)
+                }
+            }
+            // "all" override logic
+            val allOverride = hierarchicalConfig.tryGetString("all")
+            if (!allOverride.isNullOrBlank()) {
+                result.keys.forEach { tier -> result[tier] = allOverride }
+            }
+            result
+        } catch (_: Exception) {
+            defaults
+        }
+    }
+
     private val configPath: String? by lazy {
         System.getProperty("config.path")
             ?: System.getenv("CONFIG_PATH")
@@ -54,14 +95,19 @@ class ConfigHolderImpl : ConfigProvider {
         return base.withFallback(overrideConfig)
     }
 
-    override fun getLlmGoogleApiKey(): String = config.getString("llm.google-api-key")
-    override fun getLlmGoogleBaseUrl(): String = config.getString("llm.google-base-url")
+    override fun getLlmGoogleApiKey(): String = config.getString("llm.google.api-key")
+    override fun getLlmGoogleBaseUrl(): String = config.getString("llm.google.base-url")
+    override fun getLlmGoogleModels(): Map<String, String> = getLlmModelsHierarchical("google", DEFAULT_GOOGLE_MODELS)
 
-    override fun getLlmDeepSeekApiKey(): String = config.getString("llm.deep-seek-api-key")
-    override fun getLlmDeepSeekBaseUrl(): String = config.getString("llm.deep-seek-base-url")
+    override fun getLlmDeepSeekApiKey(): String = config.getString("llm.deep-seek.api-key")
+    override fun getLlmDeepSeekBaseUrl(): String = config.getString("llm.deep-seek.base-url")
+    override fun getLlmDeepSeekModels(): Map<String, String> =
+        getLlmModelsHierarchical("deep-seek", DEFAULT_DEEP_SEEK_MODELS)
 
-    override fun getLlmMinimaxApiKey(): String = config.getString("llm.minimax-coding-plan-key")
-    override fun getLlmMinimaxBaseUrl(): String = config.getString("llm.minimax-base-url")
+    override fun getLlmMinimaxApiKey(): String = config.getString("llm.minimax.api-key")
+    override fun getLlmMinimaxBaseUrl(): String = config.getString("llm.minimax.base-url")
+    override fun getLlmMinimaxModels(): Map<String, String> =
+        getLlmModelsHierarchical("minimax", DEFAULT_MINIMAX_MODELS)
 
     override fun getChoiceModel(): String = config.getString("llm.choice-model")
 
