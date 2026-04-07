@@ -62,6 +62,12 @@ class ConfigHolderImpl : ConfigProvider {
             ?: "application.conf"
     }
 
+    private val pluginConfigDir: String? by lazy {
+        System.getProperty("config.plugin.dir")
+            ?: System.getenv("CONFIG_PLUGIN_DIR")
+            ?: ((System.getProperty("pf4j.pluginsDir") ?: "plugins") + File.separator + "config")
+    }
+
     private val config: Config by lazy { loadConfig() }
 
     private fun loadConfig(): Config {
@@ -225,7 +231,6 @@ class ConfigHolderImpl : ConfigProvider {
             log.info { "Loading custom config for $pluginId from: $customPath" }
             return ConfigFactory.parseFile(File(customPath)).resolve()
         }
-        val pluginConfigDir = System.getProperty("config.plugin.dir")
         if (pluginConfigDir != null) {
             val pluginConfigFile = File(pluginConfigDir, "$pluginId.conf")
             if (pluginConfigFile.exists()) {
