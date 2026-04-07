@@ -26,31 +26,29 @@ fun configureConnectBots() {
     CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineName("connect-bots"))
         .launch {
             botConfigs.forEach { (key, config) ->
-                launch {
-                    val role = BotRoleManager.getRole(config.roleId)
-                        ?: BotRoleManager.getDefaultRole()
-                    LOG.info("Connecting robot $key, using role: ${role.name}")
+                val role = BotRoleManager.getRole(config.roleId)
+                    ?: BotRoleManager.getDefaultRole()
+                LOG.info("Connecting robot $key, using role: ${role.name}")
 
-                    var bot: Bot? = null
-                    try {
-                        bot = BotBuilder.positive(config.ws)
-                            .token(config.token)
-                            .connect()
-                    } catch (e: Exception) {
-                        LOG.error("Robot $key, failed to connect: ${e.message}")
-                    }
+                var bot: Bot? = null
+                try {
+                    bot = BotBuilder.positive(config.ws)
+                        .token(config.token)
+                        .connect()
+                } catch (e: Exception) {
+                    LOG.error("Robot $key, failed to connect: ${e.message}")
+                }
 
-                    if (bot != null) {
-                        BotManage.registerBot(key, bot, role)
-                        // 为每个 bot 创建独立的监听器实例
-                        val listener = MessageListener(bot.id.toString(), role.name)
-                        bot.globalEventChannel()
-                            .exceptionHandler { LOG.error("Bot $key exception: {}", it.message) }
-                            .registerListenerHost(listener)
-                        LOG.info("Robot $key (${role.name}) has been connected: ${bot.id}")
-                    } else {
-                        LOG.error("Robot $key connection failed")
-                    }
+                if (bot != null) {
+                    BotManage.registerBot(key, bot, role)
+                    // 为每个 bot 创建独立的监听器实例
+                    val listener = MessageListener(bot.id.toString(), role.name)
+                    bot.globalEventChannel()
+                        .exceptionHandler { LOG.error("Bot $key exception: {}", it.message) }
+                        .registerListenerHost(listener)
+                    LOG.info("Robot $key (${role.name}) has been connected: ${bot.id}")
+                } else {
+                    LOG.error("Robot $key connection failed")
                 }
             }
         }
