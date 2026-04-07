@@ -26,10 +26,13 @@ interface ConfigProvider {
     // ===== LLM 配置 =====
     fun getLlmGoogleApiKey(): String
     fun getLlmGoogleBaseUrl(): String
+    fun getLlmGoogleModels(): Map<String, String>
     fun getLlmDeepSeekApiKey(): String
     fun getLlmDeepSeekBaseUrl(): String
+    fun getLlmDeepSeekModels(): Map<String, String>
     fun getLlmMinimaxApiKey(): String
     fun getLlmMinimaxBaseUrl(): String
+    fun getLlmMinimaxModels(): Map<String, String>
     fun getChoiceModel(): String
 
     // ===== 第三方服务 =====

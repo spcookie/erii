@@ -32,7 +32,7 @@ object BotManage : IBotManage {
         bots[botId] = RoledBot(bot, role)
         configKeys[configKey] = botId
         botKeys[botId] = configKey
-        log.info("机器人已注册: botId=$botId")
+        log.info("Robot registered: botId=$botId")
     }
 
     override fun getBot(botId: String): RoledBot {

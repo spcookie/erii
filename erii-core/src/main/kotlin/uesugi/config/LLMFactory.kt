@@ -76,17 +76,17 @@ class LLMFactory {
                         delegate = AnthropicLLMClient(
                             baseClient = HttpClient {
                                 engine {
-//                                    install(Logging) {
-//                                        logger = Logger.DEFAULT
-//                                        level = LogLevel.ALL
+//                                    install(io.ktor.client.plugins.logging.Logging) {
+//                                        logger = io.ktor.client.plugins.logging.Logger.DEFAULT
+//                                        level = io.ktor.client.plugins.logging.LogLevel.ALL
 //                                    }
                                 }
                             },
                             apiKey = minimaxApiKey,
                             settings = AnthropicClientSettings(
                                 modelVersionsMap = mapOf(
-                                    LLMModelsChoice.Pro to "MiniMax-M2.7",
-                                    LLMModelsChoice.Flash to "MiniMax-M2.5"
+                                    LLMModelsChoice.Pro to LLMModelsChoice.Pro.id,
+                                    LLMModelsChoice.Flash to LLMModelsChoice.Flash.id
                                 ),
                                 baseUrl = minimaxBaseUrl,
                                 messagesPath = "anthropic/v1/messages"

@@ -18,10 +18,10 @@ fun configureConnectBots() {
     val botConfigs = ConfigHolder.getOnebotBots()
 
     if (botConfigs.isEmpty()) {
-        LOG.warn("未配置任何机器人")
+        LOG.warn("No robots configured")
         return
     }
-    LOG.info("准备连接 ${botConfigs.size} 个机器人")
+    LOG.info("Prepare to connect ${botConfigs.size} robots")
 
     CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineName("connect-bots"))
         .launch {
@@ -29,7 +29,7 @@ fun configureConnectBots() {
                 launch {
                     val role = BotRoleManager.getRole(config.roleId)
                         ?: BotRoleManager.getDefaultRole()
-                    LOG.info("正在连接机器人 $key，使用角色: ${role.name}")
+                    LOG.info("Connecting robot $key, using role: ${role.name}")
 
                     var bot: Bot? = null
                     try {
@@ -37,7 +37,7 @@ fun configureConnectBots() {
                             .token(config.token)
                             .connect()
                     } catch (e: Exception) {
-                        LOG.error("机器人 $key，接失败: ${e.message}")
+                        LOG.error("Robot $key, failed to connect: ${e.message}")
                     }
 
                     if (bot != null) {
@@ -47,9 +47,9 @@ fun configureConnectBots() {
                         bot.globalEventChannel()
                             .exceptionHandler { LOG.error("Bot $key exception: {}", it.message) }
                             .registerListenerHost(listener)
-                        LOG.info("机器人 $key (${role.name}) 已连接: ${bot.id}")
+                        LOG.info("Robot $key (${role.name}) has been connected: ${bot.id}")
                     } else {
-                        LOG.error("机器人 $key 连接失败")
+                        LOG.error("Robot $key connection failed")
                     }
                 }
             }

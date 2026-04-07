@@ -18,10 +18,13 @@ object ConfigHolder {
     // ===== LLM 配置 =====
     fun getLlmGoogleApiKey(): String = provider.getLlmGoogleApiKey()
     fun getLlmGoogleBaseUrl(): String = provider.getLlmGoogleBaseUrl()
+    fun getLlmGoogleModels(): Map<String, String> = provider.getLlmGoogleModels()
     fun getLlmDeepSeekApiKey(): String = provider.getLlmDeepSeekApiKey()
     fun getLlmDeepSeekBaseUrl(): String = provider.getLlmDeepSeekBaseUrl()
+    fun getLlmDeepSeekModels(): Map<String, String> = provider.getLlmDeepSeekModels()
     fun getLlmMinimaxApiKey(): String = provider.getLlmMinimaxApiKey()
     fun getLlmMinimaxBaseUrl(): String = provider.getLlmMinimaxBaseUrl()
+    fun getLlmMinimaxModels(): Map<String, String> = provider.getLlmMinimaxModels()
     fun getChoiceModel(): String = provider.getChoiceModel()
 
     // ===== 第三方服务 =====

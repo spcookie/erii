@@ -1,6 +1,5 @@
 package uesugi.common
 
-import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
@@ -15,57 +14,90 @@ object LLMModelsChoice {
         choice
     }
 
-    private val DeepSeekChat: LLModel = LLModel(
-        provider = LLMProvider.DeepSeek,
-        id = "deepseek-chat",
-        capabilities = listOf(
-            LLMCapability.Completion,
-            LLMCapability.PromptCaching,
-            LLMCapability.Temperature,
-            LLMCapability.Tools,
-            LLMCapability.ToolChoice,
-            LLMCapability.MultipleChoices,
-        ),
-        contextLength = 128_000,
-        maxOutputTokens = 8_000
-    )
+    private fun resolveModelId(providerModels: Map<String, String>, tier: String): String {
+        val all = providerModels["all"]
+        return if (!all.isNullOrBlank()) all else providerModels[tier] ?: ""
+    }
 
-    private fun miniMaxChat(model: String): LLModel = LLModel(
-        provider = LLMProvider.Anthropic,
-        id = model,
-        capabilities = listOf(
-            LLMCapability.Completion,
-            LLMCapability.Temperature,
-            LLMCapability.Tools,
-            LLMCapability.ToolChoice,
-            LLMCapability.MultipleChoices
-        ),
-        contextLength = 204800,
-        maxOutputTokens = 204800
-    )
+    private fun googleModel(tier: String): LLModel {
+        val models = ConfigHolder.getLlmGoogleModels()
+        val modelId = resolveModelId(models, tier)
+        return LLModel(
+            provider = LLMProvider.Google,
+            id = modelId,
+            capabilities = listOf(
+                LLMCapability.Completion,
+                LLMCapability.PromptCaching,
+                LLMCapability.Temperature,
+                LLMCapability.Tools,
+                LLMCapability.ToolChoice,
+                LLMCapability.MultipleChoices
+            ),
+            contextLength = 128_000,
+            maxOutputTokens = 8_000
+        )
+    }
+
+    private fun deepSeekModel(tier: String): LLModel {
+        val models = ConfigHolder.getLlmDeepSeekModels()
+        val modelId = resolveModelId(models, tier)
+        return LLModel(
+            provider = LLMProvider.DeepSeek,
+            id = modelId,
+            capabilities = listOf(
+                LLMCapability.Completion,
+                LLMCapability.PromptCaching,
+                LLMCapability.Temperature,
+                LLMCapability.Tools,
+                LLMCapability.ToolChoice,
+                LLMCapability.MultipleChoices
+            ),
+            contextLength = 128_000,
+            maxOutputTokens = 8_000
+        )
+    }
+
+    private fun minimaxModel(tier: String): LLModel {
+        val models = ConfigHolder.getLlmMinimaxModels()
+        val modelId = resolveModelId(models, tier)
+        return LLModel(
+            provider = LLMProvider.Anthropic,
+            id = modelId,
+            capabilities = listOf(
+                LLMCapability.Completion,
+                LLMCapability.Temperature,
+                LLMCapability.Tools,
+                LLMCapability.ToolChoice,
+                LLMCapability.MultipleChoices
+            ),
+            contextLength = 204_800,
+            maxOutputTokens = 204_800
+        )
+    }
 
     val Lite by lazy {
         when (choice) {
-            "GOOGLE" -> GoogleModels.Gemini2_5FlashLite
-            "DEEP_SEEK", "MINIMAX" -> DeepSeekChat
+            "GOOGLE" -> googleModel("lite")
+            "DEEP_SEEK" -> deepSeekModel("lite")
+            "MINIMAX" -> minimaxModel("lite")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }
 
     val Flash by lazy {
         when (choice) {
-            "GOOGLE" -> GoogleModels.Gemini2_5Flash
-            "DEEP_SEEK" -> DeepSeekChat
-            "MINIMAX" -> miniMaxChat("MiniMax-M2.5")
+            "GOOGLE" -> googleModel("flash")
+            "DEEP_SEEK" -> deepSeekModel("flash")
+            "MINIMAX" -> minimaxModel("flash")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }
 
     val Pro by lazy {
         when (choice) {
-            "GOOGLE" -> GoogleModels.Gemini2_5Pro
-            "DEEP_SEEK" -> DeepSeekChat
-            "MINIMAX" -> miniMaxChat("MiniMax-M2.7")
+            "GOOGLE" -> googleModel("pro")
+            "DEEP_SEEK" -> deepSeekModel("pro")
+            "MINIMAX" -> minimaxModel("pro")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }
