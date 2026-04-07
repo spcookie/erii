@@ -586,9 +586,9 @@ class MemoryAgent(
                 memoryRepository.getValidFacts(botMark, groupId)
             }
 
-            log.info("ReAct Agent 记忆整理完成, groupId=$groupId, 现有事实数=${finalFacts.size}")
+            log.info("ReAct Agent memory sorting completed, groupId=$groupId, number of existing facts=${finalFacts.size}")
         } catch (e: Exception) {
-            log.error("记忆整理失败", e)
+            log.error("Memory arrangement failed", e)
         }
     }
 }

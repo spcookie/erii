@@ -228,7 +228,7 @@ class MemoService(
                         }
                     }
                 } catch (e: Exception) {
-                    log.warn("搜索群组 $gid 向量存储失败: ${e.message}")
+                    log.warn("Search group $gid vector storage failed: ${e.message}")
                 }
             }
 

@@ -5,10 +5,7 @@ import kotlinx.datetime.toInstant
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.common.BotManage
-import uesugi.common.EmotionalTendencies
-import uesugi.common.EventBus
-import uesugi.common.PAD
+import uesugi.common.*
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -156,6 +153,8 @@ class EmotionService(
     private val emotionRepository: EmotionRepository
 ) {
 
+    private val log = logger()
+
     /**
      * 处理单个群组的情绪分析
      */
@@ -233,6 +232,8 @@ class EmotionService(
             behavior = behaviorProfile,
             historyMessageProcessed = maxHistoryId
         )
+
+        log.info("Saved emotion for group $groupId with emotion $emotion, mood $mood and behavior $behaviorProfile")
 
         // 发送事件
         EventBus.postAsync(EmotionChangeEvent(currentBotId, groupId, emotion))

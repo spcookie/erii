@@ -143,7 +143,7 @@ class MemeJob(
                     }
 
                     if (image.md5.isBlank()) {
-                        log.warn("图片 ${image.resourceId} 没有MD5，跳过")
+                        log.warn("Image ${image.resourceId} does not have MD5, skip")
                         continue
                     }
 
