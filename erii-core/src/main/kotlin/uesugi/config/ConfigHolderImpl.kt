@@ -223,30 +223,39 @@ class ConfigHolderImpl : ConfigProvider {
     }
 
     // ===== 插件配置读取方法 =====
+    // 优先级（从低到高）：resourcePath < pluginConfigDir < plugin.$pluginId.config（系统属性）
+    // 高优先级配置覆盖低优先级配置
 
     override fun getPluginConfig(pluginClass: KClass<*>, pluginName: String): Config {
         val pluginId = pluginName.substringBeforeLast("_")
-        val customPath = System.getProperty("plugin.$pluginId.config")
-        if (customPath != null) {
-            log.info { "Loading custom config for $pluginId from: $customPath" }
-            return ConfigFactory.parseFile(File(customPath)).resolve()
-        }
-        if (pluginConfigDir != null) {
-            val pluginConfigFile = File(pluginConfigDir, "$pluginId.conf")
-            if (pluginConfigFile.exists()) {
-                log.info { "Loading config for $pluginId from dir: ${pluginConfigFile.absolutePath}" }
-                return ConfigFactory.parseFile(pluginConfigFile).resolve()
-            }
-        }
+
+        // 1. 从 classpath 加载 resourcePath 作为基础配置
+        var config = ConfigFactory.empty()
         val resourcePath = "plugin.conf"
         val resourceAsStream = pluginClass.java.classLoader.getResourceAsStream(resourcePath)
         if (resourceAsStream != null) {
-            log.info { "Loading config for $pluginName from classpath: $resourcePath" }
-            return resourceAsStream.use { inputStream ->
+            log.info { "Loading base config for $pluginName from classpath: $resourcePath" }
+            config = resourceAsStream.use { inputStream ->
                 ConfigFactory.parseReader(inputStream.reader()).resolve()
             }
         }
-        // 插件没有配置时直接返回空配置
-        return ConfigFactory.empty()
+
+        // 2. pluginConfigDir 中的配置覆盖基础配置
+        if (pluginConfigDir != null) {
+            val pluginConfigFile = File(pluginConfigDir, "$pluginId.conf")
+            if (pluginConfigFile.exists()) {
+                log.info { "Overriding config for $pluginId from dir: ${pluginConfigFile.absolutePath}" }
+                config = ConfigFactory.parseFile(pluginConfigFile).resolve().withFallback(config)
+            }
+        }
+
+        // 3. 系统属性 plugin.$pluginId.config 覆盖其他配置
+        val customPath = System.getProperty("plugin.$pluginId.config")
+        if (customPath != null) {
+            log.info { "Overriding config for $pluginId with: $customPath" }
+            config = ConfigFactory.parseFile(File(customPath)).resolve().withFallback(config)
+        }
+
+        return config
     }
 }
