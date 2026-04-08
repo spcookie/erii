@@ -21,7 +21,6 @@ import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
 import uesugi.core.state.volition.VolitionGaugeManager
 
-// ==================== 私有辅助函数 ====================
 
 /**
  * 构建 PluginStats
