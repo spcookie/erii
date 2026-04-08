@@ -35,10 +35,10 @@ class VolitionJob(
         }
         jobScheduler.scheduleRecurrently(
             "volition-job",
-            "*/2 * * * *",
+            "* * * * *",
             ::doVolitionAnalysis
         )
-        log.info("Proactive task timer has been started, with an execution cycle of every 2 minutes")
+        log.info("Proactive task timer has been started, with an execution cycle of every minute")
 
         startDailyTasks()
         startSilentMonitor()
