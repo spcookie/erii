@@ -23,7 +23,7 @@ lucene-analyzers = "8.11.4"
 clikt = "5.1.0"
 okio = "3.6.0"
 hutool = "5.8.26"
-jte = "3.2.1"
+jte = "3.2.3"
 lunar = "1.7.5"
 typesafe = "1.4.0"
 snakeyaml = "2.2"
@@ -97,3 +97,4 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 kotlin-plugin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+jte = { id = "gg.jte.gradle", version.ref = "jte" }

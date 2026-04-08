@@ -1,7 +1,6 @@
 package uesugi.server
 
 import gg.jte.TemplateEngine
-import gg.jte.resolve.ResourceCodeResolver
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -14,6 +13,7 @@ import io.ktor.server.resources.*
 import io.ktor.server.routing.*
 import uesugi.common.JSON
 import uesugi.routing.configureBotStatus
+import java.nio.file.Path
 import gg.jte.ContentType as JteContentType
 
 fun Application.configureRouting() {
@@ -24,8 +24,13 @@ fun Application.configureRouting() {
         json(JSON)
     }
     install(Jte) {
-        val codeResolver = ResourceCodeResolver("jte", Routing::class.java.classLoader)
-        templateEngine = TemplateEngine.create(codeResolver, JteContentType.Html)
+        val isDevelopment = System.getProperty("intellij.debug.agent") != null
+        templateEngine = if (isDevelopment) {
+            val targetDirectory: Path = Path.of("erii-core/jte-classes")
+            TemplateEngine.createPrecompiled(targetDirectory, JteContentType.Html)
+        } else {
+            TemplateEngine.createPrecompiled(JteContentType.Html)
+        }
     }
     routing {
         configureBotStatus()
