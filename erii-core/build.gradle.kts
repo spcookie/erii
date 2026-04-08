@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.plugin.serialization)
     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.jte)
 }
 
 group = "uesugi"
@@ -71,26 +72,16 @@ dependencies {
     implementation(libs.flexmark.ext.tables)
     implementation(libs.clikt)
     implementation(libs.hutool.core)
-    implementation(libs.jte.kotlin)
     implementation(libs.lunar)
     implementation(libs.typesafe.config)
     implementation(libs.snakeyaml)
     implementation(libs.okio)
     implementation(libs.pf4j)
+    compileOnly(libs.jte.kotlin)
     compileOnly(libs.autoservice.annotations)
     // 测试
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
-}
-
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xcontext-parameters")
-    }
-}
-
-tasks.shadowJar {
-    isZip64 = true
 }
 
 val generateVersionFile by tasks.registering {
@@ -113,6 +104,24 @@ val generateVersionFile by tasks.registering {
     }
 }
 
+jte {
+    precompile()
+}
+
 kotlin {
     sourceSets["main"].kotlin.srcDir(generateVersionFile)
+    compilerOptions {
+        freeCompilerArgs.add("-Xcontext-parameters")
+    }
+}
+
+tasks.jar {
+    dependsOn(tasks.precompileJte)
+    from(fileTree("jte-classes") {
+        include("**/*.class")
+    })
+}
+
+tasks.shadowJar {
+    isZip64 = true
 }

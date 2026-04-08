@@ -204,9 +204,9 @@ class GroupMessageEventListener(
 
         if (parsed.isAtBot) {
             scope.launch {
-                log.info("机器人[$roleName(${context.botId})]被@, 触发主动发言")
+                log.info("Robot [$roleName(${context.botId})] is @, triggering active speech")
                 val route = RoutingAgent.route(context.botId, context.groupId, parsed.content)
-                log.info("路由结果：{}", route.name)
+                log.info("Routing results: {}", route.name)
                 EventBus.postAsync(
                     RouteCallEvent(
                         botId = context.botId,
@@ -219,10 +219,10 @@ class GroupMessageEventListener(
             }
         } else if (isCommand(parsed.content)) {
             val command = parseCommand(parsed.content)!!
-            log.info("机器人收到命令 $command")
+            log.info("Robot receives the command $command")
             val cmd = CmdRuleRegister.getRule(command)
             if (cmd == null) {
-                log.warn("未知命令 $command, 跳过处理")
+                log.warn("Unknown command $command, skip processing")
             } else {
                 EventBus.postAsync(
                     RouteCallEvent(
