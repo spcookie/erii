@@ -1,21 +1,27 @@
 services:
-  erii:
+  eriix:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: erii
+    container_name: erii-server
     restart: always
     environment:
-      - JAVA_OPTS=-XX:+UseZGC -Xms256m -Xmx256m -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai
+      - DEFAULT_JVM_OPTS=-XX:+UseZGC -Xms256m -Xmx256m -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError
+      - JAVA_OPTS=-Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai
+      - ERII_CORE_OPTS=-Dpf4j.pluginsDir=./plugins -Dconfig.path=./application.conf -Dconfig.souls.dir=./souls -Dconfig.rules.dir=./rules
     env_file:
       - .env.local
     volumes:
+      - ./application.conf:/erii/application.conf
+      - ./plugins:/erii/plugins
       - ./store:/erii/store
       - ./souls:/erii/souls
       - ./rules:/erii/rules
       - ./logs:/erii/logs
+      - ./config:/erii/config
+    extra_hosts:
+      - "hostmachine:host-gateway"
     ports:
       - "8080:8080"
       - "8082:8082"
       - "8000:8000"
-

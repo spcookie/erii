@@ -1,19 +1,22 @@
 FROM eclipse-temurin:17
 
 ENV TZ=Asia/Shanghai
-ENV JAVA_OPTS=""
 
 WORKDIR /erii
-COPY erii-core/build/install/erii-core .
-COPY erii-plugins/build/plugins ./plugins
+
+COPY erii-core/build/install/bin ./bin
+COPY erii-core/build/install/lib ./lib
+
 RUN chmod +x ./bin/erii-core
 
-VOLUME /erii/store
-VOLUME /erii/souls
+VOLUME /erii/plugins
 VOLUME /erii/rules
+VOLUME /erii/souls
+VOLUME /erii/store
 VOLUME /erii/logs
+VOLUME /erii/config
+VOLUME /erii/application.conf
 
-EXPOSE 8080
-EXPOSE 8082
+EXPOSE 8080 8082
 
 ENTRYPOINT ["sh", "-c", "exec ./bin/erii-core"]
