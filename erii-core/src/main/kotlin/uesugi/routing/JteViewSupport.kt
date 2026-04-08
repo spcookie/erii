@@ -75,7 +75,7 @@ data class FlowStateInfo(
 )
 
 fun FlowMeterState.info(): FlowStateInfo = when (this) {
-    FlowMeterState.STANDBY -> FlowStateInfo("待机模式", "#71717a", "fa-circle")
+    FlowMeterState.STANDBY -> FlowStateInfo("状态未开", "#71717a", "fa-circle")
     FlowMeterState.GETTING_BETTER -> FlowStateInfo("渐入佳境", "#3b82f6", "fa-circle-half-stroke")
     FlowMeterState.FLOW_BURST -> FlowStateInfo("心流爆发", "#ef4444", "fa-circle-dot")
 }
