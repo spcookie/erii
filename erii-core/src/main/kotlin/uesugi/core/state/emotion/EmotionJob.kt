@@ -32,10 +32,10 @@ class EmotionJob(
     fun openTimingTriggerSignal() {
         jobScheduler.scheduleRecurrently(
             "emotion-job",
-            "* * * * *",  // 每分钟
+            "*/2 * * * *",
             ::doAnalysis
         )
-        log.info("Emotional task timer has started, execution cycle: every minute")
+        log.info("Emotional task timer has started, execution cycle: every 2 minutes")
     }
 
     /**
