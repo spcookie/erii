@@ -1,5 +1,7 @@
 package uesugi.core.plugin.builtin.status
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.koin.core.context.GlobalContext
@@ -26,14 +28,16 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
         val statusHost by GlobalContext.get().inject<String>(named("statusHost"))
 
         context.chain { meta ->
-            val bytes = webScreenshotTaker.takeFullScreenshot(
-                url = "http://${statusHost}:${port}/view/${meta.botId}/${meta.groupId}",
-                width = 1200,
-                quality = 100,
-                deviceScaleFactor = 3.0,
-                username = "eriix",
-                password = "!@Aa123"
-            )
+            val bytes = withContext(Dispatchers.IO) {
+                webScreenshotTaker.takeFullScreenshot(
+                    url = "http://${statusHost}:${port}/view/${meta.botId}/${meta.groupId}",
+                    width = 1200,
+                    quality = 100,
+                    deviceScaleFactor = 3.0,
+                    username = "eriix",
+                    password = "!@Aa123"
+                )
+            }
             val image = bytes.inputStream().use {
                 it.toExternalResource()
             }
