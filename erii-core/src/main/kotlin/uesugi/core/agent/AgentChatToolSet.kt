@@ -116,31 +116,17 @@ class QQChatToolSet(
         }
     }
 
-    override suspend fun sendAt(userIds: List<Long>): String {
-        try {
-            val chain = buildMessageChain {
-                for (userId in userIds) {
-                    +At(userId)
-                }
-            }
-
-            bot.getGroupOrFail(groupId).sendMessage(chain)
-        } catch (e: Exception) {
-            return "发送 At 消息失败，原因：" + e.message
-        }
-
-        return "发送 At 消息成功"
-    }
-
     override suspend fun sendAtAndText(
         userIds: List<Long>,
-        text: String
+        text: String?
     ): String {
         try {
             val chain = buildMessageChain {
                 for (userId in userIds) {
                     +At(userId)
-                    +PlainText(text)
+                    if (text != null) {
+                        +PlainText(text)
+                    }
                 }
             }
             bot.getGroupOrFail(groupId).sendMessage(chain)
