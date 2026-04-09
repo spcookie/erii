@@ -73,6 +73,13 @@ fun Application.configBaseModule() = koinModule {
             .toInt()
     }
 
+    single(named("statusHost")) {
+        environment.config
+            .propertyOrNull("browser.status-host")
+            ?.getString()
+            ?: "hostmachine"
+    }
+
 }
 
 val gatewayModule = module {

@@ -46,6 +46,7 @@ search {
 # Browser 相关配置（用于网页截图/Markdown 抓取）
 browser {
   playwright-host = ${?PLAYWRIGHT_HOST}
+  status-host = ${?STATUS_HOST}
 }
 
 # 代理配置

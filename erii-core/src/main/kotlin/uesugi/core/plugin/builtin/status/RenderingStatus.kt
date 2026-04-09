@@ -23,10 +23,11 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
     override fun onLoad(context: PluginContext) {
         val webScreenshotTaker by ref<WebScreenshotTaker>()
         val port by GlobalContext.get().inject<Int>(named("port"))
+        val statusHost by GlobalContext.get().inject<String>(named("statusHost"))
 
         context.chain { meta ->
             val bytes = webScreenshotTaker.takeFullScreenshot(
-                url = "http://hostmachine:${port}/view/${meta.botId}/${meta.groupId}",
+                url = "http://${statusHost}:${port}/view/${meta.botId}/${meta.groupId}",
                 width = 1200,
                 quality = 100,
                 deviceScaleFactor = 3.0,
