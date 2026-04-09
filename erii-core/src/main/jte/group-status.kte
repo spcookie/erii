@@ -13,8 +13,8 @@
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>群组状态监控 - Erii Bot</title>
-    <link href="${vm.basePath}/styles.css?v=19" rel="stylesheet">
-    <link href="${vm.basePath}/css/fontawesome.min.css?v=3" rel="stylesheet">
+    <link href="${vm.basePath}/css/styles.css" rel="stylesheet">
+    <link href="${vm.basePath}/css/fontawesome.min.css" rel="stylesheet">
     <style>
         .status-detail {
             padding: 0;
