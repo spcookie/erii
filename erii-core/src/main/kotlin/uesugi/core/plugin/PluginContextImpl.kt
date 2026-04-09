@@ -52,18 +52,21 @@ class PluginContextImpl(
 
     override fun open() {
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
-            for (rk in defined.routeKeys) {
-                if (event hit rk.key) {
-                    val meta = MetaImpl(
-                        botId = event.botId,
-                        groupId = event.groupId,
-                        roledBot = BotManage.getBot(event.botId),
-                        input = event.input,
-                        senderId = event.senderId,
-                        echo = event.echo
-                    )
-                    for (handler in handlers) {
-                        handler(meta)
+            scope.launch {
+                for (rk in defined.routeKeys) {
+                    if (event hit rk.key) {
+                        val meta = MetaImpl(
+                            botId = event.botId,
+                            groupId = event.groupId,
+                            roledBot = BotManage.getBot(event.botId),
+                            input = event.input,
+                            senderId = event.senderId,
+                            echo = event.echo
+                        )
+                        for (handler in handlers) {
+                            handler(meta)
+                        }
+                        break
                     }
                 }
             }
