@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       - JAVA_OPTS=-XX:+UseZGC -Xms256m -Xmx256m -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai
-      - ERII_CORE_OPTS=-Dpf4j.pluginsDir=./plugins -Dconfig.path=./application.conf -Dconfig.souls.dir=./souls -Dconfig.rules.dir=./rules
+      - ERII_CORE_OPTS=-Dpf4j.pluginsDir=./plugins -Dconfig.plugin.dir=./config -Dconfig.path=./application.conf -Dconfig.souls.dir=./souls -Dconfig.rules.dir=./rules
     env_file:
       - .env.local
     volumes:
