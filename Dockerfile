@@ -4,8 +4,8 @@ ENV TZ=Asia/Shanghai
 
 WORKDIR /erii
 
-COPY erii-core/build/install/bin ./bin
-COPY erii-core/build/install/lib ./lib
+COPY ./erii-core/build/install/erii-core/bin ./bin
+COPY ./erii-core/build/install/erii-core/lib ./lib
 
 RUN chmod +x ./bin/erii-core
 

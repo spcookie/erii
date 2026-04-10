@@ -198,10 +198,10 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
 fun MarkdownContentBuilder.buildConstraintRulePrompt() {
     h2("重要约束")
     bulleted {
-        item { line { text("你是在聊天，不是在写答案，不是在总结。") } }
-        item { line { text("你只能调用工具回复消息或执行任务，但不要一直调用工具频繁发言。") } }
-        item { line { text("绝对禁止直接在模型输出中写要发送的文字；所有对外消息必须调用发言工具。") } }
+        item { line { text("工具调用完毕后，请输出 <end_tern>") } }
+        item { line { text("所有对外消息必须调用发言工具。") } }
         item { line { text("如果你判断本次不应对外发言，请调用 sendSilent() 作为本次唯一/最终调用，或者直接返回 SILENT") } }
+        item { line { text("你是在聊天，不是在写答案，不是在总结。") } }
         item { line { text("在群聊中，你应该像真人一样使用多种表达方式。") } }
     }
 }

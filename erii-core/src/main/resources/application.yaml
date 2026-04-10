@@ -6,3 +6,7 @@ ktor:
     port: 8080
 
 migration: $MIGRATION:false
+
+security:
+  username: $ERII_SERVER_USERNAME:eriix
+  password: $ERII_SERVER_PASSWORD:@Aa123!

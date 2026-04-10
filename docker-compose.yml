@@ -1,5 +1,5 @@
 services:
-  eriix:
+  erii:
     build:
       context: .
       dockerfile: Dockerfile

@@ -65,21 +65,6 @@ fun Application.configBaseModule() = koinModule {
         database
     }
     single(createdAtStart = true) { JobRunrConfig(get()).run { start() } }
-
-    single(named("port")) {
-        environment.config
-            .property("ktor.deployment.port")
-            .getString()
-            .toInt()
-    }
-
-    single(named("statusHost")) {
-        environment.config
-            .propertyOrNull("browser.status-host")
-            ?.getString()
-            ?: "hostmachine"
-    }
-
 }
 
 val gatewayModule = module {

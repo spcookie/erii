@@ -18,6 +18,7 @@ fun main(args: Array<String>) {
 
 fun Application.module() {
     ConfigHolder.init(ConfigHolderImpl())
+    SystemConfigHolder.init(this)
 
     configureFrameworks()
     configureMonitoring()
