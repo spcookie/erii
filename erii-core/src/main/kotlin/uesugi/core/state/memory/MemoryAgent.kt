@@ -22,7 +22,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import org.koin.core.context.GlobalContext
 import uesugi.common.*
 import kotlin.time.ExperimentalTime
@@ -67,6 +72,23 @@ class MemoryAgent(
         val preferences: String
     )
 
+    object MemoryScopesSerializer : KSerializer<MemoryScopes> {
+        override val descriptor = PrimitiveSerialDescriptor("MemoryScopes", PrimitiveKind.STRING)
+
+        override fun deserialize(decoder: Decoder): MemoryScopes {
+            return when (decoder.decodeString().lowercase()) {
+                "user" -> MemoryScopes.USER
+                "group" -> MemoryScopes.GROUP
+                else -> throw IllegalArgumentException("Unknown scope")
+            }
+        }
+
+        override fun serialize(encoder: Encoder, value: MemoryScopes) {
+            encoder.encodeString(value.name.lowercase())
+        }
+    }
+
+    @Serializable(with = MemoryScopesSerializer::class)
     enum class MemoryScopes {
         @LLMDescription("用户作用域 USER")
         USER,

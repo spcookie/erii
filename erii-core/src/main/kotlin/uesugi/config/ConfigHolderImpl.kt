@@ -88,7 +88,6 @@ class ConfigHolderImpl : ConfigProvider {
             .forEach { key ->
                 val value = System.getProperty(key)
                 overrides[key] = value
-                log.info { "Override config: $key = $value" }
             }
         if (overrides.isEmpty()) return base
         var overrideConfig = ConfigFactory.empty()
