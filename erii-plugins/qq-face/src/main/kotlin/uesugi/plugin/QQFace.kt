@@ -41,9 +41,17 @@ class QQFaceExtension : PassiveExtension<QQFace> {
                     @LLMDescription("在群聊中发送一个QQ表情，用来表达情绪或对当前对话作出反应。当发送表情比发送文字更自然时可以调用此工具。")
                     suspend fun sendFace(
                         @LLMDescription("要发送的QQ表情名称，应选择最符合当前语气或情绪的表情。")
-                        query: String
+                        query: String,
+                        @LLMDescription("要发送的QQ表情数量，默认为1，最大为5")
+                        count: Int = 1
                     ): String {
                         ensureFace()
+                        val effectCount = if (count <= 0) 1 else if (count > 5) 5 else count
+                        for (_ in 1..effectCount) {
+                            if (!sendFace(MetaToolSet.meta, query)) {
+                                return "没有该表情，表情发送失败"
+                            }
+                        }
                         return if (sendFace(MetaToolSet.meta, query)) {
                             "表情发送成功"
                         } else {

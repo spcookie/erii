@@ -10,3 +10,9 @@ dependencies {
     kapt(project(":erii-spi"))
     kapt(libs.pf4j)
 }
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-XXLanguage:+UnnamedLocalVariables")
+    }
+}
