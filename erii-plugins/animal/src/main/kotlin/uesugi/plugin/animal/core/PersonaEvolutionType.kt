@@ -1,0 +1,28 @@
+package uesugi.plugin.animal.core
+
+
+data class PersonaEvolution(
+    val weight: Double,
+    val type: PersonaEvolutionType,
+) {
+
+    companion object {
+
+        val nothing = PersonaEvolution(
+            weight = 0.0,
+            type = PersonaEvolutionType.NOTHING,
+        )
+    }
+}
+
+enum class PersonaEvolutionType {
+
+    NOTHING,
+    LITTLE_CHICK,
+    FLAMINGO,
+    SLIME,
+    CAT,
+    GOOSE,
+    PIG,
+    ;
+}
