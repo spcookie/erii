@@ -347,6 +347,18 @@ class User(
             .closeSvg()
     }
 
+    fun createListAnimation(mode: Mode): String {
+        val field = getOrCreateDefaultFieldIfAbsent()
+
+        val builder = StringBuilder().openLine()
+
+        personas.forEach { persona ->
+            builder.append(persona.toSvgForce(mode))
+        }
+
+        return builder.closeSvg()
+    }
+
     fun contributionCount(): Long = contributions.totalCount()
 
     fun changeField(fieldType: FieldType) {

@@ -19,7 +19,7 @@ import uesugi.spi.getGroup
 class AnimalToolSet(
     private val store: AnimalStore,
     private val service: AnimalService,
-    private val serverUrl: String
+    private val serverUrl: String,
 ) : MetaToolSet {
 
     private val log = KotlinLogging.logger {}
@@ -58,13 +58,13 @@ class AnimalToolSet(
         )
     }
 
-    private fun runCommand(argv: List<String>): String {
+    private fun runCommand(argv: List<String>): String? {
         return try {
             val ctx = createAnimalContext()
             val parser = AnimalArgParser()
             parser.init(meta, ctx)
             parser.main(argv)
-            ""
+            null
         } catch (e: Exception) {
             log.error(e) { "Failed to run command: ${argv.joinToString(" ")}" }
             "执行失败：${e.message}"
@@ -73,62 +73,62 @@ class AnimalToolSet(
 
     @Tool
     @LLMDescription("注册用户，获取一只随机宠物")
-    suspend fun registerAnimal(): String {
+    fun registerAnimal(): String? {
         return runCommand(listOf("register"))
     }
 
     @Tool
     @LLMDescription("查看用户的宠物列表")
-    suspend fun listAnimals(): String {
+    fun listAnimals(): String? {
         return runCommand(listOf("list"))
     }
 
     @Tool
     @LLMDescription("查看宠物农场")
-    suspend fun viewFarm(): String {
+    fun viewFarm(): String? {
         return runCommand(listOf("farm"))
     }
 
     @Tool
     @LLMDescription("查看单只宠物的详细信息，需要宠物ID参数")
-    suspend fun viewAnimal(petId: Long): String {
+    fun viewAnimal(petId: Long): String? {
         return runCommand(listOf("line", petId.toString()))
     }
 
     @Tool
     @LLMDescription("使用金币抽宠物，100金币抽1次，1000金币抽10次")
-    suspend fun drawAnimal(count: Int = 1): String {
+    fun drawAnimal(count: Int = 1): String? {
         return runCommand(listOf("draw", count.toString()))
     }
 
     @Tool
     @LLMDescription("查看用户金币余额")
-    suspend fun viewCoins(): String {
+    fun viewCoins(): String? {
         return runCommand(listOf("coins"))
     }
 
     @Tool
     @LLMDescription("售卖宠物，需要宠物ID参数")
-    suspend fun sellAnimal(petId: Long): String {
+    fun sellAnimal(petId: Long): String? {
         return runCommand(listOf("sell", petId.toString()))
     }
 
     @Tool
     @LLMDescription("设置农场显示的宠物，visible=true显示，visible=false隐藏")
-    suspend fun setFarmPet(petId: Long, visible: Boolean): String {
+    fun setFarmPet(petId: Long, visible: Boolean): String? {
         val visibleStr = if (visible) "on" else "off"
         return runCommand(listOf("setfarm", petId.toString(), visibleStr))
     }
 
     @Tool
     @LLMDescription("查看用户已解锁的背景列表")
-    suspend fun listFields(): String {
+    fun listFields(): String? {
         return runCommand(listOf("field", "list"))
     }
 
     @Tool
     @LLMDescription("设置背景，需要背景类型参数如 SNOWY_FIELD")
-    suspend fun setField(fieldType: String): String {
+    fun setField(fieldType: String): String? {
         return runCommand(listOf("field", "set", fieldType))
     }
 }
