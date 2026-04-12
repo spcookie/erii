@@ -17,24 +17,24 @@ subprojects {
     }
 
     dependencies {
-        implementation(project(":erii-common"))
-        implementation(project(":erii-spi"))
+        compileOnly(project(":erii-common"))
+        compileOnly(project(":erii-spi"))
 
-        implementation("top.mrxiaom.mirai:overflow-core:1.0.8")
-        implementation("org.jobrunr:jobrunr:8.3.1")
-        implementation("com.github.ajalt.clikt:clikt:5.1.0")
-        implementation("ai.koog:koog-agents:0.7.2")
-        implementation("org.jetbrains.exposed:exposed-core:1.1.1")
-        implementation("org.jetbrains.exposed:exposed-jdbc:1.1.1")
-        implementation("io.ktor:ktor-server-core:3.3.2")
-        implementation("io.ktor:ktor-client-core:3.3.2")
-        implementation("com.typesafe:config:1.4.0")
-        implementation("org.pf4j:pf4j:3.15.0")
-        implementation("com.squareup.okio:okio-jvm:3.6.0")
-        implementation("io.ktor:ktor-serialization-jackson:3.3.2")
-        implementation("org.jetbrains.kotlinx:atomicfu:0.23.2")
-        implementation("io.arrow-kt:arrow-core:2.0.0")
-        implementation("io.github.oshai:kotlin-logging-jvm:7.0.13")
+        compileOnly("top.mrxiaom.mirai:overflow-core:1.0.8")
+        compileOnly("org.jobrunr:jobrunr:8.3.1")
+        compileOnly("com.github.ajalt.clikt:clikt:5.1.0")
+        compileOnly("ai.koog:koog-agents:0.7.2")
+        compileOnly("org.jetbrains.exposed:exposed-core:1.1.1")
+        compileOnly("org.jetbrains.exposed:exposed-jdbc:1.1.1")
+        compileOnly("io.ktor:ktor-server-core:3.3.2")
+        compileOnly("io.ktor:ktor-client-core:3.3.2")
+        compileOnly("com.typesafe:config:1.4.0")
+        compileOnly("org.pf4j:pf4j:3.15.0")
+        compileOnly("com.squareup.okio:okio-jvm:3.6.0")
+        compileOnly("io.ktor:ktor-serialization-jackson:3.3.2")
+        compileOnly("org.jetbrains.kotlinx:atomicfu:0.23.2")
+        compileOnly("io.arrow-kt:arrow-core:2.0.0")
+        compileOnly("io.github.oshai:kotlin-logging-jvm:7.0.13")
     }
 
     val plugin by tasks.registering(Zip::class) {
