@@ -27,8 +27,10 @@ data class AnimalContext(
 
 class AnimalArgParser : ArgParserHolder<AnimalContext>() {
 
+    private lateinit var context: AnimalContext
+
     override fun init(meta: Meta, context: AnimalContext) {
-        currentContext.findOrSetObject { context }
+        this.context = context
         subcommands(
             Register(),
             ListPets(),
@@ -43,7 +45,7 @@ class AnimalArgParser : ArgParserHolder<AnimalContext>() {
     }
 
     override fun run() {
-        // no-op
+        currentContext.findOrSetObject { context }
     }
 }
 
@@ -82,7 +84,7 @@ class ListPets : CliktCommand("list") {
             }
             val petList = pets.joinToString("\n") { pet ->
                 val price = ctx.service.calculatePetPrice(pet)
-                "• [${pet.id}] ${pet.getType().name} Lv.${pet.level()} 价格:$price"
+                "• [${pet.id}] ${pet.getType().name} Lv.${pet.level()} $:$price"
             }
             val user = ctx.store.getUser(ctx.groupId, ctx.senderId)
             ctx.sendMessage(buildMessageChain {
@@ -93,6 +95,12 @@ class ListPets : CliktCommand("list") {
                 |累计贡献度: ${user?.contributionCount() ?: 0}
             """.trimMargin()
             })
+
+            // 发送宠物列表截图
+            val url = "${ctx.serverUrl}/list/${ctx.groupId}/${ctx.senderId}"
+            val screenshot = ctx.takeScreenshot(url)
+            screenshot?.let { bytes -> ctx.sendImage(bytes) }
+            ctx.sendMessage(buildMessageChain { +url })
         }
     }
 }
@@ -177,7 +185,7 @@ class Draw : CliktCommand("draw") {
         val ctx = currentContext.findObject<AnimalContext>() ?: return
         runBlocking {
             val result = ctx.service.drawPet(ctx.groupId, ctx.senderId, count)
-            ctx.sendMessage(buildMessageChain { +result.getOrElse { "抽宠失败：$it" } })
+            ctx.sendMessage(buildMessageChain { +result.getOrElse { "抽宠失败：${it.message}" } })
         }
     }
 }

@@ -34,6 +34,8 @@ class ServerImpl(val defined: PluginDef) : Server {
         }.start()
         ref!!
     }
+    override val basePath: String
+        get() = "/plugin/${defined.name}"
 
     override fun route(conf: Route.() -> Unit) {
         routeing.route("/${defined.name}") {

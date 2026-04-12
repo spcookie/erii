@@ -95,8 +95,8 @@ interface CmdExtension<Context, Arg : ArgParserHolder<Context>, Plugin : AgentPl
 
     @Suppress("UNCHECKED_CAST")
     private fun getHolder(meta: Meta): Arg {
-        val superType = this@CmdExtension::class.supertypes.first()
-        val typeArg = superType.arguments[1].type
+        val cmdSuperType = this@CmdExtension::class.supertypes.first { it.classifier == CmdExtension::class }
+        val typeArg = cmdSuperType.arguments[1].type
         val kClass = typeArg?.classifier as? KClass<*> ?: error("Not a class")
         val holder = kClass.createInstance()
         return holder as Arg
@@ -289,6 +289,7 @@ interface Database {
 }
 
 interface Server {
+    val basePath: String
     fun route(conf: Route.() -> Unit)
 }
 
