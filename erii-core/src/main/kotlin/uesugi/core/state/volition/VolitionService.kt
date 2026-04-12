@@ -9,6 +9,7 @@ import uesugi.common.*
 import uesugi.common.PSFeature.CHAT_URGENT
 import uesugi.common.PSFeature.GRAB
 import uesugi.common.PSFeature.IGNORE_INTERRUPT
+import uesugi.common.toolkit.logger
 import uesugi.core.plugin.MetaImpl
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.state.emotion.EmotionChangeEvent

@@ -25,6 +25,7 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.pf4j.Extension
 import uesugi.common.*
+import uesugi.common.toolkit.logger
 import uesugi.core.message.resource.ResourceTable
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus

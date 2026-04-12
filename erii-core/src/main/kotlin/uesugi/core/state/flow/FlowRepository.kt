@@ -11,7 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.HistoryEntity
 import uesugi.common.HistoryTable
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 
 /**
  * 心流仓库 - 负责数据库操作

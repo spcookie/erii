@@ -23,7 +23,7 @@ import net.mamoe.mirai.contact.Group
 import org.pf4j.Extension
 import uesugi.common.LLMModelsChoice
 import uesugi.common.WebSearchTool
-import uesugi.common.calcHumanTypingDelay
+import uesugi.common.toolkit.calcHumanTypingDelay
 import uesugi.spi.*
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime

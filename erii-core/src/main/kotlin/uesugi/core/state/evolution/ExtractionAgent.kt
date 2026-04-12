@@ -7,7 +7,7 @@ import ai.koog.prompt.executor.model.executeStructured
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.common.LLMModelsChoice
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import kotlin.time.ExperimentalTime
 
 /**

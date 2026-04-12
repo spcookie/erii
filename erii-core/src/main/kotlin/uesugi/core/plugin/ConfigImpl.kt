@@ -3,7 +3,7 @@ package uesugi.core.plugin
 import com.typesafe.config.Config
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import uesugi.common.ConfigHolder
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.spi.AgentExtension
 import uesugi.spi.PluginConfig
 import java.io.InputStream

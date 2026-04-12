@@ -1,9 +1,11 @@
 package uesugi.plugin.animal.domain
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import kotlinx.serialization.Serializable
 import uesugi.plugin.animal.core.FieldType
 import uesugi.plugin.animal.core.IdGenerator
 
+@Serializable
 class Field(
     private val id: Long,
 
@@ -11,8 +13,9 @@ class Field(
 
     private var isChoose: Boolean,
 
+    @kotlinx.serialization.Transient
     @JsonIgnore
-    val user: User,
+    var user: User? = null,
 ) {
 
     fun isChoose(): Boolean = this.isChoose

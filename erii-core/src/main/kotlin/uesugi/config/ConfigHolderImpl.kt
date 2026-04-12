@@ -5,9 +5,9 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValueFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.config.*
-import uesugi.common.BotConfig
-import uesugi.common.ConfigProvider
-import uesugi.common.GroupConfig
+import uesugi.common.toolkit.BotConfig
+import uesugi.common.toolkit.ConfigProvider
+import uesugi.common.toolkit.GroupConfig
 import java.io.File
 import kotlin.reflect.KClass
 

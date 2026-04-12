@@ -2,7 +2,7 @@ package uesugi.core.component.browser
 
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Playwright
-import uesugi.common.ConfigHolder
+import uesugi.common.toolkit.ConfigHolder
 import java.util.concurrent.ConcurrentHashMap
 
 /**

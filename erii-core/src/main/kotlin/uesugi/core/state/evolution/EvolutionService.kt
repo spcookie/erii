@@ -11,7 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.HistoryEntity
 import uesugi.common.HistoryTable
 import uesugi.common.MessageType
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days

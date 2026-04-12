@@ -5,8 +5,8 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.message.Message
 import uesugi.common.LLMModelsChoice
-import uesugi.common.logger
-import uesugi.common.ref
+import uesugi.common.toolkit.logger
+import uesugi.common.toolkit.ref
 import uesugi.core.agent.buildHistoriesPrompt
 import uesugi.core.agent.buildSummaryPrompt
 import uesugi.core.message.history.HistoryService

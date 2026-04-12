@@ -12,7 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.pf4j.Extension
 import uesugi.common.BotManage
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import uesugi.spi.*
 import uesugi.spi.MetaToolSet.Companion.meta
 

@@ -11,7 +11,7 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.doublereceive.*
 import io.ktor.server.resources.*
 import io.ktor.server.routing.*
-import uesugi.common.JSON
+import uesugi.common.toolkit.JSON
 import uesugi.routing.configureBotStatus
 import java.nio.file.Path
 import gg.jte.ContentType as JteContentType

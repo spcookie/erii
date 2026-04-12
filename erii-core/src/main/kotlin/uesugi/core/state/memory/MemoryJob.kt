@@ -4,7 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 
 /**
  * 记忆任务 - 定时调度记忆处理

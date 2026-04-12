@@ -1,12 +1,15 @@
 package uesugi.plugin.animal.domain
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import uesugi.plugin.animal.core.IdGenerator
 import uesugi.plugin.animal.core.Mode
 import uesugi.plugin.animal.core.PersonaEvolution
 import uesugi.plugin.animal.core.PersonaType
 import uesugi.plugin.animal.domain.value.Level
 
+@Serializable
 class Persona(
     val id: Long,
 
@@ -18,10 +21,9 @@ class Persona(
 
     var appVisible: Boolean = false,
 
+    @Transient
     @JsonIgnore
     var user: User? = null,
-
-    var version: Long? = null,
 ) {
 
     constructor(
@@ -70,7 +72,8 @@ class Persona(
     fun level(): Long = level.value
 
     fun isEvolutionable(): Boolean {
-        return level() >= EVOLUTION_REQUIRED_LEVEL && getType().personaEvolution != PersonaEvolution.nothing
+        val level = level()
+        return level >= EVOLUTION_REQUIRED_LEVEL && getType().personaEvolution != PersonaEvolution.nothing
     }
 
     fun evolution() {
@@ -83,7 +86,7 @@ class Persona(
 
         val evolutionedPersonaType = this.type.randomEvolution()
         this.type = evolutionedPersonaType
-        this.level.value -= 100
+        this.level.value = 0  // 进化后等级重置
     }
 
     companion object {

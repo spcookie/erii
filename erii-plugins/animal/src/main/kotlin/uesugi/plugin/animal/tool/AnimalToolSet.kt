@@ -1,0 +1,134 @@
+package uesugi.plugin.animal.tool
+
+import ai.koog.agents.core.tools.annotations.LLMDescription
+import ai.koog.agents.core.tools.annotations.Tool
+import com.github.ajalt.clikt.core.main
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.runBlocking
+import net.mamoe.mirai.contact.Contact.Companion.sendImage
+import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
+import uesugi.common.toolkit.BrowserScraperHolder
+import uesugi.plugin.animal.cmd.AnimalArgParser
+import uesugi.plugin.animal.cmd.AnimalContext
+import uesugi.plugin.animal.service.AnimalService
+import uesugi.plugin.animal.store.AnimalStore
+import uesugi.spi.MetaToolSet
+import uesugi.spi.MetaToolSet.Companion.meta
+import uesugi.spi.getGroup
+
+class AnimalToolSet(
+    private val store: AnimalStore,
+    private val service: AnimalService,
+    private val serverUrl: String
+) : MetaToolSet {
+
+    private val log = KotlinLogging.logger {}
+
+    private fun createAnimalContext(): AnimalContext {
+        val userId = meta.senderId?.toLongOrNull() ?: 0L
+        val senderNick = meta.senderId ?: "User"
+
+        return AnimalContext(
+            store = store,
+            service = service,
+            groupId = meta.groupId,
+            senderId = userId,
+            senderNick = senderNick,
+            sendMessage = { msg ->
+                runBlocking {
+                    meta.getGroup().sendMessage(msg)
+                }
+            },
+            sendImage = { bytes ->
+                runBlocking {
+                    val image = bytes.inputStream().use { it.toExternalResource() }
+                    image.use {
+                        meta.getGroup().sendImage(it)
+                    }
+                }
+            },
+            serverUrl = serverUrl,
+            takeScreenshot = { url ->
+                BrowserScraperHolder.getInstance().takeFullScreenshot(
+                    url = url,
+                    width = 1200,
+                    quality = 85
+                )
+            }
+        )
+    }
+
+    private fun runCommand(argv: List<String>): String {
+        return try {
+            val ctx = createAnimalContext()
+            val parser = AnimalArgParser()
+            parser.init(meta, ctx)
+            parser.main(argv)
+            ""
+        } catch (e: Exception) {
+            log.error(e) { "Failed to run command: ${argv.joinToString(" ")}" }
+            "执行失败：${e.message}"
+        }
+    }
+
+    @Tool
+    @LLMDescription("注册用户，获取一只随机宠物")
+    suspend fun registerAnimal(): String {
+        return runCommand(listOf("register"))
+    }
+
+    @Tool
+    @LLMDescription("查看用户的宠物列表")
+    suspend fun listAnimals(): String {
+        return runCommand(listOf("list"))
+    }
+
+    @Tool
+    @LLMDescription("查看宠物农场")
+    suspend fun viewFarm(): String {
+        return runCommand(listOf("farm"))
+    }
+
+    @Tool
+    @LLMDescription("查看单只宠物的详细信息，需要宠物ID参数")
+    suspend fun viewAnimal(petId: Long): String {
+        return runCommand(listOf("line", petId.toString()))
+    }
+
+    @Tool
+    @LLMDescription("使用金币抽宠物，100金币抽1次，1000金币抽10次")
+    suspend fun drawAnimal(count: Int = 1): String {
+        return runCommand(listOf("draw", count.toString()))
+    }
+
+    @Tool
+    @LLMDescription("查看用户金币余额")
+    suspend fun viewCoins(): String {
+        return runCommand(listOf("coins"))
+    }
+
+    @Tool
+    @LLMDescription("售卖宠物，需要宠物ID参数")
+    suspend fun sellAnimal(petId: Long): String {
+        return runCommand(listOf("sell", petId.toString()))
+    }
+
+    @Tool
+    @LLMDescription("设置农场显示的宠物，visible=true显示，visible=false隐藏")
+    suspend fun setFarmPet(petId: Long, visible: Boolean): String {
+        val visibleStr = if (visible) "on" else "off"
+        return runCommand(listOf("setfarm", petId.toString(), visibleStr))
+    }
+
+    @Tool
+    @LLMDescription("查看用户已解锁的背景列表")
+    suspend fun listFields(): String {
+        return runCommand(listOf("field", "list"))
+    }
+
+    @Tool
+    @LLMDescription("设置背景，需要背景类型参数如 SNOWY_FIELD")
+    suspend fun setField(fieldType: String): String {
+        return runCommand(listOf("field", "set", fieldType))
+    }
+}

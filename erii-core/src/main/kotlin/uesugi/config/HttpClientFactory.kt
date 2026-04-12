@@ -6,7 +6,7 @@ import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.jackson.*
-import uesugi.common.ConfigHolder
+import uesugi.common.toolkit.ConfigHolder
 
 class HttpClientFactory {
 

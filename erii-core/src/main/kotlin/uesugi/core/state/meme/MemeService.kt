@@ -1,7 +1,7 @@
 package uesugi.core.state.meme
 
 import kotlinx.datetime.LocalDateTime
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import uesugi.core.state.meme.MemeData.MemeRecord
 import uesugi.core.state.meme.MemeData.MemeScanStateRecord
 

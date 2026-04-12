@@ -13,8 +13,8 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMProvider
 import io.ktor.client.*
 import io.ktor.client.engine.*
-import uesugi.common.ConfigHolder
 import uesugi.common.LLMModelsChoice
+import uesugi.common.toolkit.ConfigHolder
 import kotlin.time.ExperimentalTime
 
 class LLMFactory {

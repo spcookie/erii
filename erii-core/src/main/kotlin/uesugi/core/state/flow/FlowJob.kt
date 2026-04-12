@@ -8,7 +8,7 @@ import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.common.BotManage
 import uesugi.common.ENABLE_GROUPS
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import kotlin.time.ExperimentalTime
 
 class FlowJob(

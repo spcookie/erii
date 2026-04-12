@@ -1,5 +1,6 @@
-package uesugi.common
+package uesugi.common.toolkit
 
+import uesugi.common.ISearch
 import java.util.*
 
 object SearchManager {

@@ -6,6 +6,7 @@ import kotlinx.datetime.*
 import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.common.*
+import uesugi.common.toolkit.logger
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours

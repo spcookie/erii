@@ -6,7 +6,7 @@ import uesugi.common.EmotionalTendencies
 import uesugi.common.HistoryEntity
 import uesugi.common.HistoryTable
 import uesugi.common.PAD
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import kotlin.math.exp
 
 /**

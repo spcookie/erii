@@ -1,5 +1,7 @@
 package uesugi.common
 
+import uesugi.common.toolkit.ConfigHolder
+
 val DEBUG_GROUP_ID: String? = ConfigHolder.getDebugGroupId()
 
 val ENABLE_GROUPS: List<String> = ConfigHolder.getEnableGroups()

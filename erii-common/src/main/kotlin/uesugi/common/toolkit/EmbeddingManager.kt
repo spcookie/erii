@@ -1,5 +1,6 @@
-package uesugi.common
+package uesugi.common.toolkit
 
+import uesugi.common.IEmbedding
 import java.util.*
 
 object EmbeddingManager {

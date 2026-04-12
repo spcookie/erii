@@ -1,7 +1,7 @@
 package uesugi.plugin.animal.domain
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import org.slf4j.LoggerFactory
+import kotlinx.serialization.Serializable
 import uesugi.plugin.animal.core.*
 import uesugi.plugin.animal.domain.extension.RenderFieldTypeExtension.isRenderField
 import uesugi.plugin.animal.domain.request.VisibleChangeType
@@ -15,6 +15,7 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.max
 import kotlin.math.min
 
+@Serializable
 class User(
     val id: Long,
 
@@ -30,8 +31,20 @@ class User(
 
     private var lastPersonaGivePoint: Int,
 
+    // 新增字段
+    var coins: Int = 10,  // 金币
+    var todayMessageCount: Int = 0,  // 今日消息计数
+    var lastCheckInDate: String? = null,  // yyyy-MM-dd 格式
+) {
 
-    ) {
+    // 获取当前选中的背景
+    fun getSelectedField(): FieldType = fields.first { it.isChoose() }.fieldType
+
+    // 设置当前选中的背景
+    fun setSelectedField(fieldType: FieldType) {
+        unChooseField()
+        chooseField(fieldType)
+    }
 
     init {
         personas.forEach { it.user = this }
@@ -57,6 +70,93 @@ class User(
         this.personas.add(persona)
 
         return PersonaResponse.from(persona)
+    }
+
+    fun addPersona(personaType: PersonaType): Persona {
+        val persona = Persona(
+            type = personaType,
+            level = 0,
+            visible = personas.size < MAX_PERSONA_COUNT,
+            user = this,
+        )
+        this.personas.add(persona)
+
+        // 自动合并：同类型超过3只时，合并最低等级和最高等级的宠物
+        autoMergeIfNeeded(personaType)
+
+        return persona
+    }
+
+    /**
+     * 自动合并：如果同类型宠物超过3只，合并最低等级和最高等级的宠物
+     */
+    private fun autoMergeIfNeeded(personaType: PersonaType) {
+        val sameTypePersonas = personas.filter { it.getType() == personaType }
+        if (sameTypePersonas.size > MAX_SAME_TYPE_COUNT) {
+            // 按等级排序，最低和最高合并
+            val sorted = sameTypePersonas.sortedBy { it.level() }
+            val lowest = sorted.first()
+            val highest = sorted.last()
+            if (lowest.id != highest.id) {
+                mergePersona(highest.id, lowest.id)
+            }
+        }
+    }
+
+    /**
+     * 自动进化：检查并自动进化符合条件的宠物
+     * 进化等级：100
+     */
+    fun autoEvolveIfNeeded(): List<Persona> {
+        val evolved = mutableListOf<Persona>()
+        for (persona in personas.toList()) {
+            if (persona.isEvolutionable()) {
+                persona.evolution()
+                evolved.add(persona)
+            }
+        }
+        return evolved
+    }
+
+    /**
+     * 自动解锁背景：检查并自动解锁新背景
+     * 首次1000贡献度解锁，之后每次6000贡献度解锁
+     */
+    fun autoUnlockFieldIfNeeded(): Field? {
+        // 检查是否还有未解锁的背景
+        val nextFieldType = getNextUnlockableField() ?: return null
+
+        val totalContribution = contributions.totalCount()
+        val requiredContribution = calculateRequiredContribution()
+
+        if (totalContribution >= requiredContribution) {
+            addField(nextFieldType)
+            return fields.find { it.fieldType == nextFieldType }
+        }
+        return null
+    }
+
+    /**
+     * 获取下一个可解锁的背景类型
+     */
+    private fun getNextUnlockableField(): FieldType? {
+        return FIELD_UNLOCK_ORDER.firstOrNull { fieldType ->
+            fields.none { it.fieldType == fieldType }
+        }
+    }
+
+    /**
+     * 计算解锁下一个背景所需的贡献度
+     * 首次解锁需要1000，之后每次需要6000
+     */
+    private fun calculateRequiredContribution(): Long {
+        // 已解锁的背景数量（不包括默认的WHITE_FIELD）
+        val unlockedCount = fields.size - 1
+        return if (unlockedCount == 0) {
+            FIRST_FIELD_UNLOCK_CONTRIBUTION
+        } else {
+            FIRST_FIELD_UNLOCK_CONTRIBUTION + (unlockedCount * FIELD_UNLOCK_CONTRIBUTION)
+        }
     }
 
     fun mergePersona(increasePersonaId: Long, deletePersonaId: Long): Persona {
@@ -159,8 +259,22 @@ class User(
         currentYearContribution.lastUpdatedContribution = Instant.now()
         levelUpPersonas(newContribution)
 
+        // 自动进化检查
+        autoEvolveIfNeeded()
+
+        // 自动解锁背景检查
+        autoUnlockFieldIfNeeded()
 
         return newContribution
+    }
+
+    fun deductContribution(amount: Int) {
+        val currentYear = ZonedDateTime.now(ZoneId.of("UTC")).year
+        val currentYearContribution =
+            contributions.firstOrNull { it.year == currentYear } ?: return
+
+        currentYearContribution.contribution = maxOf(0, currentYearContribution.contribution - amount)
+        currentYearContribution.lastUpdatedContribution = Instant.now()
     }
 
     private fun levelUpPersonas(newContribution: Int) {
@@ -314,21 +428,42 @@ class User(
         private const val MAX_INIT_PERSONA_COUNT = 10L
         private const val FOR_NEW_PERSONA_COUNT = 30L
         private const val FOR_INIT_PERSONA_COUNT = 100L
+        private const val MAX_SAME_TYPE_COUNT = 3
+
+        // 背景解锁条件
+        private const val FIRST_FIELD_UNLOCK_CONTRIBUTION = 1000L  // 首次解锁需1000贡献度
+        private const val FIELD_UNLOCK_CONTRIBUTION = 6000L        // 之后每次解锁需6000贡献度
+
+        // 背景解锁顺序（第一个WHITE_FIELD已默认拥有）
+        private val FIELD_UNLOCK_ORDER = listOf(
+            FieldType.SNOWY_FIELD,
+            FieldType.CARROT_AND_COIN,
+            FieldType.HALLOWEEN_FIELD,
+            FieldType.GRASS_FIELD,
+            FieldType.SNOW_HOUSE_FIELD,
+            FieldType.SNOW_GRASS_FIELD,
+            FieldType.GRASS_CHRISTMAS_TREE_FIELD,
+            FieldType.LOGO_SHOWING,
+            FieldType.FOLDER,
+            FieldType.RED_COMPUTER,
+            FieldType.RED_SOFA,
+            FieldType.BRICK,
+            FieldType.BRICK_CHRISTMAS,
+        )
 
         private val nameConvention = Regex("[^a-zA-Z0-9-]")
 
-        private val logger = LoggerFactory.getLogger(this::class.simpleName)
-
         fun newUser(
+            id: Long,
             name: String,
-            contributions: Map<Int, Int>,
+            contributions: Map<Int, Int> = emptyMap(),
         ): User {
             require(!nameConvention.containsMatchIn(name)) {
                 throw IllegalArgumentException("Not supported word contained in \"${name}\"")
             }
 
             val user = User(
-                id = IdGenerator.generate(),
+                id = id,
                 name = name,
                 personas = createPersonas(contributions),
                 contributions = contributions.map {
@@ -338,6 +473,7 @@ class User(
                 }.toMutableList(),
                 visit = 1,
                 lastPersonaGivePoint = (totalContributionCount(contributions) % FOR_NEW_PERSONA_COUNT).toInt(),
+                coins = 10,  // 初始金币
             )
 
             user.addField(FieldType.WHITE_FIELD)

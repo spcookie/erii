@@ -1,12 +1,14 @@
 package uesugi
 
 import io.ktor.server.application.*
-import uesugi.common.ConfigHolder
-import uesugi.common.logger
+import uesugi.common.toolkit.BrowserScraperHolder
+import uesugi.common.toolkit.ConfigHolder
+import uesugi.common.toolkit.logger
 import uesugi.config.ConfigHolderImpl
 import uesugi.config.configureH2Console
 import uesugi.core.bot.configureBotAgent
 import uesugi.core.bot.configureConnectBots
+import uesugi.core.component.browser.BrowserScraperImpl
 import uesugi.server.*
 
 internal val LOG = logger("uesugi")
@@ -19,6 +21,7 @@ fun main(args: Array<String>) {
 fun Application.module() {
     ConfigHolder.init(ConfigHolderImpl())
     SystemConfigHolder.init(this)
+    BrowserScraperHolder.init(BrowserScraperImpl())
 
     configureFrameworks()
     configureMonitoring()

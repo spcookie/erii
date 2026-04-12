@@ -15,9 +15,9 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.json.json
 import uesugi.common.EmotionalTendencies
-import uesugi.common.JSON
 import uesugi.common.PAD
-import uesugi.common.rowMapMapper
+import uesugi.common.toolkit.JSON
+import uesugi.common.toolkit.rowMapMapper
 
 object EmotionTable : IntIdTable("chat_emotion") {
     const val DEFAULT_LENGTH = 64

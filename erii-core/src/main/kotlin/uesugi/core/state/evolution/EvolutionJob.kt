@@ -4,7 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.common.BotManage
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 

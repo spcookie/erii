@@ -3,6 +3,8 @@ package uesugi.common
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
+import uesugi.common.toolkit.ConfigHolder
+import uesugi.common.toolkit.logger
 
 object LLMModelsChoice {
 

@@ -1,4 +1,4 @@
-package uesugi.common
+package uesugi.common.toolkit
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats

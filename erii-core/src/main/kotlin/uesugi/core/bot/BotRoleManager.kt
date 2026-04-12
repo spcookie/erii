@@ -4,7 +4,7 @@ import org.yaml.snakeyaml.Yaml
 import uesugi.common.BotRole
 import uesugi.common.ConfigBotRole
 import uesugi.common.EmotionalTendencies
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import java.io.File
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap

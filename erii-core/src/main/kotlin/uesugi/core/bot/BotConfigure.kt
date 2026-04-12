@@ -6,7 +6,7 @@ import net.mamoe.mirai.event.globalEventChannel
 import top.mrxiaom.overflow.BotBuilder
 import uesugi.LOG
 import uesugi.common.BotManage
-import uesugi.common.ConfigHolder
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.agent.BotAgent
 import uesugi.core.GroupMessageEventListener as MessageListener
 

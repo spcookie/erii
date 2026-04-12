@@ -7,7 +7,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.EmotionalTendencies
 import uesugi.common.EventBus
-import uesugi.common.logger
+import uesugi.common.toolkit.logger
 import uesugi.core.state.emotion.EmotionChangeEvent
 import java.util.concurrent.ConcurrentHashMap
 

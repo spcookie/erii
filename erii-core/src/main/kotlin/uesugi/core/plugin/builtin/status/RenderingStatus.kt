@@ -4,8 +4,8 @@ import io.ktor.server.config.*
 import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
-import uesugi.common.ref
-import uesugi.core.component.browser.WebScreenshotTaker
+import uesugi.common.toolkit.BrowserScraper
+import uesugi.common.toolkit.ref
 import uesugi.core.plugin.builtin.Builtin
 import uesugi.core.plugin.builtin.BuiltinExtension
 import uesugi.server.SystemConfigHolder
@@ -21,7 +21,7 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
         get() = "builtin_rendering"
 
     override fun onLoad(context: PluginContext) {
-        val webScreenshotTaker by ref<WebScreenshotTaker>()
+        val browserScraper by ref<BrowserScraper>()
         val statusHost = SystemConfigHolder.config
             .propertyOrNull("browser.status-host")
             ?.getString()
@@ -35,11 +35,11 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
         val password = SystemConfigHolder.config.property("security.password").getString()
 
         context.chain { meta ->
-            val bytes = webScreenshotTaker.takeFullScreenshot(
+            val bytes = browserScraper.takeFullScreenshot(
                 url = "http://${statusHost}:${port}/view/${meta.botId}/${meta.groupId}",
                 width = 1200,
                 quality = 100,
-                deviceScaleFactor = 3.0,
+                type = BrowserScraper.ScreenshotType.JPEG,
                 username = username,
                 password = password
             )

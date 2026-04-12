@@ -2,7 +2,7 @@ package uesugi.core.plugin
 
 import okio.Path.Companion.toPath
 import uesugi.common.EmbeddingInput
-import uesugi.common.EmbeddingManager
+import uesugi.common.toolkit.EmbeddingManager
 import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.spi.PluginDef
 import uesugi.spi.Vector

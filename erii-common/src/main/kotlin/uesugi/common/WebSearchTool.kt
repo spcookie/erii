@@ -11,6 +11,9 @@ import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.message.Message
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
+import uesugi.common.toolkit.SearchManager
+import uesugi.common.toolkit.logger
+import uesugi.common.toolkit.ref
 
 object WebSearchTool : ToolSet {
 

@@ -6,9 +6,9 @@ import com.google.auto.service.AutoService
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import uesugi.common.ConfigHolder
 import uesugi.common.EmbeddingInput
 import uesugi.common.IEmbedding
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.config.HttpClientFactory
 import java.io.IOException
 import kotlin.io.encoding.Base64

@@ -9,10 +9,10 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.jackson.*
-import uesugi.common.ConfigHolder
 import uesugi.common.ISearch
 import uesugi.common.SearchResultItem
-import uesugi.common.logger
+import uesugi.common.toolkit.ConfigHolder
+import uesugi.common.toolkit.logger
 
 @AutoService(ISearch::class)
 class ExaSearch : ISearch {

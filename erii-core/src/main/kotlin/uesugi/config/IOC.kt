@@ -9,8 +9,6 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
-import uesugi.core.component.browser.WebPageMarkdownScraper
-import uesugi.core.component.browser.WebScreenshotTaker
 import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.core.component.storage.ObjectStorage
@@ -78,8 +76,6 @@ val gatewayModule = module {
 
 val infrastructureModule = module {
     single { LLMFactory().promptExecutor() }
-    single { WebPageMarkdownScraper() }
-    single { WebScreenshotTaker() }
 }
 
 val appModule = module {

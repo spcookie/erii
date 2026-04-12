@@ -9,6 +9,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import uesugi.common.*
+import uesugi.common.toolkit.ref
 import uesugi.core.message.history.HistorySavedEvent
 import uesugi.core.plugin.MetaImpl
 import uesugi.core.route.MetaToolSetRegister
