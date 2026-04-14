@@ -1,10 +1,11 @@
-package uesugi.plugin.animal.cmd
+package uesugi.plugin.animal
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
 import kotlinx.coroutines.runBlocking
+import net.mamoe.mirai.message.data.Image
 import net.mamoe.mirai.message.data.MessageChain
 import net.mamoe.mirai.message.data.buildMessageChain
 import uesugi.plugin.animal.core.FieldType
@@ -20,7 +21,7 @@ data class AnimalContext(
     val senderId: Long,
     val senderNick: String,
     val sendMessage: (MessageChain) -> Unit,
-    val sendImage: (ByteArray) -> Unit,
+    val createImage: (ByteArray) -> Image?,
     val serverUrl: String,
     val takeScreenshot: (String) -> ByteArray?
 )
@@ -57,17 +58,18 @@ class Register : CliktCommand("register") {
             val pet = user.personas.firstOrNull()
             val petTypeName = pet?.getType()?.name ?: "未知宠物"
 
-            // 发送注册成功消息
             ctx.sendMessage(buildMessageChain {
                 +"注册成功！你获得了 $petTypeName！"
             })
 
-            // 发送宠物截图
             pet?.let {
                 val url = "${ctx.serverUrl}/pet/${ctx.groupId}/${ctx.senderId}/${it.id}"
                 val screenshot = ctx.takeScreenshot(url)
-                screenshot?.let { bytes -> ctx.sendImage(bytes) }
-                ctx.sendMessage(buildMessageChain { +url })
+                val image = screenshot?.let { ctx.createImage(it) }
+                ctx.sendMessage(buildMessageChain {
+                    +url
+                    image?.let { img -> +img }
+                })
             }
         }
     }
@@ -87,6 +89,9 @@ class ListPets : CliktCommand("list") {
                 "• [${pet.id}] ${pet.getType().name} Lv.${pet.level()} $:$price"
             }
             val user = ctx.store.getUser(ctx.groupId, ctx.senderId)
+            val url = "${ctx.serverUrl}/list/${ctx.groupId}/${ctx.senderId}"
+            val screenshot = ctx.takeScreenshot(url)
+            val image = screenshot?.let { ctx.createImage(it) }
             ctx.sendMessage(buildMessageChain {
                 +"""
                 |你的宠物（共 ${pets.size} 只）:
@@ -95,12 +100,10 @@ class ListPets : CliktCommand("list") {
                 |累计贡献度: ${user?.contributionCount() ?: 0}
             """.trimMargin()
             })
-
-            // 发送宠物列表截图
-            val url = "${ctx.serverUrl}/list/${ctx.groupId}/${ctx.senderId}"
-            val screenshot = ctx.takeScreenshot(url)
-            screenshot?.let { bytes -> ctx.sendImage(bytes) }
-            ctx.sendMessage(buildMessageChain { +url })
+            ctx.sendMessage(buildMessageChain {
+                +url
+                image?.let { img -> +img }
+            })
         }
     }
 }
@@ -114,7 +117,9 @@ class Farm : CliktCommand("farm") {
                 return@runBlocking
             }
 
-            // 发送农场预览消息
+            val url = "${ctx.serverUrl}/farm/${ctx.groupId}/${ctx.senderId}"
+            val screenshot = ctx.takeScreenshot(url)
+            val image = screenshot?.let { ctx.createImage(it) }
             ctx.sendMessage(buildMessageChain {
                 +"""
                 |农场预览:
@@ -124,12 +129,10 @@ class Farm : CliktCommand("farm") {
                 |背景: ${user.getSelectedField().name}
             """.trimMargin()
             })
-
-            // 发送农场截图
-            val url = "${ctx.serverUrl}/farm/${ctx.groupId}/${ctx.senderId}"
-            val screenshot = ctx.takeScreenshot(url)
-            screenshot?.let { bytes -> ctx.sendImage(bytes) }
-            ctx.sendMessage(buildMessageChain { +url })
+            ctx.sendMessage(buildMessageChain {
+                +url
+                image?.let { img -> +img }
+            })
         }
     }
 }
@@ -158,7 +161,9 @@ class Line : CliktCommand("line") {
             val canEvolve = pet.getType().personaEvolution.weight > 0
             val evolutionInfo = if (canEvolve) "可进化！" else "不可进化"
 
-            // 发送宠物详情消息
+            val url = "${ctx.serverUrl}/pet/${ctx.groupId}/${ctx.senderId}/${pet.id}"
+            val screenshot = ctx.takeScreenshot(url)
+            val image = screenshot?.let { ctx.createImage(it) }
             ctx.sendMessage(buildMessageChain {
                 +"""
                 |宠物详情:
@@ -167,12 +172,10 @@ class Line : CliktCommand("line") {
                 |$evolutionInfo
             """.trimMargin()
             })
-
-            // 发送宠物截图
-            val url = "${ctx.serverUrl}/pet/${ctx.groupId}/${ctx.senderId}/${pet.id}"
-            val screenshot = ctx.takeScreenshot(url)
-            screenshot?.let { bytes -> ctx.sendImage(bytes) }
-            ctx.sendMessage(buildMessageChain { +url })
+            ctx.sendMessage(buildMessageChain {
+                +url
+                image?.let { img -> +img }
+            })
         }
     }
 }

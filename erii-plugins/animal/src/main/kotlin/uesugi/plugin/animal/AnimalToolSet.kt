@@ -1,19 +1,15 @@
-package uesugi.plugin.animal.tool
+package uesugi.plugin.animal
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import com.github.ajalt.clikt.core.main
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
-import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import uesugi.common.toolkit.BrowserScraperHolder
-import uesugi.plugin.animal.cmd.AnimalArgParser
-import uesugi.plugin.animal.cmd.AnimalContext
 import uesugi.plugin.animal.service.AnimalService
 import uesugi.plugin.animal.store.AnimalStore
 import uesugi.spi.MetaToolSet
-import uesugi.spi.MetaToolSet.Companion.meta
 import uesugi.spi.getGroup
 
 class AnimalToolSet(
@@ -25,25 +21,25 @@ class AnimalToolSet(
     private val log = KotlinLogging.logger {}
 
     private fun createAnimalContext(): AnimalContext {
-        val userId = meta.senderId?.toLongOrNull() ?: 0L
-        val senderNick = meta.senderId ?: "User"
+        val userId = MetaToolSet.meta.senderId?.toLongOrNull() ?: 0L
+        val senderNick = MetaToolSet.meta.senderId ?: "User"
 
         return AnimalContext(
             store = store,
             service = service,
-            groupId = meta.groupId,
+            groupId = MetaToolSet.meta.groupId,
             senderId = userId,
             senderNick = senderNick,
             sendMessage = { msg ->
                 runBlocking {
-                    meta.getGroup().sendMessage(msg)
+                    MetaToolSet.meta.getGroup().sendMessage(msg)
                 }
             },
-            sendImage = { bytes ->
+            createImage = { bytes ->
                 runBlocking {
-                    val image = bytes.inputStream().use { it.toExternalResource() }
-                    image.use {
-                        meta.getGroup().sendImage(it)
+                    val imageRes = bytes.inputStream().use { it.toExternalResource() }
+                    imageRes.use { res ->
+                        MetaToolSet.meta.getGroup().uploadImage(res)
                     }
                 }
             },
@@ -62,7 +58,7 @@ class AnimalToolSet(
         return try {
             val ctx = createAnimalContext()
             val parser = AnimalArgParser()
-            parser.init(meta, ctx)
+            parser.init(MetaToolSet.meta, ctx)
             parser.main(argv)
             null
         } catch (e: Exception) {

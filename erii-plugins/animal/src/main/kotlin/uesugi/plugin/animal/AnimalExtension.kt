@@ -2,17 +2,13 @@ package uesugi.plugin.animal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
-import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
 import uesugi.common.toolkit.BrowserScraper
 import uesugi.common.toolkit.BrowserScraperHolder
-import uesugi.plugin.animal.cmd.AnimalArgParser
-import uesugi.plugin.animal.cmd.AnimalContext
 import uesugi.plugin.animal.service.AnimalService
 import uesugi.plugin.animal.service.DailyTaskService
 import uesugi.plugin.animal.store.AnimalStore
-import uesugi.plugin.animal.tool.AnimalToolSet
 import uesugi.spi.CmdExtension
 import uesugi.spi.PassiveExtension
 import uesugi.spi.PluginContext
@@ -58,7 +54,7 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
         dailyTaskService.startDailyTasks()
 
         // 初始化HTML渲染器
-        htmlRenderer = AnimalHtmlRenderer(store, service, context)
+        htmlRenderer = AnimalHtmlRenderer(store, context)
         htmlRenderer.registerHtmlRoutes()
 
         // 注册命令处理器
@@ -92,15 +88,6 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
                 val senderIdLong = senderId.toLong()
                 val serverUrl = "http://${serverHost}:${serverPort}${server.basePath}"
 
-                val sendImageCallback: (ByteArray) -> Unit = { bytes ->
-                    scope.launch {
-                        val image = bytes.inputStream().use { it.toExternalResource() }
-                        image.use {
-                            meta.getGroup().sendImage(it)
-                        }
-                    }
-                }
-
                 val takeScreenshotCallback: (String) -> ByteArray? = { url ->
                     runCatching {
                         BrowserScraperHolder.getInstance().takeFullScreenshot(
@@ -118,12 +105,19 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
                     senderNick = senderId,
                     store = store,
                     service = service,
-                    sendMessage = {
+                    sendMessage = { msg ->
                         scope.launch {
-                            meta.getGroup().sendMessage(it)
+                            meta.getGroup().sendMessage(msg)
                         }
                     },
-                    sendImage = sendImageCallback,
+                    createImage = { bytes ->
+                        runBlocking {
+                            val imageRes = bytes.inputStream().use { it.toExternalResource() }
+                            imageRes.use { res ->
+                                meta.getGroup().uploadImage(res)
+                            }
+                        }
+                    },
                     serverUrl = serverUrl,
                     takeScreenshot = takeScreenshotCallback
                 )
