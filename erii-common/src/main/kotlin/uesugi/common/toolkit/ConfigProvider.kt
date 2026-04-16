@@ -28,7 +28,9 @@ data class BotConfig(
     val token: String,
     val roleId: String,
     val groups: Map<String, GroupConfig> = emptyMap(),
-    val groupsOverride: BotGroupsOverride? = null
+    val groupsOverride: BotGroupsOverride? = null,
+    val enabledPlugins: List<String>? = null,
+    val disabledPlugins: List<String>? = null
 )
 
 /**
@@ -79,6 +81,11 @@ interface ConfigProvider {
 
     // ===== 插件配置 =====
     fun getPluginConfig(pluginClass: KClass<*>, pluginName: String): Config
+
+    // ===== 插件启用/禁用（Bot 维度）=====
+    fun getEnabledPlugins(botKey: String): List<String>?
+    fun getDisabledPlugins(botKey: String): List<String>?
+    fun isPluginEnabled(botKey: String, pluginName: String): Boolean
 }
 
 /**
@@ -138,4 +145,9 @@ object ConfigHolder {
     // ===== 插件配置 =====
     fun getPluginConfig(pluginClass: KClass<*>, pluginName: String): Config =
         provider.getPluginConfig(pluginClass, pluginName)
+
+    // ===== 插件启用/禁用（Bot 维度）=====
+    fun getEnabledPlugins(botKey: String): List<String>? = provider.getEnabledPlugins(botKey)
+    fun getDisabledPlugins(botKey: String): List<String>? = provider.getDisabledPlugins(botKey)
+    fun isPluginEnabled(botKey: String, pluginName: String): Boolean = provider.isPluginEnabled(botKey, pluginName)
 }

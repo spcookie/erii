@@ -1,5 +1,7 @@
 package uesugi.core.route
 
+import uesugi.common.BotManage
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.spi.MetaToolSetCreator
 
 interface RouteRule {
@@ -57,5 +59,12 @@ object MetaToolSetRegister {
 
     fun getAllToolSets(): List<MetaToolSetCreator> {
         return creators.values.toList()
+    }
+
+    fun getToolSetsForBot(botId: String): List<MetaToolSetCreator> {
+        val configKey = BotManage.getConfigKey(botId)
+        return creators.filterKeys { pluginName ->
+            ConfigHolder.isPluginEnabled(configKey, pluginName)
+        }.values.toList()
     }
 }

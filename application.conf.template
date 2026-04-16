@@ -75,6 +75,9 @@ onebot {
       #   debug-group-id = null                # 覆盖：此机器人的调试群（null 则用全局）
       #   message-redirect-map = {}            # 合并：与全局 map 合并，本级优先
       # }
+      # 可选：插件白名单/黑名单（白名单优先）
+      # enabled-plugins = ["seeddream", "qa"]     # 仅启用这些插件（其余插件禁用）
+      # disabled-plugins = ["lolisuki", "animal"] # 禁用这些插件（其余插件启用）
     }
   }
 }

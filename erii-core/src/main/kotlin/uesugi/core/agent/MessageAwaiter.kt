@@ -93,7 +93,7 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
         input: String? = null
     ): ProactiveSpeakEvent {
         val echo = Uuid.random().toHexString()
-        val metaToolSets = MetaToolSetRegister.getAllToolSets()
+        val metaToolSets = MetaToolSetRegister.getToolSetsForBot(botId)
             .map { toolSetApply ->
                 toolSetApply().apply {
                     meta = MetaImpl(

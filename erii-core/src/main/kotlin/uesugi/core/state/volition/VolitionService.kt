@@ -268,7 +268,7 @@ fun speakV(
     echo: String? = null,
     interruptionMode: InterruptionMode = InterruptionMode.Interrupt,
 ) {
-    val metaToolSets = MetaToolSetRegister.getAllToolSets()
+    val metaToolSets = MetaToolSetRegister.getToolSetsForBot(botId)
         .map { toolSetApply ->
             toolSetApply().apply {
                 meta = MetaImpl(

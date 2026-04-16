@@ -148,6 +148,12 @@ class ConfigHolderImpl : ConfigProvider {
                     groups = groups,
                     groupsOverride = if (botConfig.hasPath("groups-override")) {
                         parseBotGroupsOverride(botConfig.getConfig("groups-override"))
+                    } else null,
+                    enabledPlugins = if (botConfig.hasPath("enabled-plugins")) {
+                        parseStringList(botConfig, "enabled-plugins")
+                    } else null,
+                    disabledPlugins = if (botConfig.hasPath("disabled-plugins")) {
+                        parseStringList(botConfig, "disabled-plugins")
                     } else null
                 )
             }
@@ -315,5 +321,35 @@ class ConfigHolderImpl : ConfigProvider {
         }
 
         return config
+    }
+
+    private fun parseStringList(cfg: Config, path: String): List<String> {
+        return try {
+            val raw = cfg.getString(path)
+            if (raw.isNotBlank()) raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+            else emptyList()
+        } catch (_: Exception) {
+            try {
+                cfg.getStringList(path).filter { it.isNotBlank() }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    override fun getEnabledPlugins(botKey: String): List<String>? =
+        getOnebotBots()[botKey]?.enabledPlugins
+
+    override fun getDisabledPlugins(botKey: String): List<String>? =
+        getOnebotBots()[botKey]?.disabledPlugins
+
+    override fun isPluginEnabled(botKey: String, pluginName: String): Boolean {
+        val enabled = getEnabledPlugins(botKey)
+        val disabled = getDisabledPlugins(botKey) ?: emptyList()
+        val matchShort = { short: String -> pluginName == short || pluginName.endsWith("_$short") }
+        return when {
+            enabled != null -> enabled.any(matchShort)
+            else -> disabled.none(matchShort)
+        }
     }
 }
