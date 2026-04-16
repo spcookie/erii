@@ -9,6 +9,7 @@ import uesugi.common.*
 import uesugi.common.PSFeature.CHAT_URGENT
 import uesugi.common.PSFeature.GRAB
 import uesugi.common.PSFeature.IGNORE_INTERRUPT
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.plugin.MetaImpl
 import uesugi.core.route.MetaToolSetRegister
@@ -16,6 +17,7 @@ import uesugi.core.state.emotion.EmotionChangeEvent
 import uesugi.core.state.flow.FlowChangeEvent
 import uesugi.spi.MetaToolSet.Companion.meta
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -65,21 +67,21 @@ class VolitionGauge(
 
         scope.launch {
             while (isActive) {
-                delay(decayIntervalMs)
+                delay(decayIntervalMs.milliseconds)
                 decayFatigue()
             }
         }
 
         scope.launch {
             while (isActive) {
-                delay(persistIntervalMs)
+                delay(persistIntervalMs.milliseconds)
                 persistStateToDB()
             }
         }
 
         scope.launch {
             while (isActive) {
-                delay(decayIntervalMs)
+                delay(decayIntervalMs.milliseconds)
                 val gauge = this@VolitionGauge
                 if (gauge.shouldSpeak()) {
                     log.info("决策: 机器人 $botMark 群组 $groupId 应该主动发言!")
@@ -232,7 +234,12 @@ class VolitionGaugeManager {
         val key = "$botMark:$groupId"
         return gauges.getOrPut(key) {
             log.debug("创建新的VolitionGauge实例, botId=$botMark, groupId=$groupId")
-            VolitionGauge(mood, botMark, groupId)
+            val configKey = BotManage.getConfigKey(botMark)
+            val onebotBots = ConfigHolder.getOnebotBots()
+            val desire = onebotBots[configKey]?.let {
+                it.groups[groupId]?.desire
+            } ?: 0.0
+            VolitionGauge(mood, botMark, groupId, desire)
         }
     }
 

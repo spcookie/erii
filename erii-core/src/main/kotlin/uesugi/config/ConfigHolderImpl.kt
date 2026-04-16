@@ -163,7 +163,12 @@ class ConfigHolderImpl : ConfigProvider {
             } catch (_: Exception) {
                 emptyList()
             }
-            result[groupIdStr] = GroupConfig(admins = admins)
+            val desire = try {
+                groupsConfig.getDouble("$groupIdStr.desire")
+            } catch (_: Exception) {
+                0.0
+            }
+            result[groupIdStr] = GroupConfig(admins = admins, desire = desire)
         }
         return result
     }

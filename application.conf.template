@@ -65,6 +65,7 @@ onebot {
       groups = {
         123456789 = {              # 群组 ID
           admins = []              # 群管理员列表
+          desire = 15
         }
       }
     }

@@ -6,7 +6,10 @@ import kotlin.reflect.KClass
 /**
  * 群组配置数据类
  */
-data class GroupConfig(val admins: List<String>)
+data class GroupConfig(
+    val admins: List<String>,
+    val desire: Double
+)
 
 /**
  * Bot 配置数据类
