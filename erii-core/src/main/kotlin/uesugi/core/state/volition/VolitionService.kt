@@ -184,7 +184,7 @@ class VolitionGauge(
         val flowBonus = if (flowValue > 70) (flowValue - 70) * 1.0 else 0.0
 
         val stimulus = state.stimulus
-        val impulse = (baseDesire + stimulus + emotionModifier + flowBonus) - state.fatigue
+        val impulse = (baseDesire.coerceIn(0.0, 100.0) + stimulus + emotionModifier + flowBonus) - state.fatigue
 
         return impulse.coerceIn(0.0, 100.0)
     }
