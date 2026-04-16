@@ -61,7 +61,7 @@ class MemoryService(
             // 3. 按用户分组
             val messagesByUser = messages.groupBy { it.userId }
 
-            // 4. 并发处理各类记忆生成
+            // 4. 并发处理
             coroutineScope {
                 // 4.1 用户画像和偏好 (按用户)
                 launch {

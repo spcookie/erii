@@ -9,9 +9,9 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.common.BotManage
-import uesugi.common.ENABLE_GROUPS
 import uesugi.common.HistoryTable
 import uesugi.common.MessageType
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.resource.ResourceService
@@ -86,11 +86,11 @@ class MemeJob(
                 try {
                     log.debug("表情包收集任务开始执行")
 
-                    val groups = ENABLE_GROUPS
-                    log.debug("需要收集的群组: ${groups.size} 个")
-
-                    for (groupId in groups) {
-                        for (botId in BotManage.getAllBotIds()) {
+                    for (botId in BotManage.getAllBotIds()) {
+                        val configKey = BotManage.getConfigKey(botId)
+                        val groups = ConfigHolder.getEffectiveEnableGroups(configKey)
+                        log.debug("需要收集的群组: ${groups.size} 个")
+                        for (groupId in groups) {
                             processGroupCollection(botId, groupId)
                         }
                     }
@@ -240,11 +240,11 @@ class MemeJob(
                 try {
                     log.debug("表情包提取任务开始执行")
 
-                    val groups = ENABLE_GROUPS
-                    log.debug("需要提取的群组: ${groups.size} 个")
-
-                    for (groupId in groups) {
-                        for (botId in BotManage.getAllBotIds()) {
+                    for (botId in BotManage.getAllBotIds()) {
+                        val configKey = BotManage.getConfigKey(botId)
+                        val groups = ConfigHolder.getEffectiveEnableGroups(configKey)
+                        log.debug("需要提取的群组: ${groups.size} 个")
+                        for (groupId in groups) {
                             processGroupExtraction(botId, groupId)
                         }
                     }

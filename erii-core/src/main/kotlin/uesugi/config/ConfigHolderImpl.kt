@@ -6,6 +6,7 @@ import com.typesafe.config.ConfigValueFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.config.*
 import uesugi.common.toolkit.BotConfig
+import uesugi.common.toolkit.BotGroupsOverride
 import uesugi.common.toolkit.ConfigProvider
 import uesugi.common.toolkit.GroupConfig
 import java.io.File
@@ -144,7 +145,10 @@ class ConfigHolderImpl : ConfigProvider {
                     ws = botConfig.getString("ws"),
                     token = botConfig.getString("token"),
                     roleId = botConfig.getString("role-id"),
-                    groups = groups
+                    groups = groups,
+                    groupsOverride = if (botConfig.hasPath("groups-override")) {
+                        parseBotGroupsOverride(botConfig.getConfig("groups-override"))
+                    } else null
                 )
             }
             result
@@ -172,6 +176,56 @@ class ConfigHolderImpl : ConfigProvider {
         }
         return result
     }
+
+    private fun parseBotGroupsOverride(ov: Config): BotGroupsOverride {
+        val enableGroups = if (ov.hasPath("enable-groups")) {
+            try {
+                val raw = ov.getString("enable-groups")
+                if (raw.isNotBlank()) raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                else emptyList()
+            } catch (_: Exception) {
+                try {
+                    ov.getStringList("enable-groups").filter { it.isNotBlank() }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        } else null
+
+        val messageRedirectMap = if (ov.hasPath("message-redirect-map")) {
+            try {
+                val raw = ov.getString("message-redirect-map")
+                if (raw.isNotBlank()) {
+                    raw.split(",").map { it.trim() }
+                        .filter { it.contains(":") }
+                        .associate { val p = it.split(":"); p[0].trim() to p[1].trim() }
+                } else emptyMap()
+            } catch (_: Exception) {
+                try {
+                    val obj = ov.getObject("message-redirect-map")
+                    obj.keys.associateWith { key -> ov.getString("message-redirect-map.$key") }
+                        .filterValues { it.isNotBlank() }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        } else null
+
+        return BotGroupsOverride(
+            enableGroups = enableGroups,
+            debugGroupId = ov.tryGetString("debug-group-id"),
+            messageRedirectMap = messageRedirectMap
+        )
+    }
+
+    override fun getEffectiveEnableGroups(botKey: String): List<String> =
+        getOnebotBots()[botKey]?.groupsOverride?.enableGroups ?: getEnableGroups()
+
+    override fun getEffectiveDebugGroupId(botKey: String): String? =
+        getOnebotBots()[botKey]?.groupsOverride?.debugGroupId ?: getDebugGroupId()
+
+    override fun getEffectiveMessageRedirectMap(botKey: String): Map<String, String> =
+        getMessageRedirectMap() + (getOnebotBots()[botKey]?.groupsOverride?.messageRedirectMap ?: emptyMap())
 
     override fun getAdmins(botConfigKey: String, groupId: String): List<String> {
         val bots = getOnebotBots()

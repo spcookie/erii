@@ -5,7 +5,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.*
 import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
-import uesugi.common.*
+import uesugi.common.BotManage
+import uesugi.common.EventBus
+import uesugi.common.InterruptionMode
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import kotlin.random.Random
 import kotlin.time.Clock
@@ -28,8 +31,9 @@ class VolitionJob(
     private val scope = CoroutineScope(Dispatchers.Default)
 
     fun openTimingTriggerSignal() {
-        for (group in ENABLE_GROUPS) {
-            for (bot in BotManage.getAllBotIds()) {
+        for (bot in BotManage.getAllBotIds()) {
+            val configKey = BotManage.getConfigKey(bot)
+            for (group in ConfigHolder.getEffectiveEnableGroups(configKey)) {
                 log.info("init volition for bot $bot in group $group")
                 ensureVolitionGaugeExists(bot, group)
             }
@@ -188,13 +192,11 @@ class VolitionJob(
         val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
         volitionGaugeManager.getAllGauges().forEach { (key, _) ->
             val (botMark, groupId) = key.split(":")
-            if (ENABLE_GROUPS.contains(groupId)) {
-                val groupId =
-                    if (groupId in MESSAGE_REDIRECT_GROUP_MAP) {
-                        MESSAGE_REDIRECT_GROUP_MAP.getValue(groupId)
-                    } else {
-                        groupId
-                    }
+            val configKey = BotManage.getConfigKey(botMark)
+            val effectiveGroups = ConfigHolder.getEffectiveEnableGroups(configKey)
+            val effectiveRedirect = ConfigHolder.getEffectiveMessageRedirectMap(configKey)
+            if (effectiveGroups.contains(groupId)) {
+                val groupId = effectiveRedirect.getOrDefault(groupId, groupId)
                 log.info("Decision: Group $groupId speaks regularly")
                 speakV(
                     botId = botMark,
@@ -216,13 +218,11 @@ class VolitionJob(
 
                 volitionGaugeManager.getAllGauges().forEach { (key, gauge) ->
                     val (botMark, groupId) = key.split(":")
-                    if (ENABLE_GROUPS.contains(groupId)) {
-                        val groupId =
-                            if (groupId in MESSAGE_REDIRECT_GROUP_MAP) {
-                                MESSAGE_REDIRECT_GROUP_MAP.getValue(groupId)
-                            } else {
-                                groupId
-                            }
+                    val configKey = BotManage.getConfigKey(botMark)
+                    val effectiveGroups = ConfigHolder.getEffectiveEnableGroups(configKey)
+                    val effectiveRedirect = ConfigHolder.getEffectiveMessageRedirectMap(configKey)
+                    if (effectiveGroups.contains(groupId)) {
+                        val groupId = effectiveRedirect.getOrDefault(groupId, groupId)
                         if (now - gauge.state.lastActiveTime > 4.hours.inWholeMilliseconds) {
                             gauge.state.lastActiveTime = now
 

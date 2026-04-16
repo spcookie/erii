@@ -7,9 +7,9 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
 import uesugi.common.BotManage
-import uesugi.common.ENABLE_GROUPS
 import uesugi.common.EmotionalTendencies
 import uesugi.common.PAD
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.plugin.ExtensionRegister
 import uesugi.core.state.emotion.BehaviorProfile
 import uesugi.core.state.emotion.EmotionService
@@ -146,7 +146,7 @@ fun Routing.configureBotStatus() {
                 val roledBot = BotManage.getBot(id)
                 val refBot = roledBot.refBot
                 val groups = refBot.groups.map { it.id.toString() }
-                    .filter { ENABLE_GROUPS.contains(it) }.toList()
+                    .filter { ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(id)).contains(it) }.toList()
 
                 val pluginStats = buildPluginStats()
                 val emoticon = roledBot.role.emoticon
@@ -182,7 +182,7 @@ fun Routing.configureBotStatus() {
             val roledBot = BotManage.getBot(botId)
             val refBot = roledBot.refBot
             val groups = refBot.groups.map { it.id.toString() }
-                .filter { ENABLE_GROUPS.contains(it) }.toList()
+                .filter { ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(botId)).contains(it) }.toList()
 
             if (!groups.contains(groupId)) {
                 call.respondRedirect("/")

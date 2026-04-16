@@ -21,7 +21,11 @@ import okio.source
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
-import uesugi.common.*
+import uesugi.common.EventBus
+import uesugi.common.HistoryRecord
+import uesugi.common.MessageType
+import uesugi.common.toRecord
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.history.HistorySavedEvent
@@ -64,7 +68,8 @@ private data class MessageContext(
 
 class GroupMessageEventListener(
     private val botId: String,
-    private val roleName: String
+    private val roleName: String,
+    private val botConfigKey: String
 ) : SimpleListenerHost() {
 
     companion object {
@@ -72,6 +77,9 @@ class GroupMessageEventListener(
 
         private val COMMAND_REGEX = Regex("^\\s*/(\\S+)(?:\\s+.*)?$")
     }
+
+    private val effectiveEnableGroups by lazy { ConfigHolder.getEffectiveEnableGroups(botConfigKey) }
+    private val effectiveRedirectMap by lazy { ConfigHolder.getEffectiveMessageRedirectMap(botConfigKey) }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -118,7 +126,7 @@ class GroupMessageEventListener(
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, MiraiInternalApi::class)
     suspend fun handleEvent(event: GroupAwareMessageEvent) {
         val groupId = resolveGroupId(event.group.id.toString())
-        if (groupId !in ENABLE_GROUPS) return
+        if (groupId !in effectiveEnableGroups) return
 
         val context = buildMessageContext(event, botId, groupId)
 
@@ -129,7 +137,7 @@ class GroupMessageEventListener(
     }
 
     private fun resolveGroupId(rawGroupId: String): String {
-        return MESSAGE_REDIRECT_GROUP_MAP.getOrDefault(rawGroupId, rawGroupId)
+        return effectiveRedirectMap.getOrDefault(rawGroupId, rawGroupId)
     }
 
     private suspend fun buildMessageContext(

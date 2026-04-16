@@ -68,6 +68,13 @@ onebot {
           desire = 15
         }
       }
+      # 可选：按机器人维度覆盖全局 groups 配置
+      # 未指定的字段回退到全局 groups 配置；message-redirect-map 与全局合并，本机器人配置优先
+      # groups-override = {
+      #   enable-groups = [123456789]          # 覆盖：此机器人仅响应这些群
+      #   debug-group-id = null                # 覆盖：此机器人的调试群（null 则用全局）
+      #   message-redirect-map = {}            # 合并：与全局 map 合并，本级优先
+      # }
     }
   }
 }

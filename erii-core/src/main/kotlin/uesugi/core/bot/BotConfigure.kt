@@ -42,7 +42,7 @@ fun configureConnectBots() {
                 if (bot != null) {
                     BotManage.registerBot(key, bot, role)
                     // 为每个 bot 创建独立的监听器实例
-                    val listener = MessageListener(bot.id.toString(), role.name)
+                    val listener = MessageListener(bot.id.toString(), role.name, key)
                     bot.globalEventChannel()
                         .exceptionHandler { LOG.error("Bot $key exception: {}", it.message) }
                         .registerListenerHost(listener)

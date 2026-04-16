@@ -12,13 +12,23 @@ data class GroupConfig(
 )
 
 /**
+ * Bot 维度的群组配置覆盖（可选），未指定字段时回退到全局 groups 配置
+ */
+data class BotGroupsOverride(
+    val enableGroups: List<String>? = null,
+    val debugGroupId: String? = null,
+    val messageRedirectMap: Map<String, String>? = null
+)
+
+/**
  * Bot 配置数据类
  */
 data class BotConfig(
     val ws: String,
     val token: String,
     val roleId: String,
-    val groups: Map<String, GroupConfig> = emptyMap()
+    val groups: Map<String, GroupConfig> = emptyMap(),
+    val groupsOverride: BotGroupsOverride? = null
 )
 
 /**
@@ -61,6 +71,11 @@ interface ConfigProvider {
     fun getDebugGroupId(): String?
     fun getEnableGroups(): List<String>
     fun getMessageRedirectMap(): Map<String, String>
+
+    // ===== 群组（Bot 维度有效值，含覆盖逻辑）=====
+    fun getEffectiveEnableGroups(botKey: String): List<String>
+    fun getEffectiveDebugGroupId(botKey: String): String?
+    fun getEffectiveMessageRedirectMap(botKey: String): Map<String, String>
 
     // ===== 插件配置 =====
     fun getPluginConfig(pluginClass: KClass<*>, pluginName: String): Config
@@ -113,6 +128,12 @@ object ConfigHolder {
     fun getDebugGroupId(): String? = provider.getDebugGroupId()
     fun getEnableGroups(): List<String> = provider.getEnableGroups()
     fun getMessageRedirectMap(): Map<String, String> = provider.getMessageRedirectMap()
+
+    // ===== 群组（Bot 维度有效值）=====
+    fun getEffectiveEnableGroups(botKey: String): List<String> = provider.getEffectiveEnableGroups(botKey)
+    fun getEffectiveDebugGroupId(botKey: String): String? = provider.getEffectiveDebugGroupId(botKey)
+    fun getEffectiveMessageRedirectMap(botKey: String): Map<String, String> =
+        provider.getEffectiveMessageRedirectMap(botKey)
 
     // ===== 插件配置 =====
     fun getPluginConfig(pluginClass: KClass<*>, pluginName: String): Config =

@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.common.BotManage
-import uesugi.common.ENABLE_GROUPS
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import kotlin.time.ExperimentalTime
 
@@ -24,8 +24,9 @@ class FlowJob(
     private val mutex = Mutex()
 
     fun openTimingTriggerSignal() {
-        for (group in ENABLE_GROUPS) {
-            for (bot in BotManage.getAllBotIds()) {
+        for (bot in BotManage.getAllBotIds()) {
+            val configKey = BotManage.getConfigKey(bot)
+            for (group in ConfigHolder.getEffectiveEnableGroups(configKey)) {
                 log.info("init flow for bot $bot in group $group")
                 ensureFlowGaugeExists(bot, group)
             }
