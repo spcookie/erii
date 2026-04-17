@@ -30,7 +30,9 @@ data class BotConfig(
     val groups: Map<String, GroupConfig> = emptyMap(),
     val groupsOverride: BotGroupsOverride? = null,
     val enabledPlugins: List<String>? = null,
-    val disabledPlugins: List<String>? = null
+    val disabledPlugins: List<String>? = null,
+    val serverHost: String? = null,
+    val externalHost: String? = null
 )
 
 /**

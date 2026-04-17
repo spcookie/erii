@@ -4,8 +4,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
+import uesugi.common.BotManage
 import uesugi.common.toolkit.BrowserScraper
 import uesugi.common.toolkit.BrowserScraperHolder
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.plugin.animal.service.AnimalService
 import uesugi.plugin.animal.service.DailyTaskService
 import uesugi.plugin.animal.store.AnimalStore
@@ -28,20 +30,12 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
     private lateinit var htmlRenderer: AnimalHtmlRenderer
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // 插件服务器配置
+    // 插件服务器配置（默认 fallback，bot 级别优先从 onebot.bots.<key>.server-host 读取）
     private val serverPort = 8888
-    private var serverHost = "hostmachine"
+    private val serverBasePath = "/plugin/animal"
 
     override fun onLoad(context: PluginContext) {
         this.context = context
-
-        // 尝试从配置读取 server host（如果插件配置中有的话）
-        runCatching {
-            val config = context.config()
-            serverHost = runCatching {
-                config.getString("browser.host")
-            }.getOrNull() ?: serverHost
-        }
 
         // 初始化存储
         store = AnimalStore(context.kv)
@@ -67,14 +61,13 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
     }
 
     private fun registerTools() {
-        val serverUrl = "http://${serverHost}:${serverPort}/plugin/animal"
-
         context.tool {
             {
                 AnimalToolSet(
                     store,
                     service,
-                    serverUrl,
+                    serverPort,
+                    serverBasePath,
                 )
             }
         }
@@ -86,12 +79,15 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
                 val senderId = meta.senderId ?: return@chain
                 val groupId = meta.groupId
                 val senderIdLong = senderId.toLong()
-                val serverUrl = "http://${serverHost}:${serverPort}${server.basePath}"
+                val configKey = BotManage.getConfigKey(meta.botId)
+                val botConfig = ConfigHolder.getOnebotBots()[configKey]
+                val cmdServerHost = botConfig?.serverHost ?: "hostmachine"
+                val cmdExternalHost = botConfig?.externalHost ?: cmdServerHost
 
                 val takeScreenshotCallback: (String) -> ByteArray? = { url ->
                     runCatching {
                         BrowserScraperHolder.getInstance().takeFullScreenshot(
-                            url = url,
+                            url = url.replace("http://${cmdExternalHost}", "http://${cmdServerHost}"),
                             width = 1200,
                             quality = 85,
                             type = BrowserScraper.ScreenshotType.JPEG
@@ -118,7 +114,7 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
                             }
                         }
                     },
-                    serverUrl = serverUrl,
+                    serverUrl = "http://${cmdExternalHost}:${serverPort}${server.basePath}",
                     takeScreenshot = takeScreenshotCallback
                 )
 

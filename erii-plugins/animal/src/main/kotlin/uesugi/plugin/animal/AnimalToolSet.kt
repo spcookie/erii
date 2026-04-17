@@ -6,7 +6,9 @@ import com.github.ajalt.clikt.core.main
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
+import uesugi.common.BotManage
 import uesugi.common.toolkit.BrowserScraperHolder
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.plugin.animal.service.AnimalService
 import uesugi.plugin.animal.store.AnimalStore
 import uesugi.spi.MetaToolSet
@@ -15,7 +17,8 @@ import uesugi.spi.getGroup
 class AnimalToolSet(
     private val store: AnimalStore,
     private val service: AnimalService,
-    private val serverUrl: String,
+    private val serverPort: Int,
+    private val serverBasePath: String,
 ) : MetaToolSet {
 
     private val log = KotlinLogging.logger {}
@@ -23,6 +26,12 @@ class AnimalToolSet(
     private fun createAnimalContext(): AnimalContext {
         val userId = MetaToolSet.meta.senderId?.toLongOrNull() ?: 0L
         val senderNick = MetaToolSet.meta.senderId ?: "User"
+        val botId = MetaToolSet.meta.botId
+        val configKey = BotManage.getConfigKey(botId)
+        val botConfig = ConfigHolder.getOnebotBots()[configKey]
+        // 内网 host 用于 Playwright，外网 host 用于 JSON 访问
+        val serverHost = botConfig?.serverHost ?: "hostmachine"
+        val externalHost = botConfig?.externalHost ?: serverHost
 
         return AnimalContext(
             store = store,
@@ -43,10 +52,12 @@ class AnimalToolSet(
                     }
                 }
             },
-            serverUrl = serverUrl,
+            serverUrl = "http://${externalHost}:${serverPort}${serverBasePath}",
             takeScreenshot = { url ->
+                // 外网 URL 替换为内网 host 给 Playwright 截图
+                val playwrightUrl = url.replace("http://${externalHost}", "http://${serverHost}")
                 BrowserScraperHolder.getInstance().takeFullScreenshot(
-                    url = url,
+                    url = playwrightUrl,
                     width = 1200,
                     quality = 85
                 )
