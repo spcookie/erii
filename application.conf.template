@@ -37,13 +37,13 @@ embedding {
   provider = "bytedance"
 }
 
-# Search 配置（用于 QA 插件）
+# Search 配置
 search {
   api-key = ${?SEARCH_API_KEY}
   provider = "exa"
 }
 
-# Browser 相关配置（用于网页截图/Markdown 抓取）
+# Browser 相关配置
 browser {
   playwright-host = ${?PLAYWRIGHT_HOST}
   status-host = ${?STATUS_HOST}
