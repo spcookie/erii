@@ -42,8 +42,7 @@ class LLMFactory {
                             apiKey = googleApiKey,
                             baseClient = getBaseClient(isDebug),
                             settings = GoogleClientSettings(
-                                baseUrl = googleBaseUrl.takeIf { it.isNotBlank() }
-                                    ?: "https://generativelanguage.googleapis.com"
+                                baseUrl = googleBaseUrl
                             )
                         ),
                         config = RetryConfig.CONSERVATIVE
