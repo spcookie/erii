@@ -13,6 +13,7 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMProvider
 import io.ktor.client.*
 import io.ktor.client.engine.*
+import io.ktor.client.plugins.logging.*
 import uesugi.common.LLMModelsChoice
 import uesugi.common.toolkit.ConfigHolder
 import kotlin.time.ExperimentalTime
@@ -28,6 +29,10 @@ class LLMFactory {
         val minimaxApiKey = ConfigHolder.getLlmMinimaxApiKey()
         val minimaxBaseUrl = ConfigHolder.getLlmMinimaxBaseUrl()
 
+        val isDebug = System.getProperty("llm.request.debug")?.toBoolean()
+            ?: System.getenv("LLM_REQUEST_DEBUG")?.toBoolean()
+            ?: false
+
         val llmClients = buildMap {
             if (googleApiKey.isNotBlank()) {
                 put(
@@ -35,18 +40,7 @@ class LLMFactory {
                     RetryingLLMClient(
                         delegate = GoogleLLMClient(
                             apiKey = googleApiKey,
-                            baseClient = HttpClient {
-                                engine {
-                                    val httpProxy = ConfigHolder.getProxyHttp()
-                                    if (httpProxy != null) {
-                                        proxy = ProxyBuilder.http(httpProxy)
-                                    }
-//                                    install(Logging) {
-//                                        logger = Logger.DEFAULT
-//                                        level = LogLevel.ALL
-//                                    }
-                                }
-                            },
+                            baseClient = getBaseClient(isDebug),
                             settings = GoogleClientSettings(
                                 baseUrl = googleBaseUrl.takeIf { it.isNotBlank() }
                                     ?: "https://generativelanguage.googleapis.com"
@@ -63,7 +57,8 @@ class LLMFactory {
                             apiKey = deepSeekApiKey,
                             settings = DeepSeekClientSettings(
                                 baseUrl = deepSeekBaseUrl
-                            )
+                            ),
+                            baseClient = getBaseClient(isDebug),
                         ),
                         config = RetryConfig.CONSERVATIVE
                     )
@@ -74,14 +69,7 @@ class LLMFactory {
                     LLMProvider.Anthropic,
                     RetryingLLMClient(
                         delegate = AnthropicLLMClient(
-                            baseClient = HttpClient {
-                                engine {
-//                                    install(io.ktor.client.plugins.logging.Logging) {
-//                                        logger = io.ktor.client.plugins.logging.Logger.DEFAULT
-//                                        level = io.ktor.client.plugins.logging.LogLevel.ALL
-//                                    }
-                                }
-                            },
+                            baseClient = getBaseClient(isDebug),
                             apiKey = minimaxApiKey,
                             settings = AnthropicClientSettings(
                                 modelVersionsMap = mapOf(
@@ -99,6 +87,21 @@ class LLMFactory {
 
 
         return MultiLLMPromptExecutor(llmClients)
+    }
+
+    fun getBaseClient(isDebug: Boolean): HttpClient = HttpClient {
+        engine {
+            val httpProxy = ConfigHolder.getProxyHttp()
+            if (httpProxy != null) {
+                proxy = ProxyBuilder.http(httpProxy)
+            }
+            if (isDebug) {
+                install(Logging) {
+                    logger = Logger.DEFAULT
+                    level = LogLevel.ALL
+                }
+            }
+        }
     }
 
 }
