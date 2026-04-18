@@ -390,31 +390,4 @@ class MemoryRepository {
 
         if (userId != null) query.filter { it.userId == userId }.map { it.toRecord() } else query.map { it.toRecord() }
     }
-
-    /**
-     * 保存对话摘要
-     */
-    fun saveSummary(
-        botMark: String,
-        groupId: String,
-        timeRange: String,
-        content: String,
-        keyPoints: String,
-        emotionalTone: String?,
-        participantCount: Int,
-        messageCount: Int
-    ) {
-        transaction {
-            SummaryEntity.new {
-                this.botMark = botMark
-                this.groupId = groupId
-                this.timeRange = timeRange
-                this.content = content
-                this.keyPoints = keyPoints
-                this.emotionalTone = emotionalTone
-                this.participantCount = participantCount
-                this.messageCount = messageCount
-            }
-        }
-    }
 }

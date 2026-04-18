@@ -15,8 +15,8 @@ import uesugi.common.toolkit.DateTimeFormat
 import uesugi.core.rule.Rule
 import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.memory.FactsEntity
-import uesugi.core.state.memory.SummaryEntity
 import uesugi.core.state.memory.UserProfileEntity
+import uesugi.core.state.summary.SummaryEntity
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 

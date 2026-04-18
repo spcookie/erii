@@ -8,6 +8,8 @@ import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.toolkit.logger
+import uesugi.core.state.summary.SummaryEntity
+import uesugi.core.state.summary.SummaryTable
 
 /**
  * 记忆服务 - 负责记忆处理的业务逻辑
@@ -76,11 +78,6 @@ class MemoryService(
                 launch {
                     organizeFacts(botMark, groupId, messages)
                 }
-
-                // 4.3 对话摘要生成
-                launch {
-                    processSummary(botMark, groupId, messages)
-                }
             }
 
             // 5. 更新记忆处理状态
@@ -142,39 +139,6 @@ class MemoryService(
             log.error("Failed to process user portrait, groupId=$groupId, userId=$userId", e)
         }
     }
-
-    /**
-     * 处理对话摘要
-     */
-    private suspend fun processSummary(
-        botMark: String,
-        groupId: String,
-        messages: List<MemoryAgent.MemoryMessage>
-    ) {
-        try {
-            log.debug("开始生成对话摘要, scopeId=$groupId")
-
-            val summary = memoryAgent.generateSummary(messages, groupId)
-
-            // 保存到数据库
-            memoryRepository.saveSummary(
-                botMark = botMark,
-                groupId = groupId,
-                timeRange = summary.timeRange,
-                content = summary.content,
-                keyPoints = summary.keyPoints.joinToString("\n"),
-                emotionalTone = summary.emotionalTone,
-                participantCount = summary.participantIds.distinct().size,
-                messageCount = summary.messageCount
-            )
-            log.info("Conversation summary analysis completed, botId=$botMark, groupId=$groupId")
-
-        } catch (e: Exception) {
-            log.error("Failed to generate conversation summary, groupId=$groupId", e)
-        }
-    }
-
-    // ====== 原有查询方法 ======
 
     fun getFacts(
         botMark: String,

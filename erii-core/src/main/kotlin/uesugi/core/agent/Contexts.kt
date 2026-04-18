@@ -23,8 +23,8 @@ import uesugi.core.state.meme.MemeData.MemeResource
 import uesugi.core.state.meme.MemoService
 import uesugi.core.state.memory.FactsEntity
 import uesugi.core.state.memory.MemoryService
-import uesugi.core.state.memory.SummaryEntity
 import uesugi.core.state.memory.UserProfileEntity
+import uesugi.core.state.summary.SummaryEntity
 import uesugi.core.state.volition.VolitionGaugeManager
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours

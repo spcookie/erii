@@ -24,6 +24,8 @@ import uesugi.core.state.meme.MemeJob
 import uesugi.core.state.meme.memeModule
 import uesugi.core.state.memory.MemoryJob
 import uesugi.core.state.memory.memoryModule
+import uesugi.core.state.summary.SummaryJob
+import uesugi.core.state.summary.summaryModule
 import uesugi.core.state.volition.VolitionJob
 import uesugi.core.state.volition.volitionModule
 import javax.sql.DataSource
@@ -32,6 +34,7 @@ fun Application.warmUp() {
     monitor.subscribe(ApplicationStarted) {
         it.get<EmotionJob>().apply { openTimingTriggerSignal() }
         it.get<MemoryJob>().apply { openTimingTriggerSignal() }
+        it.get<SummaryJob>().apply { openTimingTriggerSignal() }
         it.get<VolitionJob>().apply { openTimingTriggerSignal() }
         it.get<EvolutionJob>().apply { openTimingTriggerSignal() }
         it.get<FlowJob>().apply { openTimingTriggerSignal() }
@@ -87,5 +90,6 @@ val appModule = module {
     includes(flowModule)
     includes(memeModule)
     includes(memoryModule)
+    includes(summaryModule)
     includes(volitionModule)
 }

@@ -1,20 +1,21 @@
-package uesugi.core.state.memory
+package uesugi.core.state.summary
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.toolkit.logger
+import uesugi.core.state.memory.MemoryRepository
 
 /**
- * 记忆任务 - 定时调度记忆处理
+ * 摘要任务 - 定时调度对话摘要生成
  *
- * 仅负责调度和组合逻辑，业务逻辑封装在 MemoryService 中
+ * 独立的定时任务，负责生成群组对话摘要（历史压缩）
  */
-class MemoryJob(
+class SummaryJob(
     val jobScheduler: JobScheduler,
     private val memoryRepository: MemoryRepository,
-    private val memoryService: MemoryService
+    private val summaryService: SummaryService
 ) {
 
     companion object {
@@ -25,60 +26,59 @@ class MemoryJob(
 
     /**
      * 开启定时触发
-     * 每 5 分钟执行一次记忆处理
+     * 每 30 分钟执行一次摘要生成
      */
     fun openTimingTriggerSignal() {
         jobScheduler.scheduleRecurrently(
-            "memory-job",
-            "0,30 * * * *",  // 每小时的 0 和 30 分
-            ::doMemoryProcessing
+            "summary-job",
+            "*/5 * * * *",  // 每 5 分钟
+            ::doSummaryProcessing
         )
-        log.info("Memory task timer started, execution cycle: every 30 minutes")
+        log.info("Summary task timer started, execution cycle: every 5 minutes")
     }
 
     /**
-     * 执行记忆处理
-     * 调度逻辑：遍历所有机器人和群组，调用 Service 处理
-     * 支持群组并发处理
+     * 执行摘要处理
+     * 调度逻辑：遍历所有机器人和群组，调用 Service 生成摘要
      */
-    fun doMemoryProcessing() {
+    fun doSummaryProcessing() {
         runBlocking {
             if (mutex.tryLock()) {
                 try {
-                    log.debug("记忆任务开始执行")
+                    log.debug("摘要任务开始执行")
 
                     for (currentBotId in BotManage.getAllBotIds()) {
-                        log.debug("开始处理机器人 $currentBotId 的记忆")
+                        log.debug("开始为机器人 $currentBotId 生成摘要")
 
                         // 查找需要处理的群组
                         val groups = withContext(Dispatchers.IO) {
                             memoryRepository.findGroupsNeedProcessing(currentBotId)
                         }
 
-                        log.debug("记忆任务发现 ${groups.size} 个群组需要处理")
+                        log.debug("摘要任务发现 ${groups.size} 个群组需要处理")
 
                         // 使用 coroutineScope 并发处理各群组
                         coroutineScope {
                             for (groupId in groups) {
                                 launch(Dispatchers.IO) {
                                     try {
-                                        memoryService.processGroupMemory(currentBotId, groupId)
+                                        summaryService.processSummaryForGroup(currentBotId, groupId)
                                     } catch (e: Exception) {
-                                        log.error("处理群组 $groupId 记忆失败", e)
+                                        log.error("为群组 $groupId 生成摘要失败", e)
                                     }
                                 }
                             }
                         }
                     }
 
-                    log.debug("记忆任务执行完成")
+                    log.debug("摘要任务执行完成")
                 } catch (e: Exception) {
-                    log.error("记忆任务执行失败", e)
+                    log.error("摘要任务执行失败", e)
                 } finally {
                     mutex.unlock()
                 }
             } else {
-                log.debug("记忆任务正在执行中, 跳过本次调度")
+                log.debug("摘要任务正在执行中, 跳过本次调度")
             }
         }
     }

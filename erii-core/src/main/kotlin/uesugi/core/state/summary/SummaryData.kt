@@ -1,4 +1,4 @@
-package uesugi.core.state.memory
+package uesugi.core.state.summary
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable

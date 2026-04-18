@@ -13,8 +13,8 @@ import uesugi.core.state.meme.MemeData.MemeScanStateTable
 import uesugi.core.state.meme.MemeData.MemeTable
 import uesugi.core.state.memory.FactsTable
 import uesugi.core.state.memory.MemoryStateTable
-import uesugi.core.state.memory.SummaryTable
 import uesugi.core.state.memory.UserProfileTable
+import uesugi.core.state.summary.SummaryTable
 import uesugi.core.state.volition.VolitionStateTable
 
 fun migration(database: Database) {
