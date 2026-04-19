@@ -15,34 +15,56 @@ data class CmdRouteRule(override val name: String) : RouteRule
 
 object RouteRuleRegister {
 
-    private val rules = mutableMapOf<String, LLMRouteRule>()
+    // 全局注册表: ruleName -> (pluginId, rule)
+    private val rules = mutableMapOf<String, Pair<String, LLMRouteRule>>()
 
-    fun addRule(name: String, description: String) {
-        rules[name] = LLMRouteRule(name, description)
+    fun addRule(name: String, description: String, pluginId: String) {
+        rules[name] = pluginId to LLMRouteRule(name, description)
     }
 
     fun getRule(name: String): LLMRouteRule? {
-        return rules[name]
+        return rules[name]?.second
     }
 
     fun getAllRules(): List<LLMRouteRule> {
-        return rules.values.toList()
+        return rules.values.map { it.second }.toList()
+    }
+
+    fun getRulesForBot(botId: String): List<LLMRouteRule> {
+        val configKey = BotManage.getConfigKey(botId)
+        return rules.filterValues { (pId, _) ->
+            ConfigHolder.isPluginEnabled(configKey, pId)
+        }.values.map { it.second }.toList()
     }
 }
 
 object CmdRuleRegister {
-    private val parsers = mutableMapOf<String, CmdRouteRule>()
+    // 全局注册表: cmdName -> (pluginId, rule)
+    private val parsers = mutableMapOf<String, Pair<String, CmdRouteRule>>()
 
-    fun addRule(name: String) {
-        parsers[name] = CmdRouteRule(name)
+    fun addRule(name: String, pluginId: String) {
+        parsers[name] = pluginId to CmdRouteRule(name)
     }
 
     fun getRule(name: String): CmdRouteRule? {
-        return parsers[name]
+        return parsers[name]?.second
+    }
+
+    fun getRuleForBot(name: String, botId: String): CmdRouteRule? {
+        val (pluginId, rule) = parsers[name] ?: return null
+        val configKey = BotManage.getConfigKey(botId)
+        return if (ConfigHolder.isPluginEnabled(configKey, pluginId)) rule else null
     }
 
     fun getAllRules(): List<CmdRouteRule> {
-        return parsers.values.toList()
+        return parsers.values.map { it.second }.toList()
+    }
+
+    fun getRulesForBot(botId: String): List<CmdRouteRule> {
+        val configKey = BotManage.getConfigKey(botId)
+        return parsers.filterValues { (pId, _) ->
+            ConfigHolder.isPluginEnabled(configKey, pId)
+        }.values.map { it.second }.toList()
     }
 }
 

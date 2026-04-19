@@ -229,7 +229,7 @@ class GroupMessageEventListener(
         } else if (isCommand(parsed.content)) {
             val command = parseCommand(parsed.content)!!
             log.info("Robot receives the command $command")
-            val cmd = CmdRuleRegister.getRule(command)
+            val cmd = CmdRuleRegister.getRuleForBot(command, context.botId)
             if (cmd == null) {
                 log.warn("Unknown command $command, skip processing")
             } else {

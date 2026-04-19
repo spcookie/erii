@@ -346,6 +346,10 @@ class ConfigHolderImpl : ConfigProvider {
         getOnebotBots()[botKey]?.disabledPlugins
 
     override fun isPluginEnabled(botKey: String, pluginName: String): Boolean {
+        // builtin 插件始终启用，忽略 disabled 配置
+        if (pluginName.startsWith("builtin_", ignoreCase = true)) {
+            return true
+        }
         val enabled = getEnabledPlugins(botKey)
         val disabled = getDisabledPlugins(botKey) ?: emptyList()
         val matchShort = { short: String -> pluginName == short || pluginName.endsWith("_$short") }

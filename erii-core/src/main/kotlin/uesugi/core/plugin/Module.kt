@@ -68,17 +68,18 @@ fun pluginModule() = module(createdAtStart = true) {
 
     LOG.info("Loaded ${extensions.size} extensions")
 
-    extensions.filterIsInstance<RouteExtension<*>>()
-        .forEach { plugin ->
-            val (name, description) = plugin.matcher
-            RouteRuleRegister.addRule(name, description)
-        }
-
-    extensions.filterIsInstance<CmdExtension<*, *, *>>()
-        .forEach { plugin ->
-            val cmdName = plugin.cmd
-            CmdRuleRegister.addRule(cmdName)
-        }
+    ExtensionRegister.getAllPlugins().forEach { (pluginId, extensions) ->
+        extensions.filterIsInstance<RouteExtension<*>>()
+            .forEach { plugin ->
+                val (name, description) = plugin.matcher
+                RouteRuleRegister.addRule(name, description, pluginId)
+            }
+        extensions.filterIsInstance<CmdExtension<*, *, *>>()
+            .forEach { plugin ->
+                val cmdName = plugin.cmd
+                CmdRuleRegister.addRule(cmdName, pluginId)
+            }
+    }
 
     val database = DatabaseImpl()
 

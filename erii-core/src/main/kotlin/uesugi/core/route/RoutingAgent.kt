@@ -37,7 +37,7 @@ object RoutingAgent {
                     table(
                         headers = listOf("规则名称", "规则描述"),
                         rows = buildList {
-                            for (rule in RouteRuleRegister.getAllRules()) {
+                            for (rule in RouteRuleRegister.getRulesForBot(botId)) {
                                 add(listOf(rule.name, rule.description))
                             }
                         }

@@ -5,7 +5,6 @@ import io.ktor.client.*
 import kotlinx.coroutines.*
 import uesugi.common.BotManage
 import uesugi.common.EventBus
-import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
@@ -54,9 +53,6 @@ class PluginContextImpl(
     override fun open() {
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             scope.launch {
-                val botConfigKey = BotManage.getConfigKey(event.botId)
-                if (!ConfigHolder.isPluginEnabled(botConfigKey, defined.name)) return@launch
-
                 for (rk in defined.routeKeys) {
                     if (event hit rk.key) {
                         val meta = MetaImpl(
