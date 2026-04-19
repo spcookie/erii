@@ -2,7 +2,7 @@
 
 ![Erii](https://socialify.git.ci/spcookie/Erii/image?custom_description=An+AI+group+chat+robot+with+emotions%2C+memory%2C+flow%2C+and+proactive+behavior&custom_language=Kotlin&description=1&font=Source+Code+Pro&forks=1&issues=1&language=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fspcookie%2FErii%2F626e8833ae51f8ead0b2f41be237c4c2fb761577%2Fdoc%2Fassets%2FLOGO.svg&name=1&owner=1&pattern=Circuit+Board&pulls=1&stargazers=1&theme=Auto)
 
-[繁體中文](./README_zh-TW.md) | [English](../README.md) | [中文](./README_zh.md) | [한국어](./README_ko.md)
+繁體中文 | [English](../README.md) | [中文](./README_zh.md) | [한국어](./README_ko.md)
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Ktor](https://img.shields.io/badge/Ktor-2.3+-087CFA?style=for-the-badge&logo=ktor&logoColor=white)](https://ktor.io/)
