@@ -14,6 +14,8 @@ import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.component.storage.VectorStore
 import uesugi.core.message.messageModule
+import uesugi.core.reminder.ReminderService
+import uesugi.core.reminder.reminderModule
 import uesugi.core.state.emotion.EmotionJob
 import uesugi.core.state.emotion.emotionModule
 import uesugi.core.state.evolution.EvolutionJob
@@ -32,13 +34,14 @@ import javax.sql.DataSource
 
 fun Application.warmUp() {
     monitor.subscribe(ApplicationStarted) {
-        it.get<EmotionJob>().apply { openTimingTriggerSignal() }
-        it.get<MemoryJob>().apply { openTimingTriggerSignal() }
-        it.get<SummaryJob>().apply { openTimingTriggerSignal() }
-        it.get<VolitionJob>().apply { openTimingTriggerSignal() }
-        it.get<EvolutionJob>().apply { openTimingTriggerSignal() }
-        it.get<FlowJob>().apply { openTimingTriggerSignal() }
-        it.get<MemeJob>().apply { openTimingTriggerSignal() }
+        it.get<EmotionJob>().openTimingTriggerSignal()
+        it.get<MemoryJob>().openTimingTriggerSignal()
+        it.get<SummaryJob>().openTimingTriggerSignal()
+        it.get<VolitionJob>().openTimingTriggerSignal()
+        it.get<EvolutionJob>().openTimingTriggerSignal()
+        it.get<FlowJob>().openTimingTriggerSignal()
+        it.get<MemeJob>().openTimingTriggerSignal()
+        it.get<ReminderService>().start()
     }
 }
 
@@ -92,4 +95,5 @@ val appModule = module {
     includes(memoryModule)
     includes(summaryModule)
     includes(volitionModule)
+    includes(reminderModule)
 }

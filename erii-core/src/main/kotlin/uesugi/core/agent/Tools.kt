@@ -6,12 +6,15 @@ import uesugi.common.BotManage
 import uesugi.common.ChatToolSet
 import uesugi.common.ProactiveSpeakEvent
 import uesugi.common.WebSearchTool
+import uesugi.common.toolkit.ref
+import uesugi.core.reminder.ReminderService
 
 data class ToolEnv(
     val chatToolSet: ChatToolSet,
     val webSearch: Boolean,
     val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)?,
-    val ruleToolSet: RuleToolSet?
+    val ruleToolSet: RuleToolSet?,
+    val reminderToolSet: ReminderToolSet?
 )
 
 context(env: ToolEnv)
@@ -35,10 +38,15 @@ fun ruleTools() =
     env.ruleToolSet?.asTools() ?: emptyList()
 
 context(env: ToolEnv)
+fun reminderTools() =
+    env.reminderToolSet?.asTools() ?: emptyList()
+
+context(env: ToolEnv)
 fun buildToolRegistry(): ToolRegistry =
     ToolRegistry {
         tools(baseTools())
         tools(ruleTools())
+        tools(reminderTools())
         tools(webTools())
         tools(extraTools())
     }
@@ -66,11 +74,23 @@ fun buildRuleToolSet(event: ProactiveSpeakEvent, context: Context): RuleToolSet?
     }
 }
 
+fun buildReminderToolSet(event: ProactiveSpeakEvent): ReminderToolSet {
+    val reminderService: ReminderService by ref()
+    return ReminderToolSet(
+        botId = event.botId,
+        groupId = event.groupId,
+        senderId = event.senderId,
+        store = reminderService.store,
+        wheel = reminderService.wheel
+    )
+}
+
 fun buildToolEnv(event: ProactiveSpeakEvent, context: Context): ToolEnv {
     return ToolEnv(
         buildChatToolSet(event, context),
         event.webSearch,
         event.toolSetBuilder,
-        buildRuleToolSet(event, context)
+        buildRuleToolSet(event, context),
+        buildReminderToolSet(event)
     )
 }

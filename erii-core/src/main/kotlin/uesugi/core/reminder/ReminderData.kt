@@ -1,4 +1,4 @@
-package uesugi.plugin
+package uesugi.core.reminder
 
 import kotlinx.serialization.Serializable
 
@@ -36,17 +36,12 @@ data class ReminderTask(
                 RepeatType.NONE -> task.triggerTime
                 RepeatType.DAILY -> {
                     var next = task.triggerTime
-                    while (next <= currentTime) {
-                        next += 24 * 60 * 60 * 1000L
-                    }
+                    while (next <= currentTime) next += 24 * 60 * 60 * 1000L
                     next
                 }
-
                 RepeatType.WEEKLY -> {
                     var next = task.triggerTime
-                    while (next <= currentTime) {
-                        next += 7 * 24 * 60 * 60 * 1000L
-                    }
+                    while (next <= currentTime) next += 7 * 24 * 60 * 60 * 1000L
                     next
                 }
             }
@@ -54,9 +49,6 @@ data class ReminderTask(
     }
 }
 
-data class BotGroupKey(
-    val botId: String,
-    val groupId: String
-) {
+data class BotGroupKey(val botId: String, val groupId: String) {
     override fun toString() = "$botId:$groupId"
 }
