@@ -298,10 +298,10 @@ BotAgent (消费事件，执行 AI Agent)
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=spcookie%2FErii&type=timeline&logscale=&legend=top-left">
+<a href="https://www.star-history.com/?repos=spcookie%2FErii&type=date&logscale=&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=spcookie/Erii&type=timeline&theme=dark&logscale&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=spcookie/Erii&type=timeline&logscale&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=spcookie/Erii&type=timeline&logscale&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=spcookie/Erii&type=date&theme=dark&logscale&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=spcookie/Erii&type=date&logscale&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=spcookie/Erii&type=date&logscale&legend=top-left" />
  </picture>
 </a>
