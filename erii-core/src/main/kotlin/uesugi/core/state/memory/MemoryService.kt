@@ -35,7 +35,7 @@ class MemoryService(
             val lastId = memoryState?.lastProcessedHistoryId ?: 0
 
             val histories = withContext(Dispatchers.IO) {
-                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, 200)
+                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, 400)
             }
 
             if (histories.isEmpty()) {
