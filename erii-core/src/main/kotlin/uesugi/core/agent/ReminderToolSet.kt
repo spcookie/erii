@@ -95,6 +95,10 @@ class ReminderToolSet(
         val existingTask = store.getTask(botId, groupId, reminderId)
             ?: return "未找到提醒 ID: $reminderId"
 
+        if (existingTask.senderId != null && existingTask.senderId != senderId) {
+            return "无权限修改该提醒，只有创建者才能修改"
+        }
+
         if (existingTask.status != ReminderStatus.ACTIVE) {
             return "该提醒已无法修改（状态：${existingTask.status}）"
         }
@@ -127,6 +131,10 @@ class ReminderToolSet(
     ): String {
         val existingTask = store.getTask(botId, groupId, reminderId)
             ?: return "未找到提醒 ID: $reminderId"
+
+        if (existingTask.senderId != null && existingTask.senderId != senderId) {
+            return "无权限删除该提醒，只有创建者才能删除"
+        }
 
         wheel.removeTask(existingTask)
 
