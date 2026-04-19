@@ -183,9 +183,10 @@ class GroupMessageEventListener(
                     }
 
                     is QuoteReply -> {
-                        appendLine("---QUOTE MESSAGE START---")
-                        append(singleMessage.source.originalMessage.content)
-                        appendLine("---QUOTE MESSAGE END---")
+                        appendLine("---REFERENCE MESSAGE START---")
+                        val content = singleMessage.source.originalMessage.content
+                        append(content.take(100) + if (content.length > 100) "..." else "")
+                        appendLine("---REFERENCE MESSAGE END---")
                     }
 
                     is MessageSource -> { /* 消息源，跳过 */
