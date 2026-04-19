@@ -3,6 +3,7 @@ package uesugi.core.agent
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
+import io.github.oshai.kotlinlogging.KotlinLogging
 import uesugi.core.rule.RuleManager
 import uesugi.core.rule.RuleMeta
 
@@ -16,6 +17,10 @@ class RuleToolSet(
     private val userId: String,
     private val admins: List<String>,
 ) : ToolSet {
+
+    companion object {
+        private val log = KotlinLogging.logger {}
+    }
 
     private fun isAdmin(): Boolean = userId in admins
 
@@ -99,6 +104,7 @@ class RuleToolSet(
         )
 
         RuleManager.saveRule(fileName, meta, content)
+        log.info { "Rule created: botId=$botId, groupId=$groupId, userId=$userId, fileName=$targetFileName" }
         return "规则创建成功: $targetFileName"
     }
 
@@ -130,6 +136,7 @@ class RuleToolSet(
         )
 
         RuleManager.saveRule(fileName, meta, newContent)
+        log.info { "Rule updated: botId=$botId, groupId=$groupId, userId=$userId, fileName=$targetFileName" }
         return "规则更新成功: $targetFileName"
     }
 
@@ -145,10 +152,11 @@ class RuleToolSet(
         }
 
         val deleted = RuleManager.deleteRule(fileName, botId, groupId)
-        return if (deleted) {
-            "规则删除成功: $fileName"
+        if (deleted) {
+            log.info { "Rule deleted: botId=$botId, groupId=$groupId, userId=$userId, fileName=$fileName" }
+            return "规则删除成功: $fileName"
         } else {
-            "删除失败：规则不存在或无法删除（可能是内置规则）"
+            return "删除失败：规则不存在或无法删除（可能是内置规则）"
         }
     }
 }
