@@ -317,18 +317,14 @@ class MemoryRepository {
         botMark: String,
         groupId: String,
         keyword: String,
-        scopeType: MemoryAgent.MemoryScopes
+        scopeType: Scopes
     ): FactsRecord? {
-        val scope = when (scopeType) {
-            MemoryAgent.MemoryScopes.USER -> Scopes.USER
-            MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
-        }
         return transaction {
             FactsEntity.find {
                 (FactsTable.botMark eq botMark) and
                         (FactsTable.groupId eq groupId) and
                         (FactsTable.keyword eq keyword) and
-                        (FactsTable.scopeType eq scope) and
+                        (FactsTable.scopeType eq scopeType) and
                         (FactsTable.validTo.isNull())
             }.orderBy(FactsTable.createdAt to SortOrder.DESC)
                 .firstOrNull()
@@ -344,19 +340,15 @@ class MemoryRepository {
         groupId: String,
         keyword: String,
         subjects: String,
-        scopeType: MemoryAgent.MemoryScopes
+        scopeType: Scopes
     ): FactsRecord? {
-        val scope = when (scopeType) {
-            MemoryAgent.MemoryScopes.USER -> Scopes.USER
-            MemoryAgent.MemoryScopes.GROUP -> Scopes.GROUP
-        }
         return transaction {
             FactsEntity.find {
                 (FactsTable.botMark eq botMark) and
                         (FactsTable.groupId eq groupId) and
                         (FactsTable.keyword eq keyword) and
                         (FactsTable.subjects eq subjects) and
-                        (FactsTable.scopeType eq scope) and
+                        (FactsTable.scopeType eq scopeType) and
                         (FactsTable.validTo.isNull())
             }.firstOrNull()
                 ?.toRecord()

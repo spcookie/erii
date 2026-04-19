@@ -2,7 +2,12 @@ package uesugi.core.state.memory
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import kotlinx.datetime.LocalDateTime
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
 import org.jetbrains.exposed.v1.dao.IntEntity
@@ -39,12 +44,29 @@ object FactsTable : IntIdTable("memory_facts") {
 /**
  * 记忆作用范围枚举
  */
+@Serializable(with = ScopesSerializer::class)
 enum class Scopes {
     @LLMDescription("个人属性 USER")
     USER,
 
     @LLMDescription("群组共识 GROUP")
     GROUP
+}
+
+object ScopesSerializer : KSerializer<Scopes> {
+    override val descriptor = PrimitiveSerialDescriptor("Scopes", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): Scopes {
+        return when (decoder.decodeString().lowercase()) {
+            "user" -> Scopes.USER
+            "group" -> Scopes.GROUP
+            else -> throw IllegalArgumentException("Unknown scope: ${decoder.decodeString()}")
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: Scopes) {
+        encoder.encodeString(value.name.lowercase())
+    }
 }
 
 /**
