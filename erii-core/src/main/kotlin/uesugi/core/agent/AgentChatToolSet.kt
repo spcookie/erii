@@ -22,36 +22,38 @@ class QQChatToolSet(
 ) : ChatToolSet {
 
     companion object {
-        private val AT_PATTERN = Regex("""@(\d+)""")
+        private val NUMBER_PATTERN = Regex("""(?<!\d)(\d{4,})(?!\d)""")
     }
 
     override suspend fun sendText(text: String): String {
         try {
-            val matches = AT_PATTERN.findAll(text).toList()
+            val group = bot.getGroupOrFail(groupId)
+            val memberIds = group.members.map { it.id }.toSet()
+
+            val matches = NUMBER_PATTERN.findAll(text).toList()
 
             if (matches.isEmpty()) {
-                // 没有 @ 标记，直接发送纯文本
-                bot.getGroupOrFail(groupId).sendMessage(text)
+                group.sendMessage(text)
             } else {
-                // 构建包含 At 消息段的 MessageChain
                 val messageChain = buildMessageChain {
                     var lastEnd = 0
                     for (match in matches) {
-                        // 添加 @ 之前的文本
                         if (match.range.first > lastEnd) {
                             +PlainText(text.substring(lastEnd, match.range.first))
                         }
-                        // 添加 At 消息段
                         val userId = match.groupValues[1].toLong()
-                        +At(userId)
+                        if (userId in memberIds) {
+                            +At(userId)
+                        } else {
+                            +PlainText(userId.toString())
+                        }
                         lastEnd = match.range.last + 1
                     }
-                    // 添加最后一个 @ 之后的文本
                     if (lastEnd < text.length) {
                         +PlainText(text.substring(lastEnd))
                     }
                 }
-                bot.getGroupOrFail(groupId).sendMessage(messageChain)
+                group.sendMessage(messageChain)
             }
         } catch (e: Exception) {
             return "消息发送失败，原因：" + e.message
