@@ -198,7 +198,7 @@ object BotAgent {
                                     "(._.)"
                                 )
                                 log.info("LLM no call tool: {}", emoticon)
-                                buildChatToolSet(event, context).sendText(emoticon.random())
+                                buildChatToolSet(event, context).sendText(listOf(emoticon.random()))
                             }
 
                             val newEvent = MessageAwaiter(context)

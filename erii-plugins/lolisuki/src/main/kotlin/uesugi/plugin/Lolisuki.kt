@@ -250,10 +250,10 @@ class LolisukiExtension : RouteExtension<Lolisuki> {
             scope.launch {
                 for ((i, v) in sentences.withIndex()) {
                     if (i == 0) {
-                        chatToolSet.sendText(v)
+                        chatToolSet.sendText(listOf(v))
                     } else {
                         delay(calcHumanTypingDelay(v))
-                        chatToolSet.sendText(v)
+                        chatToolSet.sendText(listOf(v))
                     }
                 }
                 image?.use {

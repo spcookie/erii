@@ -7,7 +7,7 @@ import ai.koog.agents.core.tools.reflect.ToolSet
 interface ChatToolSet : ToolSet {
     @Tool
     @LLMDescription("发送文本消息")
-    suspend fun sendText(@LLMDescription("文本消息") text: String): String
+    suspend fun sendText(@LLMDescription("分段文本消息") texts: List<String>): String
 
     @Tool
     @LLMDescription("发送表情包消息")

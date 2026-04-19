@@ -25,35 +25,37 @@ class QQChatToolSet(
         private val NUMBER_PATTERN = Regex("""(?<!\d)(\d{4,})(?!\d)""")
     }
 
-    override suspend fun sendText(text: String): String {
+    override suspend fun sendText(texts: List<String>): String {
         try {
-            val group = bot.getGroupOrFail(groupId)
-            val memberIds = group.members.map { it.id }.toSet()
+            for (text in texts) {
+                val group = bot.getGroupOrFail(groupId)
+                val memberIds = group.members.map { it.id }.toSet()
 
-            val matches = NUMBER_PATTERN.findAll(text).toList()
+                val matches = NUMBER_PATTERN.findAll(text).toList()
 
-            if (matches.isEmpty()) {
-                group.sendMessage(text)
-            } else {
-                val messageChain = buildMessageChain {
-                    var lastEnd = 0
-                    for (match in matches) {
-                        if (match.range.first > lastEnd) {
-                            +PlainText(text.substring(lastEnd, match.range.first))
+                if (matches.isEmpty()) {
+                    group.sendMessage(text)
+                } else {
+                    val messageChain = buildMessageChain {
+                        var lastEnd = 0
+                        for (match in matches) {
+                            if (match.range.first > lastEnd) {
+                                +PlainText(text.substring(lastEnd, match.range.first))
+                            }
+                            val userId = match.groupValues[1].toLong()
+                            if (userId in memberIds) {
+                                +At(userId)
+                            } else {
+                                +PlainText(userId.toString())
+                            }
+                            lastEnd = match.range.last + 1
                         }
-                        val userId = match.groupValues[1].toLong()
-                        if (userId in memberIds) {
-                            +At(userId)
-                        } else {
-                            +PlainText(userId.toString())
+                        if (lastEnd < text.length) {
+                            +PlainText(text.substring(lastEnd))
                         }
-                        lastEnd = match.range.last + 1
                     }
-                    if (lastEnd < text.length) {
-                        +PlainText(text.substring(lastEnd))
-                    }
+                    group.sendMessage(messageChain)
                 }
-                group.sendMessage(messageChain)
             }
         } catch (e: Exception) {
             return "消息发送失败，原因：" + e.message
@@ -71,7 +73,7 @@ class QQChatToolSet(
                         bot.getGroupOrFail(groupId).sendImage(image)
                     }
             } else {
-                sendText(alt)
+                sendText(listOf(alt))
             }
         } catch (e: Exception) {
             return "发送表情包消息失败，原因：" + e.message
