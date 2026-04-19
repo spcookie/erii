@@ -3,6 +3,7 @@ package uesugi.core
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
 import kotlinx.datetime.toLocalDateTime
 import net.mamoe.mirai.contact.nameCardOrNick
 import net.mamoe.mirai.event.EventHandler
@@ -26,6 +27,7 @@ import uesugi.common.HistoryRecord
 import uesugi.common.MessageType
 import uesugi.common.toRecord
 import uesugi.common.toolkit.ConfigHolder
+import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.history.HistorySavedEvent
@@ -41,6 +43,7 @@ import java.net.URL
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -155,7 +158,7 @@ class GroupMessageEventListener(
         )
     }
 
-    @OptIn(MiraiInternalApi::class)
+    @OptIn(MiraiInternalApi::class, ExperimentalTime::class)
     private suspend fun parseMessage(event: GroupAwareMessageEvent, botId: String): ParsedMessage {
         var isAtBot = false
         var imageUrl: String? = null
@@ -184,8 +187,14 @@ class GroupMessageEventListener(
 
                     is QuoteReply -> {
                         appendLine("---REFERENCE MESSAGE START---")
-                        val content = singleMessage.source.originalMessage.content
-                        append(content.take(100) + if (content.length > 100) "..." else "")
+                        val source = singleMessage.source
+                        val time = Instant.fromEpochSeconds(source.time.toLong())
+                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                            .format(DateTimeFormat)
+                        append("$time ")
+                        append("${source.fromId}: ")
+                        val content = source.originalMessage.content
+                        appendLine(content.take(100) + if (content.length > 100) "..." else "")
                         appendLine("---REFERENCE MESSAGE END---")
                     }
 
