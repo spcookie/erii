@@ -292,6 +292,10 @@ BotAgent (消费事件，执行 AI Agent)
 
 本项目基于 [MIT](LICENSE) 许可证开源。
 
+## Repobeats
+
+![Alt](https://repobeats.axiom.co/api/embed/341cfbaa0a0048c8c95abe32707d6760903d13e0.svg "Repobeats analytics image")
+
 ## Star History
 
 <a href="https://www.star-history.com/?repos=spcookie%2FErii&type=timeline&logscale=&legend=top-left">
@@ -301,7 +305,3 @@ BotAgent (消费事件，执行 AI Agent)
    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=spcookie/Erii&type=timeline&logscale&legend=top-left" />
  </picture>
 </a>
-
-## Repobeats
-
-![Alt](https://repobeats.axiom.co/api/embed/341cfbaa0a0048c8c95abe32707d6760903d13e0.svg "Repobeats analytics image")
