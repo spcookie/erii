@@ -1,6 +1,6 @@
 <div align="center">
 
-![Erii](https://socialify.git.ci/spcookie/Erii/image?custom_description=An+AI+group+chat+robot+with+emotions%2C+memory%2C+flow%2C+and+proactive+behavior&custom_language=Kotlin&description=1&font=Source+Code+Pro&forks=1&issues=1&language=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fspcookie%2FErii%2F626e8833ae51f8ead0b2f41be237c4c2fb761577%2Fdoc%2Fassets%2FLOGO.svg&name=1&owner=1&pattern=Circuit+Board&pulls=1&stargazers=1&theme=Auto)
+![Erii](https://socialify.git.ci/spcookie/Erii/image?custom_description=%E4%B8%80%E5%80%8B%E5%85%B7%E5%82%99%E6%83%85%E6%84%9F%E3%80%81%E8%A8%98%E6%86%B6%E3%80%81%E5%BF%83%E6%B5%81%E3%80%81%E4%B8%BB%E5%8B%95%E8%A1%8C%E7%82%BA%EF%BC%8C%E4%BB%A5%E5%8F%8A%E4%BA%8B%E9%A0%85%E6%8F%90%E9%86%92%E8%88%87%E8%87%AA%E6%88%91%E8%A6%8F%E5%89%87%E7%AE%A1%E7%90%86%E7%9A%84+AI+%E7%BE%A4%E8%81%8A%E6%A9%9F%E5%99%A8%E4%BA%BA%E3%80%82&custom_language=Kotlin&description=1&font=Source+Code+Pro&forks=1&issues=1&language=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fspcookie%2FErii%2F626e8833ae51f8ead0b2f41be237c4c2fb761577%2Fdoc%2Fassets%2FLOGO.svg&name=1&owner=1&pattern=Circuit+Board&pulls=1&stargazers=1&theme=Auto)
 
 繁體中文 | [English](../README.md) | [中文](./README_zh.md) | [한국어](./README_ko.md)
 
