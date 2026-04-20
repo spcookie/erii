@@ -5,7 +5,7 @@ import net.mamoe.mirai.contact.Contact.Companion.sendImage
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
 import uesugi.common.toolkit.BrowserScraper
-import uesugi.common.toolkit.ref
+import uesugi.common.toolkit.BrowserScraperHolder
 import uesugi.core.plugin.builtin.Builtin
 import uesugi.core.plugin.builtin.BuiltinExtension
 import uesugi.server.SystemConfigHolder
@@ -21,7 +21,7 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
         get() = "builtin_rendering"
 
     override fun onLoad(context: PluginContext) {
-        val browserScraper by ref<BrowserScraper>()
+        val browserScraper = BrowserScraperHolder.getInstance()
         val statusHost = SystemConfigHolder.config
             .propertyOrNull("browser.status-host")
             ?.getString()
