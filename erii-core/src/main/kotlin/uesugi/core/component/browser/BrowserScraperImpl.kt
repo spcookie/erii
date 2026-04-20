@@ -19,9 +19,9 @@ class BrowserScraperImpl : BrowserScraper {
 
     private val log = logger()
 
-    private val browserSession = BrowserSession.getInstance()
-
     private val jsonParser = Json { ignoreUnknownKeys = true }
+
+    private val lock = Any()
 
     private val readabilityJs: String by lazy {
         this::class.java.getResource("readability.js")?.readText()
@@ -49,44 +49,45 @@ class BrowserScraperImpl : BrowserScraper {
         username: String?,
         password: String?
     ): ByteArray {
-        val session = browserSession
+        val session = BrowserSession.getInstance()
 
-        session.browser.newContext(
-            Browser.NewContextOptions()
-                .setViewportSize(width, 1080)
-                .setDeviceScaleFactor(1.0)
-        ).use { context ->
-            try {
-                val page = context.newPage()
-                // --- 资源过滤优化 ---
-                var token: String? = null
-                if (username != null && password != null) {
-                    token = Base64.encode("$username:$password".toByteArray())
-                }
-                page.route("**/*") { route ->
-                    val headers = HashMap(route.request().headers())
-                    if (token != null) {
-                        headers["Authorization"] = "Basic $token"
+        synchronized(lock) {
+            session.browser.newContext(
+                Browser.NewContextOptions()
+                    .setViewportSize(width, 1080)
+                    .setDeviceScaleFactor(1.0)
+            ).use { context ->
+                try {
+                    val page = context.newPage()
+                    // --- 资源过滤优化 ---
+                    var token: String? = null
+                    if (username != null && password != null) {
+                        token = Base64.encode("$username:$password".toByteArray())
                     }
-                    val resourceType = route.request().resourceType()
-                    if (listOf("media").contains(resourceType)) {
-                        route.abort()
-                    } else {
-                        route.resume(Route.ResumeOptions().setHeaders(headers))
+                    page.route("**/*") { route ->
+                        val headers = HashMap(route.request().headers())
+                        if (token != null) {
+                            headers["Authorization"] = "Basic $token"
+                        }
+                        val resourceType = route.request().resourceType()
+                        if (listOf("media").contains(resourceType)) {
+                            route.abort()
+                        } else {
+                            route.resume(Route.ResumeOptions().setHeaders(headers))
+                        }
                     }
-                }
 
-                // --- 导航与等待 ---
-                val waitState = if (waitForNetworkIdle)
-                    WaitUntilState.NETWORKIDLE
-                else
-                    WaitUntilState.DOMCONTENTLOADED
+                    // --- 导航与等待 ---
+                    val waitState = if (waitForNetworkIdle)
+                        WaitUntilState.NETWORKIDLE
+                    else
+                        WaitUntilState.DOMCONTENTLOADED
 
-                page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
+                    page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
 
-                // --- 滚动加载 (Lazy Loading 处理) ---
-                page.evaluate(
-                    """
+                    // --- 滚动加载 (Lazy Loading 处理) ---
+                    page.evaluate(
+                        """
                 async () => {
                     await new Promise((resolve) => {
                         let totalHeight = 0;
@@ -105,29 +106,30 @@ class BrowserScraperImpl : BrowserScraper {
                     });
                 }
             """
-                )
-
-                page.waitForTimeout(500.0)
-
-                // --- 截图 ---
-                val screenshotOptions = Page.ScreenshotOptions()
-                    .setFullPage(true)
-                    .setType(
-                        when (type) {
-                            BrowserScraper.ScreenshotType.PNG -> com.microsoft.playwright.options.ScreenshotType.PNG
-                            BrowserScraper.ScreenshotType.JPEG -> com.microsoft.playwright.options.ScreenshotType.JPEG
-                        }
                     )
 
-                if (type == BrowserScraper.ScreenshotType.JPEG) {
-                    screenshotOptions.setQuality(quality)
+                    page.waitForTimeout(500.0)
+
+                    // --- 截图 ---
+                    val screenshotOptions = Page.ScreenshotOptions()
+                        .setFullPage(true)
+                        .setType(
+                            when (type) {
+                                BrowserScraper.ScreenshotType.PNG -> com.microsoft.playwright.options.ScreenshotType.PNG
+                                BrowserScraper.ScreenshotType.JPEG -> com.microsoft.playwright.options.ScreenshotType.JPEG
+                            }
+                        )
+
+                    if (type == BrowserScraper.ScreenshotType.JPEG) {
+                        screenshotOptions.setQuality(quality)
+                    }
+
+                    return page.screenshot(screenshotOptions)
+
+                } catch (e: Exception) {
+                    log.error("Screenshot failed for $url: ${e.message}", e)
+                    throw e
                 }
-
-                return page.screenshot(screenshotOptions)
-
-            } catch (e: Exception) {
-                log.error("Screenshot failed for $url: ${e.message}", e)
-                throw e
             }
         }
     }
@@ -135,32 +137,33 @@ class BrowserScraperImpl : BrowserScraper {
     override fun scrape(url: String, maxMarkdownChars: Int): ScrapedResult {
         log.info("Scraping $url")
 
-        val session = browserSession
+        val session = BrowserSession.getInstance()
 
-        val context = session.browser.newContext(
-            Browser.NewContextOptions()
-                .setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .setViewportSize(1920, 1080)
-        )
+        synchronized(lock) {
+            val context = session.browser.newContext(
+                Browser.NewContextOptions()
+                    .setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .setViewportSize(1920, 1080)
+            )
 
-        val page = context.newPage()
+            val page = context.newPage()
 
-        try {
-            page.route("**/*") { route ->
-                val type = route.request().resourceType()
-                if (listOf("image", "stylesheet", "font", "media").contains(type)) {
-                    route.abort()
-                } else {
-                    route.resume()
+            try {
+                page.route("**/*") { route ->
+                    val type = route.request().resourceType()
+                    if (listOf("image", "stylesheet", "font", "media").contains(type)) {
+                        route.abort()
+                    } else {
+                        route.resume()
+                    }
                 }
-            }
 
-            page.navigate(url, Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED))
+                page.navigate(url, Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED))
 
-            page.evaluate(readabilityJs)
+                page.evaluate(readabilityJs)
 
-            val jsonResultString = page.evaluate(
-                """
+                val jsonResultString = page.evaluate(
+                    """
                 () => {
                     try {
                         if (typeof Readability === 'undefined') return JSON.stringify({ error: "Readability injection failed" });
@@ -196,47 +199,48 @@ class BrowserScraperImpl : BrowserScraper {
                     }
                 }
             """
-            ) as String
+                ) as String
 
-            val response = try {
-                jsonParser.decodeFromString<ReadabilityResponse>(jsonResultString)
+                val response = try {
+                    jsonParser.decodeFromString<ReadabilityResponse>(jsonResultString)
+                } catch (e: Exception) {
+                    throw RuntimeException("JSON Parse Error", e)
+                }
+
+                if (response.error != null) {
+                    throw RuntimeException("Browser Error: ${response.error}")
+                }
+
+                val htmlContent = response.content ?: ""
+                val fullMarkdown = if (htmlContent.isNotBlank()) {
+                    mdConverter.convert(htmlContent)
+                } else {
+                    ""
+                }
+
+                log.info("scraping completed for $url, markdown: ${fullMarkdown.take(50)}")
+
+                val finalMarkdown = if (fullMarkdown.length > maxMarkdownChars) {
+                    fullMarkdown.take(maxMarkdownChars) + "\n...(内容过长，已截断)..."
+                } else {
+                    fullMarkdown
+                }
+
+                return ScrapedResult(
+                    url = url,
+                    title = response.title ?: "No Title",
+                    excerpt = response.excerpt ?: "",
+                    markdown = finalMarkdown,
+                    links = response.extractedUrls,
+                    images = response.extractedImages
+                )
+
             } catch (e: Exception) {
-                throw RuntimeException("JSON Parse Error", e)
+                log.warn("Scraping failed for $url: ${e.message}")
+                throw e
+            } finally {
+                context.close()
             }
-
-            if (response.error != null) {
-                throw RuntimeException("Browser Error: ${response.error}")
-            }
-
-            val htmlContent = response.content ?: ""
-            val fullMarkdown = if (htmlContent.isNotBlank()) {
-                mdConverter.convert(htmlContent)
-            } else {
-                ""
-            }
-
-            log.info("scraping completed for $url, markdown: ${fullMarkdown.take(50)}")
-
-            val finalMarkdown = if (fullMarkdown.length > maxMarkdownChars) {
-                fullMarkdown.take(maxMarkdownChars) + "\n...(内容过长，已截断)..."
-            } else {
-                fullMarkdown
-            }
-
-            return ScrapedResult(
-                url = url,
-                title = response.title ?: "No Title",
-                excerpt = response.excerpt ?: "",
-                markdown = finalMarkdown,
-                links = response.extractedUrls,
-                images = response.extractedImages
-            )
-
-        } catch (e: Exception) {
-            log.warn("Scraping failed for $url: ${e.message}")
-            throw e
-        } finally {
-            context.close()
         }
     }
 

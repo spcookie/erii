@@ -21,7 +21,12 @@ fun main(args: Array<String>) {
 fun Application.module() {
     ConfigHolder.init(ConfigHolderImpl())
     SystemConfigHolder.init(this)
-    BrowserScraperHolder.init(BrowserScraperImpl())
+
+    val browserScraperImpl = BrowserScraperImpl()
+    BrowserScraperHolder.init(browserScraperImpl)
+    this.monitor.unsubscribe(ApplicationStopped) {
+        browserScraperImpl.close()
+    }
 
     configureFrameworks()
     configureMonitoring()
