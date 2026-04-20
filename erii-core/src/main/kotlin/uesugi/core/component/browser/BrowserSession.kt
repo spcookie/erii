@@ -3,10 +3,9 @@ package uesugi.core.component.browser
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Playwright
 import uesugi.common.toolkit.ConfigHolder
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Browser session holder - one instance per thread
+ * Singleton browser session - shared across all threads
  */
 class BrowserSession : AutoCloseable {
 
@@ -26,27 +25,20 @@ class BrowserSession : AutoCloseable {
         } catch (_: Exception) {
         }
     }
-}
 
-/**
- * Thread-local browser session manager
- */
-class BrowserSessionManager {
+    companion object {
+        @Volatile
+        private var instance: BrowserSession? = null
 
-    private val threadLocalSession = ThreadLocal.withInitial {
-        val session = BrowserSession()
-        activeSessions.add(session)
-        session
-    }
-
-    val activeSessions: ConcurrentHashMap.KeySetView<BrowserSession, Boolean> = ConcurrentHashMap.newKeySet()
-
-    fun getSession(): BrowserSession = threadLocalSession.get()
-
-    fun close() {
-        activeSessions.forEach { session ->
-            session.close()
+        fun getInstance(): BrowserSession {
+            return instance ?: synchronized(this) {
+                instance ?: BrowserSession().also { instance = it }
+            }
         }
-        activeSessions.clear()
+
+        fun close() {
+            instance?.close()
+            instance = null
+        }
     }
 }

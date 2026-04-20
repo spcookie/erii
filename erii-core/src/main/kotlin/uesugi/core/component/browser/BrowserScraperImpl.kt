@@ -19,7 +19,7 @@ class BrowserScraperImpl : BrowserScraper {
 
     private val log = logger()
 
-    private val sessionManager = BrowserSessionManager()
+    private val browserSession = BrowserSession.getInstance()
 
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
@@ -49,7 +49,7 @@ class BrowserScraperImpl : BrowserScraper {
         username: String?,
         password: String?
     ): ByteArray {
-        val session = sessionManager.getSession()
+        val session = browserSession
 
         session.browser.newContext(
             Browser.NewContextOptions()
@@ -135,7 +135,7 @@ class BrowserScraperImpl : BrowserScraper {
     override fun scrape(url: String, maxMarkdownChars: Int): ScrapedResult {
         log.info("Scraping $url")
 
-        val session = sessionManager.getSession()
+        val session = browserSession
 
         val context = session.browser.newContext(
             Browser.NewContextOptions()
@@ -241,7 +241,7 @@ class BrowserScraperImpl : BrowserScraper {
     }
 
     override fun close() {
-        sessionManager.close()
+        BrowserSession.close()
     }
 
     @Serializable
