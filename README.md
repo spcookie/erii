@@ -2,7 +2,7 @@
 
 ![Erii](https://socialify.git.ci/spcookie/Erii/image?custom_description=An+AI+group+chat+robot+with+emotions%2C+memory%2C+flow%2C+and+proactive+behavior&custom_language=Kotlin&description=1&font=Source+Code+Pro&forks=1&issues=1&language=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2Fspcookie%2FErii%2F626e8833ae51f8ead0b2f41be237c4c2fb761577%2Fdoc%2Fassets%2FLOGO.svg&name=1&owner=1&pattern=Circuit+Board&pulls=1&stargazers=1&theme=Auto)
 
-English | [中文](./doc/README_zh.md) | [繁體中文](./doc/README_zh-TW.md) | [한국어](./doc/README_ko.md)
+中文 | [English](./doc/README_en.md) | [繁體中文](./doc/README_zh-TW.md) | [한국어](./doc/README_ko.md)
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Ktor](https://img.shields.io/badge/Ktor-2.3+-087CFA?style=for-the-badge&logo=ktor&logoColor=white)](https://ktor.io/)
@@ -16,282 +16,282 @@ English | [中文](./doc/README_zh.md) | [繁體中文](./doc/README_zh-TW.md) |
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/spcookie/Erii)
 [![Visitors](https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fspcookie%2FErii&labelColor=%23d9e3f0&countColor=%23263759&style=flat)](https://visitorbadge.io/status?path=https%3A%2F%2Fgithub.com%2Fspcookie%2FErii)
 
-[🚀 Features](#-features) • [🏁 Getting Started](#-getting-started) • [📦 Building & Running](#-building--running) • [🛠️ Tech Stack](#-tech-stack)
+[🚀 功能特性](#-功能特性) • [🏁 快速开始](#-快速开始) • [📦 构建与运行](#-构建与运行) • [🛠️ 技术栈](#-技术栈)
 
 </div>
 
 ---
 
-## 📖 Overview
+## 📖 概述
 
-Erii is an AI group chat bot system based on a multi-dimensional psychological model. Unlike traditional Q&A bots, Erii
-has an **emotion system**, **long-term memory**, **conversation flow** and **proactive behaviors**, enabling it to
-participate in group chats like a real person, interjecting, breaking the ice, and adjusting speaking style based on
-emotional state.
+Erii 是一个基于多维心理模型的 AI 群聊机器人系统。不同于传统的问答机器人，Erii 拥有**情绪系统**、**长期记忆**、**对话心流**
+和**主动行为**，能够像真人一样参与群聊对话，主动插话、破冰，并根据情绪状态调整说话风格。
 
-**✨ Core Features:**
+**✨ 核心特性：**
 
-- 🎭 **Emotion System**: Based on PAD model, simulating real emotional responses
-- 🧠 **Long-term Memory**: Multi-dimensional recording of user profiles, preferences, and group chat facts
-- 🌊 **Flow Mechanism**: Dynamically adjusts participation depth based on topic engagement
-- ⚡ **Proactive Behaviors**: Initiates conversations based on impulse values for ice-breaking and daily interactions
+- 🎭 **情绪系统**：基于 PAD 模型，模拟真实情感反应
+- 🧠 **长期记忆**：多维度记录用户画像、偏好和群聊事实
+- 🌊 **心流机制**：根据话题投入程度动态调整参与深度
+- ⚡ **主动行为**：基于冲动值进行插话、破冰和日常互动
 
-## 🚀 Features
+## 🚀 功能特性
 
-### 🧠 Core Systems
+### 🧠 核心系统
 
-#### 🎭 Emotion System (Emotion)
+#### 🎭 情绪系统 (Emotion)
 
-- **PAD Three-Dimensional Emotion Model** - Pleasure, Arousal, Dominance
-- **Dynamic Emotion Regulation** - Real-time emotional state adjustment based on conversation content
-- **Emotional Expression** - Affects reply tone, emoji usage, reply delay
-- **Long-term Mood** - Maintains baseline mood tone, influencing overall behavioral tendencies
+- **PAD 三维情绪模型** - Pleasure(愉悦度)、Arousal(激活度)、Dominance(优势度)
+- **动态情绪调节** - 根据对话内容实时调整情绪状态
+- **情绪表达** - 影响回复语气、表情符号使用、回复延迟
+- **长期心情** - 维护基础心情基调，影响整体行为倾向
 
-#### 💾 Memory System (Memory)
+#### 💾 记忆系统 (Memory)
 
-- **Multi-dimensional Memory** - User profiles, preference settings, factual knowledge, conversation summaries
-- **Three-level Scope** - Global memory, group memory, member-group memory
-- **Semantic Retrieval** - Intelligent memory recall based on vector similarity
-- **LLM-driven** - AI automatically extracts and manages long-term memory
+- **多维度记忆** - 用户画像、偏好设置、事实知识、对话摘要
+- **三级作用域** - 全局记忆、群组记忆、成员-群组记忆
+- **语义检索** - 基于向量相似度的智能记忆召回
+- **LLM 驱动** - AI 自动提取和管理长期记忆
 
-#### 🌊 Flow System (Flow)
+#### 🌊 心流系统 (Flow)
 
-- **Engagement Quantification** - 0-100 flow value, three-stage state machine
-- **Topic Matching** - Quickly enters flow state when encountering interesting topics
-- **Focus Mechanism** - Locks onto conversation goals during high flow, filtering irrelevant distractions
-- **Overheat Protection** - Simulates fatigue to prevent excessive output
+- **投入度量化** - 0-100 心流值，三阶段状态机
+- **话题匹配** - 遇到感兴趣话题快速进入心流状态
+- **专注机制** - 高心流时锁定对话目标，过滤无关干扰
+- **过热保护** - 模拟疲劳感，避免过度输出
 
-#### ⚡ Volition System (Volition)
+#### ⚡ 主动行为系统 (Volition)
 
-- **Impulse Calculation** - Calculates desire to speak proactively based on emotion, flow, and keywords
-- **Three Interjection Modes** - Interrupt, Icebreak, Routine
-- **Social Awareness** - Detects serious topics and group emotions to avoid inappropriate comments
-- **Fatigue Suppression** - Accumulates fatigue after proactive speaking to prevent spamming
+- **冲动值计算** - 基于情绪、心流、关键词计算主动发言欲望
+- **三种插话模式** - 插话(Interrupt)、破冰(Icebreak)、日常(Routine)
+- **识相机制** - 检测严肃话题、群体情绪，避免不合时宜发言
+- **疲劳抑制** - 主动发言后积累疲劳值，防止刷屏
 
-#### 🧬 Evolution System (Evolution)
+#### 🧬 进化系统 (Evolution)
 
-- **Vocabulary Learning** - Automatically learns new words and memes from group chats
-- **Semantic Understanding** - Records word meanings, usage scenarios, and tones
-- **Natural Integration** - Naturally uses learned group chat expressions in appropriate scenarios
+- **词汇学习** - 自动学习群聊中的新词汇和梗
+- **语义理解** - 记录词汇含义、使用场景和语气
+- **自然融入** - 在合适场景自然使用学习到的群聊用语
 
-#### 🎭 Meme System (Meme)
+#### 🎭 梗系统 (Meme)
 
-- **Meme Extraction** - Automatically extracts trending phrases and memes from group chats
-- **Vector Storage** - Semantic vector representation, supporting similarity retrieval
-- **Popularity Tracking** - Tracks usage frequency and popularity of high-frequency words
+- **梗提取** - 从群聊中自动提取流行语和梗
+- **向量存储** - 语义向量表示，支持相似度检索
+- **热度追踪** - 跟踪高频词汇的使用频率和流行度
 
-### 🔌 Built-in Plugins
+### 🔌 内置插件
 
-| Plugin             | Type             | Description                             |
-|:-------------------|:-----------------|:----------------------------------------|
-| **speech**         | AgentExtension   | Text-to-speech plugin using MiniMax TTS |
-| **lolisuki**       | RouteExtension   | Anime image plugin from lolisuki.cn     |
-| **net-ease-music** | PassiveExtension | NetEase music plugin for music cards    |
-| **qa**             | RouteExtension   | AI Q&A plugin with web search           |
-| **qq-face**        | PassiveExtension | QQ emoji semantic matching plugin       |
-| **reminder**       | AgentExtension   | Scheduled reminder plugin               |
-| **seeddream**      | RouteExtension   | AI image generation plugin              |
+| 插件                 | 类型               | 说明                              |
+|:-------------------|:-----------------|:--------------------------------|
+| **speech**         | AgentExtension   | 语音合成插件，使用 MiniMax TTS 将文字转为语音发送 |
+| **lolisuki**       | RouteExtension   | 二次元图片插件，从 lolisuki.cn 获取并发送图片   |
+| **net-ease-music** | PassiveExtension | 网易云音乐插件，搜索音乐并发送音乐卡片             |
+| **qa**             | RouteExtension   | AI 问答插件，通过网络搜索直接回答问题            |
+| **qq-face**        | PassiveExtension | QQ 表情插件，语义匹配发送合适的表情             |
+| **reminder**       | AgentExtension   | 定时提醒插件，支持延迟消息和定时任务              |
+| **seeddream**      | RouteExtension   | AI 图片生成插件，支持文生图和图生图             |
 
-### 💬 Conversation Enhancement
+### 💬 对话增强
 
-- **Context Understanding** - References historical conversations and long-term memory
-- **Multiple Personas** - Supports multiple bot role configurations
-- **Emotional Resonance** - Perceives group atmosphere, adjusts participation style
+- **上下文理解** - 引用历史对话和长期记忆
+- **多 Persona** - 支持多 Bot 角色配置
+- **情绪共鸣** - 感知群体氛围，调整参与方式
 
-## 🏁 Getting Started
+## 🏁 快速开始
 
-### 📋 Prerequisites
+### 📋 前置要求
 
-Before you begin, ensure you have the following installed:
+在开始之前，确保已安装以下环境：
 
 - **JDK 17+**
 - **Gradle 8.0+**
-- **NapCat** - QQ integration service
+- **NapCat** - QQ 接入服务
 - **LLM API Key** - Google Gemini / DeepSeek / MiniMax API
 
-### ⚙️ Installation & Configuration
+### ⚙️ 安装与配置
 
-1. **Clone the repository**
+1. **克隆仓库**
    ```bash
    git clone https://github.com/spcookie/Erii.git
    cd Erii
    ```
 
-2. **Configure environment variables**
-   Copy and edit the environment template:
+2. **配置环境变量**
+   复制环境变量模板并编辑：
    ```bash
    cp .env.local.template .env.local
    nano .env.local
    ```
-   Main configuration items:
-   - `CHOICE_MODEL`: Select LLM provider (GOOGLE / DEEP_SEEK / MINIMAX)
-   - Corresponding API Key configuration
-   - `NAPCAT_TOKEN`: NapCat authentication token
-   - `ENABLE_GROUPS`: List of enabled groups
+   主要配置项：
+   - `CHOICE_MODEL`: 选择 LLM 提供商（GOOGLE / DEEP_SEEK / MINIMAX）
+   - 对应的 API Key 配置
+   - `NAPCAT_TOKEN`: NapCat 认证令牌
+   - `ENABLE_GROUPS`: 启用的群组列表
 
-3. **Configure the bot**
-   Copy and edit the configuration template:
+3. **配置机器人**
+   复制配置文件模板并编辑：
    ```bash
    cp application.conf.template application.conf
    nano application.conf
    ```
-   Main configuration items:
-   - `llm.choice-model`: Select LLM provider (GOOGLE / DEEP_SEEK / MINIMAX)
-   - `onebot.bots`: QQ bot connection information
-   - `groups.enable-groups`: List of enabled groups
+   主要配置项：
+   - `llm.choice-model`: 选择 LLM 提供商（GOOGLE / DEEP_SEEK / MINIMAX）
+   - `onebot.bots`: 配置 QQ 机器人连接信息
+   - `groups.enable-groups`: 启用的群组列表
 
-4. **Start the development server**
+4. **启动开发服务器**
    ```bash
    ./gradlew run
    ```
 
-### 🐳 Docker Deployment
+### 🐳 Docker 部署
 
-**Start Erii main service**
+**启动 Erii 主服务**
+
 ```bash
 docker-compose up -d
 ```
 
-**Start NapCat QQ integration service**
+**启动 NapCat QQ 接入服务**
+
 ```bash
 cd docker/napcat-docker && docker-compose up -d
 ```
 
-**Start Playwright browser service**
+**启动 Playwright 浏览器服务**
 
 ```bash
 cd docker/playwright-docker && docker-compose up -d
 ```
 
-## 🛠️ Tech Stack
+## 🛠️ 技术栈
 
-### 🖥️ Backend Framework
+### 🖥️ 后端框架
 
-- **Language:** Kotlin 1.9+
-- **Web Framework:** Ktor 2.3+
-- **Build Tool:** Gradle 8.0+
-- **Database:** H2 (Embedded)
+- **语言:** Kotlin 1.9+
+- **Web 框架:** Ktor 2.3+
+- **构建工具:** Gradle 8.0+
+- **数据库:** H2 (嵌入式)
 - **ORM:** Exposed
-- **Dependency Injection:** Koin
-- **Task Scheduling:** JobRunr
+- **依赖注入:** Koin
+- **任务调度:** JobRunr
 
-### 🤖 Bot Integration
+### 🤖 机器人集成
 
-- **Bot Framework:** Mirai + Overflow
-- **Integration Service:** NapCat (WebSocket)
+- **机器人框架:** Mirai + Overflow
+- **接入服务:** NapCat (WebSocket)
 - **LLM:** Google Gemini API / OpenAI Compatible API
 
-### 🔌 Extension Architecture
+### 🔌 扩展架构
 
-- **Plugin Framework:** PF4J
-- **SPI Interface:** erii-spi module defines extension points
+- **插件框架:** PF4J
+- **SPI 接口:** erii-spi 模块定义扩展点
 
-## 📦 Building & Running
+## 📦 构建与运行
 
-| Command                   | Description                 |
-|:--------------------------|:----------------------------|
-| `./gradlew compileKotlin` | Compile Kotlin code         |
-| `./gradlew build`         | Build the entire project    |
-| `./gradlew run`           | Start development server    |
-| `./gradlew buildFatJar`   | Build fat JAR with all deps |
-| `./gradlew buildImage`    | Build Docker image          |
-| `./gradlew test`          | Run all tests               |
+| 命令                        | 说明               |
+|:--------------------------|:-----------------|
+| `./gradlew compileKotlin` | 编译 Kotlin 代码     |
+| `./gradlew build`         | 构建整个项目           |
+| `./gradlew run`           | 启动开发服务器          |
+| `./gradlew buildFatJar`   | 构建包含所有依赖的可执行 JAR |
+| `./gradlew buildImage`    | 构建 Docker 镜像     |
+| `./gradlew test`          | 运行所有测试           |
 
-## 📂 Project Structure
+## 📂 项目结构
 
 ```
 Erii/
-├── erii-common/                 # 📦 Common module
+├── erii-common/                 # 📦 公共模块
 │   └── src/main/kotlin/uesugi/common/
-│       ├── EventBus.kt          # Async/sync event bus
-│       ├── BotRole.kt           # Bot role definitions
-│       ├── ChatToolSet.kt       # Chat toolset
+│       ├── EventBus.kt          # 异步/同步事件总线
+│       ├── BotRole.kt           # Bot 角色定义
+│       ├── ChatToolSet.kt       # 聊天工具集
 │       └── ...
-├── erii-core/                   # 🧠 Core module
+├── erii-core/                   # 🧠 核心模块
 │   └── src/main/kotlin/uesugi/
-│       ├── Application.kt       # Ktor application entry
-│       ├── config/              # Configuration and DI
-│       │   ├── IOC.kt          # Koin DI configuration
-│       │   ├── LLMFactory.kt   # LLM factory
+│       ├── Application.kt       # Ktor 应用入口
+│       ├── config/              # 配置和 DI
+│       │   ├── IOC.kt          # Koin 依赖注入配置
+│       │   ├── LLMFactory.kt   # LLM 工厂
 │       │   └── ...
 │       ├── core/
 │       │   ├── agent/          # AI Agent
-│       │   │   └── BotAgent.kt  # Core AI Agent
-│       │   ├── route/          # Routing system
-│       │   │   └── RoutingAgent.kt  # LLM routing
-│       │   ├── state/          # Core AI state systems
-│       │   │   ├── emotion/     # Emotion system
-│       │   │   ├── memory/      # Memory system
-│       │   │   ├── flow/        # Flow system
-│       │   │   ├── volition/    # Volition system
-│       │   │   ├── evolution/   # Evolution system
-│       │   │   └── meme/        # Meme system
-│       │   ├── bot/            # Bot role management
+│       │   │   └── BotAgent.kt  # 核心 AI Agent
+│       │   ├── route/          # 路由系统
+│       │   │   └── RoutingAgent.kt  # LLM 路由
+│       │   ├── state/          # 核心 AI 状态系统
+│       │   │   ├── emotion/     # 情绪系统
+│       │   │   ├── memory/      # 记忆系统
+│       │   │   ├── flow/        # 心流系统
+│       │   │   ├── volition/    # 主动行为系统
+│       │   │   ├── evolution/   # 进化系统
+│       │   │   └── meme/        # 梗系统
+│       │   ├── bot/            # Bot 角色管理
 │       │   │   └── BotRoleManager.kt
-│       │   ├── message/        # Message handling
-│       │   │   └── history/    # History service
-│       │   ├── plugin/         # Plugin implementations
-│       │   ├── rule/           # Rule engine
-│       │   └── component/      # Components
-│       │       ├── browser/   # Browser (screenshot/markdown fetching)
-│       │       ├── embedding/  # Vector embedding
-│       │       ├── search/     # Search service
-│       │       └── storage/    # Storage (vector/object)
-│       └── server/             # HTTP API routes
-├── erii-spi/                    # 🔌 SPI interface module
+│       │   ├── message/        # 消息处理
+│       │   │   └── history/    # 历史记录服务
+│       │   ├── plugin/         # 插件实现
+│       │   ├── rule/           # 规则引擎
+│       │   └── component/      # 组件
+│       │       ├── browser/   # 浏览器（截图/Markdown抓取）
+│       │       ├── embedding/  # 向量嵌入
+│       │       ├── search/     # 搜索服务
+│       │       └── storage/    # 存储（向量/对象）
+│       └── server/             # HTTP API 路由
+├── erii-spi/                    # 🔌 SPI 接口模块
 │   └── src/main/kotlin/uesugi/spi/
-│       ├── AgentExtension.kt   # Agent extension interface
-│       ├── PluginDefinition.kt # Plugin definition annotation
-│       └── processor/           # Annotation processor
-├── erii-plugins/                # 🎨 Plugin modules
-│   ├── speech/                  # MiniMax TTS
-│   ├── lolisuki/                # Anime images
-│   ├── net-ease-music/          # NetEase music search & cards
-│   ├── qa/                      # AI web search Q&A
-│   ├── qq-face/                 # QQ emoji semantic matching
-│   ├── reminder/                # Scheduled reminders & delayed messages
-│   └── seeddream/               # AI image generation
-└── build.gradle.kts             # Root build configuration
+│       ├── AgentExtension.kt   # Agent 扩展接口
+│       ├── PluginDefinition.kt # 插件定义注解
+│       └── processor/           # 注解处理器
+├── erii-plugins/                # 🎨 插件模块
+│   ├── speech/                  # MiniMax TTS 语音合成
+│   ├── lolisuki/                # 二次元图片获取
+│   ├── net-ease-music/          # 网易云音乐搜索与卡片发送
+│   ├── qa/                      # AI 网络搜索问答
+│   ├── qq-face/                 # QQ 表情语义匹配发送
+│   ├── reminder/                # 定时提醒与延迟消息
+│   └── seeddream/               # 豆包文生图/图生图
+└── build.gradle.kts             # 根构建配置
 ```
 
-## 🗺️ Architecture
+## 🗺️ 架构设计
 
-Erii uses an event-driven architecture with `EventBus` for system decoupling.
+Erii 采用事件驱动架构，通过 `EventBus` 实现系统间解耦。
 
 ```
-Message Received (NapCat/Mirai)
+消息接收 (NapCat/Mirai)
        │
        ▼
 GroupMessageEventListener
        │
        ▼
-HistoryService (Save History)
+HistoryService (保存历史)
        │
        ▼
-RoutingAgent (LLM Intent Classification) / CmdRuleRegister (Command Matching)
+RoutingAgent (LLM 意图分类) / CmdRuleRegister (命令匹配)
        │
        ▼
-RouteCallEvent (Dispatched via EventBus.postAsync)
+RouteCallEvent (通过 EventBus.postAsync 分发)
        │
        ▼
-BotAgent (Consumes events, executes AI Agent)
+BotAgent (消费事件，执行 AI Agent)
        │
        ▼
-State Updates (Emotion, Memory, Flow, Volition, Evolution, Meme)
+状态更新 (Emotion, Memory, Flow, Volition, Evolution, Meme)
 ```
 
-### Plugin Extension Points
+### 插件扩展点
 
-| Extension Type       | Description             | Matching Method                    |
-|:---------------------|:------------------------|:-----------------------------------|
-| **AgentExtension**   | General Agent extension | Combined usage                     |
-| **RouteExtension**   | LLM routing extension   | RoutingAgent intent classification |
-| **CmdExtension**     | Command extension       | `/xxx` command matching            |
-| **PassiveExtension** | Passive extension       | Background tasks/event listeners   |
+| 扩展类型                 | 说明          | 匹配方式              |
+|:---------------------|:------------|:------------------|
+| **AgentExtension**   | 通用 Agent 扩展 | 组合使用              |
+| **RouteExtension**   | LLM 路由扩展    | RoutingAgent 意图分类 |
+| **CmdExtension**     | 命令扩展        | `/xxx` 命令匹配       |
+| **PassiveExtension** | 被动扩展        | 后台任务/事件监听         |
 
-## 📄 License
+## 📄 许可证
 
-This project is open source under the [MIT](LICENSE) license.
+本项目基于 [MIT](LICENSE) 许可证开源。
 
 ## Repobeats
 
