@@ -36,10 +36,11 @@ object RuleLoader {
     }
 
     private fun resolveConfigDir(configDir: String? = null): String {
-        return configDir
+        val raw = configDir
             ?: System.getProperty("config.rules.dir")
             ?: System.getenv("CONFIG_RULES_DIR")
             ?: DEFAULT_RULES_DIR
+        return File(raw).toPath().toAbsolutePath().toString()
     }
 
     /**

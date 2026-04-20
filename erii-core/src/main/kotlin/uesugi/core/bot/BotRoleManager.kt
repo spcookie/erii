@@ -42,10 +42,11 @@ object BotRoleManager {
     }
 
     private fun resolveConfigDir(configDir: String?): String {
-        return configDir
+        val raw = configDir
             ?: System.getProperty("config.souls.dir")
             ?: System.getenv("CONFIG_SOULS_DIR")
             ?: DEFAULT_SOULS_DIR
+        return File(raw).toPath().toAbsolutePath().toString()
     }
 
     private fun loadFromDirectory(dir: File) {

@@ -58,15 +58,17 @@ class ConfigHolderImpl : ConfigProvider {
     }
 
     private val configPath: String? by lazy {
-        System.getProperty("config.path")
+        val raw = System.getProperty("config.path")
             ?: System.getenv("CONFIG_PATH")
             ?: "application.conf"
+        File(raw).toPath().toAbsolutePath().toString()
     }
 
     private val pluginConfigDir: String? by lazy {
-        System.getProperty("config.plugin.dir")
+        val raw = System.getProperty("config.plugin.dir")
             ?: System.getenv("CONFIG_PLUGIN_DIR")
             ?: ((System.getProperty("pf4j.pluginsDir") ?: "plugins") + File.separator + "config")
+        File(raw).toPath().toAbsolutePath().toString()
     }
 
     private val config: Config by lazy { loadConfig() }
