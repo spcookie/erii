@@ -9,7 +9,7 @@ English | [中文](../README.md) | [繁體中文](./README_zh-TW.md) | [한국�
 [![Mirai](https://img.shields.io/badge/Mirai-2.16+-00C4B3?style=for-the-badge)](https://github.com/mamoe/mirai)
 [![JobRunr](https://img.shields.io/badge/JobRunr-6.2+-green?style=for-the-badge)](https://jobrunr.io/)
 
-[![H2](https://img.shields.io/badge/H2-Database-0066CC?style=for-the-badge)](https://www.h2database.com/)[README.md](../README.md)
+[![H2](https://img.shields.io/badge/H2-Database-0066CC?style=for-the-badge)](https://www.h2database.com/)
 [![Koin](https://img.shields.io/badge/Koin-3.5+-F3692A?style=for-the-badge)](https://insert-koin.io/)
 [![Exposed](https://img.shields.io/badge/Exposed-ORM-F3692A?style=for-the-badge)](https://github.com/JetBrains/Exposed)
 
@@ -67,6 +67,20 @@ emotional state.
 - **Social Awareness** - Detects serious topics and group emotions to avoid inappropriate comments
 - **Fatigue Suppression** - Accumulates fatigue after proactive speaking to prevent spamming
 
+#### 📜 Self-Rule Management (Rule Management)
+
+- **File System Storage** - Rules stored as Markdown files with hot-reload support
+- **Multi-level Scope** - Global rules > Bot rules > Group rules
+- **AI Controllable** - Agent can create/delete rules via ToolSet
+- **Security Protection** - Path traversal protection and filename validation
+
+#### 📋 Task Reminder Function (Reminder)
+
+- **Scheduled Reminder** - Supports one-time and recurring reminder tasks
+- **Natural Push** - AI generates natural reminder tone, avoiding robotic expression
+- **Recurring Tasks** - Supports Cron expressions for recurring reminders
+- **Scope Management** - Bot/Group level isolation
+
 #### 🧬 Evolution System (Evolution)
 
 - **Vocabulary Learning** - Automatically learns new words and memes from group chats
@@ -81,15 +95,15 @@ emotional state.
 
 ### 🔌 Built-in Plugins
 
-| Plugin             | Type             | Description                             |
-|:-------------------|:-----------------|:----------------------------------------|
-| **speech**         | AgentExtension   | Text-to-speech plugin using MiniMax TTS |
-| **lolisuki**       | RouteExtension   | Anime image plugin from lolisuki.cn     |
-| **net-ease-music** | PassiveExtension | NetEase music plugin for music cards    |
-| **qa**             | RouteExtension   | AI Q&A plugin with web search           |
-| **qq-face**        | PassiveExtension | QQ emoji semantic matching plugin       |
-| **reminder**       | AgentExtension   | Scheduled reminder plugin               |
-| **seeddream**      | RouteExtension   | AI image generation plugin              |
+| Plugin             | Type             | Description                                                    |
+|:-------------------|:-----------------|:---------------------------------------------------------------|
+| **speech**         | AgentExtension   | Text-to-speech plugin using MiniMax TTS                        |
+| **lolisuki**       | RouteExtension   | Anime image plugin from lolisuki.cn                            |
+| **net-ease-music** | PassiveExtension | NetEase music plugin for music cards                           |
+| **qa**             | RouteExtension   | AI Q&A plugin with web search                                  |
+| **qq-face**        | PassiveExtension | QQ emoji semantic matching plugin                              |
+| **seeddream**      | RouteExtension   | AI image generation plugin                                     |
+| **animal**         | AgentExtension   | Virtual pet breeding plugin with roleplay and affection system |
 
 ### 💬 Conversation Enhancement
 
@@ -278,7 +292,7 @@ RouteCallEvent (Dispatched via EventBus.postAsync)
 BotAgent (Consumes events, executes AI Agent)
        │
        ▼
-State Updates (Emotion, Memory, Flow, Volition, Evolution, Meme)
+State Updates (Emotion, Memory, Flow, Volition, Reminder, Rule, Evolution, Meme)
 ```
 
 ### Plugin Extension Points
