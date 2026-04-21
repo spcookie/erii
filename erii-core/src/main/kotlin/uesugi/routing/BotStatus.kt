@@ -20,25 +20,56 @@ import uesugi.core.state.meme.MemoService
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
 import uesugi.core.state.volition.VolitionGaugeManager
+import uesugi.spi.CmdExtension
+import uesugi.spi.PassiveExtension
+import uesugi.spi.RouteExtension
 
 
 /**
  * 构建 PluginStats
  */
-private fun buildPluginStats(): BotStatus.PluginStats {
-    val allExtensions = ExtensionRegister.getAllExtensions()
-    return BotStatus.PluginStats(
-        totalExtensions = allExtensions.size,
-        cmdExtensions = ExtensionRegister.getCmdExtensions().size,
-        routeExtensions = ExtensionRegister.getRouteExtensions().size,
-        passiveExtensions = ExtensionRegister.getPassiveExtensions().size,
-        plugins = ExtensionRegister.getAllPlugins().map { (pluginId, extensions) ->
-            BotStatus.PluginInfo(
-                id = pluginId,
-                extensionCount = extensions.size
-            )
-        }
-    )
+private fun buildPluginStats(botId: String? = null): BotStatus.PluginStats {
+    if (botId == null) {
+        val allExtensions = ExtensionRegister.getAllExtensions()
+
+        return BotStatus.PluginStats(
+            totalExtensions = allExtensions.size,
+            cmdExtensions = ExtensionRegister.getCmdExtensions().size,
+            routeExtensions = ExtensionRegister.getRouteExtensions().size,
+            passiveExtensions = ExtensionRegister.getPassiveExtensions().size,
+            plugins = ExtensionRegister.getAllPlugins().map { (pluginId, extensions) ->
+                BotStatus.PluginInfo(
+                    id = pluginId,
+                    extensionCount = extensions.size
+                )
+            }
+        )
+    } else {
+        var cmdExtensions = 0
+        var routeExtensions = 0
+        var passiveExtensions = 0
+
+        val plugins = ExtensionRegister.getAllPlugins()
+            .filter { ConfigHolder.isPluginEnabled(BotManage.getConfigKey(botId), it.key) }
+            .map { (pluginId, extensions) ->
+                cmdExtensions += extensions.count { it is CmdExtension<*, *, *> }
+                routeExtensions += extensions.count { it is RouteExtension<*> }
+                passiveExtensions += extensions.count { it is PassiveExtension<*> }
+                BotStatus.PluginInfo(
+                    id = pluginId,
+                    extensionCount = extensions.size
+                )
+            }
+
+        return BotStatus.PluginStats(
+            totalExtensions = cmdExtensions + routeExtensions + passiveExtensions,
+            cmdExtensions = cmdExtensions,
+            routeExtensions = routeExtensions,
+            passiveExtensions = passiveExtensions,
+            plugins = plugins
+        )
+    }
+
 }
 
 /**
@@ -169,7 +200,7 @@ fun Routing.configureBotStatus() {
             }
         }
 
-        // 单群组状态页面路由（JTE 服务端渲染）
+        // 单群组状态页面
         get("/view/{botId}/{groupId}") {
             val botId = call.parameters["botId"]
             val groupId = call.parameters["groupId"]
@@ -189,7 +220,7 @@ fun Routing.configureBotStatus() {
                 return@get
             }
 
-            val pluginStats = buildPluginStats()
+            val pluginStats = buildPluginStats(botId)
             val groupStatus = buildGroupStatus(
                 botId = botId,
                 groupId = groupId,

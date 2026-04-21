@@ -33,6 +33,18 @@ object ExtensionRegister {
         return extensions
     }
 
+    fun isCmdExtension(extension: AgentExtension<*>): Boolean {
+        return extension is CmdExtension<*, *, *>
+    }
+
+    fun isRouteExtension(extension: AgentExtension<*>): Boolean {
+        return extension is RouteExtension<*>
+    }
+
+    fun isPassiveExtension(extension: AgentExtension<*>): Boolean {
+        return extension is PassiveExtension<*>
+    }
+
     fun getCmdExtensions(): List<AgentExtension<*>> {
         return extensions.filterIsInstance<CmdExtension<*, *, *>>()
     }
