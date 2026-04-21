@@ -1,0 +1,9 @@
+{
+  "api-base": "${?NETEASE_MUSIC_API_BASE}",
+  "onebot": {
+    "erii": {
+      "http-url": "",
+      "token": ""
+    }
+  }
+}

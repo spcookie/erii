@@ -299,7 +299,7 @@ class ConfigHolderImpl : ConfigProvider {
 
         // 1. 从 classpath 加载 resourcePath 作为基础配置
         var config = ConfigFactory.empty()
-        val resourcePath = "plugin.conf"
+        val resourcePath = "plugin.json"
         val resourceAsStream = pluginClass.java.classLoader.getResourceAsStream(resourcePath)
         if (resourceAsStream != null) {
             log.info { "Loading base config for $pluginName from classpath: $resourcePath" }
@@ -310,7 +310,7 @@ class ConfigHolderImpl : ConfigProvider {
 
         // 2. pluginConfigDir 中的配置覆盖基础配置
         if (pluginConfigDir != null) {
-            val pluginConfigFile = File(pluginConfigDir, "$pluginId.conf")
+            val pluginConfigFile = File(pluginConfigDir, "$pluginId.json")
             if (pluginConfigFile.exists()) {
                 log.info { "Overriding config for $pluginId from dir: ${pluginConfigFile.absolutePath}" }
                 config = ConfigFactory.parseFile(pluginConfigFile).resolve().withFallback(config)
