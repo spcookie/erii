@@ -15,7 +15,7 @@ import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import uesugi.common.ChatToolSet
 import java.net.URL
 
-class QQChatToolSet(
+class AgentChatToolSet(
     val bot: Bot,
     val groupId: Long,
     val context: Context
@@ -66,7 +66,7 @@ class QQChatToolSet(
 
     override suspend fun sendMeme(tag: String, alt: String): String {
         try {
-            val memo = context.memo(tag)
+            val memo = context.meme(tag)
             if (memo != null) {
                 memo.bytes.inputStream()
                     .use { image ->

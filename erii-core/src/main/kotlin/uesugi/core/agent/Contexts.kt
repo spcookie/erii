@@ -264,7 +264,8 @@ data class Context(
     val moreHistories: suspend () -> List<HistoryRecord>,
     val rules: suspend () -> List<Rule>,
     val admins: () -> List<String>,
-    val memo: suspend (String) -> MemeResource?,
+    val memes: () -> Int,
+    val meme: suspend (String) -> MemeResource?,
 ) {
 
     data class Transient(
@@ -278,7 +279,8 @@ data class Context(
         val histories: List<HistoryRecord>,
         val moreHistories: List<HistoryRecord>,
         val rules: List<Rule>,
-        val admins: List<String>
+        val admins: List<String>,
+        val memes: Int
     )
 
     suspend fun toTransient() = Transient(
@@ -292,7 +294,8 @@ data class Context(
         histories = histories(),
         moreHistories = moreHistories(),
         rules = rules(),
-        admins = admins()
+        admins = admins(),
+        memes = memes()
     )
 
 }
@@ -410,7 +413,12 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
                     emptyList()
                 }
             },
-            memo = { key ->
+            memes = {
+                val allMemes = memoService.getAllMemos(event.botId, groupId)
+                val analyzedMemes = allMemes.filter { it.description != null }
+                analyzedMemes.size
+            },
+            meme = { key ->
                 withContext(Dispatchers.IO) {
                     val record = memoService.searchByVector(currentBotId, groupId, key, 1)
                         .filter { it.second > 0.5 }

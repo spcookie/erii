@@ -32,8 +32,11 @@ internal suspend fun buildPrompt(context: Context): Prompt {
                 buildConstraintsPrompt(constraints)
                 buildConstraintRulePrompt()
                 buildRulesPrompt(transient.rules)
-                buildAdminInfoPrompt(transient.admins)
-                context.admins().ifNotEmpty { buildRuleAwarenessPrompt() }
+                buildMemeAwarenessPrompt(transient.memes)
+                transient.admins.ifNotEmpty {
+                    buildAdminInfoPrompt(transient.admins)
+                    buildRuleAwarenessPrompt()
+                }
                 buildVocabularyPrompt(transient.vocabulary)
                 buildFactsPrompt(transient.facts)
                 buildUserProfilesPrompt(transient.userProfiles)
@@ -230,6 +233,12 @@ fun MarkdownContentBuilder.buildRuleAwarenessPrompt() {
         item { line { text("4. 每次对话最多提取一条规则") } }
         item { line { text("5. 短期情绪表达、吐槽、一次性要求，不属于规则") } }
     }
+}
+
+fun MarkdownContentBuilder.buildMemeAwarenessPrompt(memes: Int) {
+    h2("表情包感知")
+    line { text("你可以使用 `send_meme` 工具发送表情包") }
+    line { text("当前可以发送的表情包数量：$memes") }
 }
 
 fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {

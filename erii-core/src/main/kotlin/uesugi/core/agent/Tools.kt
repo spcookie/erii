@@ -56,7 +56,7 @@ fun buildChatToolSet(event: ProactiveSpeakEvent, context: Context): ChatToolSet 
     val groupId = event.groupId
     val bot = currentBot.refBot
 
-    return QQChatToolSet(
+    return AgentChatToolSet(
         bot = bot,
         groupId = groupId.toLong(),
         context = context
