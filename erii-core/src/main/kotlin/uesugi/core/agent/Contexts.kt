@@ -183,19 +183,19 @@ private fun applyEmojiLevel(
     when (emojiLevel) {
 
         NONE -> {
-            constraints.forbiddenHints += "不使用 Emoji/表情包"
+            constraints.forbiddenHints += "不使用 Emoji"
         }
 
         LOW -> {
-            constraints.styleHints += "如使用 Emoji/表情包，最多一个"
+            constraints.styleHints += "如使用 Emoji，最多一个"
         }
 
         MEDIUM -> {
-            constraints.styleHints += "可适度使用 Emoji/表情包 辅助语气"
+            constraints.styleHints += "可适度使用 Emoji 辅助语气"
         }
 
         HIGH -> {
-            constraints.styleHints += "可较频繁使用 Emoji/表情包 增强情绪"
+            constraints.styleHints += "可较频繁使用 Emoji 增强情绪"
         }
     }
 }
