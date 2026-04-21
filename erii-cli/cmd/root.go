@@ -8,8 +8,8 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "erii",
-	Short: "Erii CLI - Configuration and management tool for EriiX",
-	Long:  `A command-line tool with TUI for managing EriiX bot configuration.`,
+	Short: "Erii CLI - Configuration and management tool for Erii",
+	Long:  `A command-line tool with TUI for managing Erii bot configuration.`,
 }
 
 func Execute() {
