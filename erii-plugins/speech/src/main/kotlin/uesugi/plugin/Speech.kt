@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
+import uesugi.common.BotManage
 import uesugi.spi.*
 
 @PluginDefinition
@@ -24,13 +25,6 @@ class SpeechExtension : AgentExtension<Speech> {
         private val log = KotlinLogging.logger {}
         private const val T2A_API_URL = "https://api.minimaxi.com/v1/t2a_v2"
         private const val DEFAULT_MODEL = "speech-2.8-hd"
-
-        // 语言到音色ID的映射
-        private val VOICE_MAP = mapOf(
-            Language.CHINESE to "Chinese (Mandarin)_ExplorativeGirl",
-            Language.ENGLISH to "English_PlayfulGirl",
-            Language.JAPANESE to "Japanese_DecisivePrincess"
-        )
     }
 
     enum class Language {
@@ -80,8 +74,15 @@ class SpeechExtension : AgentExtension<Speech> {
                                 return "语音合成失败：未配置 minimax-api-key"
                             }
 
+                            val configKey = BotManage.getConfigKey(MetaToolSet.meta.botId)
+                            val voicesCfg = config().getConfig("onebot.$configKey.voices")
+                                ?: return "语音合成失败：未配置音色"
 
-                            val voiceId = VOICE_MAP[language] ?: VOICE_MAP[Language.CHINESE]!!
+                            val voiceId = when (language) {
+                                Language.CHINESE -> voicesCfg.getString("chinese")
+                                Language.ENGLISH -> voicesCfg.getString("english")
+                                Language.JAPANESE -> voicesCfg.getString("japanese")
+                            }
 
                             log.info { "Sending speech: text=${text.take(50)}, language=$language, voiceId=$voiceId, speed=$speed, emotion=$emotion" }
 
