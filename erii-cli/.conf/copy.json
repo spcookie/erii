@@ -1,4 +1,6 @@
-[
-  "onebot",
-  "onebot.*.groups"
-]
+{
+  "copy": [
+    "onebot",
+    "onebot.*.groups"
+  ]
+}

@@ -30,7 +30,14 @@ func LoadMetadata(confDir string) error {
 		_ = json.Unmarshal(data, &GlobalMetadata.DescMap)
 	}
 	if data, err := os.ReadFile(filepath.Join(confDir, "copy.json")); err == nil {
-		_ = json.Unmarshal(data, &GlobalMetadata.CopyPatterns)
+		var copyMeta struct {
+			Copy []string `json:"copy"`
+		}
+		if err := json.Unmarshal(data, &copyMeta); err == nil && len(copyMeta.Copy) > 0 {
+			GlobalMetadata.CopyPatterns = copyMeta.Copy
+		} else {
+			_ = json.Unmarshal(data, &GlobalMetadata.CopyPatterns)
+		}
 	}
 	return nil
 }
