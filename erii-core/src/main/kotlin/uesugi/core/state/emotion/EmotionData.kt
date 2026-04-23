@@ -1,12 +1,9 @@
 package uesugi.core.state.emotion
 
 import kotlinx.serialization.Serializable
-import org.jetbrains.exposed.v1.core.ColumnTransformer
-import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.notInList
 import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
@@ -72,7 +69,7 @@ typealias Stimulus = PAD
 typealias Emotion = PAD
 typealias Mood = PAD
 
-enum class Decay(val decay: Double) {
+enum class Retention(val value: Double) {
     HIGH(0.85),
     MEDIUM(0.7),
     LOW(0.5)
@@ -120,12 +117,17 @@ fun EmotionEntity.Companion.findRequiredAnalysisHistoryGroupIds(botMark: String)
                   FROM chat_history ch
                            LEFT JOIN (SELECT GROUP_ID, MAX(HISTORY_MESSAGE_PROCESSED) AS HISTORY_MESSAGE_PROCESSED
                                       FROM chat_emotion
+                                      WHERE BOT_MARK = ?
                                       GROUP BY GROUP_ID) ce
                                      ON ch.GROUP_ID = ce.GROUP_ID
-                  WHERE ch.BOT_MARK = '$botMark'
+                  WHERE ch.BOT_MARK = ?
                   GROUP BY ch.GROUP_ID) AS t1
             WHERE t1.MESSAGE_COUNT > 10
-            """.trimIndent()
+            """.trimIndent(),
+            listOf(
+                VarCharColumnType() to botMark,
+                VarCharColumnType() to botMark
+            )
         ) { rs -> rs.rowMapMapper() } ?: emptyList()
     }
     return result.map {

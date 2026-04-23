@@ -14,7 +14,9 @@ import uesugi.common.toolkit.logger
  * 仅负责调度和组合逻辑，业务逻辑封装在 EmotionService 中
  */
 class EmotionJob(
-    val jobScheduler: JobScheduler
+    val jobScheduler: JobScheduler,
+    private val emotionRepository: EmotionRepository,
+    private val emotionService: EmotionService
 ) {
 
     companion object {
@@ -22,12 +24,10 @@ class EmotionJob(
     }
 
     private val mutex = Mutex()
-    private val emotionRepository = EmotionRepository()
-    private val emotionService = EmotionService(emotionRepository)
 
     /**
      * 开启定时触发
-     * 每分钟执行一次情绪分析
+     * 每 2 分钟执行一次情绪分析
      */
     fun openTimingTriggerSignal() {
         jobScheduler.scheduleRecurrently(
@@ -41,10 +41,17 @@ class EmotionJob(
     /**
      * 执行情绪分析
      * 调度逻辑：遍历所有机器人和群组，调用 Service 处理
+     *
+     * 注意：JobRunr 调用此方法的线程不应阻塞，实际工作在独立协程中异步执行
      */
     fun doAnalysis() {
-        runBlocking {
-            if (mutex.tryLock()) {
+        if (!mutex.tryLock()) {
+            log.debug("情绪任务正在执行中, 跳过本次调度")
+            return
+        }
+
+        try {
+            runBlocking {
                 try {
                     log.debug("情绪任务开始执行")
                     for (currentBotId in BotManage.getAllBotIds()) {
@@ -58,10 +65,7 @@ class EmotionJob(
 
                         // 2. 对每个群组执行情绪分析
                         for (group in groups) {
-                            emotionService.analyzeGroupEmotion(
-                                currentBotId,
-                                group
-                            )
+                            emotionService.analyzeGroupEmotion(currentBotId, group)
                         }
 
                         // 3. 查找需要衰减的群组
@@ -72,22 +76,17 @@ class EmotionJob(
 
                         // 4. 对每个群组执行情绪衰减
                         for (group in decayGroups) {
-                            emotionService.decayGroupEmotion(
-                                currentBotId,
-                                group
-                            )
+                            emotionService.decayGroupEmotion(currentBotId, group)
                         }
                     }
 
                     log.debug("情绪任务执行完成")
                 } catch (e: Exception) {
                     log.error("情绪任务执行失败", e)
-                } finally {
-                    mutex.unlock()
                 }
-            } else {
-                log.debug("情绪任务正在执行中, 跳过本次调度")
             }
+        } finally {
+            mutex.unlock()
         }
     }
 }

@@ -2,9 +2,6 @@ package uesugi.core.state.emotion
 
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.BotManage
 import uesugi.common.EmotionalTendencies
 import uesugi.common.EventBus
@@ -92,63 +89,39 @@ object BehaviorMapper {
 }
 
 class BehaviorAnalysis(
-    private val currentEmotionEntity: EmotionEntity?,
+    private val currentEmotion: PAD?,
+    private val currentMood: PAD?,
     private val baseLine: EmotionalTendencies? = null
 ) {
 
     companion object {
         private const val y = 0.25
+        private const val MOOD_RETENTION = 0.95
     }
 
-    fun decideEmotion(
-        currentStimulus: Stimulus,
-        decay: Decay,
-    ): Emotion {
-        return if (currentEmotionEntity == null) {
-            if (baseLine != null) {
-                baseLine.pad * decay.decay + currentStimulus
-            } else {
-                currentStimulus
-            }
+    fun decideEmotion(currentStimulus: Stimulus, retention: Retention): Emotion {
+        val r = retention.value
+        val oldEmotion = currentEmotion
+        return if (oldEmotion == null) {
+            if (baseLine != null) baseLine.pad * r + currentStimulus * (1 - r) else currentStimulus
         } else {
-            currentEmotionEntity.emotion * decay.decay + currentStimulus
+            oldEmotion * r + currentStimulus * (1 - r)
         }
     }
 
-    fun decideMood(
-        currentStimulus: Stimulus,
-        decay: Decay,
-    ): Emotion {
-        return if (currentEmotionEntity == null) {
-            if (baseLine != null) {
-                baseLine.pad + currentStimulus * y
-            } else {
-                currentStimulus * y
-            }
+    fun decideMood(emotion: Emotion): Mood {
+        val oldMood = currentMood
+        return if (oldMood == null) {
+            if (baseLine != null) baseLine.pad * MOOD_RETENTION + emotion * y * (1 - MOOD_RETENTION)
+            else emotion * y
         } else {
-            val emotion = currentEmotionEntity.emotion * decay.decay + currentStimulus
-            currentEmotionEntity.mood + emotion * y
+            oldMood * MOOD_RETENTION + emotion * y * (1 - MOOD_RETENTION)
         }
     }
 
-    fun decideBehavior(
-        currentStimulus: Stimulus,
-        decay: Decay,
-        applyEmotion: Boolean = true
-    ): BehaviorProfile {
-        val emotion = if (currentEmotionEntity == null) {
-            currentStimulus
-        } else {
-            currentEmotionEntity.emotion * decay.decay + currentStimulus
-        }
-        val mood = if (currentEmotionEntity == null) {
-            emotion * y
-        } else {
-            currentEmotionEntity.mood + emotion * y
-        }
-
-        val emotional = EmotionalTendencies.findClosest(if (applyEmotion) emotion else mood)
-
+    fun decideBehavior(emotion: Emotion, mood: Mood, applyEmotion: Boolean = true): BehaviorProfile {
+        val target = if (applyEmotion) emotion else mood
+        val emotional = EmotionalTendencies.findClosest(target)
         return BehaviorMapper.fromEmotion(emotional)
     }
 }
@@ -162,10 +135,14 @@ class EmotionService(
     /**
      * 处理单个群组的情绪分析
      */
+    @OptIn(ExperimentalTime::class)
     suspend fun analyzeGroupEmotion(
         currentBotId: String,
         groupId: String,
     ) {
+        val bot = BotManage.getBot(currentBotId)
+        val baseLine = bot.role.emoticon
+
         // 获取当前情绪状态和新消息
         val emotionEntity = emotionRepository.getLatestEmotion(currentBotId, groupId)
 
@@ -186,6 +163,13 @@ class EmotionService(
             return
         }
 
+        // 对旧情绪状态进行时间衰减（analyze 路径也要考虑两次分析之间的时间差）
+        val (decayedEmotion, decayedMood) = if (emotionEntity != null) {
+            emotionRepository.decayEntity(emotionEntity, baseLine.pad, minSeconds = 60)
+        } else {
+            null to null
+        }
+
         // 转换为 GMessage
         val allHistories = contextHistories + historyEntities
         val gMessages = allHistories.map {
@@ -201,28 +185,26 @@ class EmotionService(
         // 调用 LLM 分析情感刺激值
         val stimulus = analyzeStimulus(gMessages)
 
-        // 创建行为分析器
+        // 创建行为分析器（使用衰减后的状态）
         val behaviorAnalysis = BehaviorAnalysis(
-            emotionEntity,
-            BotManage.getBot(currentBotId).role.emoticon
+            currentEmotion = decayedEmotion,
+            currentMood = decayedMood,
+            baseLine = baseLine
         )
 
-        // 确定衰减等级
-        val decay = when {
-            historyEntities.size > 150 -> Decay.HIGH
-            historyEntities.size > 80 -> Decay.MEDIUM
-            else -> Decay.LOW
+        // 确定保留等级（消息越多，旧情绪保留越少）
+        val retention = when {
+            historyEntities.size > 150 -> Retention.HIGH
+            historyEntities.size > 80 -> Retention.MEDIUM
+            else -> Retention.LOW
         }
 
         // 计算新的情绪和心情
-        val emotion = behaviorAnalysis.decideEmotion(stimulus, decay)
-        val mood = behaviorAnalysis.decideMood(stimulus, decay)
+        val emotion = behaviorAnalysis.decideEmotion(stimulus, retention)
+        val mood = behaviorAnalysis.decideMood(emotion)
 
         // 计算行为表现
-        val behaviorProfile = behaviorAnalysis.decideBehavior(
-            currentStimulus = stimulus,
-            decay = decay
-        )
+        val behaviorProfile = behaviorAnalysis.decideBehavior(emotion, mood)
 
         // 保存情绪状态
         val maxHistoryId = historyEntities.maxOf { it.id.value }
@@ -245,6 +227,7 @@ class EmotionService(
 
     /**
      * 处理单个群组的情绪衰减
+     * 衰减时更新现有记录（不创建新记录），使 createdAt 保持为上次 analyze 的时间
      */
     @OptIn(ExperimentalTime::class)
     fun decayGroupEmotion(
@@ -252,40 +235,33 @@ class EmotionService(
         groupId: String
     ) {
         val currentEmotionEntity = emotionRepository.getLatestEmotion(currentBotId, groupId) ?: return
+        val baseLine = BotManage.getBot(currentBotId).role.emoticon
 
-        // 计算时间差
+        // 计算衰减（使用封装方法）
+        val (emotion, mood) = emotionRepository.decayEntity(
+            currentEmotionEntity, baseLine.pad, minSeconds = 0
+        )
+
+        // 计算行为（使用衰减后的 emotion/mood，不再重复计算）
         val tz = TimeZone.currentSystemDefault()
         val now = Clock.System.now()
-        val instant = currentEmotionEntity.updatedAt.toInstant(tz)
-        val seconds = (now - instant).inWholeSeconds.coerceAtLeast(0)
-
-        // 计算衰减
-        val emotion = emotionRepository.calculateDecayEmotion(currentEmotionEntity.emotion, seconds)
-        val mood = emotionRepository.calculateDecayMood(
-            currentEmotionEntity.mood,
-            BotManage.getBot(currentBotId).role.emoticon.pad,
-            seconds
-        )
-
-        // 计算行为
         val hours = (now - currentEmotionEntity.createdAt.toInstant(tz)).inWholeHours.coerceAtLeast(0)
         val applyEmotion = hours < 1
-        val behaviorProfile = BehaviorAnalysis(currentEmotionEntity).decideBehavior(
-            currentStimulus = PAD.ZERO,
-            decay = Decay.LOW,
-            applyEmotion = applyEmotion
+        val behaviorAnalysis = BehaviorAnalysis(
+            currentEmotion = emotion,
+            currentMood = mood,
+            baseLine = baseLine
         )
+        val behaviorProfile = behaviorAnalysis.decideBehavior(emotion, mood, applyEmotion = applyEmotion)
 
-        // 保存衰减后的情绪
-        emotionRepository.saveEmotion(
-            botMark = currentBotId,
-            groupId = groupId,
+        // 更新现有记录（不创建新记录），stimulus 归零表示当前无外部刺激
+        emotionRepository.updateEmotion(
+            entity = currentEmotionEntity,
             emotionalTendency = behaviorProfile.emotion,
-            stimulus = currentEmotionEntity.stimulus,
+            stimulus = PAD.ZERO,
             emotion = emotion,
             mood = mood,
-            behavior = behaviorProfile,
-            historyMessageProcessed = currentEmotionEntity.historyMessageProcessed
+            behavior = behaviorProfile
         )
 
         // 发送事件
@@ -295,31 +271,17 @@ class EmotionService(
     // ====== 原有查询方法 ======
 
     fun getCurrentBehaviorProfile(botMark: String, groupId: String): BehaviorProfile? {
-        return transaction {
-            EmotionEntity.find {
-                EmotionTable.botMark eq botMark and
-                        (EmotionTable.groupId eq groupId)
-            }.firstOrNull()?.behavior
-        }
+        return emotionRepository.getLatestEmotion(botMark, groupId)?.behavior
     }
 
     @OptIn(ExperimentalTime::class)
     fun getCurrentMood(botMark: String, groupId: String): PAD? {
-        return transaction {
-            EmotionEntity.find {
-                EmotionTable.botMark eq botMark and
-                        (EmotionTable.groupId eq groupId)
-            }.firstOrNull()?.let {
-                val tz = TimeZone.currentSystemDefault()
-                val now = Clock.System.now()
-                val instant = it.updatedAt.toInstant(tz)
-                val hours = (now - instant).inWholeHours.coerceAtLeast(0)
-                if (hours < 1) {
-                    it.emotion
-                } else {
-                    it.mood
-                }
-            }
+        return emotionRepository.getLatestEmotion(botMark, groupId)?.let {
+            val tz = TimeZone.currentSystemDefault()
+            val now = Clock.System.now()
+            val instant = it.updatedAt.toInstant(tz)
+            val hours = (now - instant).inWholeHours.coerceAtLeast(0)
+            if (hours < 1) it.emotion else it.mood
         }
     }
 }
