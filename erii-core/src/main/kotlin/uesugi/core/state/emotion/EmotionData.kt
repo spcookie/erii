@@ -12,9 +12,10 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.json.json
 import uesugi.common.EmotionalTendencies
+import uesugi.common.HistoryEntity
+import uesugi.common.HistoryTable
 import uesugi.common.PAD
 import uesugi.common.toolkit.JSON
-import uesugi.common.toolkit.rowMapMapper
 
 object EmotionTable : IntIdTable("chat_emotion") {
     const val DEFAULT_LENGTH = 64
@@ -106,32 +107,32 @@ enum class EmojiLevel {
 }
 
 fun EmotionEntity.Companion.findRequiredAnalysisHistoryGroupIds(botMark: String): List<String> {
-    val result = transaction {
-        exec(
-            """
-            SELECT t1.GROUP_ID, t1.MESSAGE_COUNT
-            FROM (SELECT ch.GROUP_ID                                                     AS GROUP_ID,
-                         COUNT(CASE
-                                   WHEN ce.HISTORY_MESSAGE_PROCESSED IS NULL THEN 1
-                                   WHEN ch.ID > ce.HISTORY_MESSAGE_PROCESSED THEN 1 END) AS MESSAGE_COUNT
-                  FROM chat_history ch
-                           LEFT JOIN (SELECT GROUP_ID, MAX(HISTORY_MESSAGE_PROCESSED) AS HISTORY_MESSAGE_PROCESSED
-                                      FROM chat_emotion
-                                      WHERE BOT_MARK = ?
-                                      GROUP BY GROUP_ID) ce
-                                     ON ch.GROUP_ID = ce.GROUP_ID
-                  WHERE ch.BOT_MARK = ?
-                  GROUP BY ch.GROUP_ID) AS t1
-            WHERE t1.MESSAGE_COUNT > 10
-            """.trimIndent(),
-            listOf(
-                VarCharColumnType() to botMark,
-                VarCharColumnType() to botMark
+    return transaction {
+        // 获取每个群组的最新 historyMessageProcessed
+        val lastProcessedByGroup = EmotionTable
+            .select(EmotionTable.groupId, EmotionTable.historyMessageProcessed)
+            .where { EmotionTable.botMark eq botMark }
+            .map { it[EmotionTable.groupId] to it[EmotionTable.historyMessageProcessed] }
+            .groupBy { it.first }
+            .mapValues { it.value.maxOfOrNull { p -> p.second } ?: -1 }
+
+        // 获取所有有历史消息的 groupId
+        val allGroupIds = HistoryTable
+            .select(HistoryTable.groupId)
+            .where { HistoryTable.botMark eq botMark }
+            .withDistinct(true)
+            .map { it[HistoryTable.groupId] }
+
+        // 对每个 groupId 统计未处理消息数，过滤 > 10 的
+        allGroupIds.filter { groupId ->
+            val lastProcessed = lastProcessedByGroup[groupId] ?: -1
+            val newCount = HistoryEntity.count(
+                (HistoryTable.botMark eq botMark) and
+                        (HistoryTable.groupId eq groupId) and
+                        (HistoryTable.id greater lastProcessed)
             )
-        ) { rs -> rs.rowMapMapper() } ?: emptyList()
-    }
-    return result.map {
-        it["GROUP_ID"] as String
+            newCount > 10
+        }
     }
 }
 
