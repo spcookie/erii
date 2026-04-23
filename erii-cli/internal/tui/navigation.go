@@ -1,6 +1,10 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"erii-cli/internal/tui/components"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 type Screen tea.Model
 
@@ -57,13 +61,10 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			m.quit = true
 			return m, tea.Quit
-		case tea.KeyEsc:
-			if _, ok := m.Pop(); !ok {
-				m.quit = true
-				return m, tea.Quit
-			}
-			return m, nil
 		}
+	case components.PopScreenMsg:
+		m.Pop()
+		return m, func() tea.Msg { return components.RefreshMsg{} }
 	}
 
 	if top := m.Current(); top != nil {
@@ -72,6 +73,12 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.pendingPush != nil {
 			m.Push(m.pendingPush)
 			m.pendingPush = nil
+			if newTop := m.Current(); newTop != nil {
+				initCmd := newTop.Init()
+				newTop2, cmd2 := newTop.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+				m.stack[len(m.stack)-1] = newTop2
+				return m, tea.Batch(initCmd, cmd2)
+			}
 		}
 		return m, cmd
 	}
