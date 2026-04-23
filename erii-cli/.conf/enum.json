@@ -1,0 +1,7 @@
+{
+  "llm.choice-model": [
+    "GOOGLE",
+    "MINIMAX",
+    "DEEP_SEEK"
+  ]
+}

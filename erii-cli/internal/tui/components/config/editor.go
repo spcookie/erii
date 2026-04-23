@@ -260,9 +260,9 @@ func (m *LeafEditorModel) initEnvList() {
 	m.envList = l
 }
 
-func (m *LeafEditorModel) pickEnvValue(val string) tea.Cmd {
+func (m *LeafEditorModel) pickEnvValue(key string) tea.Cmd {
 	m.pickingEnv = false
-	m.formValue = val
+	m.formValue = "${" + key + "}"
 	m.buildForm()
 	if m.form != nil {
 		if m.width > 0 {
@@ -344,7 +344,7 @@ func (m *LeafEditorModel) handleEnvKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "enter":
 		if item, ok := m.envList.SelectedItem().(envItem); ok {
-			return m, m.pickEnvValue(item.value)
+			return m, m.pickEnvValue(item.key)
 		}
 		return m, nil
 	}

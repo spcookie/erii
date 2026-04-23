@@ -11,6 +11,8 @@ import (
 )
 
 func Start() error {
+	_ = tree.LoadMetadata(path.ConfMetaDir)
+
 	var root *RootModel
 
 	// pushScreen is used by child components to push new screens.

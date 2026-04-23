@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"erii-cli/internal/config/tree"
 	"erii-cli/internal/tui/components"
@@ -16,6 +17,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type clearMsg struct{}
+
+func clearAfter(d time.Duration) tea.Cmd {
+	return tea.Tick(d, func(time.Time) tea.Msg { return clearMsg{} })
+}
+
 // BrowserKeyMap defines keybindings for the config browser.
 type BrowserKeyMap struct {
 	Up     key.Binding
@@ -23,6 +30,7 @@ type BrowserKeyMap struct {
 	Enter  key.Binding
 	Back   key.Binding
 	New    key.Binding
+	Rename key.Binding
 	Delete key.Binding
 	Save   key.Binding
 	Help   key.Binding
@@ -36,7 +44,7 @@ func (k BrowserKeyMap) ShortHelp() []key.Binding {
 func (k BrowserKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Enter},
-		{k.New, k.Delete, k.Save},
+		{k.New, k.Rename, k.Delete, k.Save},
 		{k.Back, k.Help, k.Quit},
 	}
 }
@@ -59,12 +67,16 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithHelp("esc/←/h", "back"),
 	),
 	New: key.NewBinding(
-		key.WithKeys("n"),
-		key.WithHelp("n", "new item"),
+		key.WithKeys("n", "ctrl+n"),
+		key.WithHelp("n/ctrl+n", "new item"),
+	),
+	Rename: key.NewBinding(
+		key.WithKeys("ctrl+r"),
+		key.WithHelp("ctrl+r", "rename"),
 	),
 	Delete: key.NewBinding(
-		key.WithKeys("d"),
-		key.WithHelp("d", "delete"),
+		key.WithKeys("d", "ctrl+d"),
+		key.WithHelp("d/ctrl+d", "delete"),
 	),
 	Save: key.NewBinding(
 		key.WithKeys("ctrl+s"),
@@ -141,22 +153,26 @@ func (i nodeItem) FilterValue() string { return i.node.Title() }
 
 // BrowserModel is a generic config file browser using list + node tree.
 type BrowserModel struct {
-	root       tree.ConfigNode
-	current    *tree.BranchNode
-	stack      []*tree.BranchNode
-	list       list.Model
-	width      int
-	height     int
-	keys       BrowserKeyMap
-	help       help.Model
-	onEdit     func(leaf *tree.LeafNode, onSave func())
-	onSaveFile func(root tree.ConfigNode) error
-	title      string
-	errMsg     string
-	successMsg string
-	adding     bool
-	addKey     string
-	addForm    *huh.Form
+	root        tree.ConfigNode
+	current     *tree.BranchNode
+	stack       []*tree.BranchNode
+	list        list.Model
+	width       int
+	height      int
+	keys        BrowserKeyMap
+	help        help.Model
+	onEdit      func(leaf *tree.LeafNode, onSave func())
+	onSaveFile  func(root tree.ConfigNode) error
+	title       string
+	errMsg      string
+	successMsg  string
+	adding      bool
+	addTitle    string
+	addDesc     string
+	addForm     *huh.Form
+	renaming    bool
+	renameValue string
+	renameForm  *huh.Form
 }
 
 func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.LeafNode, onSave func()), onSaveFile func(root tree.ConfigNode) error) *BrowserModel {
@@ -229,6 +245,20 @@ func (m *BrowserModel) updateSize() {
 	}
 }
 
+// currentPath builds the dot-separated path from root to current branch (without "root." prefix).
+func (m *BrowserModel) currentPath() string {
+	parts := []string{}
+	for _, b := range m.stack {
+		if b.Title() != "root" {
+			parts = append(parts, b.Title())
+		}
+	}
+	if m.current.Title() != "root" {
+		parts = append(parts, m.current.Title())
+	}
+	return strings.Join(parts, ".")
+}
+
 func (m *BrowserModel) buildAddForm() tea.Cmd {
 	w := 60
 	if m.width > 16 {
@@ -240,13 +270,38 @@ func (m *BrowserModel) buildAddForm() tea.Cmd {
 	m.addForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("New key name").
+				Title("Title").
 				Placeholder("e.g. your_bot").
-				Value(&m.addKey).
-				Key("key"),
+				Value(&m.addTitle).
+				Key("title"),
+			huh.NewInput().
+				Title("Description").
+				Placeholder("(empty)").
+				Value(&m.addDesc).
+				Key("desc"),
 		),
 	).WithWidth(w).WithShowHelp(false)
 	return m.addForm.Init()
+}
+
+func (m *BrowserModel) buildRenameForm() tea.Cmd {
+	w := 60
+	if m.width > 16 {
+		w = m.width - 8
+		if w > 60 {
+			w = 60
+		}
+	}
+	m.renameForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Rename").
+				Placeholder("new name").
+				Value(&m.renameValue).
+				Key("name"),
+		),
+	).WithWidth(w).WithShowHelp(false)
+	return m.renameForm.Init()
 }
 
 func (m *BrowserModel) Init() tea.Cmd {
@@ -280,11 +335,15 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.addForm = f
 		}
 		if m.addForm.State == huh.StateCompleted {
-			keyName := strings.TrimSpace(m.addKey)
+			title := strings.TrimSpace(m.addTitle)
+			desc := strings.TrimSpace(m.addDesc)
+			if desc == "" {
+				desc = "(empty)"
+			}
 			m.adding = false
 			m.addForm = nil
-			if keyName != "" {
-				m.current.AddChild(tree.NewBranch(keyName, ""))
+			if title != "" {
+				m.current.AddChild(m.createNodeFromTemplate(title, desc))
 				m.refreshList()
 				m.list.Select(len(m.current.Children()) - 1)
 			}
@@ -292,7 +351,57 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	if m.renaming && m.renameForm != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			w := 60
+			if msg.Width > 16 {
+				w = msg.Width - 8
+				if w > 60 {
+					w = 60
+				}
+			}
+			m.renameForm = m.renameForm.WithWidth(w)
+			return m, nil
+		case tea.KeyMsg:
+			if key.Matches(msg, m.keys.Back) {
+				m.renaming = false
+				m.renameForm = nil
+				return m, nil
+			}
+		}
+		newForm, cmd := m.renameForm.Update(msg)
+		if f, ok := newForm.(*huh.Form); ok {
+			m.renameForm = f
+		}
+		if m.renameForm.State == huh.StateCompleted {
+			newName := strings.TrimSpace(m.renameValue)
+			m.renaming = false
+			m.renameForm = nil
+			if newName != "" {
+				idx := m.list.Index()
+				if idx >= 0 && idx < len(m.current.Children()) {
+					child := m.current.Children()[idx]
+					if b, ok := child.(*tree.BranchNode); ok {
+						b.SetTitle(newName)
+					} else if l, ok := child.(*tree.LeafNode); ok {
+						l.SetTitle(newName)
+					}
+					m.refreshList()
+					m.list.Select(idx)
+				}
+			}
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
+	case clearMsg:
+		m.successMsg = ""
+		m.errMsg = ""
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -322,10 +431,11 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if err := m.onSaveFile(m.root); err != nil {
 					m.errMsg = err.Error()
 					m.successMsg = ""
-				} else {
-					m.successMsg = "Saved!"
-					m.errMsg = ""
+					return m, clearAfter(500 * time.Millisecond)
 				}
+				m.successMsg = "Saved!"
+				m.errMsg = ""
+				return m, clearAfter(500 * time.Millisecond)
 			}
 			return m, nil
 		}
@@ -357,22 +467,49 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, m.keys.New) {
-			if m.current.IsArray() {
-				idx := len(m.current.Children())
-				newBranch := tree.NewBranch(fmt.Sprintf("[%d]", idx), "")
-				m.current.AddChild(newBranch)
-				m.refreshList()
-				m.list.Select(len(m.current.Children()) - 1)
+			if !tree.CanCopy(m.currentPath()) {
 				return m, nil
 			}
 			m.adding = true
-			m.addKey = ""
+			m.addTitle = ""
+			m.addDesc = ""
+			if m.current.IsArray() {
+				m.addTitle = fmt.Sprintf("[%d]", len(m.current.Children()))
+			}
 			return m, m.buildAddForm()
+		}
+		if key.Matches(msg, m.keys.Rename) {
+			if item, ok := m.list.SelectedItem().(nodeItem); ok {
+				if !item.node.IsLeaf() {
+					path := m.currentPath()
+					if path != "" {
+						path = path + "." + item.node.Title()
+					} else {
+						path = item.node.Title()
+					}
+					if tree.CanCopy(path) {
+						m.renaming = true
+						m.renameValue = item.node.Title()
+						return m, m.buildRenameForm()
+					}
+				}
+			}
+			return m, nil
 		}
 		if key.Matches(msg, m.keys.Delete) {
 			idx := m.list.Index()
-			if m.current.RemoveChildAt(idx) {
-				m.refreshList()
+			if item, ok := m.list.SelectedItem().(nodeItem); ok {
+				path := m.currentPath()
+				if path != "" {
+					path = path + "." + item.node.Title()
+				} else {
+					path = item.node.Title()
+				}
+				if tree.CanCopy(path) {
+					if m.current.RemoveChildAt(idx) {
+						m.refreshList()
+					}
+				}
 			}
 			return m, nil
 		}
@@ -383,11 +520,68 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func cloneStructure(node tree.ConfigNode) tree.ConfigNode {
+	if leaf, ok := node.(*tree.LeafNode); ok {
+		var emptyVal any
+		switch leaf.ValueType() {
+		case tree.TypeString, tree.TypeText, tree.TypeEnum:
+			emptyVal = ""
+		case tree.TypeNumber:
+			emptyVal = float64(0)
+		case tree.TypeBool:
+			emptyVal = false
+		case tree.TypeArray:
+			emptyVal = []string{}
+		}
+		newLeaf := tree.NewLeaf(leaf.Title(), leaf.Description(), leaf.ValueType(), emptyVal)
+		if leaf.ValueType() == tree.TypeEnum {
+			newLeaf.SetOptions(leaf.Options())
+		}
+		return newLeaf
+	}
+	if branch, ok := node.(*tree.BranchNode); ok {
+		newBranch := tree.NewBranch(branch.Title(), branch.Description())
+		newBranch.SetIsArray(branch.IsArray())
+		for _, child := range branch.Children() {
+			newBranch.AddChild(cloneStructure(child))
+		}
+		return newBranch
+	}
+	return nil
+}
+
+func (m *BrowserModel) createNodeFromTemplate(title, desc string) tree.ConfigNode {
+	if len(m.current.Children()) > 0 {
+		template := m.current.Children()[0]
+		cloned := cloneStructure(template)
+		if branch, ok := cloned.(*tree.BranchNode); ok {
+			newBranch := tree.NewBranch(title, desc)
+			newBranch.SetIsArray(branch.IsArray())
+			for _, child := range branch.Children() {
+				newBranch.AddChild(child)
+			}
+			return newBranch
+		}
+		if leaf, ok := cloned.(*tree.LeafNode); ok {
+			return tree.NewLeaf(title, desc, leaf.ValueType(), leaf.Value())
+		}
+	}
+	return tree.NewBranch(title, desc)
+}
+
 func (m *BrowserModel) View() string {
 	if m.adding && m.addForm != nil {
 		var b strings.Builder
-		b.WriteString(style.Title("Add new key") + "\n\n")
+		b.WriteString(style.Title("Add new item") + "\n\n")
 		b.WriteString(m.addForm.View())
+		b.WriteString("\n\n" + style.Muted("esc cancel • enter confirm"))
+		return b.String()
+	}
+
+	if m.renaming && m.renameForm != nil {
+		var b strings.Builder
+		b.WriteString(style.Title("Rename") + "\n\n")
+		b.WriteString(m.renameForm.View())
 		b.WriteString("\n\n" + style.Muted("esc cancel • enter confirm"))
 		return b.String()
 	}

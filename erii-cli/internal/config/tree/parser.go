@@ -47,7 +47,9 @@ func (p *JSONParser) Parse(path string) (ConfigNode, error) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, err
 	}
-	return mapToNode("root", "Configuration root", raw), nil
+	root := mapToNode("root", "Configuration root", raw)
+	ApplyMetadata(root, "root")
+	return root, nil
 }
 
 func (p *JSONParser) Save(path string, root ConfigNode) error {
@@ -276,7 +278,9 @@ func (p *HOCONParser) Parse(path string) (ConfigNode, error) {
 		}
 		return nil, err
 	}
-	return parseHOCON(string(data)), nil
+	root := parseHOCON(string(data))
+	ApplyMetadata(root, "root")
+	return root, nil
 }
 
 func (p *HOCONParser) Save(path string, root ConfigNode) error {
@@ -418,5 +422,28 @@ func formatHOCONValue(leaf *LeafNode) string {
 		return fmt.Sprintf(`"""%s"""`, leaf.Value())
 	default:
 		return fmt.Sprintf(`"%v"`, leaf.Value())
+	}
+}
+
+// ApplyMetadata walks the tree and applies enum/desc overrides from metadata files.
+func ApplyMetadata(node ConfigNode, path string) {
+	if branch, ok := node.(*BranchNode); ok {
+		if d := GetDesc(path); d != "" {
+			branch.description = d
+		}
+		for _, child := range branch.Children() {
+			childPath := path + "." + child.Title()
+			if leaf, ok := child.(*LeafNode); ok {
+				if d := GetDesc(childPath); d != "" {
+					leaf.description = d
+				}
+				if opts := GetEnum(childPath); len(opts) > 0 {
+					leaf.valueType = TypeEnum
+					leaf.options = opts
+				}
+			} else {
+				ApplyMetadata(child, childPath)
+			}
+		}
 	}
 }
