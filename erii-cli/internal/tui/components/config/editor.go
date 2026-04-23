@@ -435,6 +435,9 @@ func (m *LeafEditorModel) View() string {
 	}
 
 	b.WriteString("\n\n" + m.help.View(m.keys))
+	if m.leaf.ValueType() == tree.TypeText || m.leaf.ValueType() == tree.TypeArray {
+		b.WriteString("\n" + style.Muted("ctrl+j newline"))
+	}
 
 	return b.String()
 }

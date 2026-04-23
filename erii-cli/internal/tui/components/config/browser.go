@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"erii-cli/internal/config/tree"
 	"erii-cli/internal/tui/components"
@@ -11,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -152,6 +154,9 @@ type BrowserModel struct {
 	title      string
 	errMsg     string
 	successMsg string
+	adding     bool
+	addKey     string
+	addForm    *huh.Form
 }
 
 func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.LeafNode, onSave func()), onSaveFile func(root tree.ConfigNode) error) *BrowserModel {
@@ -224,11 +229,69 @@ func (m *BrowserModel) updateSize() {
 	}
 }
 
+func (m *BrowserModel) buildAddForm() tea.Cmd {
+	w := 60
+	if m.width > 16 {
+		w = m.width - 8
+		if w > 60 {
+			w = 60
+		}
+	}
+	m.addForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("New key name").
+				Placeholder("e.g. your_bot").
+				Value(&m.addKey).
+				Key("key"),
+		),
+	).WithWidth(w).WithShowHelp(false)
+	return m.addForm.Init()
+}
+
 func (m *BrowserModel) Init() tea.Cmd {
 	return nil
 }
 
 func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.adding && m.addForm != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			w := 60
+			if msg.Width > 16 {
+				w = msg.Width - 8
+				if w > 60 {
+					w = 60
+				}
+			}
+			m.addForm = m.addForm.WithWidth(w)
+			return m, nil
+		case tea.KeyMsg:
+			if key.Matches(msg, m.keys.Back) {
+				m.adding = false
+				m.addForm = nil
+				return m, nil
+			}
+		}
+		newForm, cmd := m.addForm.Update(msg)
+		if f, ok := newForm.(*huh.Form); ok {
+			m.addForm = f
+		}
+		if m.addForm.State == huh.StateCompleted {
+			keyName := strings.TrimSpace(m.addKey)
+			m.adding = false
+			m.addForm = nil
+			if keyName != "" {
+				m.current.AddChild(tree.NewBranch(keyName, ""))
+				m.refreshList()
+				m.list.Select(len(m.current.Children()) - 1)
+			}
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -294,17 +357,17 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, m.keys.New) {
-			// Allow adding new items to array-like or empty branches
-			desc := m.current.Description()
-			isArray := len(desc) >= 5 && (desc[:5] == "Array" || desc[:5] == "array")
-			if len(m.current.Children()) == 0 || isArray {
+			if m.current.IsArray() {
 				idx := len(m.current.Children())
 				newBranch := tree.NewBranch(fmt.Sprintf("[%d]", idx), "")
 				m.current.AddChild(newBranch)
 				m.refreshList()
 				m.list.Select(len(m.current.Children()) - 1)
+				return m, nil
 			}
-			return m, nil
+			m.adding = true
+			m.addKey = ""
+			return m, m.buildAddForm()
 		}
 		if key.Matches(msg, m.keys.Delete) {
 			idx := m.list.Index()
@@ -321,6 +384,14 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *BrowserModel) View() string {
+	if m.adding && m.addForm != nil {
+		var b strings.Builder
+		b.WriteString(style.Title("Add new key") + "\n\n")
+		b.WriteString(m.addForm.View())
+		b.WriteString("\n\n" + style.Muted("esc cancel • enter confirm"))
+		return b.String()
+	}
+
 	var b string
 	b = m.list.View()
 

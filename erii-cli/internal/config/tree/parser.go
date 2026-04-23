@@ -79,9 +79,14 @@ func valueToNode(key, desc string, v any) ConfigNode {
 		// Check if array of primitives or objects
 		if _, ok := val[0].(map[string]any); ok {
 			branch := NewBranch(key, fmt.Sprintf("Array (%d items)", len(val)))
+			branch.SetIsArray(true)
 			for i, item := range val {
 				if m, ok := item.(map[string]any); ok {
-					branch.AddChild(mapToNode(fmt.Sprintf("[%d]", i), "", m))
+					child := mapToNode(fmt.Sprintf("[%d]", i), "", m)
+					if cb, ok := child.(*BranchNode); ok {
+						cb.SetIsArray(false)
+					}
+					branch.AddChild(child)
 				}
 			}
 			return branch
@@ -117,8 +122,7 @@ func nodeToMap(node ConfigNode) map[string]any {
 			if leaf, ok := child.(*LeafNode); ok {
 				result[leaf.Title()] = leaf.Value()
 			} else if b, ok := child.(*BranchNode); ok {
-				// Check if array branch
-				if strings.Contains(b.Description(), "Array") {
+				if b.IsArray() {
 					var arr []any
 					for _, c := range b.Children() {
 						if cb, ok := c.(*BranchNode); ok {
@@ -325,6 +329,9 @@ func parseHOCON(data string) ConfigNode {
 
 func guessLeaf(key, val string) *LeafNode {
 	val = strings.Trim(val, `"`)
+	if val == "null" {
+		return NewLeaf(key, "", TypeString, "")
+	}
 	if val == "true" || val == "false" {
 		return NewLeaf(key, "", TypeBool, val == "true")
 	}

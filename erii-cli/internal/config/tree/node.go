@@ -42,6 +42,7 @@ type BranchNode struct {
 	title       string
 	description string
 	children    []ConfigNode
+	isArray     bool
 }
 
 func NewBranch(title, description string, children ...ConfigNode) *BranchNode {
@@ -55,6 +56,8 @@ func NewBranch(title, description string, children ...ConfigNode) *BranchNode {
 func (b *BranchNode) Title() string          { return b.title }
 func (b *BranchNode) Description() string    { return b.description }
 func (b *BranchNode) IsLeaf() bool           { return false }
+func (b *BranchNode) IsArray() bool          { return b.isArray }
+func (b *BranchNode) SetIsArray(v bool)      { b.isArray = v }
 func (b *BranchNode) Children() []ConfigNode { return b.children }
 func (b *BranchNode) AddChild(n ConfigNode) {
 	b.children = append(b.children, n)
