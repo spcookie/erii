@@ -6,6 +6,7 @@ import (
 	"erii-cli/internal/tui/components"
 	cfgcomp "erii-cli/internal/tui/components/config"
 	"erii-cli/internal/tui/components/md"
+	"erii-cli/internal/tui/components/plugin"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -24,13 +25,22 @@ func Start() error {
 		switch index {
 		case 0:
 			parser := tree.DetectParser(path.EnvFile)
-			root.pendingPush = buildConfigBrowser(parser, path.EnvFile, "Env Config", pushScreen)
+			root.pendingPush = buildConfigBrowser(parser, path.EnvFile, "Env Config", pushScreen, "", nil)
 		case 1:
 			parser := tree.DetectParser(path.AppFile)
-			root.pendingPush = buildConfigBrowser(parser, path.AppFile, "Application Config", pushScreen)
+			root.pendingPush = buildConfigBrowser(parser, path.AppFile, "Application Config", pushScreen, "", nil)
 		case 2:
-			root.pendingPush = md.NewBrowserModel(path.SoulsDir, "Souls")
+			root.pendingPush = plugin.NewBrowserModel(
+				func(pluginName string, pluginPath string) {
+					parser := tree.DetectParser(pluginPath)
+					browser := buildConfigBrowser(parser, pluginPath, pluginName+" Config", pushScreen, pluginName, nil)
+					pushScreen(browser)
+				},
+				nil,
+			)
 		case 3:
+			root.pendingPush = md.NewBrowserModel(path.SoulsDir, "Souls")
+		case 4:
 			root.pendingPush = md.NewBrowserModel(path.RulesDir, "Rules")
 		}
 	})
@@ -41,18 +51,23 @@ func Start() error {
 	return err
 }
 
-func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushScreen func(tea.Model)) tea.Model {
+func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushScreen func(tea.Model), pluginName string, onSave func() tea.Cmd) tea.Model {
 	rootNode, err := parser.Parse(filePath)
 	if err != nil {
 		rootNode = tree.NewBranch("root", "Configuration")
 	}
 
+	// Re-apply metadata with plugin context if pluginName is provided
+	if pluginName != "" {
+		tree.ApplyMetadataWithPlugin(rootNode, "root", pluginName)
+	}
+
 	return cfgcomp.NewBrowserModel(rootNode, title,
-		func(leaf *tree.LeafNode, onSave func() tea.Cmd) {
-			pushScreen(cfgcomp.NewLeafEditorModel(leaf, onSave))
+		func(leaf *tree.LeafNode, onSaveCb func() tea.Cmd) {
+			pushScreen(cfgcomp.NewLeafEditorModel(leaf, onSaveCb))
 		},
 		func(r tree.ConfigNode) error {
 			return parser.Save(filePath, r)
 		},
-	)
+	).WithPlugin(pluginName)
 }

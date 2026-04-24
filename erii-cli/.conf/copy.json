@@ -1,6 +1,14 @@
 {
-  "copy": [
+  "__main__": [
     "onebot",
     "onebot.*.groups"
-  ]
+  ],
+  "__plugin__": {
+    "qq-face": [
+      "face"
+    ],
+    "net-music": [
+      "music"
+    ]
+  }
 }

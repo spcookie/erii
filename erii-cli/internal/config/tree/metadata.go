@@ -9,18 +9,26 @@ import (
 
 // Metadata holds external configuration for enum, descriptions, and copy rules.
 type Metadata struct {
-	MainMeta   map[string]any            // __main__: flat map of path->value
-	PluginMeta map[string]map[string]any // __plugin__: pluginName -> (path -> value)
-	CopyMain   []string
-	CopyPlugin map[string][]string // pluginName -> patterns
+	MainDesc          map[string]string              // __main__: path -> description
+	MainEnum          map[string][]string            // __main__: path -> enum options
+	PluginDesc        map[string]map[string]string   // __plugin__: pluginName -> item(path -> description)
+	PluginOverallDesc map[string]string              // __plugin__: pluginName -> overall description
+	PluginEnum        map[string]map[string][]string // __plugin__: pluginName -> (path -> enum options)
+	PluginOverallEnum map[string]string              // __plugin__: pluginName -> overall description (unused for now)
+	CopyMain          []string
+	CopyPlugin        map[string][]string // pluginName -> patterns
 }
 
 // GlobalMetadata is populated at startup.
 var GlobalMetadata = &Metadata{
-	MainMeta:   make(map[string]any),
-	PluginMeta: make(map[string]map[string]any),
-	CopyMain:   []string{},
-	CopyPlugin: make(map[string][]string),
+	MainDesc:          make(map[string]string),
+	MainEnum:          make(map[string][]string),
+	PluginDesc:        make(map[string]map[string]string),
+	PluginOverallDesc: make(map[string]string),
+	PluginEnum:        make(map[string]map[string][]string),
+	PluginOverallEnum: make(map[string]string),
+	CopyMain:          []string{},
+	CopyPlugin:        make(map[string][]string),
 }
 
 var metaDir string
@@ -31,87 +39,192 @@ func LoadMetadata(confDir string) error {
 	metaDir = confDir
 
 	// Load enum.json
-	if data, err := os.ReadFile(filepath.Join(confDir, "enum.json")); err == nil {
-		var raw map[string]any
-		if json.Unmarshal(data, &raw) == nil {
-			if main, ok := raw["__main__"].(map[string]any); ok {
-				GlobalMetadata.MainMeta = main
-			}
-			if plugins, ok := raw["__plugin__"].(map[string]any); ok {
-				for pName, pData := range plugins {
-					if pm, ok := pData.(map[string]any); ok {
-						GlobalMetadata.PluginMeta[pName] = pm
-					}
-				}
-			}
-		}
-	}
+	loadEnumFile(filepath.Join(confDir, "enum.json"))
 
 	// Load desc.json
-	if data, err := os.ReadFile(filepath.Join(confDir, "desc.json")); err == nil {
-		var raw map[string]any
-		if json.Unmarshal(data, &raw) == nil {
-			if main, ok := raw["__main__"].(map[string]any); ok {
-				GlobalMetadata.MainMeta = main
-			}
-			if plugins, ok := raw["__plugin__"].(map[string]any); ok {
-				for pName, pData := range plugins {
-					if pm, ok := pData.(map[string]any); ok {
-						GlobalMetadata.PluginMeta[pName] = pm
-					}
-				}
-			}
-		}
-	}
+	loadDescFile(filepath.Join(confDir, "desc.json"))
 
 	// Load copy.json
-	if data, err := os.ReadFile(filepath.Join(confDir, "copy.json")); err == nil {
-		var raw map[string]any
-		if json.Unmarshal(data, &raw) == nil {
-			if main, ok := raw["__main__"].([]any); ok {
-				for _, v := range main {
-					if s, ok := v.(string); ok {
-						GlobalMetadata.CopyMain = append(GlobalMetadata.CopyMain, s)
-					}
-				}
+	loadCopyFile(filepath.Join(confDir, "copy.json"))
+
+	return nil
+}
+
+func loadEnumFile(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var raw map[string]any
+	if json.Unmarshal(data, &raw) != nil {
+		return
+	}
+
+	// Load __main__ enums
+	if main, ok := raw["__main__"].(map[string]any); ok {
+		for k, v := range main {
+			if arr, ok := toStringArray(v); ok {
+				GlobalMetadata.MainEnum[k] = arr
 			}
-			if plugins, ok := raw["__plugin__"].(map[string]any); ok {
-				for pName, pData := range plugins {
-					if arr, ok := pData.([]any); ok {
-						var patterns []string
-						for _, v := range arr {
-							if s, ok := v.(string); ok {
-								patterns = append(patterns, s)
-							}
+		}
+	}
+
+	// Load __plugin__ enums
+	if plugins, ok := raw["__plugin__"].(map[string]any); ok {
+		for pName, pData := range plugins {
+			if pm, ok := pData.(map[string]any); ok {
+				// Load item enums
+				if item, ok := pm["item"].(map[string]any); ok {
+					if GlobalMetadata.PluginEnum[pName] == nil {
+						GlobalMetadata.PluginEnum[pName] = make(map[string][]string)
+					}
+					for k, v := range item {
+						if arr, ok := toStringArray(v); ok {
+							GlobalMetadata.PluginEnum[pName][k] = arr
 						}
-						GlobalMetadata.CopyPlugin[pName] = patterns
 					}
 				}
 			}
 		}
 	}
+}
 
-	return nil
+func loadDescFile(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var raw map[string]any
+	if json.Unmarshal(data, &raw) != nil {
+		return
+	}
+
+	// Load __main__ descriptions
+	if main, ok := raw["__main__"].(map[string]any); ok {
+		for k, v := range main {
+			if s, ok := v.(string); ok {
+				GlobalMetadata.MainDesc[k] = s
+			}
+		}
+	}
+
+	// Load __plugin__ descriptions
+	if plugins, ok := raw["__plugin__"].(map[string]any); ok {
+		for pName, pData := range plugins {
+			if pm, ok := pData.(map[string]any); ok {
+				// Load overall description
+				if desc, ok := pm["description"].(string); ok {
+					GlobalMetadata.PluginOverallDesc[pName] = desc
+				}
+				// Load item descriptions
+				if item, ok := pm["item"].(map[string]any); ok {
+					if GlobalMetadata.PluginDesc[pName] == nil {
+						GlobalMetadata.PluginDesc[pName] = make(map[string]string)
+					}
+					for k, v := range item {
+						if s, ok := v.(string); ok {
+							GlobalMetadata.PluginDesc[pName][k] = s
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func loadCopyFile(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var raw map[string]any
+	if json.Unmarshal(data, &raw) != nil {
+		return
+	}
+
+	// Load __main__ copy patterns
+	if main, ok := raw["__main__"].([]any); ok {
+		for _, v := range main {
+			if s, ok := v.(string); ok {
+				GlobalMetadata.CopyMain = append(GlobalMetadata.CopyMain, s)
+			}
+		}
+	}
+
+	// Load __plugin__ copy patterns
+	if plugins, ok := raw["__plugin__"].(map[string]any); ok {
+		for pName, pData := range plugins {
+			if arr, ok := pData.([]any); ok {
+				var patterns []string
+				for _, v := range arr {
+					if s, ok := v.(string); ok {
+						patterns = append(patterns, s)
+					}
+				}
+				GlobalMetadata.CopyPlugin[pName] = patterns
+			}
+		}
+	}
+}
+
+func toStringArray(v any) ([]string, bool) {
+	arr, ok := v.([]any)
+	if !ok {
+		return nil, false
+	}
+	result := make([]string, 0, len(arr))
+	for _, a := range arr {
+		if s, ok := a.(string); ok {
+			result = append(result, s)
+		} else {
+			return nil, false
+		}
+	}
+	return result, true
 }
 
 // SaveDesc updates the description for a path and persists desc.json.
 func SaveDesc(path, desc string) error {
 	if GlobalMetadata == nil {
-		GlobalMetadata = &Metadata{MainMeta: make(map[string]any)}
+		GlobalMetadata = &Metadata{
+			MainDesc:          make(map[string]string),
+			MainEnum:          make(map[string][]string),
+			PluginDesc:        make(map[string]map[string]string),
+			PluginOverallDesc: make(map[string]string),
+			PluginEnum:        make(map[string]map[string][]string),
+			PluginOverallEnum: make(map[string]string),
+			CopyMain:          []string{},
+			CopyPlugin:        make(map[string][]string),
+		}
 	}
 	if strings.HasPrefix(path, "root.") {
 		path = path[5:]
 	}
-	GlobalMetadata.MainMeta[path] = desc
+	GlobalMetadata.MainDesc[path] = desc
 	if metaDir == "" {
 		return nil
 	}
 
 	descMap := map[string]any{
-		"__main__": GlobalMetadata.MainMeta,
+		"__main__": GlobalMetadata.MainDesc,
 	}
-	if len(GlobalMetadata.PluginMeta) > 0 {
-		descMap["__plugin__"] = GlobalMetadata.PluginMeta
+	if len(GlobalMetadata.PluginDesc) > 0 || len(GlobalMetadata.PluginOverallDesc) > 0 {
+		pluginMap := make(map[string]any)
+		for pName, itemDesc := range GlobalMetadata.PluginDesc {
+			if _, ok := pluginMap[pName]; !ok {
+				if overallDesc, exists := GlobalMetadata.PluginOverallDesc[pName]; exists {
+					pluginMap[pName] = map[string]any{
+						"description": overallDesc,
+						"item":        itemDesc,
+					}
+				} else {
+					pluginMap[pName] = map[string]any{
+						"item": itemDesc,
+					}
+				}
+			}
+		}
+		descMap["__plugin__"] = pluginMap
 	}
 	data, err := json.MarshalIndent(descMap, "", "  ")
 	if err != nil {
@@ -124,60 +237,30 @@ func SaveDesc(path, desc string) error {
 func GetEnum(pluginName, path string) []string {
 	// Check plugin-specific metadata first
 	if pluginName != "" {
-		if pm, ok := GlobalMetadata.PluginMeta[pluginName]; ok {
+		if pm, ok := GlobalMetadata.PluginEnum[pluginName]; ok {
 			if opts, ok := pm[path]; ok {
-				if arr, ok := opts.([]any); ok {
-					result := make([]string, 0, len(arr))
-					for _, v := range arr {
-						if s, ok := v.(string); ok {
-							result = append(result, s)
-						}
-					}
-					return result
-				}
+				return opts
 			}
 		}
 		// Check with root. prefix stripped
 		if strings.HasPrefix(path, "root.") {
-			if pm, ok := GlobalMetadata.PluginMeta[pluginName]; ok {
-				if opts, ok := pm[path[5:]]; ok {
-					if arr, ok := opts.([]any); ok {
-						result := make([]string, 0, len(arr))
-						for _, v := range arr {
-							if s, ok := v.(string); ok {
-								result = append(result, s)
-							}
-						}
-						return result
-					}
+			path = path[5:]
+			if pm, ok := GlobalMetadata.PluginEnum[pluginName]; ok {
+				if opts, ok := pm[path]; ok {
+					return opts
 				}
 			}
 		}
 	}
 
 	// Check main metadata
-	if opts, ok := GlobalMetadata.MainMeta[path]; ok {
-		if arr, ok := opts.([]any); ok {
-			result := make([]string, 0, len(arr))
-			for _, v := range arr {
-				if s, ok := v.(string); ok {
-					result = append(result, s)
-				}
-			}
-			return result
-		}
+	if opts, ok := GlobalMetadata.MainEnum[path]; ok {
+		return opts
 	}
 	if strings.HasPrefix(path, "root.") {
-		if opts, ok := GlobalMetadata.MainMeta[path[5:]]; ok {
-			if arr, ok := opts.([]any); ok {
-				result := make([]string, 0, len(arr))
-				for _, v := range arr {
-					if s, ok := v.(string); ok {
-						result = append(result, s)
-					}
-				}
-				return result
-			}
+		path = path[5:]
+		if opts, ok := GlobalMetadata.MainEnum[path]; ok {
+			return opts
 		}
 	}
 	return matchWildcardEnum(path)
@@ -185,32 +268,16 @@ func GetEnum(pluginName, path string) []string {
 
 func matchWildcardEnum(path string) []string {
 	parts := strings.Split(path, ".")
-	for pattern, opts := range GlobalMetadata.MainMeta {
+	for pattern, opts := range GlobalMetadata.MainEnum {
 		if matchWildcardPattern(pattern, parts) {
-			if arr, ok := opts.([]any); ok {
-				result := make([]string, 0, len(arr))
-				for _, v := range arr {
-					if s, ok := v.(string); ok {
-						result = append(result, s)
-					}
-				}
-				return result
-			}
+			return opts
 		}
 	}
 	if strings.HasPrefix(path, "root.") {
 		parts = strings.Split(path[5:], ".")
-		for pattern, opts := range GlobalMetadata.MainMeta {
+		for pattern, opts := range GlobalMetadata.MainEnum {
 			if matchWildcardPattern(pattern, parts) {
-				if arr, ok := opts.([]any); ok {
-					result := make([]string, 0, len(arr))
-					for _, v := range arr {
-						if s, ok := v.(string); ok {
-							result = append(result, s)
-						}
-					}
-					return result
-				}
+				return opts
 			}
 		}
 	}
@@ -221,14 +288,15 @@ func matchWildcardEnum(path string) []string {
 func GetDesc(pluginName, path string) string {
 	// Check plugin-specific metadata first
 	if pluginName != "" {
-		if pm, ok := GlobalMetadata.PluginMeta[pluginName]; ok {
-			if d, ok := pm[path].(string); ok {
+		if pm, ok := GlobalMetadata.PluginDesc[pluginName]; ok {
+			if d, ok := pm[path]; ok {
 				return d
 			}
 		}
 		if strings.HasPrefix(path, "root.") {
-			if pm, ok := GlobalMetadata.PluginMeta[pluginName]; ok {
-				if d, ok := pm[path[5:]].(string); ok {
+			stripped := path[5:]
+			if pm, ok := GlobalMetadata.PluginDesc[pluginName]; ok {
+				if d, ok := pm[stripped]; ok {
 					return d
 				}
 			}
@@ -236,11 +304,12 @@ func GetDesc(pluginName, path string) string {
 	}
 
 	// Check main metadata
-	if d, ok := GlobalMetadata.MainMeta[path].(string); ok {
+	if d, ok := GlobalMetadata.MainDesc[path]; ok {
 		return d
 	}
 	if strings.HasPrefix(path, "root.") {
-		if d, ok := GlobalMetadata.MainMeta[path[5:]].(string); ok {
+		path = path[5:]
+		if d, ok := GlobalMetadata.MainDesc[path]; ok {
 			return d
 		}
 	}
@@ -249,20 +318,16 @@ func GetDesc(pluginName, path string) string {
 
 func matchWildcardDesc(path string) string {
 	parts := strings.Split(path, ".")
-	for pattern, d := range GlobalMetadata.MainMeta {
+	for pattern, d := range GlobalMetadata.MainDesc {
 		if matchWildcardPattern(pattern, parts) {
-			if s, ok := d.(string); ok {
-				return s
-			}
+			return d
 		}
 	}
 	if strings.HasPrefix(path, "root.") {
 		parts = strings.Split(path[5:], ".")
-		for pattern, d := range GlobalMetadata.MainMeta {
+		for pattern, d := range GlobalMetadata.MainDesc {
 			if matchWildcardPattern(pattern, parts) {
-				if s, ok := d.(string); ok {
-					return s
-				}
+				return d
 			}
 		}
 	}

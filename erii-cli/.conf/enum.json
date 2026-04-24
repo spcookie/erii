@@ -1,7 +1,34 @@
 {
-  "llm.choice-model": [
-    "GOOGLE",
-    "MINIMAX",
-    "DEEP_SEEK"
-  ]
+  "__main__": {
+    "llm.choice-model": [
+      "GOOGLE",
+      "MINIMAX",
+      "DEEP_SEEK"
+    ]
+  },
+  "__plugin__": {
+    "qq-face": {
+      "item": {
+        "face.quality": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    "net-music": {
+      "item": {
+        "music.quality": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "music.source": [
+          "qq-music",
+          "netease",
+          "kugou"
+        ]
+      }
+    }
+  }
 }
