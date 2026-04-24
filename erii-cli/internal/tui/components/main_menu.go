@@ -77,6 +77,7 @@ func NewMainMenuModel(onSelect func(index int)) *MainMenuModel {
 	items := []list.Item{
 		menuItem{"Env Config", "Edit .env.local environment variables"},
 		menuItem{"App Config", "Edit application.conf settings"},
+		menuItem{"Plugins", "Edit plugin configurations"},
 		menuItem{"Souls", "Manage soul/persona markdown files"},
 		menuItem{"Rules", "Manage rule markdown files"},
 	}

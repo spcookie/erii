@@ -92,18 +92,18 @@ var DefaultBrowserKeys = BrowserKeyMap{
 	),
 }
 
-// nodeItem wraps a ConfigNode for the list delegate.
-type nodeItem struct {
-	node tree.ConfigNode
+// NodeItem wraps a ConfigNode for the list delegate.
+type NodeItem struct {
+	Node tree.ConfigNode
 }
 
-func (i nodeItem) Title() string {
-	return i.node.Title()
+func (i NodeItem) Title() string {
+	return i.Node.Title()
 }
 
-func (i nodeItem) Description() string {
-	if i.node.IsLeaf() {
-		leaf := i.node.(*tree.LeafNode)
+func (i NodeItem) Description() string {
+	if i.Node.IsLeaf() {
+		leaf := i.Node.(*tree.LeafNode)
 		switch leaf.ValueType() {
 		case tree.TypeArray:
 			switch v := leaf.Value().(type) {
@@ -146,23 +146,23 @@ func (i nodeItem) Description() string {
 			return s
 		}
 	}
-	return i.node.Description()
+	return i.Node.Description()
 }
 
-func (i nodeItem) FilterValue() string { return i.node.Title() }
+func (i NodeItem) FilterValue() string { return i.Node.Title() }
 
 // BrowserModel is a generic config file browser using list + node tree.
 type BrowserModel struct {
-	root          tree.ConfigNode
+	Root          tree.ConfigNode
 	current       *tree.BranchNode
 	stack         []*tree.BranchNode
-	list          list.Model
+	List          list.Model
 	width         int
 	height        int
-	keys          BrowserKeyMap
+	Keys          BrowserKeyMap
 	help          help.Model
 	onEdit        func(leaf *tree.LeafNode, onSave func() tea.Cmd)
-	onSaveFile    func(root tree.ConfigNode) error
+	OnSaveFile    func(root tree.ConfigNode) error
 	title         string
 	errMsg        string
 	successMsg    string
@@ -179,7 +179,7 @@ type BrowserModel struct {
 	deleteForm    *huh.Form
 }
 
-func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.LeafNode, onSave func() tea.Cmd), onSaveFile func(root tree.ConfigNode) error) *BrowserModel {
+func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.LeafNode, onSave func() tea.Cmd), OnSaveFile func(root tree.ConfigNode) error) *BrowserModel {
 	branch, ok := root.(*tree.BranchNode)
 	if !ok {
 		// Wrap single leaf in a branch
@@ -188,23 +188,26 @@ func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.
 	}
 
 	m := &BrowserModel{
-		root:       root,
+		Root:       root,
 		current:    branch,
 		stack:      []*tree.BranchNode{},
-		keys:       DefaultBrowserKeys,
+		Keys:       DefaultBrowserKeys,
 		help:       help.New(),
 		onEdit:     onEdit,
-		onSaveFile: onSaveFile,
+		OnSaveFile: OnSaveFile,
 		title:      title,
+		width:      80, // Default dimensions to avoid blank first render
+		height:     24,
 	}
 	m.refreshList()
+	m.List.SetSize(80, 20)
 	return m
 }
 
 func (m *BrowserModel) refreshList() {
 	items := make([]list.Item, 0, len(m.current.Children()))
 	for _, child := range m.current.Children() {
-		items = append(items, nodeItem{node: child})
+		items = append(items, NodeItem{Node: child})
 	}
 
 	delegate := list.NewDefaultDelegate()
@@ -225,9 +228,9 @@ func (m *BrowserModel) refreshList() {
 	l.Styles.Title = style.ListTitle
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
-	if m.list.Items() != nil {
+	if m.List.Items() != nil {
 		// Preserve index if possible
-		idx := m.list.Index()
+		idx := m.List.Index()
 		if idx >= len(items) {
 			idx = len(items) - 1
 		}
@@ -237,14 +240,14 @@ func (m *BrowserModel) refreshList() {
 		l.Select(idx)
 	}
 
-	m.list = l
+	m.List = l
 	m.updateSize()
 }
 
 func (m *BrowserModel) updateSize() {
 	if m.width > 0 && m.height > 0 {
 		// Account for borders, padding, title, help
-		m.list.SetSize(m.width, m.height-4)
+		m.List.SetSize(m.width, m.height-4)
 		m.help.Width = m.width
 	}
 }
@@ -264,10 +267,10 @@ func (m *BrowserModel) currentPath() string {
 }
 
 func (m *BrowserModel) saveAndNotify() tea.Cmd {
-	if m.onSaveFile == nil {
+	if m.OnSaveFile == nil {
 		return nil
 	}
-	if err := m.onSaveFile(m.root); err != nil {
+	if err := m.OnSaveFile(m.Root); err != nil {
 		m.errMsg = err.Error()
 		m.successMsg = ""
 	} else {
@@ -289,7 +292,7 @@ func (m *BrowserModel) buildAddForm() tea.Cmd {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Title").
-				Placeholder("e.g. your_bot").
+				Placeholder("(empty)").
 				Value(&m.addTitle).
 				Key("title"),
 			huh.NewInput().
@@ -390,7 +393,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if title != "" {
 				m.current.AddChild(m.createNodeFromTemplate(title, desc))
 				m.refreshList()
-				m.list.Select(len(m.current.Children()) - 1)
+				m.List.Select(len(m.current.Children()) - 1)
 				nodePath := m.currentPath()
 				if nodePath != "" {
 					nodePath = nodePath + "." + title
@@ -439,7 +442,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.renaming = false
 			m.renameForm = nil
 			if newName != "" {
-				idx := m.list.Index()
+				idx := m.List.Index()
 				if idx >= 0 && idx < len(m.current.Children()) {
 					child := m.current.Children()[idx]
 					if b, ok := child.(*tree.BranchNode); ok {
@@ -453,7 +456,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						l.SetDescription(newDesc)
 					}
 					m.refreshList()
-					m.list.Select(idx)
+					m.List.Select(idx)
 				}
 				nodePath := m.currentPath()
 				if nodePath != "" {
@@ -500,7 +503,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.deleting = false
 			m.deleteForm = nil
 			if confirmed {
-				idx := m.list.Index()
+				idx := m.List.Index()
 				if m.current.RemoveChildAt(idx) {
 					m.refreshList()
 				}
@@ -522,14 +525,14 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if key.Matches(msg, m.keys.Quit) {
+		if key.Matches(msg, m.Keys.Quit) {
 			return m, tea.Quit
 		}
-		if key.Matches(msg, m.keys.Help) {
+		if key.Matches(msg, m.Keys.Help) {
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
 		}
-		if key.Matches(msg, m.keys.Back) {
+		if key.Matches(msg, m.Keys.Back) {
 			if len(m.stack) > 0 {
 				m.current = m.stack[len(m.stack)-1]
 				m.stack = m.stack[:len(m.stack)-1]
@@ -539,9 +542,9 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if key.Matches(msg, m.keys.Save) {
-			if m.onSaveFile != nil {
-				if err := m.onSaveFile(m.root); err != nil {
+		if key.Matches(msg, m.Keys.Save) {
+			if m.OnSaveFile != nil {
+				if err := m.OnSaveFile(m.Root); err != nil {
 					m.errMsg = err.Error()
 					m.successMsg = ""
 					return m, clearAfter(500 * time.Millisecond)
@@ -552,15 +555,15 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if key.Matches(msg, m.keys.Enter) {
-			if item, ok := m.list.SelectedItem().(nodeItem); ok {
-				if item.node.IsLeaf() {
-					leaf := item.node.(*tree.LeafNode)
+		if key.Matches(msg, m.Keys.Enter) {
+			if item, ok := m.List.SelectedItem().(NodeItem); ok {
+				if item.Node.IsLeaf() {
+					leaf := item.Node.(*tree.LeafNode)
 					if m.onEdit != nil {
 						m.onEdit(leaf, func() tea.Cmd {
 							m.refreshList()
-							if m.onSaveFile != nil {
-								if err := m.onSaveFile(m.root); err != nil {
+							if m.OnSaveFile != nil {
+								if err := m.OnSaveFile(m.Root); err != nil {
 									m.errMsg = err.Error()
 									m.successMsg = ""
 								} else {
@@ -573,7 +576,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						})
 					}
 				} else {
-					branch := item.node.(*tree.BranchNode)
+					branch := item.Node.(*tree.BranchNode)
 					m.stack = append(m.stack, m.current)
 					m.current = branch
 					m.refreshList()
@@ -581,7 +584,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if key.Matches(msg, m.keys.New) {
+		if key.Matches(msg, m.Keys.New) {
 			if !tree.CanCopy(m.currentPath()) {
 				return m, nil
 			}
@@ -593,21 +596,21 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, m.buildAddForm()
 		}
-		if key.Matches(msg, m.keys.Rename) {
+		if key.Matches(msg, m.Keys.Rename) {
 			if !tree.CanCopy(m.currentPath()) {
 				return m, nil
 			}
-			if item, ok := m.list.SelectedItem().(nodeItem); ok {
-				if !item.node.IsLeaf() {
+			if item, ok := m.List.SelectedItem().(NodeItem); ok {
+				if !item.Node.IsLeaf() {
 					m.renaming = true
-					m.renameValue = item.node.Title()
-					m.renameDesc = item.node.Description()
+					m.renameValue = item.Node.Title()
+					m.renameDesc = item.Node.Description()
 					return m, m.buildRenameForm()
 				}
 			}
 			return m, nil
 		}
-		if key.Matches(msg, m.keys.Delete) {
+		if key.Matches(msg, m.Keys.Delete) {
 			if !tree.CanCopy(m.currentPath()) {
 				return m, nil
 			}
@@ -617,7 +620,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	m.List, cmd = m.List.Update(msg)
 	return m, cmd
 }
 
@@ -671,25 +674,25 @@ func (m *BrowserModel) createNodeFromTemplate(title, desc string) tree.ConfigNod
 }
 
 func (m *BrowserModel) ShortHelp() []key.Binding {
-	return m.keys.ShortHelp()
+	return m.Keys.ShortHelp()
 }
 
 func (m *BrowserModel) FullHelp() [][]key.Binding {
 	var middle []key.Binding
 	if tree.CanCopy(m.currentPath()) {
-		middle = append(middle, m.keys.New)
-		if item, ok := m.list.SelectedItem().(nodeItem); ok {
-			if !item.node.IsLeaf() {
-				middle = append(middle, m.keys.Rename)
+		middle = append(middle, m.Keys.New)
+		if item, ok := m.List.SelectedItem().(NodeItem); ok {
+			if !item.Node.IsLeaf() {
+				middle = append(middle, m.Keys.Rename)
 			}
-			middle = append(middle, m.keys.Delete)
+			middle = append(middle, m.Keys.Delete)
 		}
 	}
-	middle = append(middle, m.keys.Save)
+	middle = append(middle, m.Keys.Save)
 	return [][]key.Binding{
-		{m.keys.Up, m.keys.Down, m.keys.Enter},
+		{m.Keys.Up, m.Keys.Down, m.Keys.Enter},
 		middle,
-		{m.keys.Back, m.keys.Help, m.keys.Quit},
+		{m.Keys.Back, m.Keys.Help, m.Keys.Quit},
 	}
 }
 
@@ -719,7 +722,7 @@ func (m *BrowserModel) View() string {
 	}
 
 	var b string
-	b = m.list.View()
+	b = m.List.View()
 
 	if m.errMsg != "" {
 		b += "\n" + style.ErrorText("Error: "+m.errMsg)

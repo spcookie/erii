@@ -30,14 +30,14 @@ type BrowserKeyMap struct {
 }
 
 func (k BrowserKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.View, k.Edit, k.Back, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Enter, k.Edit, k.Back, k.Help, k.Quit}
 }
 
 func (k BrowserKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down},
-		{k.View, k.Edit, k.Enter},
-		{k.Back, k.Help, k.Quit},
+		{k.Up, k.Down, k.Enter},
+		{k.Edit, k.Back},
+		{k.Help, k.Quit},
 	}
 }
 
@@ -51,12 +51,12 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithHelp("↓/j", "down"),
 	),
 	View: key.NewBinding(
-		key.WithKeys("v"),
-		key.WithHelp("v", "view (glamour)"),
+		key.WithKeys(""),
+		key.WithHelp("", ""),
 	),
 	Edit: key.NewBinding(
-		key.WithKeys("e", "ctrl+g"),
-		key.WithHelp("e/ctrl+g", "edit ($EDITOR)"),
+		key.WithKeys("ctrl+g"),
+		key.WithHelp("ctrl+g", "edit ($EDITOR)"),
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
@@ -137,6 +137,23 @@ func NewBrowserModel(dir, title string) *BrowserModel {
 func (m *BrowserModel) Init() tea.Cmd { return nil }
 
 func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Delegate to viewer if active
+	if m.viewer != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+		}
+		newViewer, cmd := m.viewer.Update(msg)
+		if v, ok := newViewer.(*ViewerModel); ok {
+			m.viewer = v
+		}
+		if m.viewer.done {
+			m.viewer = nil
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -157,7 +174,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keys.Back) {
 			return m, func() tea.Msg { return components.PopScreenMsg{} }
 		}
-		if key.Matches(msg, m.keys.View) || key.Matches(msg, m.keys.Enter) {
+		if key.Matches(msg, m.keys.Enter) {
 			if item, ok := m.list.SelectedItem().(mdItem); ok {
 				m.viewer = NewViewerModel(item.path, item.name)
 				return m, func() tea.Msg {
@@ -182,18 +199,6 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-	}
-
-	// Delegate to viewer if active
-	if m.viewer != nil {
-		newViewer, cmd := m.viewer.Update(msg)
-		if v, ok := newViewer.(*ViewerModel); ok {
-			m.viewer = v
-		}
-		if m.viewer.done {
-			m.viewer = nil
-		}
-		return m, cmd
 	}
 
 	var cmd tea.Cmd

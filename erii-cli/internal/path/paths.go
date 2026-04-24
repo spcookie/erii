@@ -6,12 +6,13 @@ import (
 )
 
 var (
-	ConfDir     string
-	ConfMetaDir string
-	EnvFile     string
-	AppFile     string
-	SoulsDir    string
-	RulesDir    string
+	ConfDir         string
+	ConfMetaDir     string
+	EnvFile         string
+	AppFile         string
+	SoulsDir        string
+	RulesDir        string
+	PluginConfigDir string
 )
 
 func init() {
@@ -21,6 +22,7 @@ func init() {
 	AppFile = filepath.Join(ConfDir, "application.conf")
 	SoulsDir = filepath.Join(ConfDir, "souls")
 	RulesDir = filepath.Join(ConfDir, "rules")
+	PluginConfigDir = filepath.Join(ConfDir, "plugin-config")
 }
 
 func resolveConfMetaDir() string {

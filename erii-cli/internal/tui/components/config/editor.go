@@ -102,6 +102,12 @@ func NewLeafEditorModel(leaf *tree.LeafNode, onSave func() tea.Cmd) *LeafEditorM
 		m.formValueBool = v
 	}
 	m.buildForm()
+	// Set default dimensions so form renders correctly on first frame
+	m.width = 80
+	m.height = 24
+	if m.form != nil {
+		m.form = m.form.WithWidth(60)
+	}
 	return m
 }
 
