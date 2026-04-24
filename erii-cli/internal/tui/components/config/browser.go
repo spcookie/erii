@@ -164,6 +164,7 @@ type BrowserModel struct {
 	onEdit        func(leaf *tree.LeafNode, onSave func() tea.Cmd)
 	OnSaveFile    func(root tree.ConfigNode) error
 	title         string
+	pluginName    string
 	errMsg        string
 	successMsg    string
 	adding        bool
@@ -201,6 +202,12 @@ func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.
 	}
 	m.refreshList()
 	m.List.SetSize(80, 20)
+	return m
+}
+
+// WithPlugin sets the plugin context for metadata lookups.
+func (m *BrowserModel) WithPlugin(name string) *BrowserModel {
+	m.pluginName = name
 	return m
 }
 
@@ -585,7 +592,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, m.Keys.New) {
-			if !tree.CanCopy(m.currentPath()) {
+			if !tree.CanCopy(m.pluginName, m.currentPath()) {
 				return m, nil
 			}
 			m.adding = true
@@ -597,7 +604,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.buildAddForm()
 		}
 		if key.Matches(msg, m.Keys.Rename) {
-			if !tree.CanCopy(m.currentPath()) {
+			if !tree.CanCopy(m.pluginName, m.currentPath()) {
 				return m, nil
 			}
 			if item, ok := m.List.SelectedItem().(NodeItem); ok {
@@ -611,7 +618,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, m.Keys.Delete) {
-			if !tree.CanCopy(m.currentPath()) {
+			if !tree.CanCopy(m.pluginName, m.currentPath()) {
 				return m, nil
 			}
 			m.deleting = true
@@ -679,7 +686,7 @@ func (m *BrowserModel) ShortHelp() []key.Binding {
 
 func (m *BrowserModel) FullHelp() [][]key.Binding {
 	var middle []key.Binding
-	if tree.CanCopy(m.currentPath()) {
+	if tree.CanCopy(m.pluginName, m.currentPath()) {
 		middle = append(middle, m.Keys.New)
 		if item, ok := m.List.SelectedItem().(NodeItem); ok {
 			if !item.Node.IsLeaf() {

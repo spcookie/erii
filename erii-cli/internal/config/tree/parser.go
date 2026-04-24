@@ -279,7 +279,7 @@ func (p *HOCONParser) Parse(path string) (ConfigNode, error) {
 		return nil, err
 	}
 	root := parseHOCON(string(data))
-	ApplyMetadata(root, "root")
+	ApplyMetadataWithPlugin(root, "root", "")
 	return root, nil
 }
 
@@ -427,22 +427,27 @@ func formatHOCONValue(leaf *LeafNode) string {
 
 // ApplyMetadata walks the tree and applies enum/desc overrides from metadata files.
 func ApplyMetadata(node ConfigNode, path string) {
+	ApplyMetadataWithPlugin(node, path, "")
+}
+
+// ApplyMetadataWithPlugin walks the tree and applies enum/desc overrides with plugin context.
+func ApplyMetadataWithPlugin(node ConfigNode, path string, pluginName string) {
 	if branch, ok := node.(*BranchNode); ok {
-		if d := GetDesc(path); d != "" {
+		if d := GetDesc(pluginName, path); d != "" {
 			branch.description = d
 		}
 		for _, child := range branch.Children() {
 			childPath := path + "." + child.Title()
 			if leaf, ok := child.(*LeafNode); ok {
-				if d := GetDesc(childPath); d != "" {
+				if d := GetDesc(pluginName, childPath); d != "" {
 					leaf.description = d
 				}
-				if opts := GetEnum(childPath); len(opts) > 0 {
+				if opts := GetEnum(pluginName, childPath); len(opts) > 0 {
 					leaf.valueType = TypeEnum
 					leaf.options = opts
 				}
 			} else {
-				ApplyMetadata(child, childPath)
+				ApplyMetadataWithPlugin(child, childPath, pluginName)
 			}
 		}
 	}

@@ -6,7 +6,6 @@ import (
 	"erii-cli/internal/tui/components"
 	cfgcomp "erii-cli/internal/tui/components/config"
 	"erii-cli/internal/tui/components/md"
-	"erii-cli/internal/tui/components/plugin"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -30,10 +29,8 @@ func Start() error {
 			parser := tree.DetectParser(path.AppFile)
 			root.pendingPush = buildConfigBrowser(parser, path.AppFile, "Application Config", pushScreen)
 		case 2:
-			root.pendingPush = plugin.NewBrowserModel()
-		case 3:
 			root.pendingPush = md.NewBrowserModel(path.SoulsDir, "Souls")
-		case 4:
+		case 3:
 			root.pendingPush = md.NewBrowserModel(path.RulesDir, "Rules")
 		}
 	})
