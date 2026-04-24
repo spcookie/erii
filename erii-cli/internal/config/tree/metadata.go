@@ -21,8 +21,11 @@ var GlobalMetadata = &Metadata{
 	CopyPatterns: []string{},
 }
 
+var metaDir string
+
 // LoadMetadata loads enum.json, desc.json, copy.json from the given directory.
 func LoadMetadata(confDir string) error {
+	metaDir = confDir
 	if data, err := os.ReadFile(filepath.Join(confDir, "enum.json")); err == nil {
 		_ = json.Unmarshal(data, &GlobalMetadata.EnumMap)
 	}
@@ -40,6 +43,25 @@ func LoadMetadata(confDir string) error {
 		}
 	}
 	return nil
+}
+
+// SaveDesc updates the description for a path and persists desc.json.
+func SaveDesc(path, desc string) error {
+	if GlobalMetadata == nil {
+		GlobalMetadata = &Metadata{DescMap: make(map[string]string)}
+	}
+	if strings.HasPrefix(path, "root.") {
+		path = path[5:]
+	}
+	GlobalMetadata.DescMap[path] = desc
+	if metaDir == "" {
+		return nil
+	}
+	data, err := json.MarshalIndent(GlobalMetadata.DescMap, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(metaDir, "desc.json"), data, 0644)
 }
 
 // GetEnum returns enum options for a dot-separated path.

@@ -76,7 +76,7 @@ type MainMenuModel struct {
 func NewMainMenuModel(onSelect func(index int)) *MainMenuModel {
 	items := []list.Item{
 		menuItem{"Env Config", "Edit .env.local environment variables"},
-		menuItem{"Application Config", "Edit application.conf settings"},
+		menuItem{"App Config", "Edit application.conf settings"},
 		menuItem{"Souls", "Manage soul/persona markdown files"},
 		menuItem{"Rules", "Manage rule markdown files"},
 	}

@@ -53,13 +53,14 @@ func NewBranch(title, description string, children ...ConfigNode) *BranchNode {
 	}
 }
 
-func (b *BranchNode) Title() string          { return b.title }
-func (b *BranchNode) SetTitle(t string)      { b.title = t }
-func (b *BranchNode) Description() string    { return b.description }
-func (b *BranchNode) IsLeaf() bool           { return false }
-func (b *BranchNode) IsArray() bool          { return b.isArray }
-func (b *BranchNode) SetIsArray(v bool)      { b.isArray = v }
-func (b *BranchNode) Children() []ConfigNode { return b.children }
+func (b *BranchNode) Title() string           { return b.title }
+func (b *BranchNode) SetTitle(t string)       { b.title = t }
+func (b *BranchNode) Description() string     { return b.description }
+func (b *BranchNode) SetDescription(d string) { b.description = d }
+func (b *BranchNode) IsLeaf() bool            { return false }
+func (b *BranchNode) IsArray() bool           { return b.isArray }
+func (b *BranchNode) SetIsArray(v bool)       { b.isArray = v }
+func (b *BranchNode) Children() []ConfigNode  { return b.children }
 func (b *BranchNode) AddChild(n ConfigNode) {
 	b.children = append(b.children, n)
 }
@@ -95,6 +96,7 @@ func NewLeaf(title, description string, vt ValueType, value any) *LeafNode {
 func (l *LeafNode) Title() string            { return l.title }
 func (l *LeafNode) SetTitle(t string)        { l.title = t }
 func (l *LeafNode) Description() string      { return l.description }
+func (l *LeafNode) SetDescription(d string)  { l.description = d }
 func (l *LeafNode) IsLeaf() bool             { return true }
 func (l *LeafNode) ValueType() ValueType     { return l.valueType }
 func (l *LeafNode) Value() any               { return l.value }

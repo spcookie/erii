@@ -48,7 +48,7 @@ func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushS
 	}
 
 	return cfgcomp.NewBrowserModel(rootNode, title,
-		func(leaf *tree.LeafNode, onSave func()) {
+		func(leaf *tree.LeafNode, onSave func() tea.Cmd) {
 			pushScreen(cfgcomp.NewLeafEditorModel(leaf, onSave))
 		},
 		func(r tree.ConfigNode) error {

@@ -75,8 +75,8 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithHelp("ctrl+r", "rename"),
 	),
 	Delete: key.NewBinding(
-		key.WithKeys("d", "ctrl+d"),
-		key.WithHelp("d/ctrl+d", "delete"),
+		key.WithKeys("ctrl+d"),
+		key.WithHelp("ctrl+d", "delete"),
 	),
 	Save: key.NewBinding(
 		key.WithKeys("ctrl+s"),
@@ -153,29 +153,33 @@ func (i nodeItem) FilterValue() string { return i.node.Title() }
 
 // BrowserModel is a generic config file browser using list + node tree.
 type BrowserModel struct {
-	root        tree.ConfigNode
-	current     *tree.BranchNode
-	stack       []*tree.BranchNode
-	list        list.Model
-	width       int
-	height      int
-	keys        BrowserKeyMap
-	help        help.Model
-	onEdit      func(leaf *tree.LeafNode, onSave func())
-	onSaveFile  func(root tree.ConfigNode) error
-	title       string
-	errMsg      string
-	successMsg  string
-	adding      bool
-	addTitle    string
-	addDesc     string
-	addForm     *huh.Form
-	renaming    bool
-	renameValue string
-	renameForm  *huh.Form
+	root          tree.ConfigNode
+	current       *tree.BranchNode
+	stack         []*tree.BranchNode
+	list          list.Model
+	width         int
+	height        int
+	keys          BrowserKeyMap
+	help          help.Model
+	onEdit        func(leaf *tree.LeafNode, onSave func() tea.Cmd)
+	onSaveFile    func(root tree.ConfigNode) error
+	title         string
+	errMsg        string
+	successMsg    string
+	adding        bool
+	addTitle      string
+	addDesc       string
+	addForm       *huh.Form
+	renaming      bool
+	renameValue   string
+	renameDesc    string
+	renameForm    *huh.Form
+	deleting      bool
+	deleteConfirm bool
+	deleteForm    *huh.Form
 }
 
-func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.LeafNode, onSave func()), onSaveFile func(root tree.ConfigNode) error) *BrowserModel {
+func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.LeafNode, onSave func() tea.Cmd), onSaveFile func(root tree.ConfigNode) error) *BrowserModel {
 	branch, ok := root.(*tree.BranchNode)
 	if !ok {
 		// Wrap single leaf in a branch
@@ -259,6 +263,20 @@ func (m *BrowserModel) currentPath() string {
 	return strings.Join(parts, ".")
 }
 
+func (m *BrowserModel) saveAndNotify() tea.Cmd {
+	if m.onSaveFile == nil {
+		return nil
+	}
+	if err := m.onSaveFile(m.root); err != nil {
+		m.errMsg = err.Error()
+		m.successMsg = ""
+	} else {
+		m.successMsg = "Saved!"
+		m.errMsg = ""
+	}
+	return clearAfter(500 * time.Millisecond)
+}
+
 func (m *BrowserModel) buildAddForm() tea.Cmd {
 	w := 60
 	if m.width > 16 {
@@ -295,13 +313,40 @@ func (m *BrowserModel) buildRenameForm() tea.Cmd {
 	m.renameForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("Rename").
+				Title("Name").
 				Placeholder("new name").
 				Value(&m.renameValue).
 				Key("name"),
+			huh.NewInput().
+				Title("Description").
+				Placeholder("(empty)").
+				Value(&m.renameDesc).
+				Key("desc"),
 		),
 	).WithWidth(w).WithShowHelp(false)
 	return m.renameForm.Init()
+}
+
+func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
+	w := 60
+	if m.width > 16 {
+		w = m.width - 8
+		if w > 60 {
+			w = 60
+		}
+	}
+	m.deleteConfirm = false
+	m.deleteForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Delete this item?").
+				Affirmative("Yes").
+				Negative("No").
+				Value(&m.deleteConfirm).
+				Key("confirm"),
+		),
+	).WithWidth(w).WithShowHelp(false)
+	return m.deleteForm.Init()
 }
 
 func (m *BrowserModel) Init() tea.Cmd {
@@ -324,7 +369,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.addForm = m.addForm.WithWidth(w)
 			return m, nil
 		case tea.KeyMsg:
-			if key.Matches(msg, m.keys.Back) {
+			if msg.String() == "esc" {
 				m.adding = false
 				m.addForm = nil
 				return m, nil
@@ -346,9 +391,18 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.current.AddChild(m.createNodeFromTemplate(title, desc))
 				m.refreshList()
 				m.list.Select(len(m.current.Children()) - 1)
+				nodePath := m.currentPath()
+				if nodePath != "" {
+					nodePath = nodePath + "." + title
+				} else {
+					nodePath = title
+				}
+				if rawDesc := strings.TrimSpace(m.addDesc); rawDesc != "" {
+					_ = tree.SaveDesc(nodePath, rawDesc)
+				}
 			}
 		}
-		return m, cmd
+		return m, tea.Batch(cmd, m.saveAndNotify())
 	}
 
 	if m.renaming && m.renameForm != nil {
@@ -366,7 +420,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.renameForm = m.renameForm.WithWidth(w)
 			return m, nil
 		case tea.KeyMsg:
-			if key.Matches(msg, m.keys.Back) {
+			if msg.String() == "esc" {
 				m.renaming = false
 				m.renameForm = nil
 				return m, nil
@@ -378,6 +432,10 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.renameForm.State == huh.StateCompleted {
 			newName := strings.TrimSpace(m.renameValue)
+			newDesc := strings.TrimSpace(m.renameDesc)
+			if newDesc == "" {
+				newDesc = "(empty)"
+			}
 			m.renaming = false
 			m.renameForm = nil
 			if newName != "" {
@@ -389,10 +447,65 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					} else if l, ok := child.(*tree.LeafNode); ok {
 						l.SetTitle(newName)
 					}
+					if b, ok := child.(*tree.BranchNode); ok {
+						b.SetDescription(newDesc)
+					} else if l, ok := child.(*tree.LeafNode); ok {
+						l.SetDescription(newDesc)
+					}
 					m.refreshList()
 					m.list.Select(idx)
 				}
+				nodePath := m.currentPath()
+				if nodePath != "" {
+					nodePath = nodePath + "." + newName
+				} else {
+					nodePath = newName
+				}
+				if rawDesc := strings.TrimSpace(m.renameDesc); rawDesc != "" {
+					_ = tree.SaveDesc(nodePath, rawDesc)
+				}
 			}
+			return m, tea.Batch(cmd, m.saveAndNotify())
+		}
+		return m, cmd
+	}
+
+	if m.deleting && m.deleteForm != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			w := 60
+			if msg.Width > 16 {
+				w = msg.Width - 8
+				if w > 60 {
+					w = 60
+				}
+			}
+			m.deleteForm = m.deleteForm.WithWidth(w)
+			return m, nil
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				m.deleting = false
+				m.deleteForm = nil
+				return m, nil
+			}
+		}
+		newForm, cmd := m.deleteForm.Update(msg)
+		if f, ok := newForm.(*huh.Form); ok {
+			m.deleteForm = f
+		}
+		if m.deleteForm.State == huh.StateCompleted {
+			confirmed := m.deleteConfirm
+			m.deleting = false
+			m.deleteForm = nil
+			if confirmed {
+				idx := m.list.Index()
+				if m.current.RemoveChildAt(idx) {
+					m.refreshList()
+				}
+			}
+			return m, tea.Batch(cmd, m.saveAndNotify())
 		}
 		return m, cmd
 	}
@@ -444,7 +557,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if item.node.IsLeaf() {
 					leaf := item.node.(*tree.LeafNode)
 					if m.onEdit != nil {
-						m.onEdit(leaf, func() {
+						m.onEdit(leaf, func() tea.Cmd {
 							m.refreshList()
 							if m.onSaveFile != nil {
 								if err := m.onSaveFile(m.root); err != nil {
@@ -454,7 +567,9 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 									m.successMsg = "Saved!"
 									m.errMsg = ""
 								}
+								return clearAfter(500 * time.Millisecond)
 							}
+							return nil
 						})
 					}
 				} else {
@@ -479,39 +594,25 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.buildAddForm()
 		}
 		if key.Matches(msg, m.keys.Rename) {
+			if !tree.CanCopy(m.currentPath()) {
+				return m, nil
+			}
 			if item, ok := m.list.SelectedItem().(nodeItem); ok {
 				if !item.node.IsLeaf() {
-					path := m.currentPath()
-					if path != "" {
-						path = path + "." + item.node.Title()
-					} else {
-						path = item.node.Title()
-					}
-					if tree.CanCopy(path) {
-						m.renaming = true
-						m.renameValue = item.node.Title()
-						return m, m.buildRenameForm()
-					}
+					m.renaming = true
+					m.renameValue = item.node.Title()
+					m.renameDesc = item.node.Description()
+					return m, m.buildRenameForm()
 				}
 			}
 			return m, nil
 		}
 		if key.Matches(msg, m.keys.Delete) {
-			idx := m.list.Index()
-			if item, ok := m.list.SelectedItem().(nodeItem); ok {
-				path := m.currentPath()
-				if path != "" {
-					path = path + "." + item.node.Title()
-				} else {
-					path = item.node.Title()
-				}
-				if tree.CanCopy(path) {
-					if m.current.RemoveChildAt(idx) {
-						m.refreshList()
-					}
-				}
+			if !tree.CanCopy(m.currentPath()) {
+				return m, nil
 			}
-			return m, nil
+			m.deleting = true
+			return m, m.buildDeleteConfirmForm()
 		}
 	}
 
@@ -569,12 +670,35 @@ func (m *BrowserModel) createNodeFromTemplate(title, desc string) tree.ConfigNod
 	return tree.NewBranch(title, desc)
 }
 
+func (m *BrowserModel) ShortHelp() []key.Binding {
+	return m.keys.ShortHelp()
+}
+
+func (m *BrowserModel) FullHelp() [][]key.Binding {
+	var middle []key.Binding
+	if tree.CanCopy(m.currentPath()) {
+		middle = append(middle, m.keys.New)
+		if item, ok := m.list.SelectedItem().(nodeItem); ok {
+			if !item.node.IsLeaf() {
+				middle = append(middle, m.keys.Rename)
+			}
+			middle = append(middle, m.keys.Delete)
+		}
+	}
+	middle = append(middle, m.keys.Save)
+	return [][]key.Binding{
+		{m.keys.Up, m.keys.Down, m.keys.Enter},
+		middle,
+		{m.keys.Back, m.keys.Help, m.keys.Quit},
+	}
+}
+
 func (m *BrowserModel) View() string {
 	if m.adding && m.addForm != nil {
 		var b strings.Builder
 		b.WriteString(style.Title("Add new item") + "\n\n")
 		b.WriteString(m.addForm.View())
-		b.WriteString("\n\n" + style.Muted("esc cancel • enter confirm"))
+		b.WriteString("\n\n" + style.Muted("esc cancel • tab/shift+tab navigate • enter next/submit"))
 		return b.String()
 	}
 
@@ -582,7 +706,15 @@ func (m *BrowserModel) View() string {
 		var b strings.Builder
 		b.WriteString(style.Title("Rename") + "\n\n")
 		b.WriteString(m.renameForm.View())
-		b.WriteString("\n\n" + style.Muted("esc cancel • enter confirm"))
+		b.WriteString("\n\n" + style.Muted("esc cancel • tab/shift+tab navigate • enter next/submit"))
+		return b.String()
+	}
+
+	if m.deleting && m.deleteForm != nil {
+		var b strings.Builder
+		b.WriteString(style.Title("Delete") + "\n\n")
+		b.WriteString(m.deleteForm.View())
+		b.WriteString("\n\n" + style.Muted("esc cancel • ←/→ select • enter confirm"))
 		return b.String()
 	}
 
@@ -596,6 +728,6 @@ func (m *BrowserModel) View() string {
 		b += "\n" + style.SuccessText(m.successMsg)
 	}
 
-	b += "\n" + m.help.View(m.keys)
+	b += "\n" + m.help.View(m)
 	return b
 }

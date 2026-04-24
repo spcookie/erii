@@ -84,13 +84,13 @@ type LeafEditorModel struct {
 	formValueBool bool
 	envList       list.Model
 	pickingEnv    bool
-	onSave        func()
+	onSave        func() tea.Cmd
 	quitting      bool
 	errMsg        string
 	successMsg    string
 }
 
-func NewLeafEditorModel(leaf *tree.LeafNode, onSave func()) *LeafEditorModel {
+func NewLeafEditorModel(leaf *tree.LeafNode, onSave func() tea.Cmd) *LeafEditorModel {
 	m := &LeafEditorModel{
 		leaf:   leaf,
 		keys:   DefaultEditorKeys,
@@ -307,10 +307,12 @@ func (m *LeafEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if key.Matches(msg, m.keys.Save) {
 			m.saveValue()
+			var cmds []tea.Cmd
 			if m.onSave != nil {
-				m.onSave()
+				cmds = append(cmds, m.onSave())
 			}
-			return m, func() tea.Msg { return components.PopScreenMsg{} }
+			cmds = append(cmds, func() tea.Msg { return components.PopScreenMsg{} })
+			return m, tea.Batch(cmds...)
 		}
 		if key.Matches(msg, m.keys.PickEnv) {
 			m.pickingEnv = true
@@ -326,10 +328,12 @@ func (m *LeafEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.form.State == huh.StateCompleted {
 			m.saveValue()
+			var cmds []tea.Cmd
 			if m.onSave != nil {
-				m.onSave()
+				cmds = append(cmds, m.onSave())
 			}
-			return m, func() tea.Msg { return components.PopScreenMsg{} }
+			cmds = append(cmds, func() tea.Msg { return components.PopScreenMsg{} })
+			return m, tea.Batch(cmds...)
 		}
 		return m, cmd
 	}
@@ -409,6 +413,50 @@ var envPickKeys = envPickKeyMap{
 	),
 }
 
+func (m *LeafEditorModel) ShortHelp() []key.Binding {
+	bindings := []key.Binding{m.keys.Save, m.keys.Back, m.keys.Enter, m.keys.Quit}
+	if m.leaf.ValueType() != tree.TypeEnum && m.leaf.ValueType() != tree.TypeBool {
+		bindings = append(bindings, m.keys.PickEnv)
+	}
+	if m.leaf.ValueType() == tree.TypeText || m.leaf.ValueType() == tree.TypeArray {
+		bindings = append(bindings, key.NewBinding(
+			key.WithKeys("ctrl+j"),
+			key.WithHelp("ctrl+j", "newline"),
+		))
+	}
+	if m.leaf.ValueType() == tree.TypeEnum || m.leaf.ValueType() == tree.TypeBool {
+		bindings = append(bindings, key.NewBinding(
+			key.WithKeys("j", "k", "up", "down"),
+			key.WithHelp("j/k/↑/↓", "select"),
+		))
+	}
+	return bindings
+}
+
+func (m *LeafEditorModel) FullHelp() [][]key.Binding {
+	var first []key.Binding
+	first = append(first, m.keys.Save, m.keys.Enter)
+	if m.leaf.ValueType() != tree.TypeEnum && m.leaf.ValueType() != tree.TypeBool {
+		first = append(first, m.keys.PickEnv)
+	}
+	if m.leaf.ValueType() == tree.TypeText || m.leaf.ValueType() == tree.TypeArray {
+		first = append(first, key.NewBinding(
+			key.WithKeys("ctrl+j"),
+			key.WithHelp("ctrl+j", "newline"),
+		))
+	}
+	if m.leaf.ValueType() == tree.TypeEnum || m.leaf.ValueType() == tree.TypeBool {
+		first = append(first, key.NewBinding(
+			key.WithKeys("j", "k", "up", "down"),
+			key.WithHelp("j/k/↑/↓", "select"),
+		))
+	}
+	return [][]key.Binding{
+		first,
+		{m.keys.Back, m.keys.Quit},
+	}
+}
+
 func (m *LeafEditorModel) View() string {
 	if m.quitting {
 		return ""
@@ -434,10 +482,7 @@ func (m *LeafEditorModel) View() string {
 		b.WriteString("\n" + style.SuccessText(m.successMsg))
 	}
 
-	b.WriteString("\n\n" + m.help.View(m.keys))
-	if m.leaf.ValueType() == tree.TypeText || m.leaf.ValueType() == tree.TypeArray {
-		b.WriteString("\n" + style.Muted("ctrl+j newline"))
-	}
+	b.WriteString("\n\n" + m.help.View(m))
 
 	return b.String()
 }
