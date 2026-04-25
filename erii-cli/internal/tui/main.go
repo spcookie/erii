@@ -25,15 +25,15 @@ func Start() error {
 		switch index {
 		case 0:
 			parser := tree.DetectParser(path.EnvFile)
-			root.pendingPush = buildConfigBrowser(parser, path.EnvFile, "Env Config", pushScreen, "", nil)
+			root.pendingPush = buildConfigBrowser(parser, path.EnvFile, "Env Config", pushScreen, "")
 		case 1:
 			parser := tree.DetectParser(path.AppFile)
-			root.pendingPush = buildConfigBrowser(parser, path.AppFile, "Application Config", pushScreen, "", nil)
+			root.pendingPush = buildConfigBrowser(parser, path.AppFile, "Application Config", pushScreen, "")
 		case 2:
 			root.pendingPush = plugin.NewBrowserModel(
 				func(pluginName string, pluginPath string) {
 					parser := tree.DetectParser(pluginPath)
-					browser := buildConfigBrowser(parser, pluginPath, pluginName+" Config", pushScreen, pluginName, nil)
+					browser := buildConfigBrowser(parser, pluginPath, pluginName+" Config", pushScreen, pluginName)
 					pushScreen(browser)
 				},
 				nil,
@@ -51,7 +51,7 @@ func Start() error {
 	return err
 }
 
-func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushScreen func(tea.Model), pluginName string, onSave func() tea.Cmd) tea.Model {
+func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushScreen func(tea.Model), pluginName string) tea.Model {
 	rootNode, err := parser.Parse(filePath)
 	if err != nil {
 		rootNode = tree.NewBranch("root", "Configuration")

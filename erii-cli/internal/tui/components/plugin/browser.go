@@ -17,21 +17,21 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// PluginItem represents a plugin configuration item in the list.
-type PluginItem struct {
+// Item PluginItem represents a plugin configuration item in the list.
+type Item struct {
 	name string
 	path string
 }
 
-func (i PluginItem) Title() string { return i.name }
-func (i PluginItem) Description() string {
+func (i Item) Title() string { return i.name }
+func (i Item) Description() string {
 	// Get overall description from metadata
 	if desc, ok := tree.GlobalMetadata.PluginOverallDesc[i.name]; ok {
 		return desc
 	}
 	return ""
 }
-func (i PluginItem) FilterValue() string { return i.name }
+func (i Item) FilterValue() string { return i.name }
 
 // BrowserKeyMap defines keybindings for the plugin browser.
 type BrowserKeyMap struct {
@@ -88,7 +88,7 @@ type BrowserModel struct {
 	height   int
 	Keys     BrowserKeyMap
 	help     help.Model
-	plugins  []PluginItem
+	plugins  []Item
 	onSelect func(pluginName string, pluginPath string)
 	onBack   func()
 	loaded   bool
@@ -98,7 +98,7 @@ func NewBrowserModel(onSelect func(pluginName string, pluginPath string), onBack
 	return &BrowserModel{
 		Keys:     DefaultBrowserKeys,
 		help:     help.New(),
-		plugins:  []PluginItem{},
+		plugins:  []Item{},
 		onSelect: onSelect,
 		onBack:   onBack,
 		width:    80,
@@ -107,7 +107,7 @@ func NewBrowserModel(onSelect func(pluginName string, pluginPath string), onBack
 }
 
 func (m *BrowserModel) loadPlugins() {
-	m.plugins = []PluginItem{}
+	m.plugins = []Item{}
 
 	// Load from plugin-config directory
 	dir := path.PluginConfigDir
@@ -117,7 +117,7 @@ func (m *BrowserModel) loadPlugins() {
 			for _, entry := range entries {
 				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
 					name := strings.TrimSuffix(entry.Name(), ".json")
-					m.plugins = append(m.plugins, PluginItem{
+					m.plugins = append(m.plugins, Item{
 						name: name,
 						path: filepath.Join(dir, entry.Name()),
 					})
@@ -202,7 +202,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return components.PopScreenMsg{} }
 		}
 		if key.Matches(msg, m.Keys.Enter) {
-			if item, ok := m.List.SelectedItem().(PluginItem); ok {
+			if item, ok := m.List.SelectedItem().(Item); ok {
 				if m.onSelect != nil {
 					m.onSelect(item.name, item.path)
 				}

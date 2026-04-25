@@ -282,7 +282,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.deleteForm = nil
 			if confirmed {
 				if item, ok := m.list.SelectedItem().(mdItem); ok {
-					os.Remove(item.path)
+					_ = os.Remove(item.path)
 				}
 			}
 			m.refreshList()
@@ -350,7 +350,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.newFileModel = NewNewFileModel(m.dir, func(fileName string) {
 				fullPath := filepath.Join(m.dir, fileName)
-				os.WriteFile(fullPath, []byte(defaultFM), 0644)
+				_ = os.WriteFile(fullPath, []byte(defaultFM), 0644)
 			}, nil)
 			return m, m.newFileModel.Init()
 		}
@@ -371,9 +371,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item, ok := m.list.SelectedItem().(mdItem); ok {
 				data, _ := os.ReadFile(item.path)
 				frontmatter := parseFrontmatter(string(data))
-				m.fieldBrowser = NewFieldBrowserModel(item.path, item.name, frontmatter, func() {
-					m.refreshList()
-				}, nil)
+				m.fieldBrowser = NewFieldBrowserModel(item.path, item.name, frontmatter)
 				return m, m.fieldBrowser.Init()
 			}
 			return m, nil
@@ -470,7 +468,7 @@ func (m *BrowserModel) refreshList() {
 }
 
 func loadMdItems(dir string) ([]list.Item, error) {
-	items := []list.Item{}
+	var items []list.Item
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return items, err

@@ -15,7 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// ViewerModel renders markdown using Glamour with viewport scrolling.
+// ViewerModel renders Markdown using Glamour with viewport scrolling.
 type ViewerModel struct {
 	viewport viewport.Model
 	content  string
@@ -120,21 +120,21 @@ func flattenYamlLines(lines []string) [][2]string {
 			itemVal := strings.TrimSpace(trimmed[2:])
 			if strings.Contains(itemVal, ":") {
 				parts := splitFirst(itemVal, ":")
-				key := ""
+				k := ""
 				if len(stack) > 0 {
-					key = stack[len(stack)-1] + "." + strings.TrimSpace(parts[0])
+					k = stack[len(stack)-1] + "." + strings.TrimSpace(parts[0])
 				} else {
-					key = strings.TrimSpace(parts[0])
+					k = strings.TrimSpace(parts[0])
 				}
-				result = append(result, [2]string{key, strings.TrimSpace(parts[1])})
+				result = append(result, [2]string{k, strings.TrimSpace(parts[1])})
 			} else {
-				key := ""
+				k := ""
 				if len(stack) > 0 {
-					key = stack[len(stack)-1] + "[]"
+					k = stack[len(stack)-1] + "[]"
 				} else {
-					key = "[]"
+					k = "[]"
 				}
-				result = append(result, [2]string{key, itemVal})
+				result = append(result, [2]string{k, itemVal})
 			}
 			continue
 		}
@@ -151,14 +151,14 @@ func flattenYamlLines(lines []string) [][2]string {
 		rawKey := strings.TrimSpace(parts[0])
 		rawVal := strings.TrimSpace(parts[1])
 
-		key := rawKey
+		k := rawKey
 		if len(stack) > 0 {
-			key = stack[len(stack)-1] + "." + rawKey
+			k = stack[len(stack)-1] + "." + rawKey
 		}
 
 		if rawVal == "|" || rawVal == ">" || rawVal == "|-" || rawVal == ">-" {
 			inLiteral = true
-			literalKey = key
+			literalKey = k
 			literalBaseIndent = indent + 2
 			literalLines = nil
 			stack = append(stack, rawKey)
@@ -167,12 +167,12 @@ func flattenYamlLines(lines []string) [][2]string {
 		}
 
 		if rawVal == "" {
-			stack = append(stack, key)
+			stack = append(stack, k)
 			prevIndent = indent
 			continue
 		}
 
-		result = append(result, [2]string{key, rawVal})
+		result = append(result, [2]string{k, rawVal})
 		prevIndent = indent
 	}
 	flushLiteral()

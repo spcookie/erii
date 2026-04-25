@@ -131,6 +131,8 @@ func leafValueToString(leaf *tree.LeafNode) string {
 			}
 			return strings.Join(items, "\n")
 		}
+	default:
+		panic("unhandled default case")
 	}
 	return ""
 }
@@ -205,6 +207,8 @@ func (m *LeafEditorModel) buildForm() {
 			Placeholder(placeholder).
 			Value(&m.formValue).
 			Key("value"))
+	default:
+		panic("unhandled default case")
 	}
 
 	if len(fields) > 0 {
@@ -230,10 +234,10 @@ func (m *LeafEditorModel) loadEnvValues() map[string]string {
 		if idx == -1 {
 			continue
 		}
-		key := strings.TrimSpace(line[:idx])
+		space := strings.TrimSpace(line[:idx])
 		val := strings.TrimSpace(line[idx+1:])
-		if key != "" {
-			result[key] = val
+		if space != "" {
+			result[space] = val
 		}
 	}
 	return result
@@ -390,6 +394,8 @@ func (m *LeafEditorModel) saveValue() {
 			}
 		}
 		m.leaf.SetValue(items)
+	default:
+		panic("unhandled default case")
 	}
 }
 
@@ -487,11 +493,4 @@ func (m *LeafEditorModel) View() string {
 	b.WriteString("\n\n" + m.help.View(m))
 
 	return b.String()
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

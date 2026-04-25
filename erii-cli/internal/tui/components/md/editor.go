@@ -184,45 +184,13 @@ type FrontmatterEditorModel struct {
 	globalBool bool     // bool value for "global" field in rules
 }
 
-func NewFrontmatterEditorModel(filePath string, frontmatter map[string]string, onSave func(), onCancel func()) *FrontmatterEditorModel {
-	m := &FrontmatterEditorModel{
-		filePath: filePath,
-		help:     help.New(),
-		onSave:   onSave,
-		onCancel: onCancel,
-	}
-	// Flatten frontmatter to slice
-	for k, v := range frontmatter {
-		m.entries = append(m.entries, k, v)
-	}
-	// Initialize globalBool from entries if present
-	for i := 0; i < len(m.entries); i += 2 {
-		if strings.TrimSpace(m.entries[i]) == "global" {
-			m.globalBool = strings.TrimSpace(m.entries[i+1]) == "true"
-			break
-		}
-	}
-	// If empty, add one empty entry
-	if len(m.entries) == 0 {
-		m.entries = append(m.entries, "", "")
-	}
-	m.buildForm()
-	// Set default dimensions so form renders correctly on first frame
-	m.width = 80
-	m.height = 24
-	if m.form != nil {
-		m.form = m.form.WithWidth(60)
-	}
-	return m
-}
-
 func (m *FrontmatterEditorModel) buildForm() {
 	isRules := strings.Contains(m.filePath, "rules")
 
 	var groups []*huh.Group
 	for i := 0; i < len(m.entries); i += 2 {
-		key := strings.TrimSpace(m.entries[i])
-		if key == "" {
+		space := strings.TrimSpace(m.entries[i])
+		if space == "" {
 			continue
 		}
 		// Ensure there's a value slot
@@ -232,9 +200,9 @@ func (m *FrontmatterEditorModel) buildForm() {
 
 		var fields []huh.Field
 		if isRules {
-			fields = m.buildRulesField(fields, key, i)
+			fields = m.buildRulesField(fields, space, i)
 		} else {
-			fields = m.buildSoulField(fields, key, i)
+			fields = m.buildSoulField(fields, space, i)
 		}
 
 		for _, f := range fields {
@@ -400,8 +368,8 @@ func (m *FrontmatterEditorModel) saveFrontmatter() {
 	lines = append(lines, "---")
 
 	for i := 0; i < len(m.entries); i += 2 {
-		key := strings.TrimSpace(m.entries[i])
-		if key == "" {
+		space := strings.TrimSpace(m.entries[i])
+		if space == "" {
 			continue
 		}
 		value := ""
@@ -410,15 +378,15 @@ func (m *FrontmatterEditorModel) saveFrontmatter() {
 		}
 		if strings.Contains(value, "\n") {
 			// Multiline: use literal block
-			lines = append(lines, key+": |")
+			lines = append(lines, space+": |")
 			for _, l := range strings.Split(value, "\n") {
 				lines = append(lines, "  "+l)
 			}
 		} else {
 			if value != "" {
-				lines = append(lines, key+": "+value)
+				lines = append(lines, space+": "+value)
 			} else {
-				lines = append(lines, key+":")
+				lines = append(lines, space+":")
 			}
 		}
 	}
@@ -436,7 +404,7 @@ func (m *FrontmatterEditorModel) saveFrontmatter() {
 		content = strings.Join(lines, "\n") + "\n\n" + content
 	}
 
-	os.WriteFile(m.filePath, []byte(content), 0644)
+	_ = os.WriteFile(m.filePath, []byte(content), 0644)
 }
 
 func (m *FrontmatterEditorModel) getKeys() NewFileKeyMap {
@@ -566,7 +534,7 @@ func (m *ContentEditorModel) saveContent() {
 	} else {
 		data = m.content
 	}
-	os.WriteFile(m.filePath, []byte(data), 0644)
+	_ = os.WriteFile(m.filePath, []byte(data), 0644)
 }
 
 func (m *ContentEditorModel) getKeys() NewFileKeyMap {
@@ -675,7 +643,7 @@ func parseFrontmatter(content string) map[string]string {
 			continue
 		}
 
-		key := strings.TrimSpace(line[:colonIdx])
+		space := strings.TrimSpace(line[:colonIdx])
 		rest := strings.TrimSpace(line[colonIdx+1:])
 
 		// Check for literal block scalar |
@@ -699,14 +667,14 @@ func parseFrontmatter(content string) map[string]string {
 					break
 				}
 			}
-			result[key] = strings.Join(valueLines, "\n")
+			result[space] = strings.Join(valueLines, "\n")
 		} else if rest != "" {
 			// Simple key: value
-			result[key] = rest
+			result[space] = rest
 			i++
 		} else {
 			// Empty value, check if next non-empty line starts a literal block
-			result[key] = ""
+			result[space] = ""
 			i++
 		}
 	}
@@ -760,13 +728,6 @@ func extractFrontmatterBlock(content string) string {
 		return ""
 	}
 	return strings.Join(lines[start:end+1], "\n")
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // FieldBrowserModel is a list-based frontmatter editor (like app config).
@@ -829,8 +790,8 @@ func (i FieldItem) Description() string {
 func (i FieldItem) FilterValue() string { return i.key }
 
 // NewFieldBrowserModel creates a field browser for frontmatter editing.
-func NewFieldBrowserModel(filePath, fileName string, frontmatter map[string]string, onSave func(), onCancel func()) *FieldBrowserModel {
-	entries := []string{}
+func NewFieldBrowserModel(filePath, fileName string, frontmatter map[string]string) *FieldBrowserModel {
+	var entries []string
 	for k, v := range frontmatter {
 		entries = append(entries, k, v)
 	}
@@ -919,12 +880,9 @@ func (m *FieldBrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			idx := m.list.Index()
 			if idx >= 0 && idx*2+1 < len(m.entries) {
 				m.stack = append(m.stack, idx)
-				key := m.entries[idx*2]
+				k := m.entries[idx*2]
 				value := m.entries[idx*2+1]
-				m.fieldEditor = NewFieldEditorModel(m.filePath, key, value, func(k, v string) {
-					m.saveField(k, v)
-					m.refreshList()
-				}, nil)
+				m.fieldEditor = NewFieldEditorModel(m.filePath, k, value)
 				return m, m.fieldEditor.Init()
 			}
 			return m, nil
@@ -951,21 +909,21 @@ func (m *FieldBrowserModel) writeFrontmatter() {
 	var lines []string
 	lines = append(lines, "---")
 	for i := 0; i < len(m.entries); i += 2 {
-		key := strings.TrimSpace(m.entries[i])
-		if key == "" {
+		space := strings.TrimSpace(m.entries[i])
+		if space == "" {
 			continue
 		}
 		value := m.entries[i+1]
 		if strings.Contains(value, "\n") {
-			lines = append(lines, key+": |")
+			lines = append(lines, space+": |")
 			for _, l := range strings.Split(value, "\n") {
 				lines = append(lines, "  "+l)
 			}
 		} else {
 			if value != "" {
-				lines = append(lines, key+": "+value)
+				lines = append(lines, space+": "+value)
 			} else {
-				lines = append(lines, key+":")
+				lines = append(lines, space+":")
 			}
 		}
 	}
@@ -981,7 +939,7 @@ func (m *FieldBrowserModel) writeFrontmatter() {
 	} else {
 		content = strings.Join(lines, "\n") + "\n\n" + content
 	}
-	os.WriteFile(m.filePath, []byte(content), 0644)
+	_ = os.WriteFile(m.filePath, []byte(content), 0644)
 }
 
 func (m *FieldBrowserModel) refreshList() {
@@ -1014,7 +972,7 @@ type FieldEditorModel struct {
 	done     bool
 }
 
-func NewFieldEditorModel(filePath, key, value string, onSave func(k, v string), onCancel func()) *FieldEditorModel {
+func NewFieldEditorModel(filePath, key, value string) *FieldEditorModel {
 	m := &FieldEditorModel{
 		filePath: filePath,
 		key:      key,

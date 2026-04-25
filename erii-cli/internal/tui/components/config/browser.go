@@ -253,7 +253,7 @@ func (m *BrowserModel) updateSize() {
 
 // currentPath builds the dot-separated path from root to current branch (without "root." prefix).
 func (m *BrowserModel) currentPath() string {
-	parts := []string{}
+	var parts []string
 	for _, b := range m.stack {
 		if b.Title() != "root" {
 			parts = append(parts, b.Title())
@@ -611,6 +611,8 @@ func cloneStructure(node tree.ConfigNode) tree.ConfigNode {
 			emptyVal = false
 		case tree.TypeArray:
 			emptyVal = []string{}
+		default:
+			panic("unhandled default case")
 		}
 		newLeaf := tree.NewLeaf(leaf.Title(), leaf.Description(), leaf.ValueType(), emptyVal)
 		if leaf.ValueType() == tree.TypeEnum {
