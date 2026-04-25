@@ -413,6 +413,7 @@ func (m *BrowserModel) View() string {
 		var b strings.Builder
 		b.WriteString(style.Title("Delete") + "\n\n")
 		b.WriteString(m.deleteForm.View())
+		b.WriteString("\n\n" + style.Muted("esc cancel • ←/→ select • enter confirm"))
 		return b.String()
 	}
 
@@ -421,7 +422,7 @@ func (m *BrowserModel) View() string {
 	if m.errMsg != "" {
 		b.WriteString("\n\n" + style.ErrorText(m.errMsg))
 	}
-	b.WriteString("\n" + m.help.View(m.keys))
+	b.WriteString("\n\n" + m.help.View(m.keys))
 	return b.String()
 }
 

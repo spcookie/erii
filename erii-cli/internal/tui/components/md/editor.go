@@ -31,6 +31,21 @@ func (k NewFileKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{k.Save}, {k.Back}}
 }
 
+// ContentEditorKeyMap defines keybindings for content editing
+type ContentEditorKeyMap struct {
+	Save   key.Binding
+	Back   key.Binding
+	Macro1 key.Binding // ctrl+j for newline in textarea
+}
+
+func (k ContentEditorKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Macro1, k.Back}
+}
+
+func (k ContentEditorKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{k.Macro1}, {k.Back}}
+}
+
 var defaultNewFileKeys = NewFileKeyMap{
 	Save: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "create")),
 	Back: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
@@ -507,6 +522,11 @@ func (m *ContentEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.done = true
 			return m, nil
 		}
+		// Handle ctrl+j for newline insertion before form processes it
+		if key.Matches(msg, m.getKeys().Macro1) {
+			m.content += "\n"
+			return m, nil
+		}
 	}
 
 	if m.form != nil {
@@ -537,10 +557,11 @@ func (m *ContentEditorModel) saveContent() {
 	_ = os.WriteFile(m.filePath, []byte(data), 0644)
 }
 
-func (m *ContentEditorModel) getKeys() NewFileKeyMap {
-	return NewFileKeyMap{
-		Save: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
-		Back: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+func (m *ContentEditorModel) getKeys() ContentEditorKeyMap {
+	return ContentEditorKeyMap{
+		Save:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
+		Back:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+		Macro1: key.NewBinding(key.WithKeys("ctrl+j"), key.WithHelp("ctrl+j", "newline")),
 	}
 }
 
@@ -957,7 +978,7 @@ func (m *FieldBrowserModel) View() string {
 
 	var b strings.Builder
 	b.WriteString(m.list.View())
-	b.WriteString("\n" + m.help.View(m.keys))
+	b.WriteString("\n\n" + m.help.View(m.keys))
 	return b.String()
 }
 
@@ -968,6 +989,7 @@ type FieldEditorModel struct {
 	value    string
 	width    int
 	height   int
+	help     help.Model
 	form     *huh.Form
 	done     bool
 }
@@ -977,6 +999,7 @@ func NewFieldEditorModel(filePath, key, value string) *FieldEditorModel {
 		filePath: filePath,
 		key:      key,
 		value:    value,
+		help:     help.New(),
 	}
 	m.buildForm()
 	m.width = 80
@@ -1100,8 +1123,17 @@ func (m *FieldEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *FieldEditorModel) getKeys() NewFileKeyMap {
 	return NewFileKeyMap{
+		Save: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "save")),
 		Back: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
 	}
+}
+
+func (m *FieldEditorModel) ShortHelp() []key.Binding {
+	return m.getKeys().ShortHelp()
+}
+
+func (m *FieldEditorModel) FullHelp() [][]key.Binding {
+	return m.getKeys().FullHelp()
 }
 
 func (m *FieldEditorModel) View() string {
@@ -1110,6 +1142,6 @@ func (m *FieldEditorModel) View() string {
 	if m.form != nil {
 		b.WriteString(m.form.View())
 	}
-	b.WriteString("\n\n" + style.Muted("esc cancel"))
+	b.WriteString("\n\n" + m.help.View(m.getKeys()))
 	return b.String()
 }
