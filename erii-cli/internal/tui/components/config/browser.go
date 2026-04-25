@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"erii-cli/internal/config/tree"
 	"erii-cli/internal/tui/components"
@@ -16,12 +15,6 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
-
-type clearMsg = components.ClearMsg
-
-func clearAfter(d time.Duration) tea.Cmd {
-	return components.ClearAfter(d)
-}
 
 // BrowserKeyMap defines keybindings for the config browser.
 type BrowserKeyMap struct {
@@ -166,7 +159,6 @@ type BrowserModel struct {
 	title         string
 	pluginName    string
 	errMsg        string
-	successMsg    string
 	adding        bool
 	addTitle      string
 	addDesc       string
@@ -271,20 +263,6 @@ func (m *BrowserModel) currentPath() string {
 		parts = append(parts, m.current.Title())
 	}
 	return strings.Join(parts, ".")
-}
-
-func (m *BrowserModel) saveAndNotify() tea.Cmd {
-	if m.OnSaveFile == nil {
-		return nil
-	}
-	if err := m.OnSaveFile(m.Root); err != nil {
-		m.errMsg = err.Error()
-		m.successMsg = ""
-	} else {
-		m.successMsg = "Saved!"
-		m.errMsg = ""
-	}
-	return clearAfter(500 * time.Millisecond)
 }
 
 func (m *BrowserModel) buildAddForm() tea.Cmd {
@@ -412,7 +390,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		return m, tea.Batch(cmd, m.saveAndNotify())
+		return m, cmd
 	}
 
 	if m.renaming && m.renameForm != nil {
@@ -475,7 +453,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					_ = tree.SaveDesc(nodePath, rawDesc)
 				}
 			}
-			return m, tea.Batch(cmd, m.saveAndNotify())
+			return m, cmd
 		}
 		return m, cmd
 	}
@@ -515,16 +493,12 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.refreshList()
 				}
 			}
-			return m, tea.Batch(cmd, m.saveAndNotify())
+			return m, cmd
 		}
 		return m, cmd
 	}
 
 	switch msg := msg.(type) {
-	case clearMsg:
-		m.successMsg = ""
-		m.errMsg = ""
-		return m, nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -553,12 +527,9 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.OnSaveFile != nil {
 				if err := m.OnSaveFile(m.Root); err != nil {
 					m.errMsg = err.Error()
-					m.successMsg = ""
-					return m, clearAfter(500 * time.Millisecond)
+					return m, nil
 				}
-				m.successMsg = "Saved!"
 				m.errMsg = ""
-				return m, clearAfter(500 * time.Millisecond)
 			}
 			return m, nil
 		}
@@ -569,18 +540,15 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if m.onEdit != nil {
 						m.onEdit(leaf, func() tea.Cmd {
 							m.refreshList()
-							if m.OnSaveFile != nil {
-								if err := m.OnSaveFile(m.Root); err != nil {
-									m.errMsg = err.Error()
-									m.successMsg = ""
-								} else {
-									m.successMsg = "Saved!"
-									m.errMsg = ""
-								}
-								return clearAfter(500 * time.Millisecond)
-							}
 							return nil
 						})
+					}
+					if m.OnSaveFile != nil {
+						if err := m.OnSaveFile(m.Root); err != nil {
+							m.errMsg = err.Error()
+						} else {
+							m.errMsg = ""
+						}
 					}
 				} else {
 					branch := item.Node.(*tree.BranchNode)
@@ -733,9 +701,6 @@ func (m *BrowserModel) View() string {
 
 	if m.errMsg != "" {
 		b += "\n" + style.ErrorText("Error: "+m.errMsg)
-	}
-	if m.successMsg != "" {
-		b += "\n" + style.SuccessText(m.successMsg)
 	}
 
 	b += "\n" + m.help.View(m)

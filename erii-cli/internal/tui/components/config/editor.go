@@ -87,7 +87,6 @@ type LeafEditorModel struct {
 	onSave        func() tea.Cmd
 	quitting      bool
 	errMsg        string
-	successMsg    string
 }
 
 func NewLeafEditorModel(leaf *tree.LeafNode, onSave func() tea.Cmd) *LeafEditorModel {
@@ -483,9 +482,6 @@ func (m *LeafEditorModel) View() string {
 
 	if m.errMsg != "" {
 		b.WriteString("\n" + style.ErrorText(m.errMsg))
-	}
-	if m.successMsg != "" {
-		b.WriteString("\n" + style.SuccessText(m.successMsg))
 	}
 
 	b.WriteString("\n\n" + m.help.View(m))

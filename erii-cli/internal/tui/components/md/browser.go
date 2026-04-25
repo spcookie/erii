@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"erii-cli/internal/tui/components"
 	"erii-cli/internal/tui/style"
@@ -18,12 +17,6 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
-
-type clearMsg = components.ClearMsg
-
-func clearAfter(d time.Duration) tea.Cmd {
-	return components.ClearAfter(d)
-}
 
 // BrowserKeyMap defines keybindings for the markdown browser.
 type BrowserKeyMap struct {
@@ -42,7 +35,7 @@ type BrowserKeyMap struct {
 }
 
 func (k BrowserKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Enter, k.New, k.Delete, k.Back, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Enter, k.EditContent, k.EditFront, k.Back, k.Help, k.Quit}
 }
 
 func (k BrowserKeyMap) FullHelp() [][]key.Binding {
@@ -134,7 +127,6 @@ type BrowserModel struct {
 	deleteForm    *huh.Form
 	quitting      bool
 	errMsg        string
-	successMsg    string
 }
 
 func NewBrowserModel(dir, title string) *BrowserModel {
@@ -221,7 +213,6 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.contentEditor.done {
 			m.contentEditor = nil
 			m.refreshList()
-			return m, tea.Batch(cmd, m.notifySave())
 		}
 		return m, cmd
 	}
@@ -239,7 +230,6 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.frontEditor.done {
 			m.frontEditor = nil
 			m.refreshList()
-			return m, tea.Batch(cmd, m.notifySave())
 		}
 		return m, cmd
 	}
@@ -257,7 +247,6 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.fieldBrowser != nil && m.fieldBrowser.done {
 			m.fieldBrowser = nil
 			m.refreshList()
-			return m, tea.Batch(cmd, m.notifySave())
 		}
 		return m, cmd
 	}
@@ -294,8 +283,12 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if confirmed {
 				if item, ok := m.list.SelectedItem().(mdItem); ok {
 					os.Remove(item.path)
-					m.refreshList()
 				}
+			}
+			m.refreshList()
+			items := m.list.Items()
+			if len(items) > 0 && m.list.Index() >= len(items) {
+				m.list.Select(len(items) - 1)
 			}
 			return m, cmd
 		}
@@ -303,14 +296,11 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case clearMsg:
-		m.successMsg = ""
-		return m, nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.list.SetSize(msg.Width, msg.Height-4)
-		m.help.Width = msg.Width
+		m.help.Width = m.width
 		return m, nil
 
 	case tea.KeyMsg:
@@ -351,11 +341,16 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, m.keys.New) {
+			isSouls := strings.Contains(strings.ToLower(m.dir), "souls")
+			var defaultFM string
+			if isSouls {
+				defaultFM = "---\ncharacter: |\n  \nemoticon: RESENTMENT\nid: ciallo\nname: Ciallo\n---\n\n"
+			} else {
+				defaultFM = "---\nglobal: false\ngroupId: \"\"\nbotId: \"\"\n---\n\n"
+			}
 			m.newFileModel = NewNewFileModel(m.dir, func(fileName string) {
 				fullPath := filepath.Join(m.dir, fileName)
-				// Create file with default frontmatter
-				content := "---\nkey: value\n---\n\n"
-				os.WriteFile(fullPath, []byte(content), 0644)
+				os.WriteFile(fullPath, []byte(defaultFM), 0644)
 			}, nil)
 			return m, m.newFileModel.Init()
 		}
@@ -428,9 +423,6 @@ func (m *BrowserModel) View() string {
 	if m.errMsg != "" {
 		b.WriteString("\n\n" + style.ErrorText(m.errMsg))
 	}
-	if m.successMsg != "" {
-		b.WriteString("\n" + style.SuccessText(m.successMsg))
-	}
 	b.WriteString("\n" + m.help.View(m.keys))
 	return b.String()
 }
@@ -445,7 +437,36 @@ func (m *BrowserModel) refreshList() {
 			m.errMsg = "No files found"
 		}
 	}
-	m.list.SetItems(items)
+
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
+	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(style.Secondary)
+	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
+	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(style.TextMuted)
+
+	l := list.New(items, delegate, 0, 0)
+	l.Title = style.Title(m.title)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
+	l.Styles.Title = style.ListTitle
+	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
+
+	if m.list.Items() != nil && len(items) > 0 {
+		idx := m.list.Index()
+		if idx >= len(items) {
+			idx = len(items) - 1
+		}
+		if idx < 0 {
+			idx = 0
+		}
+		l.Select(idx)
+	}
+
+	m.list = l
+	if m.width > 0 && m.height > 0 {
+		m.list.SetSize(m.width, m.height-4)
+	}
 }
 
 func loadMdItems(dir string) ([]list.Item, error) {
@@ -508,9 +529,4 @@ func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 		),
 	).WithWidth(w).WithShowHelp(false)
 	return m.deleteForm.Init()
-}
-
-func (m *BrowserModel) notifySave() tea.Cmd {
-	m.successMsg = "Saved!"
-	return clearAfter(500 * time.Millisecond)
 }

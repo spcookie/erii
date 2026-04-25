@@ -225,11 +225,5 @@ func (m *BrowserModel) FullHelp() [][]key.Binding {
 }
 
 func (m *BrowserModel) View() string {
-	if len(m.plugins) == 0 {
-		return style.Title("Plugin Configurations") + "\n\n" +
-			style.Muted("No plugin configurations found."+"\n"+
-				"Place plugin JSON files in: "+path.PluginConfigDir) + "\n\n" +
-			m.help.View(m)
-	}
 	return m.List.View() + "\n" + m.help.View(m)
 }
