@@ -2,27 +2,19 @@ package style
 
 import "github.com/charmbracelet/lipgloss"
 
-// Color palette (Dracula-like)
+// Adaptive color palette (auto-switches between dark/light modes)
 var (
-	Background  = lipgloss.Color("#282A36")
-	Surface     = lipgloss.Color("#44475A")
-	SurfaceAlt  = lipgloss.Color("#383846")
-	Primary     = lipgloss.Color("#50FA7B")
-	Secondary   = lipgloss.Color("#BD93F9")
-	Accent      = lipgloss.Color("#F1FA8C")
-	Text        = lipgloss.Color("#F8F8F2")
-	TextMuted   = lipgloss.Color("#6272A4")
-	BorderColor = lipgloss.Color("#6272A4")
-	Error       = lipgloss.Color("#FF5555")
-	Success     = lipgloss.Color("#50FA7B")
-	Warning     = lipgloss.Color("#FFB86C")
-	Info        = lipgloss.Color("#8BE9FD")
+	Background  = lipgloss.AdaptiveColor{Dark: "#282A36", Light: "#F8F8F2"}
+	Surface     = lipgloss.AdaptiveColor{Dark: "#44475A", Light: "#E8E8EE"}
+	SurfaceAlt  = lipgloss.AdaptiveColor{Dark: "#383846", Light: "#D0D0DC"}
+	Primary     = lipgloss.AdaptiveColor{Dark: "#50FA7B", Light: "#2E7D32"}
+	Secondary   = lipgloss.AdaptiveColor{Dark: "#BD93F9", Light: "#7B1FA2"}
+	Accent      = lipgloss.AdaptiveColor{Dark: "#F1FA8C", Light: "#F9A825"}
+	Text        = lipgloss.AdaptiveColor{Dark: "#F8F8F2", Light: "#212121"}
+	TextMuted   = lipgloss.AdaptiveColor{Dark: "#6272A4", Light: "#90A4AE"}
+	BorderColor = lipgloss.AdaptiveColor{Dark: "#6272A4", Light: "#B0BEC5"}
+	Error       = lipgloss.AdaptiveColor{Dark: "#FF5555", Light: "#D32F2F"}
+	Success     = lipgloss.AdaptiveColor{Dark: "#50FA7B", Light: "#388E3C"}
+	Warning     = lipgloss.AdaptiveColor{Dark: "#FFB86C", Light: "#F57C00"}
+	Info        = lipgloss.AdaptiveColor{Dark: "#8BE9FD", Light: "#0288D1"}
 )
-
-// Adaptive colors based on background.
-func LightDark(isDark bool, dark, light lipgloss.Color) lipgloss.Color {
-	if isDark {
-		return dark
-	}
-	return light
-}

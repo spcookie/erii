@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 
-	"erii-cli/internal/tui/components"
 	"erii-cli/internal/tui/style"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -113,7 +112,7 @@ func (m *NewFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.onCancel != nil {
 				m.onCancel()
 			}
-			return m, func() tea.Msg { return components.PopScreenMsg{} }
+			return m, nil
 		}
 	}
 
@@ -143,7 +142,7 @@ func (m *NewFileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.onCreate != nil {
 				m.onCreate(fileName)
 			}
-			return m, func() tea.Msg { return components.PopScreenMsg{} }
+			return m, nil
 		}
 		return m, cmd
 	}
@@ -377,7 +376,7 @@ func (m *FrontmatterEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.onSave != nil {
 				m.onSave()
 			}
-			return m, func() tea.Msg { return components.PopScreenMsg{} }
+			return m, nil
 		}
 		return m, cmd
 	}

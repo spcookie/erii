@@ -29,6 +29,8 @@
     "onebot.*.token": "NapCat authentication token",
     "onebot.*.ws": "NapCat WebSocket address",
     "onebot.bot": "Bot instance",
+    "onebot.das": "fsd",
+    "onebot.dasd": "dasdak",
     "proxy": "Proxy configuration",
     "proxy.http": "HTTP proxy URL",
     "proxy.socks": "SOCKS proxy URL",
@@ -37,23 +39,23 @@
     "search.provider": "Search provider"
   },
   "__plugin__": {
-    "qq-face": {
-      "description": "QQ Face emoji plugin",
-      "item": {
-        "face": "QQ Face configuration",
-        "face.enabled": "Enable QQ face feature",
-        "face.max-size": "Maximum face size in KB",
-        "face.cache-dir": "Cache directory for face images"
-      }
-    },
     "net-music": {
       "description": "QQ Music plugin",
       "item": {
         "music": "QQ Music configuration",
+        "music.cache-dir": "Cache directory for music files",
         "music.enabled": "Enable music feature",
         "music.quality": "Music quality (low/medium/high)",
-        "music.source": "Music source",
-        "music.cache-dir": "Cache directory for music files"
+        "music.source": "Music source"
+      }
+    },
+    "qq-face": {
+      "description": "QQ Face emoji plugin",
+      "item": {
+        "face": "QQ Face configuration",
+        "face.cache-dir": "Cache directory for face images",
+        "face.enabled": "Enable QQ face feature",
+        "face.max-size": "Maximum face size in KB"
       }
     }
   }

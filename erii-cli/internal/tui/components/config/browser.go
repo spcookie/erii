@@ -17,10 +17,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type clearMsg struct{}
+type clearMsg = components.ClearMsg
 
 func clearAfter(d time.Duration) tea.Cmd {
-	return tea.Tick(d, func(time.Time) tea.Msg { return clearMsg{} })
+	return components.ClearAfter(d)
 }
 
 // BrowserKeyMap defines keybindings for the config browser.

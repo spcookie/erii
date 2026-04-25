@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"erii-cli/internal/tui/components"
 	"erii-cli/internal/tui/style"
@@ -14,8 +15,15 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
+
+type clearMsg = components.ClearMsg
+
+func clearAfter(d time.Duration) tea.Cmd {
+	return components.ClearAfter(d)
+}
 
 // BrowserKeyMap defines keybindings for the markdown browser.
 type BrowserKeyMap struct {
@@ -28,18 +36,19 @@ type BrowserKeyMap struct {
 	New         key.Binding
 	EditContent key.Binding
 	EditFront   key.Binding
+	Delete      key.Binding
 	Help        key.Binding
 	Quit        key.Binding
 }
 
 func (k BrowserKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Enter, k.New, k.Back, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Enter, k.New, k.Delete, k.Back, k.Help, k.Quit}
 }
 
 func (k BrowserKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Enter, k.New},
-		{k.EditContent, k.EditFront},
+		{k.EditContent, k.EditFront, k.Delete},
 		{k.Back, k.Help, k.Quit},
 	}
 }
@@ -81,6 +90,10 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithKeys("ctrl+f"),
 		key.WithHelp("ctrl+f", "frontmatter"),
 	),
+	Delete: key.NewBinding(
+		key.WithKeys("ctrl+d"),
+		key.WithHelp("ctrl+d", "delete"),
+	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", "toggle help"),
@@ -116,8 +129,12 @@ type BrowserModel struct {
 	contentEditor *ContentEditorModel
 	frontEditor   *FrontmatterEditorModel
 	fieldBrowser  *FieldBrowserModel
+	deleting      bool
+	deleteConfirm bool
+	deleteForm    *huh.Form
 	quitting      bool
 	errMsg        string
+	successMsg    string
 }
 
 func NewBrowserModel(dir, title string) *BrowserModel {
@@ -204,6 +221,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.contentEditor.done {
 			m.contentEditor = nil
 			m.refreshList()
+			return m, tea.Batch(cmd, m.notifySave())
 		}
 		return m, cmd
 	}
@@ -221,6 +239,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.frontEditor.done {
 			m.frontEditor = nil
 			m.refreshList()
+			return m, tea.Batch(cmd, m.notifySave())
 		}
 		return m, cmd
 	}
@@ -238,12 +257,55 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.fieldBrowser != nil && m.fieldBrowser.done {
 			m.fieldBrowser = nil
 			m.refreshList()
+			return m, tea.Batch(cmd, m.notifySave())
+		}
+		return m, cmd
+	}
+
+	if m.deleting && m.deleteForm != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			w := 60
+			if msg.Width > 16 {
+				w = msg.Width - 8
+				if w > 60 {
+					w = 60
+				}
+			}
+			m.deleteForm = m.deleteForm.WithWidth(w)
 			return m, nil
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				m.deleting = false
+				m.deleteForm = nil
+				return m, nil
+			}
+		}
+		newForm, cmd := m.deleteForm.Update(msg)
+		if f, ok := newForm.(*huh.Form); ok {
+			m.deleteForm = f
+		}
+		if m.deleteForm.State == huh.StateCompleted {
+			confirmed := m.deleteConfirm
+			m.deleting = false
+			m.deleteForm = nil
+			if confirmed {
+				if item, ok := m.list.SelectedItem().(mdItem); ok {
+					os.Remove(item.path)
+					m.refreshList()
+				}
+			}
+			return m, cmd
 		}
 		return m, cmd
 	}
 
 	switch msg := msg.(type) {
+	case clearMsg:
+		m.successMsg = ""
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -321,6 +383,13 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if key.Matches(msg, m.keys.Delete) {
+			if _, ok := m.list.SelectedItem().(mdItem); ok {
+				m.deleting = true
+				return m, m.buildDeleteConfirmForm()
+			}
+			return m, nil
+		}
 	}
 
 	var cmd tea.Cmd
@@ -347,11 +416,20 @@ func (m *BrowserModel) View() string {
 	if m.fieldBrowser != nil {
 		return m.fieldBrowser.View()
 	}
+	if m.deleting && m.deleteForm != nil {
+		var b strings.Builder
+		b.WriteString(style.Title("Delete") + "\n\n")
+		b.WriteString(m.deleteForm.View())
+		return b.String()
+	}
 
 	var b strings.Builder
 	b.WriteString(m.list.View())
 	if m.errMsg != "" {
 		b.WriteString("\n\n" + style.ErrorText(m.errMsg))
+	}
+	if m.successMsg != "" {
+		b.WriteString("\n" + style.SuccessText(m.successMsg))
 	}
 	b.WriteString("\n" + m.help.View(m.keys))
 	return b.String()
@@ -408,4 +486,31 @@ func extractMdDescription(path string) string {
 		return line
 	}
 	return ""
+}
+
+func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
+	w := 60
+	if m.width > 16 {
+		w = m.width - 8
+		if w > 60 {
+			w = 60
+		}
+	}
+	m.deleteConfirm = false
+	m.deleteForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Delete this file?").
+				Affirmative("Yes").
+				Negative("No").
+				Value(&m.deleteConfirm).
+				Key("confirm"),
+		),
+	).WithWidth(w).WithShowHelp(false)
+	return m.deleteForm.Init()
+}
+
+func (m *BrowserModel) notifySave() tea.Cmd {
+	m.successMsg = "Saved!"
+	return clearAfter(500 * time.Millisecond)
 }
