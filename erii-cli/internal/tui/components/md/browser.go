@@ -35,13 +35,13 @@ type BrowserKeyMap struct {
 }
 
 func (k BrowserKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Enter, k.EditContent, k.EditFront, k.Back, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Enter, k.Back, k.Help, k.Quit}
 }
 
 func (k BrowserKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Enter, k.New},
-		{k.EditContent, k.EditFront, k.Delete},
+		{k.Edit, k.EditContent, k.EditFront, k.Delete},
 		{k.Back, k.Help, k.Quit},
 	}
 }

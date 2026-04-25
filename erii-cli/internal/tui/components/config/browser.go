@@ -56,12 +56,12 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithHelp("enter", "open/edit"),
 	),
 	Back: key.NewBinding(
-		key.WithKeys("esc", "left", "h"),
-		key.WithHelp("esc/←/h", "back"),
+		key.WithKeys("esc", "left"),
+		key.WithHelp("esc/←", "back"),
 	),
 	New: key.NewBinding(
-		key.WithKeys("n", "ctrl+n"),
-		key.WithHelp("n/ctrl+n", "new item"),
+		key.WithKeys("ctrl+n"),
+		key.WithHelp("ctrl+n", "new item"),
 	),
 	Rename: key.NewBinding(
 		key.WithKeys("ctrl+r"),
@@ -80,8 +80,8 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithHelp("?", "toggle help"),
 	),
 	Quit: key.NewBinding(
-		key.WithKeys("q", "ctrl+c"),
-		key.WithHelp("q/ctrl+c", "quit"),
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
 	),
 }
 
