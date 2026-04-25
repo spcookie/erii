@@ -4,11 +4,8 @@
     "onebot.*.groups"
   ],
   "__plugin__": {
-    "qq-face": [
-      "face"
-    ],
-    "net-music": [
-      "music"
+    "net-ease-music": [
+      "onebot"
     ]
   }
 }

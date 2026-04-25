@@ -29,10 +29,6 @@
     "onebot.*.token": "NapCat authentication token",
     "onebot.*.ws": "NapCat WebSocket address",
     "onebot.bot": "Bot instance",
-    "onebot.da": "fsd",
-    "onebot.das": "fsd",
-    "onebot.dasd": "dasdak",
-    "onebot.dsadsad": "rwer",
     "proxy": "Proxy configuration",
     "proxy.http": "HTTP proxy URL",
     "proxy.socks": "SOCKS proxy URL",
@@ -41,23 +37,19 @@
     "search.provider": "Search provider"
   },
   "__plugin__": {
-    "net-music": {
-      "description": "QQ Music plugin",
+    "net-ease-music": {
+      "description": "NetEase Music plugin",
       "item": {
-        "music": "QQ Music configuration",
-        "music.cache-dir": "Cache directory for music files",
-        "music.enabled": "Enable music feature",
-        "music.quality": "Music quality (low/medium/high)",
-        "music.source": "Music source"
+        "api-base": "API base URL",
+        "onebot": "OneBot bot configuration",
+        "onebot.*.http-url": "HTTP URL for bot",
+        "onebot.*.token": "Authentication token"
       }
     },
-    "qq-face": {
-      "description": "QQ Face emoji plugin",
+    "speech": {
+      "description": "Speech synthesis plugin",
       "item": {
-        "face": "QQ Face configuration",
-        "face.cache-dir": "Cache directory for face images",
-        "face.enabled": "Enable QQ face feature",
-        "face.max-size": "Maximum face size in KB"
+        "minimax-api-key": "MiniMax API key for speech synthesis"
       }
     }
   }

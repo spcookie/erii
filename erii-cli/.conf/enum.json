@@ -7,28 +7,5 @@
     ]
   },
   "__plugin__": {
-    "qq-face": {
-      "item": {
-        "face.quality": [
-          "low",
-          "medium",
-          "high"
-        ]
-      }
-    },
-    "net-music": {
-      "item": {
-        "music.quality": [
-          "low",
-          "medium",
-          "high"
-        ],
-        "music.source": [
-          "qq-music",
-          "netease",
-          "kugou"
-        ]
-      }
-    }
   }
 }
