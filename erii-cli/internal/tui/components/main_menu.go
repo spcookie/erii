@@ -48,8 +48,8 @@ var DefaultMenuKeys = MenuKeyMap{
 		key.WithHelp("?", "toggle help"),
 	),
 	Quit: key.NewBinding(
-		key.WithKeys("esc", "q", "ctrl+c"),
-		key.WithHelp("esc/q/ctrl+c", "quit"),
+		key.WithKeys("esc", "ctrl+c"),
+		key.WithHelp("esc/ctrl+c", "quit"),
 	),
 }
 

@@ -792,7 +792,7 @@ var defaultFieldBrowserKeys = FieldBrowserKeyMap{
 	Back:  key.NewBinding(key.WithKeys("esc", "left", "h"), key.WithHelp("esc/←/h", "back")),
 	New:   key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "new")),
 	Help:  key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
-	Quit:  key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q/ctrl+c", "quit")),
+	Quit:  key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
 }
 
 // FieldItem wraps a key-value pair for the list.

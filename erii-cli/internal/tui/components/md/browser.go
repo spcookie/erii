@@ -30,6 +30,7 @@ type BrowserKeyMap struct {
 	EditContent key.Binding
 	EditFront   key.Binding
 	Delete      key.Binding
+	Rename      key.Binding
 	Help        key.Binding
 	Quit        key.Binding
 }
@@ -41,7 +42,7 @@ func (k BrowserKeyMap) ShortHelp() []key.Binding {
 func (k BrowserKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Enter, k.New},
-		{k.Edit, k.EditContent, k.EditFront, k.Delete},
+		{k.Edit, k.EditContent, k.EditFront, k.Delete, k.Rename},
 		{k.Back, k.Help, k.Quit},
 	}
 }
@@ -87,13 +88,17 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithKeys("ctrl+d"),
 		key.WithHelp("ctrl+d", "delete"),
 	),
+	Rename: key.NewBinding(
+		key.WithKeys("ctrl+r"),
+		key.WithHelp("ctrl+r", "rename"),
+	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", "toggle help"),
 	),
 	Quit: key.NewBinding(
-		key.WithKeys("q", "ctrl+c"),
-		key.WithHelp("q/ctrl+c", "quit"),
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
 	),
 }
 
@@ -125,6 +130,10 @@ type BrowserModel struct {
 	deleting      bool
 	deleteConfirm bool
 	deleteForm    *huh.Form
+	renaming      bool
+	renameForm    *huh.Form
+	newFileName   string
+	oldFilePath   string
 	quitting      bool
 	errMsg        string
 }
@@ -295,6 +304,53 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	if m.renaming && m.renameForm != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			w := 60
+			if msg.Width > 16 {
+				w = msg.Width - 8
+				if w > 60 {
+					w = 60
+				}
+			}
+			m.renameForm = m.renameForm.WithWidth(w)
+			return m, nil
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				m.renaming = false
+				m.renameForm = nil
+				return m, nil
+			}
+		}
+		newForm, cmd := m.renameForm.Update(msg)
+		if f, ok := newForm.(*huh.Form); ok {
+			m.renameForm = f
+		}
+		if m.renameForm.State == huh.StateCompleted {
+			m.renaming = false
+			m.renameForm = nil
+			newName := strings.TrimSpace(m.newFileName)
+			if newName != "" && !strings.HasSuffix(newName, ".md") {
+				newName += ".md"
+			}
+			if newName != "" && newName != filepath.Base(m.oldFilePath) {
+				dir := filepath.Dir(m.oldFilePath)
+				newPath := filepath.Join(dir, newName)
+				_ = os.Rename(m.oldFilePath, newPath)
+			}
+			m.refreshList()
+			items := m.list.Items()
+			if len(items) > 0 && m.list.Index() >= len(items) {
+				m.list.Select(len(items) - 1)
+			}
+			return m, cmd
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -383,6 +439,15 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if key.Matches(msg, m.keys.Rename) {
+			if item, ok := m.list.SelectedItem().(mdItem); ok {
+				m.renaming = true
+				m.oldFilePath = item.path
+				m.newFileName = strings.TrimSuffix(item.name, ".md")
+				return m, m.buildRenameConfirmForm()
+			}
+			return m, nil
+		}
 	}
 
 	var cmd tea.Cmd
@@ -414,6 +479,13 @@ func (m *BrowserModel) View() string {
 		b.WriteString(style.Title("Delete") + "\n\n")
 		b.WriteString(m.deleteForm.View())
 		b.WriteString("\n\n" + style.Muted("esc cancel • ←/→ select • enter confirm"))
+		return b.String()
+	}
+	if m.renaming && m.renameForm != nil {
+		var b strings.Builder
+		b.WriteString(style.Title("Rename") + "\n\n")
+		b.WriteString(m.renameForm.View())
+		b.WriteString("\n\n" + style.Muted("esc cancel • enter confirm"))
 		return b.String()
 	}
 
@@ -490,14 +562,12 @@ func extractMdDescription(path string) string {
 	if err != nil {
 		return ""
 	}
-	lines := strings.Split(string(data), "\n")
+	content := string(data)
+	content = stripFrontmatter(content)
+	lines := strings.Split(content, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
-			continue
-		}
-		// Skip title
-		if strings.HasPrefix(line, "#") {
 			continue
 		}
 		if len(line) > 80 {
@@ -528,4 +598,24 @@ func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 		),
 	).WithWidth(w).WithShowHelp(false)
 	return m.deleteForm.Init()
+}
+
+func (m *BrowserModel) buildRenameConfirmForm() tea.Cmd {
+	w := 60
+	if m.width > 16 {
+		w = m.width - 8
+		if w > 60 {
+			w = 60
+		}
+	}
+	m.renameForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("New file name").
+				Description("Letters, numbers and underscores only").
+				Placeholder("my_file").
+				Value(&m.newFileName),
+		),
+	).WithWidth(w).WithShowHelp(false)
+	return m.renameForm.Init()
 }
