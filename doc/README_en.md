@@ -104,6 +104,7 @@ emotional state.
 | **qq-face**        | PassiveExtension | QQ emoji semantic matching plugin                              |
 | **seeddream**      | RouteExtension   | AI image generation plugin                                     |
 | **animal**         | AgentExtension   | Virtual pet breeding plugin with roleplay and affection system |
+| **erii-cli**       | CLI Tool         | Interactive TUI for configuration management                   |
 
 ### 💬 Conversation Enhancement
 
@@ -157,6 +158,25 @@ Before you begin, ensure you have the following installed:
    ```bash
    ./gradlew run
    ```
+
+### 🖥️ CLI Configuration Tool
+
+Erii provides an interactive CLI tool for configuration management:
+
+```bash
+go install ./erii-cli
+erii config
+```
+
+**Main Features:**
+
+- **Env Config** - Environment variables (`.env.local`)
+- **Application Config** - Application configuration (`application.conf`)
+- **Plugin Config** - Plugin configuration management
+- **Souls** - Soul configuration browser
+- **Rules** - Rule files browser
+
+Use arrow keys to navigate, Enter to edit, Esc to go back.
 
 ### 🐳 Docker Deployment
 
@@ -265,7 +285,17 @@ Erii/
 │   ├── qa/                      # AI web search Q&A
 │   ├── qq-face/                 # QQ emoji semantic matching
 │   ├── reminder/                # Scheduled reminders & delayed messages
-│   └── seeddream/               # AI image generation
+│   ├── seeddream/               # AI image generation
+│   └── animal/                  # Virtual pet breeding plugin
+├── erii-cli/                    # 🖥️ CLI tool module
+│   ├── cmd/                    # CLI commands
+│   │   └── config.go           # config command - TUI configuration
+│   └── internal/tui/           # TUI components
+│       ├── components/         # TUI components
+│       │   ├── config/         # Configuration editor
+│       │   ├── md/             # Markdown browser
+│       │   └── plugin/         # Plugin browser
+│       └── style/              # TUI styles
 └── build.gradle.kts             # Root build configuration
 ```
 
