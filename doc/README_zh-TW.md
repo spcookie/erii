@@ -5,6 +5,7 @@
 繁體中文 | [English](../README.md) | [中文](./README_zh.md) | [한국어](./README_ko.md)
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
 [![Ktor](https://img.shields.io/badge/Ktor-2.3+-087CFA?style=for-the-badge&logo=ktor&logoColor=white)](https://ktor.io/)
 [![Mirai](https://img.shields.io/badge/Mirai-2.16+-00C4B3?style=for-the-badge)](https://github.com/mamoe/mirai)
 [![JobRunr](https://img.shields.io/badge/JobRunr-6.2+-green?style=for-the-badge)](https://jobrunr.io/)
@@ -12,6 +13,7 @@
 [![H2](https://img.shields.io/badge/H2-Database-0066CC?style=for-the-badge)](https://www.h2database.com/)
 [![Koin](https://img.shields.io/badge/Koin-3.5+-F3692A?style=for-the-badge)](https://insert-koin.io/)
 [![Exposed](https://img.shields.io/badge/Exposed-ORM-F3692A?style=for-the-badge)](https://github.com/JetBrains/Exposed)
+[![Bubble Tea](https://img.shields.io/badge/Bubble_Tea-TUI-2C3E50?style=for-the-badge&logo=bubble-tea&logoColor=white)](https://github.com/charmbracelet/bubbletea)
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/spcookie/Erii)
 
