@@ -19,25 +19,28 @@ import (
 
 // BrowserKeyMap defines keybindings for the markdown browser.
 type BrowserKeyMap struct {
-	Up    key.Binding
-	Down  key.Binding
-	View  key.Binding
-	Edit  key.Binding
-	Enter key.Binding
-	Back  key.Binding
-	Help  key.Binding
-	Quit  key.Binding
+	Up          key.Binding
+	Down        key.Binding
+	View        key.Binding
+	Edit        key.Binding
+	Enter       key.Binding
+	Back        key.Binding
+	New         key.Binding
+	EditContent key.Binding
+	EditFront   key.Binding
+	Help        key.Binding
+	Quit        key.Binding
 }
 
 func (k BrowserKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Enter, k.Edit, k.Back, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Enter, k.New, k.Back, k.Help, k.Quit}
 }
 
 func (k BrowserKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Enter},
-		{k.Edit, k.Back},
-		{k.Help, k.Quit},
+		{k.Up, k.Down, k.Enter, k.New},
+		{k.EditContent, k.EditFront},
+		{k.Back, k.Help, k.Quit},
 	}
 }
 
@@ -66,6 +69,18 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithKeys("esc", "left", "h"),
 		key.WithHelp("esc/←/h", "back"),
 	),
+	New: key.NewBinding(
+		key.WithKeys("ctrl+n"),
+		key.WithHelp("ctrl+n", "new"),
+	),
+	EditContent: key.NewBinding(
+		key.WithKeys("ctrl+e"),
+		key.WithHelp("ctrl+e", "content"),
+	),
+	EditFront: key.NewBinding(
+		key.WithKeys("ctrl+f"),
+		key.WithHelp("ctrl+f", "frontmatter"),
+	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", "toggle help"),
@@ -89,16 +104,20 @@ func (i mdItem) FilterValue() string { return i.name }
 
 // BrowserModel lists markdown files and allows viewing/editing.
 type BrowserModel struct {
-	dir      string
-	title    string
-	list     list.Model
-	width    int
-	height   int
-	keys     BrowserKeyMap
-	help     help.Model
-	viewer   *ViewerModel
-	quitting bool
-	errMsg   string
+	dir           string
+	title         string
+	list          list.Model
+	width         int
+	height        int
+	keys          BrowserKeyMap
+	help          help.Model
+	viewer        *ViewerModel
+	newFileModel  *NewFileModel
+	contentEditor *ContentEditorModel
+	frontEditor   *FrontmatterEditorModel
+	fieldBrowser  *FieldBrowserModel
+	quitting      bool
+	errMsg        string
 }
 
 func NewBrowserModel(dir, title string) *BrowserModel {
@@ -137,7 +156,7 @@ func NewBrowserModel(dir, title string) *BrowserModel {
 func (m *BrowserModel) Init() tea.Cmd { return nil }
 
 func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Delegate to viewer if active
+	// Delegate to viewer/editors if active
 	if m.viewer != nil {
 		switch msg := msg.(type) {
 		case tea.WindowSizeMsg:
@@ -150,6 +169,76 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.viewer.done {
 			m.viewer = nil
+			m.refreshList()
+		}
+		return m, cmd
+	}
+
+	if m.newFileModel != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+		}
+		newModel, cmd := m.newFileModel.Update(msg)
+		if v, ok := newModel.(*NewFileModel); ok {
+			m.newFileModel = v
+		}
+		if m.newFileModel.done {
+			m.newFileModel = nil
+			m.refreshList()
+		}
+		return m, cmd
+	}
+
+	if m.contentEditor != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+		}
+		newModel, cmd := m.contentEditor.Update(msg)
+		if v, ok := newModel.(*ContentEditorModel); ok {
+			m.contentEditor = v
+		}
+		if m.contentEditor.done {
+			m.contentEditor = nil
+			m.refreshList()
+		}
+		return m, cmd
+	}
+
+	if m.frontEditor != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+		}
+		newModel, cmd := m.frontEditor.Update(msg)
+		if v, ok := newModel.(*FrontmatterEditorModel); ok {
+			m.frontEditor = v
+		}
+		if m.frontEditor.done {
+			m.frontEditor = nil
+			m.refreshList()
+		}
+		return m, cmd
+	}
+
+	if m.fieldBrowser != nil {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+		}
+		newModel, cmd := m.fieldBrowser.Update(msg)
+		if v, ok := newModel.(*FieldBrowserModel); ok {
+			m.fieldBrowser = v
+		}
+		if m.fieldBrowser != nil && m.fieldBrowser.done {
+			m.fieldBrowser = nil
+			m.refreshList()
+			return m, nil
 		}
 		return m, cmd
 	}
@@ -199,6 +288,39 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if key.Matches(msg, m.keys.New) {
+			m.newFileModel = NewNewFileModel(m.dir, func(fileName string) {
+				fullPath := filepath.Join(m.dir, fileName)
+				// Create file with default frontmatter
+				content := "---\nkey: value\n---\n\n"
+				os.WriteFile(fullPath, []byte(content), 0644)
+			}, nil)
+			return m, m.newFileModel.Init()
+		}
+		if key.Matches(msg, m.keys.EditContent) {
+			if item, ok := m.list.SelectedItem().(mdItem); ok {
+				data, _ := os.ReadFile(item.path)
+				content := string(data)
+				frontmatter := extractFrontmatterBlock(content)
+				content = stripFrontmatter(content)
+				m.contentEditor = NewContentEditorModel(item.path, content, frontmatter, func() {
+					m.refreshList()
+				}, nil)
+				return m, m.contentEditor.Init()
+			}
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.EditFront) {
+			if item, ok := m.list.SelectedItem().(mdItem); ok {
+				data, _ := os.ReadFile(item.path)
+				frontmatter := parseFrontmatter(string(data))
+				m.fieldBrowser = NewFieldBrowserModel(item.path, item.name, frontmatter, func() {
+					m.refreshList()
+				}, nil)
+				return m, m.fieldBrowser.Init()
+			}
+			return m, nil
+		}
 	}
 
 	var cmd tea.Cmd
@@ -213,6 +335,18 @@ func (m *BrowserModel) View() string {
 	if m.viewer != nil {
 		return m.viewer.View()
 	}
+	if m.newFileModel != nil {
+		return m.newFileModel.View()
+	}
+	if m.contentEditor != nil {
+		return m.contentEditor.View()
+	}
+	if m.frontEditor != nil {
+		return m.frontEditor.View()
+	}
+	if m.fieldBrowser != nil {
+		return m.fieldBrowser.View()
+	}
 
 	var b strings.Builder
 	b.WriteString(m.list.View())
@@ -221,6 +355,19 @@ func (m *BrowserModel) View() string {
 	}
 	b.WriteString("\n" + m.help.View(m.keys))
 	return b.String()
+}
+
+func (m *BrowserModel) refreshList() {
+	items, err := loadMdItems(m.dir)
+	if err != nil {
+		m.errMsg = err.Error()
+	} else {
+		m.errMsg = ""
+		if len(items) == 0 {
+			m.errMsg = "No files found"
+		}
+	}
+	m.list.SetItems(items)
 }
 
 func loadMdItems(dir string) ([]list.Item, error) {

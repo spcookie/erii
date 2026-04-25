@@ -29,6 +29,7 @@ var (
 )
 
 // Standalone text helpers
+
 func Title(s string) string       { return TitleStyle.Render(s) }
 func Subtitle(s string) string    { return SubtitleStyle.Render(s) }
 func Muted(s string) string       { return MutedStyle.Render(s) }
