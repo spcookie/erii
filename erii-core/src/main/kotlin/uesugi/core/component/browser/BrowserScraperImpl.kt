@@ -43,6 +43,7 @@ class BrowserScraperImpl : BrowserScraper {
     override fun takeFullScreenshot(
         url: String,
         width: Int,
+        height: Int,
         quality: Int,
         type: BrowserScraper.ScreenshotType,
         waitForNetworkIdle: Boolean,
@@ -54,7 +55,7 @@ class BrowserScraperImpl : BrowserScraper {
         synchronized(lock) {
             session.browser.newContext(
                 Browser.NewContextOptions()
-                    .setViewportSize(width, 1080)
+                    .setViewportSize(width, height)
                     .setDeviceScaleFactor(1.0)
             ).use { context ->
                 try {
@@ -85,7 +86,7 @@ class BrowserScraperImpl : BrowserScraper {
 
                     page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
 
-                    // --- 滚动加载 (Lazy Loading 处理) ---
+                    // --- 滚动加载 ---
                     page.evaluate(
                         """
                 async () => {

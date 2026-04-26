@@ -32,7 +32,6 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
 
     // 插件服务器配置（默认 fallback，bot 级别优先从 onebot.bots.<key>.server-host 读取）
     private val serverPort = 8888
-    private val serverBasePath = "/plugin/animal"
 
     override fun onLoad(context: PluginContext) {
         this.context = context
@@ -67,7 +66,7 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
                     store,
                     service,
                     serverPort,
-                    serverBasePath,
+                    server.basePath,
                 )
             }
         }
@@ -88,7 +87,8 @@ class AnimalExtension : PassiveExtension<Animal>, CmdExtension<AnimalContext, An
                     runCatching {
                         BrowserScraperHolder.getInstance().takeFullScreenshot(
                             url = url.replace("http://${cmdExternalHost}", "http://${cmdServerHost}"),
-                            width = 1200,
+                            width = 100,
+                            height = 30,
                             quality = 85,
                             type = BrowserScraper.ScreenshotType.JPEG
                         )

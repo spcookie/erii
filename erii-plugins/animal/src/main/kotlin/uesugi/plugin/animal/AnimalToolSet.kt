@@ -58,8 +58,9 @@ class AnimalToolSet(
                 val playwrightUrl = url.replace("http://${externalHost}", "http://${serverHost}")
                 BrowserScraperHolder.getInstance().takeFullScreenshot(
                     url = playwrightUrl,
-                    width = 1200,
-                    quality = 85
+                    width = 100,
+                    height = 30,
+                    quality = 100
                 )
             }
         )
