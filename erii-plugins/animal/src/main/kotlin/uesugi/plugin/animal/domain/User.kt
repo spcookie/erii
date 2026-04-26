@@ -57,7 +57,6 @@ class User(
         this.name = name
     }
 
-
     fun addPersona(id: Long, personaType: PersonaType, level: Int): PersonaResponse {
         val persona = Persona(
             id = id,
@@ -242,7 +241,6 @@ class User(
     }
 
     fun updateContribution(contribution: Int): Int {
-        val beforeContribution = contributions.totalCount()
         val currentYear = ZonedDateTime.now(ZoneId.of("UTC")).year
         val currentYearContribution =
             contributions.firstOrNull { it.year == currentYear }
@@ -257,7 +255,7 @@ class User(
         currentYearContribution.contribution += newContribution
         lastPersonaGivePoint += newContribution
         currentYearContribution.lastUpdatedContribution = Instant.now()
-        levelUpPersonas(newContribution)
+        levelUpPersonas(currentYearContribution.contribution)
 
         // 自动进化检查
         autoEvolveIfNeeded()
@@ -277,8 +275,12 @@ class User(
         currentYearContribution.lastUpdatedContribution = Instant.now()
     }
 
-    private fun levelUpPersonas(newContribution: Int) {
-        repeat(newContribution) {
+    private fun levelUpPersonas(totalContribution: Int) {
+        val currentLevel = personas.sumOf { it.level.value }.toInt()
+        val targetLevel = totalContribution / CONTRIBUTION_PER_LEVEL
+        val levelUps = targetLevel - currentLevel
+        if (levelUps <= 0) return
+        repeat(levelUps) {
             runCatching {
                 val persona = personas.random()
                 persona.level.value++
@@ -441,6 +443,7 @@ class User(
         private const val FOR_NEW_PERSONA_COUNT = 30L
         private const val FOR_INIT_PERSONA_COUNT = 100L
         private const val MAX_SAME_TYPE_COUNT = 3
+        private const val CONTRIBUTION_PER_LEVEL = 100  // 每100贡献度升一级
 
         // 背景解锁条件
         private const val FIRST_FIELD_UNLOCK_CONTRIBUTION = 1000L  // 首次解锁需1000贡献度

@@ -4,15 +4,9 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import com.github.ajalt.clikt.core.main
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.runBlocking
-import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
-import uesugi.common.BotManage
-import uesugi.common.toolkit.BrowserScraperHolder
-import uesugi.common.toolkit.ConfigHolder
 import uesugi.plugin.animal.service.AnimalService
 import uesugi.plugin.animal.store.AnimalStore
 import uesugi.spi.MetaToolSet
-import uesugi.spi.getGroup
 
 class AnimalToolSet(
     private val store: AnimalStore,
@@ -24,45 +18,12 @@ class AnimalToolSet(
     private val log = KotlinLogging.logger {}
 
     private fun createAnimalContext(): AnimalContext {
-        val userId = MetaToolSet.meta.senderId?.toLongOrNull() ?: 0L
-        val senderNick = MetaToolSet.meta.senderId ?: "User"
-        val botId = MetaToolSet.meta.botId
-        val configKey = BotManage.getConfigKey(botId)
-        val botConfig = ConfigHolder.getOnebotBots()[configKey]
-        // 内网 host 用于 Playwright，外网 host 用于 JSON 访问
-        val serverHost = botConfig?.serverHost ?: "hostmachine"
-        val externalHost = botConfig?.externalHost ?: serverHost
-
-        return AnimalContext(
+        return AnimalContextFactory.createFromMeta(
+            meta = MetaToolSet.meta,
             store = store,
             service = service,
-            groupId = MetaToolSet.meta.groupId,
-            senderId = userId,
-            senderNick = senderNick,
-            sendMessage = { msg ->
-                runBlocking {
-                    MetaToolSet.meta.getGroup().sendMessage(msg)
-                }
-            },
-            createImage = { bytes ->
-                runBlocking {
-                    val imageRes = bytes.inputStream().use { it.toExternalResource() }
-                    imageRes.use { res ->
-                        MetaToolSet.meta.getGroup().uploadImage(res)
-                    }
-                }
-            },
-            serverUrl = "http://${externalHost}:${serverPort}${serverBasePath}",
-            takeScreenshot = { url ->
-                // 外网 URL 替换为内网 host 给 Playwright 截图
-                val playwrightUrl = url.replace("http://${externalHost}", "http://${serverHost}")
-                BrowserScraperHolder.getInstance().takeFullScreenshot(
-                    url = playwrightUrl,
-                    width = 100,
-                    height = 30,
-                    quality = 100
-                )
-            }
+            serverPort = serverPort,
+            serverBasePath = serverBasePath
         )
     }
 

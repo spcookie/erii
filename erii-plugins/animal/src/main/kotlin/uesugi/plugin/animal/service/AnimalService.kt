@@ -19,7 +19,6 @@ class AnimalService(private val store: AnimalStore) {
     companion object {
         private const val COINS_PER_DRAW = 100
         private const val COINS_PER_10_DRAW = 1000
-        private const val CONTRIBUTION_PER_LEVEL = 100
         private const val CONTRIBUTION_PER_CHECK_IN = 10
         private const val CONTRIBUTION_PER_10_MESSAGES = 10
         private const val MESSAGES_PER_CONTRIBUTION = 10
@@ -46,8 +45,6 @@ class AnimalService(private val store: AnimalStore) {
         log.info { "User $userId registered with pet in group $groupId" }
         return user
     }
-
-    suspend fun getUser(groupId: String, userId: Long): User? = store.getUser(groupId, userId)
 
     suspend fun getUserPets(groupId: String, userId: Long): List<Persona> {
         val user = store.getUser(groupId, userId) ?: return emptyList()
@@ -142,18 +139,6 @@ class AnimalService(private val store: AnimalStore) {
             user.changePersonaVisible(petId, visible, VisibleChangeType.DEFAULT)
             store.saveUser(groupId, user)
             Result.success("设置成功！宠物 ${if (visible) "已显示" else "已隐藏"}在农场中")
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun addField(groupId: String, userId: Long, fieldType: FieldType): Result<String> {
-        val user = store.getUser(groupId, userId) ?: return Result.failure(Exception("用户不存在"))
-
-        return try {
-            user.addField(fieldType)
-            store.saveUser(groupId, user)
-            Result.success("添加背景成功！")
         } catch (e: Exception) {
             Result.failure(e)
         }
