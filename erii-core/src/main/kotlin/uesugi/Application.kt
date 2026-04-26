@@ -1,6 +1,7 @@
 package uesugi
 
 import io.ktor.server.application.*
+import uesugi.cli.configureIpc
 import uesugi.common.toolkit.BrowserScraperHolder
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
@@ -33,6 +34,8 @@ fun Application.module() {
     configureSecurity()
     configureHTTP()
     configureRouting()
+
+    configureIpc()
 
     configureBotAgent()
     configureConnectBots()

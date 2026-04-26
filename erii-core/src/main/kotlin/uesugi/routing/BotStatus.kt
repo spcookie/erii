@@ -169,6 +169,15 @@ fun Routing.configureBotStatus() {
         get("/bots") {
             call.respond(BotManage.getAllBotIds())
         }
+        get("/bot/{bot-id}/groups") {
+            val botId = call.request.pathVariables["bot-id"]
+            if (botId == null) {
+                call.respond(mapOf("error" to "bot-id is null"))
+            } else {
+                val groups = ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(botId))
+                call.respond(groups)
+            }
+        }
         get("/status/{id}") {
             val id = call.request.pathVariables["id"]
             if (id == null) {
@@ -198,6 +207,90 @@ fun Routing.configureBotStatus() {
                 val botName = roledBot.role.name
                 call.respond(BotStatus(id, botName, groups, botStatusByGroups, pluginStats))
             }
+        }
+
+        // TUI JSON API: 获取所有机器人列表
+        get("/api/bots") {
+            val bots = BotManage.getAllBots().map { roledBot ->
+                BotInfo(
+                    botId = roledBot.refBot.id.toString(),
+                    botName = roledBot.role.name
+                )
+            }
+            call.respond(bots)
+        }
+
+        // TUI JSON API: 获取指定机器人的群组列表（带群名称）
+        get("/api/bot/{bot-id}/groups") {
+            val botId = call.request.pathVariables["bot-id"]
+            if (botId == null) {
+                call.respond(mapOf("error" to "bot-id is null"))
+            } else {
+                val roledBot = BotManage.getBot(botId)
+                val refBot = roledBot.refBot
+                val enabledGroups = ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(botId))
+                val groups = refBot.groups
+                    .filter { enabledGroups.contains(it.id.toString()) }
+                    .map { GroupInfo(groupId = it.id.toString(), groupName = it.name) }
+                call.respond(groups)
+            }
+        }
+
+        // TUI JSON API: 获取指定机器人和群组的状态
+        get("/api/bot/{bot-id}/group/{group-id}/status") {
+            val botId = call.request.pathVariables["bot-id"]
+            val groupId = call.request.pathVariables["group-id"]
+
+            if (botId == null || groupId == null) {
+                call.respond(mapOf("error" to "bot-id or group-id is null"))
+                return@get
+            }
+
+            val roledBot = BotManage.getBot(botId)
+            val refBot = roledBot.refBot
+            val enabledGroups = ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(botId))
+
+            if (!enabledGroups.contains(groupId)) {
+                call.respond(mapOf("error" to "group not enabled for this bot"))
+                return@get
+            }
+
+            val groupName = refBot.groups.find { it.id.toString() == groupId }?.name ?: groupId
+            val pluginStats = buildPluginStats(botId)
+            val groupStatus = buildGroupStatus(
+                botId = botId,
+                groupId = groupId,
+                emoticon = roledBot.role.emoticon,
+                emotionService = emotionService,
+                flowGaugeManager = flowGaugeManager,
+                volitionGaugeManager = volitionGaugeManager,
+                evolutionService = evolutionService,
+                memoryService = memoryService,
+                memoService = memoService
+            )
+
+            val response = GroupStatusResponse(
+                botId = botId,
+                botName = roledBot.role.name,
+                groupId = groupId,
+                groupName = groupName,
+                behaviorProfile = groupStatus.behaviorProfile,
+                pad = groupStatus.pad,
+                flowState = groupStatus.flowState,
+                volitionState = groupStatus.volitionState,
+                vocabularies = groupStatus.vocabularies,
+                summary = groupStatus.summary,
+                factSize = groupStatus.factSize,
+                userProfileSize = groupStatus.userProfileSize,
+                facts = groupStatus.facts,
+                userProfiles = groupStatus.userProfiles,
+                memeSize = groupStatus.memeSize,
+                analyzedMemeSize = groupStatus.analyzedMemeSize,
+                memes = groupStatus.memes,
+                pluginStats = pluginStats
+            )
+
+            call.respond(response)
         }
 
         // 单群组状态页面
@@ -247,6 +340,40 @@ fun Routing.configureBotStatus() {
         }
     }
 }
+
+@Serializable
+data class BotInfo(
+    val botId: String,
+    val botName: String
+)
+
+@Serializable
+data class GroupInfo(
+    val groupId: String,
+    val groupName: String
+)
+
+@Serializable
+data class GroupStatusResponse(
+    val botId: String,
+    val botName: String,
+    val groupId: String,
+    val groupName: String,
+    val behaviorProfile: BehaviorProfile?,
+    val pad: PAD?,
+    val flowState: BotStatus.FlowState,
+    val volitionState: BotStatus.VolitionState,
+    val vocabularies: List<String>,
+    val summary: String?,
+    val factSize: Long,
+    val userProfileSize: Long,
+    val facts: BotStatus.Facts,
+    val userProfiles: List<BotStatus.UserProfile>,
+    val memeSize: Long,
+    val analyzedMemeSize: Long,
+    val memes: List<BotStatus.Meme>,
+    val pluginStats: BotStatus.PluginStats
+)
 
 @Serializable
 data class BotStatus(
