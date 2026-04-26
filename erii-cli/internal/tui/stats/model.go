@@ -474,11 +474,11 @@ func (m *StatusViewModel) buildContent() string {
 	// Volition
 	rows = append(rows, hline(innerW))
 	vstatus := "Observing"
-	vstatusCN := "保持观察状态"
+	vstatusCN := "保持观察"
 	vcolor := style.TextMuted
 	if s.VolitionState.ShouldSpeak {
 		vstatus = "Triggered"
-		vstatusCN = "已触发主动发言阈值"
+		vstatusCN = "主动发言"
 		vcolor = style.Success
 	}
 	rows = append(rows, sectionTitle("Volition"))
