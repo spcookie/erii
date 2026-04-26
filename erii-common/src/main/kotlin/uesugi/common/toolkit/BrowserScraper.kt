@@ -21,6 +21,7 @@ interface BrowserScraper : AutoCloseable {
     fun takeFullScreenshot(
         url: String,
         width: Int = 1920,
+        height: Int = 1080,
         quality: Int = 70,
         type: ScreenshotType = ScreenshotType.JPEG,
         waitForNetworkIdle: Boolean = true,
