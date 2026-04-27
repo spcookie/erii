@@ -7,8 +7,8 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
 import uesugi.common.BotManage
-import uesugi.common.EmotionalTendencies
-import uesugi.common.PAD
+import uesugi.common.data.EmotionalTendencies
+import uesugi.common.data.PAD
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.plugin.ExtensionRegister
 import uesugi.core.state.emotion.BehaviorProfile

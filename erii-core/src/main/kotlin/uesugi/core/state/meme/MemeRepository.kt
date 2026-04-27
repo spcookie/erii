@@ -6,8 +6,8 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.common.HistoryTable
-import uesugi.common.MessageType
+import uesugi.common.data.HistoryTable
+import uesugi.common.data.MessageType
 import uesugi.common.toolkit.logger
 import uesugi.core.message.resource.ResourceTable
 import uesugi.core.state.meme.MemeData.MemeEntity

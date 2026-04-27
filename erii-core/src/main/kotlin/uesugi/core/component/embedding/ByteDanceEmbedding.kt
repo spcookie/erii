@@ -6,8 +6,8 @@ import com.google.auto.service.AutoService
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import uesugi.common.EmbeddingInput
-import uesugi.common.IEmbedding
+import uesugi.common.extend.EmbeddingInput
+import uesugi.common.extend.IEmbedding
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.config.HttpClientFactory
 import java.io.IOException
@@ -33,7 +33,7 @@ class ByteDanceEmbedding : IEmbedding {
     }
 
     private suspend fun embeddingInternal(input: List<String>, images: List<ByteArray>): List<FloatArray> {
-        val node: JsonNode = client.post("https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal") {
+        val node: JsonNode = client.post(ConfigHolder.getEmbeddingUrl()) {
             contentType(ContentType.Application.Json)
             bearerAuth(ConfigHolder.getEmbeddingApiKey())
             val text = input.map {

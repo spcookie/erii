@@ -1,4 +1,4 @@
-package uesugi.common
+package uesugi.common.data
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable

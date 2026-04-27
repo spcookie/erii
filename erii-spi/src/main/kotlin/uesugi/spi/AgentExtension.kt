@@ -22,11 +22,14 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import okio.Path
 import org.jetbrains.exposed.v1.jdbc.Query
-
 import org.pf4j.ExtensionPoint
 import org.pf4j.Plugin
 import org.pf4j.PluginWrapper
-import uesugi.common.*
+import uesugi.common.ChatToolSet
+import uesugi.common.IBotManage
+import uesugi.common.data.HistoryRecord
+import uesugi.common.event.PSFeature
+import uesugi.common.event.ProactiveSpeakFeature
 import java.io.InputStream
 import java.util.*
 import kotlin.reflect.KClass
@@ -362,6 +365,7 @@ interface SendAgentState {
 
 @OptIn(ExperimentalUuidApi::class)
 data class SendAgentConf(
+    val chatVision: Boolean = false,
     val webSearch: Boolean = false,
     val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)? = null,
     val feature: ProactiveSpeakFeature = PSFeature.NONE,
@@ -456,6 +460,17 @@ enum class WebSearch : SendAgentConfig.Elem {
 
     override val key: SendAgentConfig.Key<*>
         get() = WebSearch
+
+}
+
+enum class ChatVision : SendAgentConfig.Elem {
+
+    ENABLE, DISABLE;
+
+    companion object Key : SendAgentConfig.Key<ChatVision>
+
+    override val key: SendAgentConfig.Key<*>
+        get() = ChatVision
 
 }
 

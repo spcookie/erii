@@ -4,14 +4,16 @@ import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.ToolSet
 import uesugi.common.BotManage
 import uesugi.common.ChatToolSet
-import uesugi.common.ProactiveSpeakEvent
-import uesugi.common.WebSearchTool
+import uesugi.common.event.ProactiveSpeakEvent
 import uesugi.common.toolkit.ref
+import uesugi.core.component.search.WebSearchTool
+import uesugi.core.component.vision.ChatVisionTool
 import uesugi.core.reminder.ReminderService
 
 data class ToolEnv(
     val chatToolSet: ChatToolSet,
     val webSearch: Boolean,
+    val chatVision: Boolean,
     val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)?,
     val ruleToolSet: RuleToolSet?,
     val reminderToolSet: ReminderToolSet?
@@ -26,6 +28,11 @@ fun baseTools() = buildList {
 context(env: ToolEnv)
 fun webTools() =
     if (env.webSearch) WebSearchTool.asTools() else emptyList()
+
+context(env: ToolEnv)
+fun chatVision() =
+    if (env.chatVision) ChatVisionTool.asTools() else emptyList()
+
 
 context(env: ToolEnv)
 fun extraTools() =
@@ -48,6 +55,7 @@ fun buildToolRegistry(): ToolRegistry =
         tools(ruleTools())
         tools(reminderTools())
         tools(webTools())
+        tools(chatVision())
         tools(extraTools())
     }
 
@@ -88,6 +96,7 @@ fun buildReminderToolSet(event: ProactiveSpeakEvent): ReminderToolSet {
 fun buildToolEnv(event: ProactiveSpeakEvent, context: Context): ToolEnv {
     return ToolEnv(
         buildChatToolSet(event, context),
+        event.chatVision,
         event.webSearch,
         event.toolSetBuilder,
         buildRuleToolSet(event, context),

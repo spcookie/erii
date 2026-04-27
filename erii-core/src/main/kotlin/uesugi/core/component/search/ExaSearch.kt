@@ -9,8 +9,8 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.jackson.*
-import uesugi.common.ISearch
-import uesugi.common.SearchResultItem
+import uesugi.common.extend.ISearch
+import uesugi.common.extend.SearchResultItem
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 
@@ -30,10 +30,12 @@ class ExaSearch : ISearch {
     override suspend fun search(query: String?, urls: List<String>?, maxResult: Int): List<SearchResultItem> {
         try {
             val items = mutableListOf<SearchResultItem>()
+            val searchUrl = ConfigHolder.getSearchUrl()
+            val contentsUrl = "$searchUrl/contents"
             if (!query.isNullOrBlank()) {
-                val root: JsonNode = httpClient.post("https://api.exa.ai/search") {
+                val root: JsonNode = httpClient.post(searchUrl) {
                     contentType(ContentType.Application.Json)
-                    header("x-api-key", ConfigHolder.getExaApiKey())
+                    header("x-api-key", ConfigHolder.getSearchApiKey())
                     setBody(
                         mapOf(
                             "query" to query,
@@ -52,9 +54,9 @@ class ExaSearch : ISearch {
             }
 
             if (!urls.isNullOrEmpty()) {
-                val root: JsonNode = httpClient.post("https://api.exa.ai/contents") {
+                val root: JsonNode = httpClient.post(contentsUrl) {
                     contentType(ContentType.Application.Json)
-                    header("x-api-key", ConfigHolder.getExaApiKey())
+                    header("x-api-key", ConfigHolder.getSearchApiKey())
                     setBody(
                         mapOf(
                             "ids" to urls,

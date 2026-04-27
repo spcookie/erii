@@ -9,7 +9,7 @@ import net.mamoe.mirai.message.data.At
 import net.mamoe.mirai.message.data.buildMessageChain
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
-import uesugi.common.PSFeature
+import uesugi.common.event.PSFeature
 import uesugi.core.plugin.SchedulerBridge
 import uesugi.spi.Feature
 import uesugi.spi.sendAgent

@@ -2,6 +2,7 @@ package uesugi.common
 
 import net.mamoe.mirai.Bot
 import uesugi.common.IBotManage.RoledBot
+import uesugi.common.data.EmotionalTendencies
 import uesugi.common.toolkit.logger
 import java.util.concurrent.ConcurrentHashMap
 

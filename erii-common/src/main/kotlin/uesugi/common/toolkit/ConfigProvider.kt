@@ -55,8 +55,13 @@ interface ConfigProvider {
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String
     fun getEmbeddingProvider(): String
+    fun getEmbeddingUrl(): String
     fun getSearchApiKey(): String
     fun getSearchProvider(): String
+    fun getSearchUrl(): String
+    fun getVisionApiKey(): String
+    fun getVisionProvider(): String
+    fun getVisionUrl(): String
 
     // ===== 代理 =====
     fun getProxyHttp(): String?
@@ -117,8 +122,13 @@ object ConfigHolder {
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()
     fun getEmbeddingProvider(): String = provider.getEmbeddingProvider()
-    fun getExaApiKey(): String = provider.getSearchApiKey()
+    fun getEmbeddingUrl(): String = provider.getEmbeddingUrl()
+    fun getSearchApiKey(): String = provider.getSearchApiKey()
     fun getSearchProvider(): String = provider.getSearchProvider()
+    fun getSearchUrl(): String = provider.getSearchUrl()
+    fun getVisionApiKey(): String = provider.getVisionApiKey()
+    fun getVisionProvider(): String = provider.getVisionProvider()
+    fun getVisionUrl(): String = provider.getVisionUrl()
 
     // ===== 代理 =====
     fun getProxyHttp(): String? = provider.getProxyHttp()

@@ -13,7 +13,7 @@ services:
           memory: 512m
     environment:
       - JAVA_OPTS=-XX:+UseG1GC -Xms256m -Xmx256m -XX:MaxGCPauseMillis=200 -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/erii/oom_heap.hprof  -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai
-      - ERII_CORE_OPTS=-Dpf4j.pluginsDir=./conf/plugins -Dconfig.plugin.dir=./conf/config -Dconfig.path=./conf/application.conf -Dconfig.souls.dir=./conf/souls -Dconfig.rules.dir=./conf/rules
+      - ERII_CORE_OPTS=-Dpf4j.pluginsDir=./conf/plugins -Dconfig.plugin.dir=./conf/plugin-config -Dconfig.path=./conf/application.conf -Dconfig.souls.dir=./conf/souls -Dconfig.rules.dir=./conf/rules
     env_file:
       - ./conf/.env.local
     volumes:

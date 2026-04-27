@@ -1,4 +1,4 @@
-package uesugi.common
+package uesugi.common.extend
 
 /**
  * Embedding 输入数据类，支持多模态

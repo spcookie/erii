@@ -8,7 +8,13 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
-import uesugi.common.*
+import uesugi.common.BotManage
+import uesugi.common.EventBus
+import uesugi.common.LLMModelsChoice
+import uesugi.common.data.HistoryRecord
+import uesugi.common.event.ChatUrgentEvent
+import uesugi.common.event.InterruptionMode
+import uesugi.common.event.ProactiveSpeakEvent
 import uesugi.common.toolkit.ref
 import uesugi.core.message.history.HistorySavedEvent
 import uesugi.core.plugin.MetaImpl
@@ -110,6 +116,7 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
             botId = botId,
             _groupId = groupId,
             senderId = senderId,
+            chatVision = true,
             webSearch = true,
             interruptionMode = InterruptionMode.Interrupt,
             input = input,

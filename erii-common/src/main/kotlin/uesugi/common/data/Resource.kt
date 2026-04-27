@@ -9,9 +9,9 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
-import uesugi.common.HistoryEntity
-import uesugi.common.HistoryRecord
-import uesugi.common.HistoryTable
+import uesugi.common.data.HistoryEntity
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.HistoryTable
 
 object ResourceTable : IntIdTable("chat_resource") {
     const val DEFAULT_LENGTH = 255

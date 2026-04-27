@@ -24,8 +24,8 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
-import uesugi.common.HistoryRecord
 import uesugi.common.LLMModelsChoice
+import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref

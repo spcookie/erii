@@ -9,8 +9,8 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.common.BotManage
-import uesugi.common.HistoryTable
-import uesugi.common.MessageType
+import uesugi.common.data.HistoryTable
+import uesugi.common.data.MessageType
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.storage.ObjectStorage

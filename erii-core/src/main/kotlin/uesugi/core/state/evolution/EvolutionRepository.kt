@@ -3,7 +3,7 @@ package uesugi.core.state.evolution
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.common.HistoryTable
+import uesugi.common.data.HistoryTable
 import uesugi.common.toolkit.logger
 
 /**

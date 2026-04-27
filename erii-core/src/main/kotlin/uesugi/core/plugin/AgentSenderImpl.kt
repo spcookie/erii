@@ -3,7 +3,8 @@ package uesugi.core.plugin
 import ai.koog.serialization.JSONElement
 import com.google.auto.service.AutoService
 import kotlinx.coroutines.runBlocking
-import uesugi.common.*
+import uesugi.common.EventBus
+import uesugi.common.event.*
 import uesugi.spi.*
 
 @AutoService(AgentSender::class)
@@ -78,6 +79,7 @@ class AgentSenderImpl : AgentSender {
             }
         }
         val conf = SendAgentConf(
+            chatVision = config[ChatVision]?.let { it == ChatVision.ENABLE } ?: false,
             webSearch = config[WebSearch]?.let { it == WebSearch.ENABLE } ?: false,
             toolSetBuilder = config[ToolSetBuilder]?.value,
             feature = config[Feature]?.value ?: PSFeature.NONE,
@@ -93,7 +95,7 @@ class AgentSenderImpl : AgentSender {
         conf: SendAgentConf = SendAgentConf(),
         state: SendAgentState? = null
     ) {
-        val (webSearch, toolSets, flag, echo) = conf
+        val (chatVision, webSearch, toolSets, flag, echo) = conf
 
         if (state != null) {
             val job = EventBus.subscribeAsync<AgentToolCallEvent>(state.scope) { event ->
@@ -172,6 +174,7 @@ class AgentSenderImpl : AgentSender {
                 _groupId = groupId,
                 interruptionMode = InterruptionMode.Interrupt,
                 input = input,
+                chatVision = chatVision,
                 webSearch = webSearch,
                 toolSetBuilder = toolSets,
                 feature = flag,

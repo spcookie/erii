@@ -5,10 +5,14 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.common.*
-import uesugi.common.PSFeature.CHAT_URGENT
-import uesugi.common.PSFeature.GRAB
-import uesugi.common.PSFeature.IGNORE_INTERRUPT
+import uesugi.common.BotManage
+import uesugi.common.EventBus
+import uesugi.common.data.EmotionalTendencies
+import uesugi.common.event.InterruptionMode
+import uesugi.common.event.PSFeature.CHAT_URGENT
+import uesugi.common.event.PSFeature.GRAB
+import uesugi.common.event.PSFeature.IGNORE_INTERRUPT
+import uesugi.common.event.ProactiveSpeakEvent
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.plugin.MetaImpl
@@ -285,6 +289,7 @@ fun speakV(
         botId = botId,
         _groupId = groupId,
         senderId = senderId,
+        chatVision = true,
         webSearch = true,
         interruptionMode = interruptionMode,
         feature = CHAT_URGENT or GRAB or IGNORE_INTERRUPT,

@@ -3,7 +3,7 @@ package uesugi.core.bot
 import org.yaml.snakeyaml.Yaml
 import uesugi.common.BotRole
 import uesugi.common.ConfigBotRole
-import uesugi.common.EmotionalTendencies
+import uesugi.common.data.EmotionalTendencies
 import uesugi.common.toolkit.logger
 import java.io.File
 import java.net.URLDecoder

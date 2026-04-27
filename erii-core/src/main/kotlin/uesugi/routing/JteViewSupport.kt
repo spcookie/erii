@@ -2,8 +2,8 @@
 
 package uesugi.routing
 
-import uesugi.common.EmotionalTendencies
-import uesugi.common.PAD
+import uesugi.common.data.EmotionalTendencies
+import uesugi.common.data.PAD
 import uesugi.core.state.emotion.Aggressiveness
 import uesugi.core.state.emotion.EmojiLevel
 import uesugi.core.state.emotion.Tone

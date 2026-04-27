@@ -1,6 +1,7 @@
-package uesugi.common.toolkit
+package uesugi.core.component.search
 
-import uesugi.common.ISearch
+import uesugi.common.extend.ISearch
+import uesugi.common.toolkit.ConfigHolder
 import java.util.*
 
 object SearchManager {

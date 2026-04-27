@@ -23,9 +23,9 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.common.EventBus
-import uesugi.common.HistoryRecord
-import uesugi.common.MessageType
-import uesugi.common.toRecord
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.MessageType
+import uesugi.common.data.toRecord
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger

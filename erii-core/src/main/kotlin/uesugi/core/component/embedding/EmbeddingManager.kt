@@ -1,6 +1,7 @@
-package uesugi.common.toolkit
+package uesugi.core.component.embedding
 
-import uesugi.common.IEmbedding
+import uesugi.common.extend.IEmbedding
+import uesugi.common.toolkit.ConfigHolder
 import java.util.*
 
 object EmbeddingManager {

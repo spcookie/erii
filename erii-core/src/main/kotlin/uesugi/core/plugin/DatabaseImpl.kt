@@ -6,8 +6,8 @@ import okio.Path.Companion.toPath
 import okio.buffer
 import org.jetbrains.exposed.v1.jdbc.Query
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.common.HistoryRecord
-import uesugi.common.HistoryTable
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.HistoryTable
 import uesugi.common.toolkit.ref
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.resource.ResourceRecord

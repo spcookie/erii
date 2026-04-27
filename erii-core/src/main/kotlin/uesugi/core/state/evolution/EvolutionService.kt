@@ -8,9 +8,9 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.common.HistoryEntity
-import uesugi.common.HistoryTable
-import uesugi.common.MessageType
+import uesugi.common.data.HistoryEntity
+import uesugi.common.data.HistoryTable
+import uesugi.common.data.MessageType
 import uesugi.common.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.Duration

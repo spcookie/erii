@@ -121,9 +121,15 @@ class ConfigHolderImpl : ConfigProvider {
 
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
     override fun getEmbeddingProvider(): String = config.getString("embedding.provider")
+    override fun getEmbeddingUrl(): String = config.getString("embedding.url")
 
     override fun getSearchApiKey(): String = config.getString("search.api-key")
     override fun getSearchProvider(): String = config.getString("search.provider")
+    override fun getSearchUrl(): String = config.getString("search.url")
+
+    override fun getVisionApiKey(): String = config.getString("vision.api-key")
+    override fun getVisionProvider(): String = config.getString("vision.provider")
+    override fun getVisionUrl(): String = config.getString("vision.url")
 
     override fun getProxyHttp(): String? = config.tryGetString("proxy.http")
     override fun getProxySocks(): String? = config.tryGetString("proxy.socks")

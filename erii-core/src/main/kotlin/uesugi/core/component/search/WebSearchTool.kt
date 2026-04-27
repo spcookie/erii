@@ -1,4 +1,4 @@
-package uesugi.common
+package uesugi.core.component.search
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
@@ -11,9 +11,11 @@ import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.message.Message
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import uesugi.common.toolkit.SearchManager
+import uesugi.common.LLMModelsChoice
+import uesugi.common.extend.SearchResultItem
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
+import kotlin.time.ExperimentalTime
 
 object WebSearchTool : ToolSet {
 
@@ -40,7 +42,7 @@ object WebSearchTool : ToolSet {
     /**
      * Query Rewrite 子 Agent：将用户原始问题转化为高质量搜索查询
      */
-    @OptIn(kotlin.time.ExperimentalTime::class)
+    @OptIn(ExperimentalTime::class)
     private suspend fun rewriteQuery(originalQuery: String): SearchPlan {
         val promptExecutor by ref<PromptExecutor>()
 
@@ -95,7 +97,7 @@ object WebSearchTool : ToolSet {
     /**
      * 使用 LLM 对搜索结果进行信息融合聚合
      */
-    @OptIn(kotlin.time.ExperimentalTime::class)
+    @OptIn(ExperimentalTime::class)
     private suspend fun synthesizeResults(
         originalQuery: String,
         results: List<SearchResultItem>
@@ -144,31 +146,20 @@ object WebSearchTool : ToolSet {
     @Tool
     @LLMDescription(
         """
-        联网搜索与网页阅读工具。
+        每当您需要搜索网络上的实时或外部信息时，必须使用此工具。
+        一款功能与 Google 搜索完全一致的网页搜索 API。
 
-        【触发决策】
-        - 用户询问时效性信息（新闻、事件、最新动态）→ 高概率需要搜索
-        - 需要事实核查或验证数据准确性 → 建议搜索确认
-        - 用户提供 URL 并要求读取/总结 → 使用 specificUrls 直读
-        - 你对答案有较高把握且非时效敏感 → 可直接回答，无需搜索
+        搜索策略：
+        - 如果未返回有用结果，请尝试使用不同的关键词重新表述您的查询。
 
-        【使用方式】
-        - query: 直接传入用户的原始问题或意图，工具内部会自动进行 Query Rewrite 优化
-        - specificUrls: 用户提供具体 URL 时使用，直接读取网页内容。仅传入 specificUrls（query 为空）时不触发 Query Rewrite
+        使用方式：
+        - query: 直接传入用户的原始问题或意图
+        - specificUrls: 用户提供具体 URL 时使用，直接读取网页内容。
         - maxResults: 简单查询 1-2，普通问题 3，深度研究/对比分析 4-5
 
-        【多轮搜索策略】
-        支持多次调用进行迭代搜索：粗搜（广泛了解）→ 精搜（聚焦细节）→ 验证（交叉确认）
-
-        【结果解读】
+        结果定义：
         - 每条结果附带来源 URL 和相关度评分（0-1）
         - 评分越高表示与查询越相关，应据此评估信息可信度
-        - 重要信息建议交叉验证多个来源
-
-        【禁止行为】
-        - 已知答案时滥用搜索（浪费资源）
-        - 仅依赖单一来源做重要判断
-        - 忽略相关度评分盲目采信
     """
     )
     suspend fun webSearch(input: Input): String {

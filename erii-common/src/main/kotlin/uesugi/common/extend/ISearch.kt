@@ -1,4 +1,4 @@
-package uesugi.common
+package uesugi.common.extend
 
 interface ISearch {
     val id: String

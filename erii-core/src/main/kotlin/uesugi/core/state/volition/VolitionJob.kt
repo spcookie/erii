@@ -7,7 +7,7 @@ import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.common.BotManage
 import uesugi.common.EventBus
-import uesugi.common.InterruptionMode
+import uesugi.common.event.InterruptionMode
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import kotlin.random.Random

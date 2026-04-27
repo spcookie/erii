@@ -11,10 +11,10 @@ import org.jetbrains.exposed.v1.datetime.datetime
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.json.json
-import uesugi.common.EmotionalTendencies
-import uesugi.common.HistoryEntity
-import uesugi.common.HistoryTable
-import uesugi.common.PAD
+import uesugi.common.data.EmotionalTendencies
+import uesugi.common.data.HistoryEntity
+import uesugi.common.data.HistoryTable
+import uesugi.common.data.PAD
 import uesugi.common.toolkit.JSON
 
 object EmotionTable : IntIdTable("chat_emotion") {

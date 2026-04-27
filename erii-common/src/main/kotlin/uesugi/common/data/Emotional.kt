@@ -1,4 +1,4 @@
-package uesugi.common
+package uesugi.common.data
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import kotlinx.serialization.SerialName
@@ -242,7 +242,7 @@ enum class EmotionalTendencies(val pad: PAD) {
          * @return 距离最小的基本情感
          */
         fun findClosest(pad: PAD): EmotionalTendencies {
-            return EmotionalTendencies.entries.toTypedArray().minByOrNull {
+            return entries.toTypedArray().minByOrNull {
                 calculateDistance(pad, it.pad)
             } ?: throw IllegalStateException("EmotionalTendencies enum cannot be empty.")
         }

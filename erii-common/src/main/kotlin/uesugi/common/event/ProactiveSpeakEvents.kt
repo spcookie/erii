@@ -1,7 +1,8 @@
-package uesugi.common
+package uesugi.common.event
 
 import ai.koog.agents.core.tools.reflect.ToolSet
-import uesugi.common.PSFeature.NONE
+import uesugi.common.BotManage
+import uesugi.common.ChatToolSet
 import uesugi.common.toolkit.ConfigHolder
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -13,9 +14,10 @@ data class ProactiveSpeakEvent(
     val senderId: String? = null,
     val interruptionMode: InterruptionMode,
     val input: String? = null,
+    val chatVision: Boolean = false,
     val webSearch: Boolean = false,
     val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)? = null,
-    val feature: ProactiveSpeakFeature = NONE,
+    val feature: ProactiveSpeakFeature = PSFeature.NONE,
     val echo: String = Uuid.random().toHexString(),
 ) {
     val groupId: String

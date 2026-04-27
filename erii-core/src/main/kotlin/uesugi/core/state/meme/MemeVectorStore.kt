@@ -2,8 +2,8 @@ package uesugi.core.state.meme
 
 import org.koin.core.context.GlobalContext
 import org.koin.core.parameter.parametersOf
-import uesugi.common.EmbeddingInput
-import uesugi.common.toolkit.EmbeddingManager
+import uesugi.common.extend.EmbeddingInput
+import uesugi.core.component.embedding.EmbeddingManager
 import uesugi.core.component.storage.VectorStore
 import java.nio.file.Paths
 
