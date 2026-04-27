@@ -11,6 +11,7 @@ RUN chmod +x ./bin/erii-core
 
 VOLUME /erii/conf
 VOLUME /erii/store
+VOLUME /erii/erii-cli
 
 EXPOSE 8000 8080 8082
 

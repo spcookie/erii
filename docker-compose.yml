@@ -19,6 +19,7 @@ services:
     volumes:
       - ./conf:/erii/conf
       - ./store:/erii/store
+      - ./erii-cli:/erii/erii-cli
     extra_hosts:
       - "hostmachine:host-gateway"
     ports:
