@@ -2,7 +2,6 @@ package stats
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"erii-cli/internal/tui/style"
@@ -14,10 +13,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-func init() {
-	_, _ = os.OpenFile("stats-debug.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-}
 
 // Navigation messages
 type (

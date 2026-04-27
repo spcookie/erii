@@ -6,18 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"time"
 )
-
-func init() {
-	f, err := os.OpenFile("stats-debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		log.Printf("[API DEBUG] Failed to open log file: %v", err)
-	} else {
-		log.SetOutput(f)
-	}
-}
 
 type BotInfo struct {
 	BotID   string `json:"botId"`
