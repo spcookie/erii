@@ -274,6 +274,16 @@ interface Vector : AutoCloseable {
  * 插件配置接口，用于读取插件配置文件
  */
 interface PluginConfig {
+    private val envRegex
+        get() = Regex("""\$\{\??([A-Za-z_][A-Za-z0-9_]*)}""")
+
+    fun findEnv(key: String): String? {
+        envRegex.findAll(key).forEach {
+            println(it.groupValues[1])
+        }
+        return System.getenv(key)
+    }
+
     suspend fun readResource(path: String): InputStream
     operator fun invoke(): Config
 }
