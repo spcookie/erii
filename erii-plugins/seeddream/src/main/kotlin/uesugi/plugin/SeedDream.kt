@@ -171,8 +171,17 @@ class SeedDreamExtension : RouteExtension<SeedDream> {
             """.trimIndent()
     }
 
+    private lateinit var token: String
+
     @OptIn(DelicateCoroutinesApi::class)
     override fun onLoad(context: PluginContext) {
+        try {
+            token = context.config.findEnv(context.config().getString("token"))!!
+        } catch (e: Exception) {
+            log.error("Failed to load seeddream token", e)
+            return
+        }
+
         context.chain { meta ->
             val resource = coroutineScope {
                 async {
@@ -302,7 +311,7 @@ class SeedDreamExtension : RouteExtension<SeedDream> {
                         } ?: return@mapNotNull null
                     }
                     .map { (bytes, fileName) ->
-                        val base64 = Base64.Default.encode(bytes!!)
+                        val base64 = Base64.encode(bytes!!)
                         val mimeType = getMimeType(fileName)
                         "data:$mimeType;base64,$base64"
                     }
@@ -312,7 +321,7 @@ class SeedDreamExtension : RouteExtension<SeedDream> {
 
             val node: JsonNode = http.post("https://ark.cn-beijing.volces.com/api/v3/images/generations") {
                 contentType(ContentType.Application.Json)
-                bearerAuth("d89e5cf3-29af-4efc-9ffd-23064fd0838d")
+                bearerAuth(token)
                 setBody(
                     mapOf(
                         "model" to "doubao-seedream-4-5-251128",

@@ -122,7 +122,9 @@ class NetEaseMusicExtension : PassiveExtension<NetEaseMusic> {
             val configKey = BotManage.getConfigKey(meta.botId)
             val cfg = config().getConfig("onebot.$configKey")
             val httpUrl = cfg.getString("http-url")
-            val token = cfg.getString("token")
+            val token = cfg.getString("token")!!.let {
+                config.findEnv(it)!!
+            }
             for (cardResult in musicCards) {
                 try {
                     context.http.post("$httpUrl/send_msg") {
