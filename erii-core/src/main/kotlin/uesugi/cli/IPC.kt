@@ -3,13 +3,13 @@ package uesugi.cli
 import io.ktor.server.application.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.slf4j.LoggerFactory
+import uesugi.common.toolkit.logger
 import java.io.RandomAccessFile
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Path
 
-private val LOG = LoggerFactory.getLogger("uesugi.cli.ipc")!!
+private val LOG = logger("cli")
 
 @Serializable
 data class ServerConfig(
@@ -19,19 +19,19 @@ data class ServerConfig(
     val password: String
 )
 
-class IpcRingBuffer(private val filePath: Path) {
+class IpcRingBuffer(filePath: Path) {
     companion object {
         private const val SIZE = 64 * 1024L // 64KB
-        private const val DEFAULT_FILENAME = "erii.sock"
+        private const val DEFAULT_FILENAME = ".conf/erii.sock"
     }
 
     private val file: RandomAccessFile
     private val buffer: MappedByteBuffer
-    private val fullPath: Path
+    private val fullPath: Path = filePath.resolve(DEFAULT_FILENAME)
 
     init {
-        fullPath = filePath.resolve(DEFAULT_FILENAME)
         LOG.info("Opening mmap file: {}", fullPath)
+        fullPath.parent?.toFile()?.mkdirs()
         file = RandomAccessFile(fullPath.toFile(), "rw")
         if (file.length() < SIZE) {
             file.setLength(SIZE)
