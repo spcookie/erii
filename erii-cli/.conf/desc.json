@@ -6,7 +6,7 @@
     "embedding.api-key": "Embedding API key",
     "embedding.provider": "Embedding provider",
     "groups": "Group settings",
-    "groups.debug-group-id": "Debug group ID (null for none)",
+    "groups.debug-group-id": "Debug group ID",
     "groups.enable-groups": "List of enabled group IDs",
     "groups.message-redirect-map": "Message redirect mapping",
     "llm": "LLM configuration",

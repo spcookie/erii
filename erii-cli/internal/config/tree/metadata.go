@@ -31,9 +31,28 @@ var GlobalMetadata = &Metadata{
 	CopyPlugin:        make(map[string][]string),
 }
 
+// ValueConfig holds type, nullable, and default value for a config node.
+type ValueConfig struct {
+	Type     string // "string", "number", "boolean", "array", "object"
+	Nullable bool
+	Default  any
+}
+
+// ValueConfigStore holds all value configurations.
+type ValueConfigStore struct {
+	Main   map[string]*ValueConfig
+	Plugin map[string]map[string]*ValueConfig
+}
+
+// GlobalValueConfig is populated at startup.
+var GlobalValueConfig = &ValueConfigStore{
+	Main:   make(map[string]*ValueConfig),
+	Plugin: make(map[string]map[string]*ValueConfig),
+}
+
 var metaDir string
 
-// LoadMetadata loads enum.json, desc.json, copy.json from the given directory.
+// LoadMetadata loads enum.json, desc.json, copy.json, value.json from the given directory.
 // Supports __main__ and __plugin__ top-level structure.
 func LoadMetadata(confDir string) error {
 	metaDir = confDir
@@ -46,6 +65,9 @@ func LoadMetadata(confDir string) error {
 
 	// Load copy.json
 	loadCopyFile(filepath.Join(confDir, "copy.json"))
+
+	// Load value.json
+	loadValueFile(filepath.Join(confDir, "value.json"))
 
 	return nil
 }
@@ -165,6 +187,120 @@ func loadCopyFile(path string) {
 			}
 		}
 	}
+}
+
+func loadValueFile(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var raw map[string]any
+	if json.Unmarshal(data, &raw) != nil {
+		return
+	}
+
+	// Load __main__ value configs
+	if main, ok := raw["__main__"].(map[string]any); ok {
+		for k, v := range main {
+			if vc := parseValueConfig(v); vc != nil {
+				GlobalValueConfig.Main[k] = vc
+			}
+		}
+	}
+
+	// Load __plugin__ value configs
+	if plugins, ok := raw["__plugin__"].(map[string]any); ok {
+		for pName, pData := range plugins {
+			if GlobalValueConfig.Plugin[pName] == nil {
+				GlobalValueConfig.Plugin[pName] = make(map[string]*ValueConfig)
+			}
+			if pm, ok := pData.(map[string]any); ok {
+				// Check for "item" wrapper first
+				if item, ok := pm["item"].(map[string]any); ok {
+					for k, v := range item {
+						if vc := parseValueConfig(v); vc != nil {
+							GlobalValueConfig.Plugin[pName][k] = vc
+						}
+					}
+				} else {
+					// No "item" wrapper - direct key-value pairs
+					for k, v := range pm {
+						if vc := parseValueConfig(v); vc != nil {
+							GlobalValueConfig.Plugin[pName][k] = vc
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func parseValueConfig(v any) *ValueConfig {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return nil
+	}
+	vc := &ValueConfig{}
+	if t, ok := m["type"].(string); ok {
+		vc.Type = t
+	}
+	if nullable, ok := m["nullable"].(bool); ok {
+		vc.Nullable = nullable
+	}
+	if def, ok := m["default"]; ok {
+		vc.Default = def
+	}
+	return vc
+}
+
+// GetValueConfig returns a value config for a dot-separated path, checking plugin context first.
+func GetValueConfig(pluginName, path string) *ValueConfig {
+	// Check plugin-specific metadata first
+	if pluginName != "" {
+		if pm, ok := GlobalValueConfig.Plugin[pluginName]; ok {
+			if vc, ok := pm[path]; ok {
+				return vc
+			}
+		}
+		if strings.HasPrefix(path, "root.") {
+			stripped := path[5:]
+			if pm, ok := GlobalValueConfig.Plugin[pluginName]; ok {
+				if vc, ok := pm[stripped]; ok {
+					return vc
+				}
+			}
+		}
+	}
+
+	// Check main metadata
+	if vc, ok := GlobalValueConfig.Main[path]; ok {
+		return vc
+	}
+	if strings.HasPrefix(path, "root.") {
+		path = path[5:]
+		if vc, ok := GlobalValueConfig.Main[path]; ok {
+			return vc
+		}
+	}
+	return matchWildcardValueConfig(path)
+}
+
+func matchWildcardValueConfig(path string) *ValueConfig {
+	parts := strings.Split(path, ".")
+	for pattern, vc := range GlobalValueConfig.Main {
+		if matchWildcardPattern(pattern, parts) {
+			return vc
+		}
+	}
+	if strings.HasPrefix(path, "root.") {
+		parts = strings.Split(path[5:], ".")
+		for pattern, vc := range GlobalValueConfig.Main {
+			if matchWildcardPattern(pattern, parts) {
+				return vc
+			}
+		}
+	}
+	return nil
 }
 
 func toStringArray(v any) ([]string, bool) {

@@ -97,6 +97,10 @@ func (i NodeItem) Title() string {
 func (i NodeItem) Description() string {
 	if i.Node.IsLeaf() {
 		leaf := i.Node.(*tree.LeafNode)
+		// Check IsNull first for null values
+		if leaf.IsNull() {
+			return "(null)"
+		}
 		switch leaf.ValueType() {
 		case tree.TypeArray:
 			switch v := leaf.Value().(type) {
@@ -539,16 +543,17 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					leaf := item.Node.(*tree.LeafNode)
 					if m.onEdit != nil {
 						m.onEdit(leaf, func() tea.Cmd {
+							// Save to file when editor triggers save
+							if m.OnSaveFile != nil {
+								if err := m.OnSaveFile(m.Root); err != nil {
+									m.errMsg = err.Error()
+								} else {
+									m.errMsg = ""
+								}
+							}
 							m.refreshList()
 							return nil
 						})
-					}
-					if m.OnSaveFile != nil {
-						if err := m.OnSaveFile(m.Root); err != nil {
-							m.errMsg = err.Error()
-						} else {
-							m.errMsg = ""
-						}
 					}
 				} else {
 					branch := item.Node.(*tree.BranchNode)

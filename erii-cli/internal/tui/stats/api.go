@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 )
@@ -122,7 +121,6 @@ func (a *API) baseURL() string {
 
 func (a *API) doRequest(method, path string) ([]byte, error) {
 	url := a.baseURL() + path
-	log.Printf("[API] GET %s", url)
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, err
@@ -131,14 +129,11 @@ func (a *API) doRequest(method, path string) ([]byte, error) {
 
 	resp, err := a.client.Do(req)
 	if err != nil {
-		log.Printf("[API] Error: %v", err)
 		return nil, err
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
-
-	log.Printf("[API] Status: %d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -146,10 +141,8 @@ func (a *API) doRequest(method, path string) ([]byte, error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("[API] Read body error: %v", err)
 		return nil, err
 	}
-	log.Printf("[API] Response: %s", string(body))
 	return body, nil
 }
 

@@ -82,6 +82,9 @@ type LeafNode struct {
 	value       any
 	options     []string
 	placeholder string
+	isEnvRef    bool
+	isNull      bool
+	valueConfig *ValueConfig
 }
 
 func NewLeaf(title, description string, vt ValueType, value any) *LeafNode {
@@ -93,15 +96,21 @@ func NewLeaf(title, description string, vt ValueType, value any) *LeafNode {
 	}
 }
 
-func (l *LeafNode) Title() string            { return l.title }
-func (l *LeafNode) SetTitle(t string)        { l.title = t }
-func (l *LeafNode) Description() string      { return l.description }
-func (l *LeafNode) SetDescription(d string)  { l.description = d }
-func (l *LeafNode) IsLeaf() bool             { return true }
-func (l *LeafNode) ValueType() ValueType     { return l.valueType }
-func (l *LeafNode) Value() any               { return l.value }
-func (l *LeafNode) SetValue(v any)           { l.value = v }
-func (l *LeafNode) Options() []string        { return l.options }
-func (l *LeafNode) SetOptions(opts []string) { l.options = opts }
-func (l *LeafNode) Placeholder() string      { return l.placeholder }
-func (l *LeafNode) SetPlaceholder(p string)  { l.placeholder = p }
+func (l *LeafNode) Title() string                 { return l.title }
+func (l *LeafNode) SetTitle(t string)             { l.title = t }
+func (l *LeafNode) Description() string           { return l.description }
+func (l *LeafNode) SetDescription(d string)       { l.description = d }
+func (l *LeafNode) IsLeaf() bool                  { return true }
+func (l *LeafNode) ValueType() ValueType          { return l.valueType }
+func (l *LeafNode) Value() any                    { return l.value }
+func (l *LeafNode) SetValue(v any)                { l.value = v }
+func (l *LeafNode) Options() []string             { return l.options }
+func (l *LeafNode) SetOptions(opts []string)      { l.options = opts }
+func (l *LeafNode) Placeholder() string           { return l.placeholder }
+func (l *LeafNode) SetPlaceholder(p string)       { l.placeholder = p }
+func (l *LeafNode) IsEnvRef() bool                { return l.isEnvRef }
+func (l *LeafNode) SetEnvRef(b bool)              { l.isEnvRef = b }
+func (l *LeafNode) IsNull() bool                  { return l.isNull }
+func (l *LeafNode) SetNull(b bool)                { l.isNull = b }
+func (l *LeafNode) ValueConfig() *ValueConfig     { return l.valueConfig }
+func (l *LeafNode) SetValueConfig(c *ValueConfig) { l.valueConfig = c }

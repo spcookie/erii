@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -333,12 +334,17 @@ func parseHOCON(data string) ConfigNode {
 
 func guessLeaf(key, val string) *LeafNode {
 	val = strings.Trim(val, `"`)
-	if val == "null" {
-		return NewLeaf(key, "", TypeString, "")
+	// Detect environment variable reference ${XXX} or ${?XXX} (optional form)
+	if strings.HasPrefix(val, "${") && strings.HasSuffix(val, "}") {
+		leaf := NewLeaf(key, "", TypeString, val)
+		leaf.isEnvRef = true
+		return leaf
 	}
-	if val == "true" || val == "false" {
-		return NewLeaf(key, "", TypeBool, val == "true")
+	// Detect empty object {}
+	if val == "{}" {
+		return NewLeaf(key, "", TypeObject, map[string]any{})
 	}
+	// Detect empty array []
 	if strings.HasPrefix(val, "[") && strings.HasSuffix(val, "]") {
 		inner := strings.Trim(val, "[]")
 		if inner == "" {
@@ -347,6 +353,27 @@ func guessLeaf(key, val string) *LeafNode {
 		parts := strings.Split(inner, ",")
 		var items []string
 		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			p = strings.Trim(p, `"`)
+			if p != "" {
+				items = append(items, p)
+			}
+		}
+		return NewLeaf(key, "", TypeArray, items)
+	}
+	if val == "null" {
+		leaf := NewLeaf(key, "", TypeString, "")
+		leaf.isNull = true
+		return leaf
+	}
+	if val == "true" || val == "false" {
+		return NewLeaf(key, "", TypeBool, val == "true")
+	}
+	// Detect array with items [a, b, c]
+	if strings.HasPrefix(val, "[") && strings.HasSuffix(val, "]") {
+		inner := strings.Trim(val, "[]")
+		var items []string
+		for _, p := range strings.Split(inner, ",") {
 			p = strings.TrimSpace(p)
 			p = strings.Trim(p, `"`)
 			if p != "" {
@@ -388,6 +415,14 @@ func writeHOCON(b *strings.Builder, node ConfigNode, depth int) {
 }
 
 func formatHOCONValue(leaf *LeafNode) string {
+	// Environment variable references should not be quoted
+	if leaf.isEnvRef {
+		return leaf.Value().(string)
+	}
+	// Null values should serialize as null
+	if leaf.isNull {
+		return "null"
+	}
 	switch leaf.ValueType() {
 	case TypeBool:
 		if leaf.Value().(bool) {
@@ -418,6 +453,11 @@ func formatHOCONValue(leaf *LeafNode) string {
 			}
 		}
 		return "[" + strings.Join(items, ", ") + "]"
+	case TypeObject:
+		if leaf.Value() == nil || reflect.DeepEqual(leaf.Value(), map[string]any{}) {
+			return "{}"
+		}
+		return fmt.Sprintf("%v", leaf.Value())
 	case TypeText:
 		return fmt.Sprintf(`"""%s"""`, leaf.Value())
 	default:
@@ -430,7 +470,7 @@ func ApplyMetadata(node ConfigNode, path string) {
 	ApplyMetadataWithPlugin(node, path, "")
 }
 
-// ApplyMetadataWithPlugin walks the tree and applies enum/desc overrides with plugin context.
+// ApplyMetadataWithPlugin walks the tree and applies enum/desc/value overrides with plugin context.
 func ApplyMetadataWithPlugin(node ConfigNode, path string, pluginName string) {
 	if branch, ok := node.(*BranchNode); ok {
 		if d := GetDesc(pluginName, path); d != "" {
@@ -445,6 +485,25 @@ func ApplyMetadataWithPlugin(node ConfigNode, path string, pluginName string) {
 				if opts := GetEnum(pluginName, childPath); len(opts) > 0 {
 					leaf.valueType = TypeEnum
 					leaf.options = opts
+				}
+				// Apply value config (type, nullable, default)
+				if vc := GetValueConfig(pluginName, childPath); vc != nil {
+					leaf.valueConfig = vc
+					// Override ValueType based on vc.Type if specified
+					if vc.Type != "" {
+						switch vc.Type {
+						case "string":
+							leaf.valueType = TypeString
+						case "number":
+							leaf.valueType = TypeNumber
+						case "boolean":
+							leaf.valueType = TypeBool
+						case "array":
+							leaf.valueType = TypeArray
+						case "object":
+							leaf.valueType = TypeObject
+						}
+					}
 				}
 			} else {
 				ApplyMetadataWithPlugin(child, childPath, pluginName)

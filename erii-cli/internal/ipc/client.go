@@ -11,7 +11,7 @@ import (
 
 const (
 	SIZE        = 64 * 1024 // 64KB
-	DefaultSock = "erii.sock"
+	DefaultSock = ".conf/erii.sock"
 )
 
 type ServerConfig struct {
@@ -28,6 +28,11 @@ func ReadConfig() (*ServerConfig, error) {
 	}
 
 	filePath := filepath.Join(dirPath, DefaultSock)
+
+	// 创建父目录
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return nil, fmt.Errorf("failed to create IPC directory: %w", err)
+	}
 
 	// Open file (don't truncate - Kotlin owns this file)
 	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)

@@ -88,8 +88,8 @@ var defaultKeys = navKeys{
 // ── Generic Unicode symbols (safe in all fonts) ──
 const (
 	SymArrow    = ">"
-	SymBarFull  = "█"
-	SymBarEmpty = "░"
+	SymBarFull  = "■"
+	SymBarEmpty = "□"
 )
 
 var (

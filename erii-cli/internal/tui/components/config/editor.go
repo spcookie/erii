@@ -26,16 +26,17 @@ type EditorKeyMap struct {
 	PickEnv key.Binding
 	Enter   key.Binding
 	Quit    key.Binding
+	Null    key.Binding
 }
 
 func (k EditorKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Save, k.Back, k.PickEnv, k.Enter, k.Quit}
+	return []key.Binding{k.Save, k.Back, k.PickEnv, k.Enter, k.Null, k.Quit}
 }
 
 func (k EditorKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Save, k.PickEnv, k.Enter},
-		{k.Back, k.Quit},
+		{k.Back, k.Null, k.Quit},
 	}
 }
 
@@ -59,6 +60,10 @@ var DefaultEditorKeys = EditorKeyMap{
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c"),
 		key.WithHelp("ctrl+c", "quit"),
+	),
+	Null: key.NewBinding(
+		key.WithKeys("ctrl+n"),
+		key.WithHelp("ctrl+n", "set null"),
 	),
 }
 
@@ -87,6 +92,9 @@ type LeafEditorModel struct {
 	onSave        func() tea.Cmd
 	quitting      bool
 	errMsg        string
+	isNullMark    bool   // true when user set value to null via ctrl+n
+	originalValue string // tracks the original string value
+	originalBool  bool   // tracks the original bool value
 }
 
 func NewLeafEditorModel(leaf *tree.LeafNode, onSave func() tea.Cmd) *LeafEditorModel {
@@ -97,8 +105,43 @@ func NewLeafEditorModel(leaf *tree.LeafNode, onSave func() tea.Cmd) *LeafEditorM
 		onSave: onSave,
 	}
 	m.formValue = leafValueToString(leaf)
+	m.originalValue = m.formValue // remember original value
+
+	// If leaf was saved as null, set isNullMark to true
+	if leaf.IsNull() {
+		m.isNullMark = true
+		m.formValue = ""
+	}
+
+	// If leaf value is zero/nil/empty and has a default, use the default
+	if m.shouldApplyDefault() {
+		switch leaf.ValueConfig().Type {
+		case "string":
+			if str, ok := leaf.ValueConfig().Default.(string); ok {
+				m.formValue = str
+			}
+		case "number":
+			if f, ok := leaf.ValueConfig().Default.(float64); ok {
+				m.formValue = fmt.Sprintf("%v", f)
+			}
+		case "boolean":
+			if b, ok := leaf.ValueConfig().Default.(bool); ok {
+				m.formValueBool = b
+			}
+		case "array":
+			if arr, ok := leaf.ValueConfig().Default.([]any); ok {
+				var items []string
+				for _, a := range arr {
+					items = append(items, fmt.Sprintf("%v", a))
+				}
+				m.formValue = strings.Join(items, "\n")
+			}
+		}
+	}
+
 	if v, ok := leaf.Value().(bool); ok {
 		m.formValueBool = v
+		m.originalBool = v // remember original bool value
 	}
 	m.buildForm()
 	// Set default dimensions so form renders correctly on first frame
@@ -108,6 +151,90 @@ func NewLeafEditorModel(leaf *tree.LeafNode, onSave func() tea.Cmd) *LeafEditorM
 		m.form = m.form.WithWidth(60)
 	}
 	return m
+}
+
+// shouldApplyDefault returns true if leaf value is zero and should use default
+func (m *LeafEditorModel) shouldApplyDefault() bool {
+	// Don't apply default if user explicitly set value to null
+	if m.isNullMark {
+		return false
+	}
+	vc := m.leaf.ValueConfig()
+	if vc == nil || vc.Default == nil {
+		return false
+	}
+	// Check if current value is "zero"
+	switch m.leaf.ValueType() {
+	case tree.TypeString, tree.TypeText:
+		return m.formValue == ""
+	case tree.TypeNumber:
+		return m.formValue == ""
+	case tree.TypeArray:
+		v := m.leaf.Value()
+		if v == nil {
+			return true
+		}
+		switch arr := v.(type) {
+		case []string:
+			return len(arr) == 0
+		case []any:
+			return len(arr) == 0
+		}
+	case tree.TypeBool:
+		return false // don't auto-apply default for bool
+	}
+	return false
+}
+
+// hasChanges returns true if the form value differs from the original
+func (m *LeafEditorModel) hasChanges() bool {
+	switch m.leaf.ValueType() {
+	case tree.TypeString, tree.TypeText, tree.TypeNumber, tree.TypeEnum:
+		return m.formValue != m.originalValue
+	case tree.TypeBool:
+		return m.formValueBool != m.originalBool
+	case tree.TypeArray:
+		origItems := strings.Split(m.originalValue, "\n")
+		currItems := strings.Split(m.formValue, "\n")
+		if len(origItems) != len(currItems) {
+			return true
+		}
+		for i := range origItems {
+			if strings.TrimSpace(origItems[i]) != strings.TrimSpace(currItems[i]) {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
+// shouldApplyDefaultOnSave returns true if current value is empty and should apply default on save
+func (m *LeafEditorModel) shouldApplyDefaultOnSave() bool {
+	// Don't apply default if user explicitly set value to null
+	if m.isNullMark {
+		return false
+	}
+	vc := m.leaf.ValueConfig()
+	if vc == nil || vc.Default == nil {
+		return false
+	}
+	switch m.leaf.ValueType() {
+	case tree.TypeString, tree.TypeText:
+		return m.formValue == ""
+	case tree.TypeNumber:
+		return m.formValue == ""
+	case tree.TypeArray:
+		lines := strings.Split(m.formValue, "\n")
+		// Check if all lines are empty
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func leafValueToString(leaf *tree.LeafNode) string {
@@ -143,8 +270,14 @@ func (m *LeafEditorModel) buildForm() {
 	switch m.leaf.ValueType() {
 	case tree.TypeString:
 		placeholder := ""
-		if m.formValue == "" {
-			placeholder = "(empty)"
+		if m.isNullMark {
+			placeholder = "(null)"
+		} else if m.formValue == "" {
+			if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
+				placeholder = fmt.Sprintf("(default: %v)", vc.Default)
+			} else {
+				placeholder = "(empty)"
+			}
 		}
 		fields = append(fields, huh.NewInput().
 			Title(m.leaf.Title()).
@@ -155,8 +288,14 @@ func (m *LeafEditorModel) buildForm() {
 
 	case tree.TypeText:
 		placeholder := ""
-		if m.formValue == "" {
-			placeholder = "(empty)"
+		if m.isNullMark {
+			placeholder = "(null)"
+		} else if m.formValue == "" {
+			if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
+				placeholder = fmt.Sprintf("(default: %v)", vc.Default)
+			} else {
+				placeholder = "(empty)"
+			}
 		}
 		fields = append(fields, huh.NewText().
 			Title(m.leaf.Title()).
@@ -167,8 +306,14 @@ func (m *LeafEditorModel) buildForm() {
 
 	case tree.TypeNumber:
 		placeholder := ""
-		if m.formValue == "" {
-			placeholder = "(empty)"
+		if m.isNullMark {
+			placeholder = "(null)"
+		} else if m.formValue == "" {
+			if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
+				placeholder = fmt.Sprintf("(default: %v)", vc.Default)
+			} else {
+				placeholder = "(empty)"
+			}
 		}
 		fields = append(fields, huh.NewInput().
 			Title(m.leaf.Title()).
@@ -198,8 +343,14 @@ func (m *LeafEditorModel) buildForm() {
 
 	case tree.TypeArray:
 		placeholder := ""
-		if m.formValue == "" {
-			placeholder = "(empty)"
+		if m.isNullMark {
+			placeholder = "(null)"
+		} else if m.formValue == "" {
+			if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
+				placeholder = fmt.Sprintf("(default: %v)", vc.Default)
+			} else {
+				placeholder = "(empty)"
+			}
 		}
 		fields = append(fields, huh.NewText().
 			Title(m.leaf.Title()).
@@ -272,6 +423,7 @@ func (m *LeafEditorModel) initEnvList() {
 func (m *LeafEditorModel) pickEnvValue(key string) tea.Cmd {
 	m.pickingEnv = false
 	m.formValue = "${" + key + "}"
+	m.leaf.SetEnvRef(true)
 	m.buildForm()
 	if m.form != nil {
 		if m.width > 0 {
@@ -307,6 +459,22 @@ func (m *LeafEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.pickingEnv {
 			return m.handleEnvKey(msg)
 		}
+		// Check for ctrl+n first - before form processes it
+		if msg.Type == tea.KeyCtrlN {
+			// Toggle null state if nullable
+			vc := m.leaf.ValueConfig()
+			if vc != nil && vc.Nullable {
+				m.isNullMark = !m.isNullMark
+				if m.isNullMark {
+					m.formValue = ""
+				}
+				m.buildForm()
+				if m.form != nil {
+					return m, m.form.Init()
+				}
+			}
+			return m, nil
+		}
 		if key.Matches(msg, m.keys.Quit) {
 			m.quitting = true
 			return m, tea.Quit
@@ -324,9 +492,41 @@ func (m *LeafEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 		if key.Matches(msg, m.keys.PickEnv) {
-			m.pickingEnv = true
-			m.initEnvList()
+			// Only for string/text/number types
+			vt := m.leaf.ValueType()
+			if vt == tree.TypeString || vt == tree.TypeText || vt == tree.TypeNumber {
+				m.pickingEnv = true
+				m.initEnvList()
+			}
 			return m, nil
+		}
+		if key.Matches(msg, m.keys.Null) {
+			// Toggle null state if nullable
+			if vc := m.leaf.ValueConfig(); vc != nil && vc.Nullable {
+				m.isNullMark = !m.isNullMark
+				if m.isNullMark {
+					m.formValue = ""
+				}
+				m.buildForm()
+				if m.form != nil {
+					return m, m.form.Init()
+				}
+			}
+			return m, nil
+		}
+		// Enter key saves and exits (except for Text/Array types where Enter is newline)
+		if key.Matches(msg, m.keys.Enter) {
+			if m.leaf.ValueType() != tree.TypeText && m.leaf.ValueType() != tree.TypeArray {
+				if m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark {
+					m.saveValue()
+				}
+				var cmds []tea.Cmd
+				if m.onSave != nil && (m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark) {
+					cmds = append(cmds, m.onSave())
+				}
+				cmds = append(cmds, func() tea.Msg { return components.PopScreenMsg{} })
+				return m, tea.Batch(cmds...)
+			}
 		}
 	}
 
@@ -336,9 +536,11 @@ func (m *LeafEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.form = f
 		}
 		if m.form.State == huh.StateCompleted {
-			m.saveValue()
+			if m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark {
+				m.saveValue()
+			}
 			var cmds []tea.Cmd
-			if m.onSave != nil {
+			if m.onSave != nil && (m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark) {
 				cmds = append(cmds, m.onSave())
 			}
 			cmds = append(cmds, func() tea.Msg { return components.PopScreenMsg{} })
@@ -369,10 +571,39 @@ func (m *LeafEditorModel) handleEnvKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *LeafEditorModel) saveValue() {
 	switch m.leaf.ValueType() {
 	case tree.TypeString, tree.TypeText:
-		m.leaf.SetValue(m.formValue)
+		// If was null and user entered non-empty value, clear null state
+		if m.isNullMark && m.formValue != "" {
+			m.isNullMark = false
+		}
+		if !m.isNullMark {
+			// If value is empty and has a default, use the default
+			if m.formValue == "" && m.shouldApplyDefault() {
+				if str, ok := m.leaf.ValueConfig().Default.(string); ok {
+					m.leaf.SetValue(str)
+					m.leaf.SetNull(false)
+				} else {
+					m.leaf.SetValue("")
+					m.leaf.SetNull(false)
+				}
+			} else {
+				m.leaf.SetValue(m.formValue)
+				m.leaf.SetNull(false)
+			}
+		} else {
+			// isNullMark is true and formValue is empty - set to null
+			m.leaf.SetValue(nil)
+			m.leaf.SetNull(true)
+		}
 
 	case tree.TypeNumber:
-		if f, err := strconv.ParseFloat(m.formValue, 64); err == nil {
+		// If value is empty and has a default, use the default
+		if m.formValue == "" && m.shouldApplyDefault() {
+			if f, ok := m.leaf.ValueConfig().Default.(float64); ok {
+				m.leaf.SetValue(f)
+			} else {
+				m.leaf.SetValue(0)
+			}
+		} else if f, err := strconv.ParseFloat(m.formValue, 64); err == nil {
 			m.leaf.SetValue(f)
 		} else {
 			m.leaf.SetValue(m.formValue)
@@ -385,6 +616,19 @@ func (m *LeafEditorModel) saveValue() {
 		m.leaf.SetValue(m.formValue)
 
 	case tree.TypeArray:
+		// If value is empty and has a default, use the default
+		if m.formValue == "" && m.shouldApplyDefault() {
+			if arr, ok := m.leaf.ValueConfig().Default.([]any); ok {
+				var items []string
+				for _, a := range arr {
+					items = append(items, fmt.Sprintf("%v", a))
+				}
+				m.leaf.SetValue(items)
+			} else {
+				m.leaf.SetValue([]string{})
+			}
+			break
+		}
 		lines := strings.Split(m.formValue, "\n")
 		var items []string
 		for _, line := range lines {
@@ -426,8 +670,13 @@ var envPickKeys = envPickKeyMap{
 
 func (m *LeafEditorModel) ShortHelp() []key.Binding {
 	bindings := []key.Binding{m.keys.Save, m.keys.Back, m.keys.Enter, m.keys.Quit}
-	if m.leaf.ValueType() != tree.TypeEnum && m.leaf.ValueType() != tree.TypeBool {
+	// PickEnv only for string/number types, not for enum/bool/array/object
+	if vt := m.leaf.ValueType(); vt == tree.TypeString || vt == tree.TypeText || vt == tree.TypeNumber {
 		bindings = append(bindings, m.keys.PickEnv)
+	}
+	// Show ctrl+n only if nullable
+	if vc := m.leaf.ValueConfig(); vc != nil && vc.Nullable {
+		bindings = append(bindings, m.keys.Null)
 	}
 	if m.leaf.ValueType() == tree.TypeText || m.leaf.ValueType() == tree.TypeArray {
 		bindings = append(bindings, key.NewBinding(
@@ -449,6 +698,10 @@ func (m *LeafEditorModel) FullHelp() [][]key.Binding {
 	first = append(first, m.keys.Save, m.keys.Enter)
 	if m.leaf.ValueType() != tree.TypeEnum && m.leaf.ValueType() != tree.TypeBool {
 		first = append(first, m.keys.PickEnv)
+	}
+	// Show ctrl+n only if nullable
+	if vc := m.leaf.ValueConfig(); vc != nil && vc.Nullable {
+		first = append(first, m.keys.Null)
 	}
 	if m.leaf.ValueType() == tree.TypeText || m.leaf.ValueType() == tree.TypeArray {
 		first = append(first, key.NewBinding(
