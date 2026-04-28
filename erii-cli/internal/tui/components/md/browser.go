@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"erii-cli/internal/tui/components"
@@ -147,11 +148,7 @@ func NewBrowserModel(dir, title string) *BrowserModel {
 		errMsg = fmt.Sprintf("No files found in %s", dir)
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(style.Secondary)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(style.TextMuted)
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New(items, delegate, 0, 0)
 	l.Title = style.Title(title)
@@ -173,13 +170,29 @@ func NewBrowserModel(dir, title string) *BrowserModel {
 
 func (m *BrowserModel) Init() tea.Cmd { return nil }
 
+func (m *BrowserModel) handleWindowSize(msg tea.WindowSizeMsg) {
+	m.width = msg.Width
+	m.height = msg.Height
+}
+
+func (m *BrowserModel) updateSubModel(msg tea.Msg, ptr any, onDone func()) (tea.Model, tea.Cmd) {
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.handleWindowSize(ws)
+	}
+	v := reflect.ValueOf(ptr).Elem()
+	done := v.FieldByName("done")
+	if done.IsValid() && done.Bool() {
+		onDone()
+		return m, nil
+	}
+	return m, nil
+}
+
 func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Delegate to viewer/editors if active
 	if m.viewer != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
+		if _, cmd := m.updateSubModel(msg, &m.viewer, func() { m.viewer = nil; m.refreshList() }); cmd != nil {
+			return m, cmd
 		}
 		newViewer, cmd := m.viewer.Update(msg)
 		if v, ok := newViewer.(*ViewerModel); ok {
@@ -193,10 +206,8 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.newFileModel != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
+		if _, cmd := m.updateSubModel(msg, &m.newFileModel, func() { m.newFileModel = nil; m.refreshList() }); cmd != nil {
+			return m, cmd
 		}
 		newModel, cmd := m.newFileModel.Update(msg)
 		if v, ok := newModel.(*NewFileModel); ok {
@@ -210,10 +221,8 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.contentEditor != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
+		if _, cmd := m.updateSubModel(msg, &m.contentEditor, func() { m.contentEditor = nil; m.refreshList() }); cmd != nil {
+			return m, cmd
 		}
 		newModel, cmd := m.contentEditor.Update(msg)
 		if v, ok := newModel.(*ContentEditorModel); ok {
@@ -227,10 +236,8 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.frontEditor != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
+		if _, cmd := m.updateSubModel(msg, &m.frontEditor, func() { m.frontEditor = nil; m.refreshList() }); cmd != nil {
+			return m, cmd
 		}
 		newModel, cmd := m.frontEditor.Update(msg)
 		if v, ok := newModel.(*FrontmatterEditorModel); ok {
@@ -244,10 +251,8 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.fieldBrowser != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
+		if _, cmd := m.updateSubModel(msg, &m.fieldBrowser, func() { m.fieldBrowser = nil; m.refreshList() }); cmd != nil {
+			return m, cmd
 		}
 		newModel, cmd := m.fieldBrowser.Update(msg)
 		if v, ok := newModel.(*FieldBrowserModel); ok {
@@ -261,25 +266,8 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.deleting && m.deleteForm != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
-			w := 60
-			if msg.Width > 16 {
-				w = msg.Width - 8
-				if w > 60 {
-					w = 60
-				}
-			}
-			m.deleteForm = m.deleteForm.WithWidth(w)
-			return m, nil
-		case tea.KeyMsg:
-			if msg.String() == "esc" {
-				m.deleting = false
-				m.deleteForm = nil
-				return m, nil
-			}
+		if handled, cmd := m.handleFormSizeAndCancel(msg, &m.deleting, m.deleteForm, func(f *huh.Form) { m.deleteForm = f }); handled {
+			return m, cmd
 		}
 		newForm, cmd := m.deleteForm.Update(msg)
 		if f, ok := newForm.(*huh.Form); ok {
@@ -305,25 +293,8 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.renaming && m.renameForm != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
-			w := 60
-			if msg.Width > 16 {
-				w = msg.Width - 8
-				if w > 60 {
-					w = 60
-				}
-			}
-			m.renameForm = m.renameForm.WithWidth(w)
-			return m, nil
-		case tea.KeyMsg:
-			if msg.String() == "esc" {
-				m.renaming = false
-				m.renameForm = nil
-				return m, nil
-			}
+		if handled, cmd := m.handleFormSizeAndCancel(msg, &m.renaming, m.renameForm, func(f *huh.Form) { m.renameForm = f }); handled {
+			return m, cmd
 		}
 		newForm, cmd := m.renameForm.Update(msg)
 		if f, ok := newForm.(*huh.Form); ok {
@@ -509,11 +480,7 @@ func (m *BrowserModel) refreshList() {
 		}
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(style.Secondary)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(style.TextMuted)
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New(items, delegate, 0, 0)
 	l.Title = style.Title(m.title)
@@ -579,13 +546,7 @@ func extractMdDescription(path string) string {
 }
 
 func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
-	w := 60
-	if m.width > 16 {
-		w = m.width - 8
-		if w > 60 {
-			w = 60
-		}
-	}
+	w := m.formWidth()
 	m.deleteConfirm = false
 	m.deleteForm = huh.NewForm(
 		huh.NewGroup(
@@ -600,7 +561,28 @@ func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 	return m.deleteForm.Init()
 }
 
-func (m *BrowserModel) buildRenameConfirmForm() tea.Cmd {
+// handleFormSizeAndCancel handles WindowSizeMsg and ESC cancellation for forms.
+// Returns (formUpdated, cmd) where formUpdated indicates if form was resized.
+func (m *BrowserModel) handleFormSizeAndCancel(msg tea.Msg, active *bool, form *huh.Form, setForm func(*huh.Form)) (bool, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		w := m.formWidth()
+		newForm := form.WithWidth(w)
+		setForm(newForm)
+		return true, nil
+	case tea.KeyMsg:
+		if msg.String() == "esc" {
+			*active = false
+			setForm(nil)
+			return false, nil
+		}
+	}
+	return false, nil
+}
+
+func (m *BrowserModel) formWidth() int {
 	w := 60
 	if m.width > 16 {
 		w = m.width - 8
@@ -608,6 +590,11 @@ func (m *BrowserModel) buildRenameConfirmForm() tea.Cmd {
 			w = 60
 		}
 	}
+	return w
+}
+
+func (m *BrowserModel) buildRenameConfirmForm() tea.Cmd {
+	w := m.formWidth()
 	m.renameForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().

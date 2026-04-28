@@ -253,36 +253,54 @@ func parseValueConfig(v any) *ValueConfig {
 	return vc
 }
 
-// GetValueConfig returns a value config for a dot-separated path, checking plugin context first.
-func GetValueConfig(pluginName, path string) *ValueConfig {
-	// Check plugin-specific metadata first
-	if pluginName != "" {
-		if pm, ok := GlobalValueConfig.Plugin[pluginName]; ok {
-			if vc, ok := pm[path]; ok {
-				return vc
+// lookup performs common config lookup: plugin map -> main map -> wildcard fallback.
+// The wildcardFn is called when no exact match is found in either plugin or main maps.
+func lookup[T any](
+	pluginMap map[string]map[string]T,
+	mainMap map[string]T,
+	pluginName, path string,
+	wildcardFn func(string) T,
+) T {
+	tryMap := func(m map[string]map[string]T, name, p string) (T, bool) {
+		if m == nil {
+			return *new(T), false
+		}
+		if pm, ok := m[name]; ok {
+			if v, ok := pm[p]; ok {
+				return v, true
 			}
 		}
+		return *new(T), false
+	}
+
+	// Check plugin-specific metadata first
+	if pluginName != "" {
+		if v, ok := tryMap(pluginMap, pluginName, path); ok {
+			return v
+		}
 		if strings.HasPrefix(path, "root.") {
-			stripped := path[5:]
-			if pm, ok := GlobalValueConfig.Plugin[pluginName]; ok {
-				if vc, ok := pm[stripped]; ok {
-					return vc
-				}
+			if v, ok := tryMap(pluginMap, pluginName, path[5:]); ok {
+				return v
 			}
 		}
 	}
 
 	// Check main metadata
-	if vc, ok := GlobalValueConfig.Main[path]; ok {
-		return vc
+	if v, ok := mainMap[path]; ok {
+		return v
 	}
 	if strings.HasPrefix(path, "root.") {
 		path = path[5:]
-		if vc, ok := GlobalValueConfig.Main[path]; ok {
-			return vc
+		if v, ok := mainMap[path]; ok {
+			return v
 		}
 	}
-	return matchWildcardValueConfig(path)
+	return wildcardFn(path)
+}
+
+// GetValueConfig returns a value config for a dot-separated path, checking plugin context first.
+func GetValueConfig(pluginName, path string) *ValueConfig {
+	return lookup(GlobalValueConfig.Plugin, GlobalValueConfig.Main, pluginName, path, matchWildcardValueConfig)
 }
 
 func matchWildcardValueConfig(path string) *ValueConfig {
@@ -371,35 +389,7 @@ func SaveDesc(path, desc string) error {
 
 // GetEnum returns enum options for a dot-separated path, checking plugin context first.
 func GetEnum(pluginName, path string) []string {
-	// Check plugin-specific metadata first
-	if pluginName != "" {
-		if pm, ok := GlobalMetadata.PluginEnum[pluginName]; ok {
-			if opts, ok := pm[path]; ok {
-				return opts
-			}
-		}
-		// Check with root. prefix stripped
-		if strings.HasPrefix(path, "root.") {
-			path = path[5:]
-			if pm, ok := GlobalMetadata.PluginEnum[pluginName]; ok {
-				if opts, ok := pm[path]; ok {
-					return opts
-				}
-			}
-		}
-	}
-
-	// Check main metadata
-	if opts, ok := GlobalMetadata.MainEnum[path]; ok {
-		return opts
-	}
-	if strings.HasPrefix(path, "root.") {
-		path = path[5:]
-		if opts, ok := GlobalMetadata.MainEnum[path]; ok {
-			return opts
-		}
-	}
-	return matchWildcardEnum(path)
+	return lookup(GlobalMetadata.PluginEnum, GlobalMetadata.MainEnum, pluginName, path, matchWildcardEnum)
 }
 
 func matchWildcardEnum(path string) []string {
@@ -422,34 +412,7 @@ func matchWildcardEnum(path string) []string {
 
 // GetDesc returns a description override for a dot-separated path.
 func GetDesc(pluginName, path string) string {
-	// Check plugin-specific metadata first
-	if pluginName != "" {
-		if pm, ok := GlobalMetadata.PluginDesc[pluginName]; ok {
-			if d, ok := pm[path]; ok {
-				return d
-			}
-		}
-		if strings.HasPrefix(path, "root.") {
-			stripped := path[5:]
-			if pm, ok := GlobalMetadata.PluginDesc[pluginName]; ok {
-				if d, ok := pm[stripped]; ok {
-					return d
-				}
-			}
-		}
-	}
-
-	// Check main metadata
-	if d, ok := GlobalMetadata.MainDesc[path]; ok {
-		return d
-	}
-	if strings.HasPrefix(path, "root.") {
-		path = path[5:]
-		if d, ok := GlobalMetadata.MainDesc[path]; ok {
-			return d
-		}
-	}
-	return matchWildcardDesc(path)
+	return lookup(GlobalMetadata.PluginDesc, GlobalMetadata.MainDesc, pluginName, path, matchWildcardDesc)
 }
 
 func matchWildcardDesc(path string) string {

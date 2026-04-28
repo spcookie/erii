@@ -3,15 +3,12 @@ package style
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
 )
 
 // Theme aggregates all style components.
 type Theme struct{}
-
-func NewTheme() *Theme {
-	return &Theme{}
-}
 
 // StepBar renders a step indicator like "1 ── 2 ── 3".
 func (t *Theme) StepBar(current, total int, label string) string {
@@ -37,4 +34,13 @@ func (t *Theme) StepBar(current, total int, label string) string {
 // TwoColumn renders two bordered panels side-by-side.
 func (t *Theme) TwoColumn(left, right string, width int) string {
 	return TwoColumn(left, right, width)
+}
+
+// StyleDelegate applies standard styling to a list delegate.
+func StyleDelegate(delegate list.DefaultDelegate) list.DefaultDelegate {
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(Primary)
+	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(Secondary)
+	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(Text)
+	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(TextMuted)
+	return delegate
 }

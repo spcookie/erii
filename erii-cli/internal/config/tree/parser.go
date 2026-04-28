@@ -144,18 +144,16 @@ func nodeToMap(node ConfigNode) map[string]any {
 	return result
 }
 
-// PropertiesParser parses .properties files.
-type PropertiesParser struct{}
-
-func (p *PropertiesParser) Parse(path string) (ConfigNode, error) {
+// parseKeyValueFile parses a generic key=value file (properties or .env).
+func parseKeyValueFile(path, rootDesc string) (ConfigNode, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return NewBranch("root", "Properties configuration", nil), nil
+			return NewBranch("root", rootDesc, nil), nil
 		}
 		return nil, err
 	}
-	root := NewBranch("root", "Properties configuration")
+	root := NewBranch("root", rootDesc)
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -171,6 +169,13 @@ func (p *PropertiesParser) Parse(path string) (ConfigNode, error) {
 		root.AddChild(NewLeaf(key, "", TypeString, val))
 	}
 	return root, scanner.Err()
+}
+
+// PropertiesParser parses .properties files.
+type PropertiesParser struct{}
+
+func (p *PropertiesParser) Parse(path string) (ConfigNode, error) {
+	return parseKeyValueFile(path, "Properties configuration")
 }
 
 func (p *PropertiesParser) Save(path string, root ConfigNode) error {
@@ -189,29 +194,7 @@ func (p *PropertiesParser) Save(path string, root ConfigNode) error {
 type EnvParser struct{}
 
 func (p *EnvParser) Parse(path string) (ConfigNode, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return NewBranch("root", "Environment variables", nil), nil
-		}
-		return nil, err
-	}
-	root := NewBranch("root", "Environment variables")
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		idx := strings.IndexByte(line, '=')
-		if idx == -1 {
-			continue
-		}
-		key := strings.TrimSpace(line[:idx])
-		val := strings.TrimSpace(line[idx+1:])
-		root.AddChild(NewLeaf(key, "", TypeString, val))
-	}
-	return root, scanner.Err()
+	return parseKeyValueFile(path, "Environment variables")
 }
 
 func (p *EnvParser) Save(path string, root ConfigNode) error {

@@ -213,11 +213,7 @@ func (m *BrowserModel) refreshList() {
 		items = append(items, NodeItem{Node: child})
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(style.Secondary)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(style.TextMuted)
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New(items, delegate, 0, 0)
 	title := m.current.Title()
@@ -255,6 +251,38 @@ func (m *BrowserModel) updateSize() {
 	}
 }
 
+// handleFormSizeAndCancel handles WindowSizeMsg and ESC cancellation for forms.
+// Returns (formUpdated, cmd) where formUpdated indicates if form was resized.
+func (m *BrowserModel) handleFormSizeAndCancel(msg tea.Msg, active *bool, form *huh.Form, setForm func(*huh.Form)) (bool, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		w := m.formWidth()
+		newForm := form.WithWidth(w)
+		setForm(newForm)
+		return true, nil
+	case tea.KeyMsg:
+		if msg.String() == "esc" {
+			*active = false
+			setForm(nil)
+			return false, nil
+		}
+	}
+	return false, nil
+}
+
+func (m *BrowserModel) formWidth() int {
+	w := 60
+	if m.width > 16 {
+		w = m.width - 8
+		if w > 60 {
+			w = 60
+		}
+	}
+	return w
+}
+
 // currentPath builds the dot-separated path from root to current branch (without "root." prefix).
 func (m *BrowserModel) currentPath() string {
 	var parts []string
@@ -270,13 +298,7 @@ func (m *BrowserModel) currentPath() string {
 }
 
 func (m *BrowserModel) buildAddForm() tea.Cmd {
-	w := 60
-	if m.width > 16 {
-		w = m.width - 8
-		if w > 60 {
-			w = 60
-		}
-	}
+	w := m.formWidth()
 	m.addForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -295,13 +317,7 @@ func (m *BrowserModel) buildAddForm() tea.Cmd {
 }
 
 func (m *BrowserModel) buildRenameForm() tea.Cmd {
-	w := 60
-	if m.width > 16 {
-		w = m.width - 8
-		if w > 60 {
-			w = 60
-		}
-	}
+	w := m.formWidth()
 	m.renameForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
@@ -320,13 +336,7 @@ func (m *BrowserModel) buildRenameForm() tea.Cmd {
 }
 
 func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
-	w := 60
-	if m.width > 16 {
-		w = m.width - 8
-		if w > 60 {
-			w = 60
-		}
-	}
+	w := m.formWidth()
 	m.deleteConfirm = false
 	m.deleteForm = huh.NewForm(
 		huh.NewGroup(
@@ -347,25 +357,8 @@ func (m *BrowserModel) Init() tea.Cmd {
 
 func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.adding && m.addForm != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
-			w := 60
-			if msg.Width > 16 {
-				w = msg.Width - 8
-				if w > 60 {
-					w = 60
-				}
-			}
-			m.addForm = m.addForm.WithWidth(w)
-			return m, nil
-		case tea.KeyMsg:
-			if msg.String() == "esc" {
-				m.adding = false
-				m.addForm = nil
-				return m, nil
-			}
+		if handled, cmd := m.handleFormSizeAndCancel(msg, &m.adding, m.addForm, func(f *huh.Form) { m.addForm = f }); handled {
+			return m, cmd
 		}
 		newForm, cmd := m.addForm.Update(msg)
 		if f, ok := newForm.(*huh.Form); ok {
@@ -398,25 +391,8 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.renaming && m.renameForm != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
-			w := 60
-			if msg.Width > 16 {
-				w = msg.Width - 8
-				if w > 60 {
-					w = 60
-				}
-			}
-			m.renameForm = m.renameForm.WithWidth(w)
-			return m, nil
-		case tea.KeyMsg:
-			if msg.String() == "esc" {
-				m.renaming = false
-				m.renameForm = nil
-				return m, nil
-			}
+		if handled, cmd := m.handleFormSizeAndCancel(msg, &m.renaming, m.renameForm, func(f *huh.Form) { m.renameForm = f }); handled {
+			return m, cmd
 		}
 		newForm, cmd := m.renameForm.Update(msg)
 		if f, ok := newForm.(*huh.Form); ok {
@@ -463,25 +439,8 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.deleting && m.deleteForm != nil {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.width = msg.Width
-			m.height = msg.Height
-			w := 60
-			if msg.Width > 16 {
-				w = msg.Width - 8
-				if w > 60 {
-					w = 60
-				}
-			}
-			m.deleteForm = m.deleteForm.WithWidth(w)
-			return m, nil
-		case tea.KeyMsg:
-			if msg.String() == "esc" {
-				m.deleting = false
-				m.deleteForm = nil
-				return m, nil
-			}
+		if handled, cmd := m.handleFormSizeAndCancel(msg, &m.deleting, m.deleteForm, func(f *huh.Form) { m.deleteForm = f }); handled {
+			return m, cmd
 		}
 		newForm, cmd := m.deleteForm.Update(msg)
 		if f, ok := newForm.(*huh.Form); ok {

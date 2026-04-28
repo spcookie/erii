@@ -148,11 +148,7 @@ func (m *BrowserModel) refreshList() {
 		items = append(items, p)
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(style.Secondary)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(style.TextMuted)
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New(items, delegate, 0, 0)
 	l.Title = style.Title("Plugin Configurations")

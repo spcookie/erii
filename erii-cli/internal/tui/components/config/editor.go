@@ -182,11 +182,26 @@ func (m *LeafEditorModel) shouldApplyDefault() bool {
 		}
 	case tree.TypeBool:
 		return false // don't auto-apply default for bool
+	default:
+		panic("unhandled default case")
 	}
 	return false
 }
 
 // hasChanges returns true if the form value differs from the original
+func (m *LeafEditorModel) placeholder() string {
+	if m.isNullMark {
+		return "(null)"
+	}
+	if m.formValue == "" {
+		if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
+			return fmt.Sprintf("(default: %v)", vc.Default)
+		}
+		return "(empty)"
+	}
+	return ""
+}
+
 func (m *LeafEditorModel) hasChanges() bool {
 	switch m.leaf.ValueType() {
 	case tree.TypeString, tree.TypeText, tree.TypeNumber, tree.TypeEnum:
@@ -205,6 +220,8 @@ func (m *LeafEditorModel) hasChanges() bool {
 			}
 		}
 		return false
+	default:
+		panic("unhandled default case")
 	}
 	return false
 }
@@ -233,6 +250,8 @@ func (m *LeafEditorModel) shouldApplyDefaultOnSave() bool {
 			}
 		}
 		return true
+	default:
+		panic("unhandled default case")
 	}
 	return false
 }
@@ -269,56 +288,26 @@ func (m *LeafEditorModel) buildForm() {
 
 	switch m.leaf.ValueType() {
 	case tree.TypeString:
-		placeholder := ""
-		if m.isNullMark {
-			placeholder = "(null)"
-		} else if m.formValue == "" {
-			if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
-				placeholder = fmt.Sprintf("(default: %v)", vc.Default)
-			} else {
-				placeholder = "(empty)"
-			}
-		}
 		fields = append(fields, huh.NewInput().
 			Title(m.leaf.Title()).
 			Description(m.leaf.Description()).
-			Placeholder(placeholder).
+			Placeholder(m.placeholder()).
 			Value(&m.formValue).
 			Key("value"))
 
 	case tree.TypeText:
-		placeholder := ""
-		if m.isNullMark {
-			placeholder = "(null)"
-		} else if m.formValue == "" {
-			if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
-				placeholder = fmt.Sprintf("(default: %v)", vc.Default)
-			} else {
-				placeholder = "(empty)"
-			}
-		}
 		fields = append(fields, huh.NewText().
 			Title(m.leaf.Title()).
 			Description(m.leaf.Description()).
-			Placeholder(placeholder).
+			Placeholder(m.placeholder()).
 			Value(&m.formValue).
 			Key("value"))
 
 	case tree.TypeNumber:
-		placeholder := ""
-		if m.isNullMark {
-			placeholder = "(null)"
-		} else if m.formValue == "" {
-			if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
-				placeholder = fmt.Sprintf("(default: %v)", vc.Default)
-			} else {
-				placeholder = "(empty)"
-			}
-		}
 		fields = append(fields, huh.NewInput().
 			Title(m.leaf.Title()).
 			Description(m.leaf.Description()).
-			Placeholder(placeholder).
+			Placeholder(m.placeholder()).
 			Value(&m.formValue).
 			Key("value"))
 
@@ -517,15 +506,7 @@ func (m *LeafEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Enter key saves and exits (except for Text/Array types where Enter is newline)
 		if key.Matches(msg, m.keys.Enter) {
 			if m.leaf.ValueType() != tree.TypeText && m.leaf.ValueType() != tree.TypeArray {
-				if m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark {
-					m.saveValue()
-				}
-				var cmds []tea.Cmd
-				if m.onSave != nil && (m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark) {
-					cmds = append(cmds, m.onSave())
-				}
-				cmds = append(cmds, func() tea.Msg { return components.PopScreenMsg{} })
-				return m, tea.Batch(cmds...)
+				return m, m.saveAndPopIfChanged()
 			}
 		}
 	}
@@ -536,20 +517,25 @@ func (m *LeafEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.form = f
 		}
 		if m.form.State == huh.StateCompleted {
-			if m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark {
-				m.saveValue()
-			}
-			var cmds []tea.Cmd
-			if m.onSave != nil && (m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark) {
-				cmds = append(cmds, m.onSave())
-			}
-			cmds = append(cmds, func() tea.Msg { return components.PopScreenMsg{} })
-			return m, tea.Batch(cmds...)
+			return m, m.saveAndPopIfChanged()
 		}
 		return m, cmd
 	}
 
 	return m, nil
+}
+
+// saveAndPopIfChanged saves value if changed and returns pop command.
+func (m *LeafEditorModel) saveAndPopIfChanged() tea.Cmd {
+	if m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark {
+		m.saveValue()
+	}
+	var cmds []tea.Cmd
+	if m.onSave != nil && (m.hasChanges() || m.shouldApplyDefaultOnSave() || m.isNullMark) {
+		cmds = append(cmds, m.onSave())
+	}
+	cmds = append(cmds, func() tea.Msg { return components.PopScreenMsg{} })
+	return tea.Batch(cmds...)
 }
 
 func (m *LeafEditorModel) handleEnvKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -670,54 +656,42 @@ var envPickKeys = envPickKeyMap{
 
 func (m *LeafEditorModel) ShortHelp() []key.Binding {
 	bindings := []key.Binding{m.keys.Save, m.keys.Back, m.keys.Enter, m.keys.Quit}
-	// PickEnv only for string/number types, not for enum/bool/array/object
 	if vt := m.leaf.ValueType(); vt == tree.TypeString || vt == tree.TypeText || vt == tree.TypeNumber {
 		bindings = append(bindings, m.keys.PickEnv)
 	}
-	// Show ctrl+n only if nullable
-	if vc := m.leaf.ValueConfig(); vc != nil && vc.Nullable {
-		bindings = append(bindings, m.keys.Null)
-	}
-	if m.leaf.ValueType() == tree.TypeText || m.leaf.ValueType() == tree.TypeArray {
-		bindings = append(bindings, key.NewBinding(
-			key.WithKeys("ctrl+j"),
-			key.WithHelp("ctrl+j", "newline"),
-		))
-	}
-	if m.leaf.ValueType() == tree.TypeEnum || m.leaf.ValueType() == tree.TypeBool {
-		bindings = append(bindings, key.NewBinding(
-			key.WithKeys("j", "k", "up", "down"),
-			key.WithHelp("j/k/↑/↓", "select"),
-		))
-	}
+	m.appendTypeBindings(&bindings)
 	return bindings
 }
 
 func (m *LeafEditorModel) FullHelp() [][]key.Binding {
 	var first []key.Binding
 	first = append(first, m.keys.Save, m.keys.Enter)
-	if m.leaf.ValueType() != tree.TypeEnum && m.leaf.ValueType() != tree.TypeBool {
+	if vt := m.leaf.ValueType(); vt != tree.TypeEnum && vt != tree.TypeBool {
 		first = append(first, m.keys.PickEnv)
 	}
-	// Show ctrl+n only if nullable
-	if vc := m.leaf.ValueConfig(); vc != nil && vc.Nullable {
-		first = append(first, m.keys.Null)
+	m.appendTypeBindings(&first)
+	return [][]key.Binding{
+		first,
+		{m.keys.Back, m.keys.Quit},
 	}
-	if m.leaf.ValueType() == tree.TypeText || m.leaf.ValueType() == tree.TypeArray {
-		first = append(first, key.NewBinding(
+}
+
+// appendTypeBindings appends type-specific key bindings to the given slice.
+func (m *LeafEditorModel) appendTypeBindings(bindings *[]key.Binding) {
+	if vc := m.leaf.ValueConfig(); vc != nil && vc.Nullable {
+		*bindings = append(*bindings, m.keys.Null)
+	}
+	if vt := m.leaf.ValueType(); vt == tree.TypeText || vt == tree.TypeArray {
+		*bindings = append(*bindings, key.NewBinding(
 			key.WithKeys("ctrl+j"),
 			key.WithHelp("ctrl+j", "newline"),
 		))
 	}
-	if m.leaf.ValueType() == tree.TypeEnum || m.leaf.ValueType() == tree.TypeBool {
-		first = append(first, key.NewBinding(
+	if vt := m.leaf.ValueType(); vt == tree.TypeEnum || vt == tree.TypeBool {
+		*bindings = append(*bindings, key.NewBinding(
 			key.WithKeys("j", "k", "up", "down"),
 			key.WithHelp("j/k/↑/↓", "select"),
 		))
-	}
-	return [][]key.Binding{
-		first,
-		{m.keys.Back, m.keys.Quit},
 	}
 }
 

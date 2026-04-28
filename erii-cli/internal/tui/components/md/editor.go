@@ -17,6 +17,23 @@ import (
 
 var nameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
+var emoticonOptions = []huh.Option[string]{
+	huh.NewOption("JOY", "JOY"),
+	huh.NewOption("OPTIMISM", "OPTIMISM"),
+	huh.NewOption("RELAXATION", "RELAXATION"),
+	huh.NewOption("SURPRISE", "SURPRISE"),
+	huh.NewOption("MILDNESS", "MILDNESS"),
+	huh.NewOption("DEPENDENCE", "DEPENDENCE"),
+	huh.NewOption("BOREDOM", "BOREDOM"),
+	huh.NewOption("SADNESS", "SADNESS"),
+	huh.NewOption("FEAR", "FEAR"),
+	huh.NewOption("ANXIETY", "ANXIETY"),
+	huh.NewOption("CONTEMPT", "CONTEMPT"),
+	huh.NewOption("DISGUST", "DISGUST"),
+	huh.NewOption("RESENTMENT", "RESENTMENT"),
+	huh.NewOption("HOSTILITY", "HOSTILITY"),
+}
+
 // NewFileKeyMap defines keybindings
 type NewFileKeyMap struct {
 	Save key.Binding
@@ -258,22 +275,6 @@ func (m *FrontmatterEditorModel) buildSoulField(fields []huh.Field, key string, 
 		)
 	case "emoticon":
 		// Enum select from EmotionalTendencies
-		opts := []huh.Option[string]{
-			huh.NewOption("JOY", "JOY"),
-			huh.NewOption("OPTIMISM", "OPTIMISM"),
-			huh.NewOption("RELAXATION", "RELAXATION"),
-			huh.NewOption("SURPRISE", "SURPRISE"),
-			huh.NewOption("MILDNESS", "MILDNESS"),
-			huh.NewOption("DEPENDENCE", "DEPENDENCE"),
-			huh.NewOption("BOREDOM", "BOREDOM"),
-			huh.NewOption("SADNESS", "SADNESS"),
-			huh.NewOption("FEAR", "FEAR"),
-			huh.NewOption("ANXIETY", "ANXIETY"),
-			huh.NewOption("CONTEMPT", "CONTEMPT"),
-			huh.NewOption("DISGUST", "DISGUST"),
-			huh.NewOption("RESENTMENT", "RESENTMENT"),
-			huh.NewOption("HOSTILITY", "HOSTILITY"),
-		}
 		if m.entries[idx+1] == "" {
 			m.entries[idx+1] = "MILDNESS"
 		}
@@ -281,7 +282,7 @@ func (m *FrontmatterEditorModel) buildSoulField(fields []huh.Field, key string, 
 			huh.NewSelect[string]().
 				Title(key).
 				Description("Bot emotional tendency").
-				Options(opts...).
+				Options(emoticonOptions...).
 				Value(&m.entries[idx+1]).
 				Key("value").
 				Height(6),
@@ -349,10 +350,7 @@ func (m *FrontmatterEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form != nil {
-		newForm, cmd := m.form.Update(msg)
-		if f, ok := newForm.(*huh.Form); ok {
-			m.form = f
-		}
+		m.form, _ = updateForm(m.form, msg)
 		if m.form.State == huh.StateCompleted {
 			m.saveFrontmatter()
 			m.done = true
@@ -361,13 +359,12 @@ func (m *FrontmatterEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		return m, cmd
+		return m, nil
 	}
 	return m, nil
 }
 
 func (m *FrontmatterEditorModel) saveFrontmatter() {
-	// Sync globalBool back to entries
 	for i := 0; i < len(m.entries); i += 2 {
 		if strings.TrimSpace(m.entries[i]) == "global" {
 			if m.globalBool {
@@ -378,48 +375,7 @@ func (m *FrontmatterEditorModel) saveFrontmatter() {
 			break
 		}
 	}
-
-	var lines []string
-	lines = append(lines, "---")
-
-	for i := 0; i < len(m.entries); i += 2 {
-		space := strings.TrimSpace(m.entries[i])
-		if space == "" {
-			continue
-		}
-		value := ""
-		if i+1 < len(m.entries) {
-			value = m.entries[i+1]
-		}
-		if strings.Contains(value, "\n") {
-			// Multiline: use literal block
-			lines = append(lines, space+": |")
-			for _, l := range strings.Split(value, "\n") {
-				lines = append(lines, "  "+l)
-			}
-		} else {
-			if value != "" {
-				lines = append(lines, space+": "+value)
-			} else {
-				lines = append(lines, space+":")
-			}
-		}
-	}
-	lines = append(lines, "---")
-
-	data, err := os.ReadFile(m.filePath)
-	if err != nil {
-		return
-	}
-	content := string(data)
-
-	if hasFrontmatter(content) {
-		content = replaceFrontmatter(content, strings.Join(lines, "\n"))
-	} else {
-		content = strings.Join(lines, "\n") + "\n\n" + content
-	}
-
-	_ = os.WriteFile(m.filePath, []byte(content), 0644)
+	writeFrontmatterToFile(m.filePath, m.entries)
 }
 
 func (m *FrontmatterEditorModel) getKeys() NewFileKeyMap {
@@ -530,10 +486,7 @@ func (m *ContentEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form != nil {
-		newForm, cmd := m.form.Update(msg)
-		if f, ok := newForm.(*huh.Form); ok {
-			m.form = f
-		}
+		m.form, _ = updateForm(m.form, msg)
 		if m.form.State == huh.StateCompleted {
 			m.saveContent()
 			m.done = true
@@ -542,7 +495,7 @@ func (m *ContentEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		return m, cmd
+		return m, nil
 	}
 	return m, nil
 }
@@ -581,6 +534,66 @@ func (m *ContentEditorModel) View() string {
 	}
 	b.WriteString("\n\n" + m.help.View(m.getKeys()))
 	return b.String()
+}
+
+// updateForm updates a form and returns the updated form and command.
+func updateForm(form *huh.Form, msg tea.Msg) (*huh.Form, tea.Cmd) {
+	if form != nil {
+		newForm, cmd := form.Update(msg)
+		if f, ok := newForm.(*huh.Form); ok {
+			form = f
+		}
+		return form, cmd
+	}
+	return form, nil
+}
+
+// formatFrontmatterEntry formats a key-value pair as YAML frontmatter line(s).
+func formatFrontmatterEntry(key, value string) []string {
+	var lines []string
+	if strings.Contains(value, "\n") {
+		lines = append(lines, key+": |")
+		for _, l := range strings.Split(value, "\n") {
+			lines = append(lines, "  "+l)
+		}
+	} else {
+		if value != "" {
+			lines = append(lines, key+": "+value)
+		} else {
+			lines = append(lines, key+":")
+		}
+	}
+	return lines
+}
+
+// writeFrontmatterToFile writes entries as YAML frontmatter to file.
+func writeFrontmatterToFile(filePath string, entries []string) {
+	var lines []string
+	lines = append(lines, "---")
+	for i := 0; i < len(entries); i += 2 {
+		space := strings.TrimSpace(entries[i])
+		if space == "" {
+			continue
+		}
+		value := ""
+		if i+1 < len(entries) {
+			value = entries[i+1]
+		}
+		lines = append(lines, formatFrontmatterEntry(space, value)...)
+	}
+	lines = append(lines, "---")
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return
+	}
+	content := string(data)
+	if hasFrontmatter(content) {
+		content = replaceFrontmatter(content, strings.Join(lines, "\n"))
+	} else {
+		content = strings.Join(lines, "\n") + "\n\n" + content
+	}
+	_ = os.WriteFile(filePath, []byte(content), 0644)
 }
 
 // Helper functions
@@ -822,11 +835,7 @@ func NewFieldBrowserModel(filePath, fileName string, frontmatter map[string]stri
 		items = append(items, FieldItem{key: entries[i], value: entries[i+1]})
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(style.Secondary)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(style.TextMuted)
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New(items, delegate, 0, 0)
 	l.Title = style.Title("Edit: " + fileName)
@@ -927,40 +936,7 @@ func (m *FieldBrowserModel) saveField(key, value string) {
 }
 
 func (m *FieldBrowserModel) writeFrontmatter() {
-	var lines []string
-	lines = append(lines, "---")
-	for i := 0; i < len(m.entries); i += 2 {
-		space := strings.TrimSpace(m.entries[i])
-		if space == "" {
-			continue
-		}
-		value := m.entries[i+1]
-		if strings.Contains(value, "\n") {
-			lines = append(lines, space+": |")
-			for _, l := range strings.Split(value, "\n") {
-				lines = append(lines, "  "+l)
-			}
-		} else {
-			if value != "" {
-				lines = append(lines, space+": "+value)
-			} else {
-				lines = append(lines, space+":")
-			}
-		}
-	}
-	lines = append(lines, "---")
-
-	data, err := os.ReadFile(m.filePath)
-	if err != nil {
-		return
-	}
-	content := string(data)
-	if hasFrontmatter(content) {
-		content = replaceFrontmatter(content, strings.Join(lines, "\n"))
-	} else {
-		content = strings.Join(lines, "\n") + "\n\n" + content
-	}
-	_ = os.WriteFile(m.filePath, []byte(content), 0644)
+	writeFrontmatterToFile(m.filePath, m.entries)
 }
 
 func (m *FieldBrowserModel) refreshList() {
@@ -1030,28 +1006,12 @@ func (m *FieldEditorModel) buildForm() {
 		m.value = "" // signal to use boolVal on save
 
 	case m.key == "emoticon":
-		opts := []huh.Option[string]{
-			huh.NewOption("JOY", "JOY"),
-			huh.NewOption("OPTIMISM", "OPTIMISM"),
-			huh.NewOption("RELAXATION", "RELAXATION"),
-			huh.NewOption("SURPRISE", "SURPRISE"),
-			huh.NewOption("MILDNESS", "MILDNESS"),
-			huh.NewOption("DEPENDENCE", "DEPENDENCE"),
-			huh.NewOption("BOREDOM", "BOREDOM"),
-			huh.NewOption("SADNESS", "SADNESS"),
-			huh.NewOption("FEAR", "FEAR"),
-			huh.NewOption("ANXIETY", "ANXIETY"),
-			huh.NewOption("CONTEMPT", "CONTEMPT"),
-			huh.NewOption("DISGUST", "DISGUST"),
-			huh.NewOption("RESENTMENT", "RESENTMENT"),
-			huh.NewOption("HOSTILITY", "HOSTILITY"),
-		}
 		m.form = huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title(m.key).
 					Description("Bot emotional tendency").
-					Options(opts...).
+					Options(emoticonOptions...).
 					Value(&m.value).
 					Key("value"),
 			),
@@ -1108,15 +1068,10 @@ func (m *FieldEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form != nil {
-		newForm, cmd := m.form.Update(msg)
-		if f, ok := newForm.(*huh.Form); ok {
-			m.form = f
-		}
+		m.form, _ = updateForm(m.form, msg)
 		if m.form.State == huh.StateCompleted {
 			m.done = true
-			return m, nil
 		}
-		return m, cmd
 	}
 	return m, nil
 }

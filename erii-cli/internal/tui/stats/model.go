@@ -125,11 +125,7 @@ type BotListModel struct {
 }
 
 func NewBotListModel(api *API) *BotListModel {
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(style.Secondary)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(style.TextMuted)
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = style.Title("Select Bot")
@@ -165,18 +161,13 @@ func (m *BotListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case BotsLoadedMsg:
 		if msg.Error != nil {
-			m.list.SetItems([]list.Item{item{title: style.ErrorText("Error: " + msg.Error.Error()), desc: ""}})
+			m.list = setErrorItem(m.list, msg.Error.Error())
 			return m, nil
 		}
 		m.bots = msg.Bots
-		items := make([]list.Item, len(msg.Bots))
-		for i, b := range msg.Bots {
-			items[i] = item{
-				title: SymArrow + " " + b.BotName,
-				desc:  "   ID: " + b.BotID,
-			}
-		}
-		m.list.SetItems(items)
+		m.list.SetItems(setListItems(m.bots, func(b BotInfo) list.Item {
+			return item{title: SymArrow + " " + b.BotName, desc: "   ID: " + b.BotID}
+		}))
 		return m, nil
 
 	case tea.KeyMsg:
@@ -206,6 +197,21 @@ func (m *BotListModel) View() string {
 	return m.list.View() + "\n\n" + m.help.View(m.keys)
 }
 
+// setListItems populates the list with items from the given slice using the provided mapper.
+func setListItems[T any](data []T, mapper func(T) list.Item) []list.Item {
+	items := make([]list.Item, len(data))
+	for i, v := range data {
+		items[i] = mapper(v)
+	}
+	return items
+}
+
+// setErrorItem sets an error item in the list.
+func setErrorItem(m list.Model, errMsg string) list.Model {
+	m.SetItems([]list.Item{item{title: style.ErrorText("Error: " + errMsg), desc: ""}})
+	return m
+}
+
 // ── GroupListModel ──
 
 type GroupListModel struct {
@@ -220,11 +226,7 @@ type GroupListModel struct {
 }
 
 func NewGroupListModel(api *API, bot BotInfo) *GroupListModel {
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(style.Secondary)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(style.TextMuted)
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = style.Title("Select Group  —  " + bot.BotName)
@@ -261,18 +263,13 @@ func (m *GroupListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case GroupsLoadedMsg:
 		if msg.Error != nil {
-			m.list.SetItems([]list.Item{item{title: style.ErrorText("Error: " + msg.Error.Error()), desc: ""}})
+			m.list = setErrorItem(m.list, msg.Error.Error())
 			return m, nil
 		}
 		m.groups = msg.Groups
-		items := make([]list.Item, len(msg.Groups))
-		for i, g := range msg.Groups {
-			items[i] = item{
-				title: SymArrow + " " + g.GroupName,
-				desc:  "   ID: " + g.GroupID,
-			}
-		}
-		m.list.SetItems(items)
+		m.list.SetItems(setListItems(m.groups, func(g GroupInfo) list.Item {
+			return item{title: SymArrow + " " + g.GroupName, desc: "   ID: " + g.GroupID}
+		}))
 		return m, nil
 
 	case tea.KeyMsg:
