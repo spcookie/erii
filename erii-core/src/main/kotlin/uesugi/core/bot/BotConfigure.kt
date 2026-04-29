@@ -34,6 +34,7 @@ fun configureConnectBots() {
                 try {
                     bot = BotBuilder.positive(config.ws)
                         .token(config.token)
+                        .overrideLogger(LOG)
                         .connect()
                 } catch (e: Exception) {
                     LOG.error("Robot $key, failed to connect: ${e.message}")
