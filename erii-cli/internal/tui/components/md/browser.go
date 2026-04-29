@@ -179,7 +179,7 @@ func (m *BrowserModel) updateSubModel(msg tea.Msg, ptr any, onDone func()) (tea.
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
 		m.handleWindowSize(ws)
 	}
-	v := reflect.ValueOf(ptr).Elem()
+	v := reflect.ValueOf(ptr).Elem().Elem()
 	done := v.FieldByName("done")
 	if done.IsValid() && done.Bool() {
 		onDone()
