@@ -2,7 +2,6 @@ package md
 
 import (
 	"os"
-	"strconv"
 	"strings"
 
 	"erii-cli/internal/tui/style"
@@ -15,34 +14,6 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
-
-// detectTerminalBrightness detects if terminal has light or dark background.
-// It checks COLORFGBG environment variable (format: "0;15;0" = fg;bg;alternate),
-// where background values 0-6,15 are considered light.
-func detectTerminalBrightness() glamour.TermRendererOption {
-	// Check COLORFGBG (common in many terminals like xterm, rxvt)
-	// Format: "foreground;background;alternate"
-	// Background: 0-6,15 = light, 8-14 = dark
-	if fgbg := os.Getenv("COLORFGBG"); fgbg != "" {
-		parts := strings.Split(fgbg, ";")
-		if len(parts) >= 2 {
-			if bg, err := strconv.Atoi(parts[1]); err == nil {
-				if bg >= 0 && bg <= 6 || bg == 15 {
-					return glamour.WithStandardStyle("light")
-				}
-				return glamour.WithStandardStyle("dark")
-			}
-		}
-	}
-
-	// Fallback: check NO_COLOR (https://no-color.org/)
-	if _, ok := os.LookupEnv("NO_COLOR"); ok {
-		return glamour.WithStandardStyle("dark")
-	}
-
-	// Default to dark style (most common for code editors/terminals)
-	return glamour.WithStandardStyle("dark")
-}
 
 // ViewerModel renders Markdown using Glamour with viewport scrolling.
 type ViewerModel struct {
@@ -72,8 +43,8 @@ func (k viewerKeyMap) FullHelp() [][]key.Binding {
 
 var defaultViewerKeys = viewerKeyMap{
 	Back: key.NewBinding(
-		key.WithKeys("q", "esc", "ctrl+c"),
-		key.WithHelp("q/esc/ctrl+c", "back"),
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
@@ -262,7 +233,7 @@ func renderMarkdownBody(body string, width int) string {
 		ww = 20
 	}
 	renderer, err := glamour.NewTermRenderer(
-		detectTerminalBrightness(),
+		glamour.WithStandardStyle("tokyo-night"),
 		glamour.WithWordWrap(ww),
 	)
 	if err != nil {
