@@ -171,6 +171,9 @@ class GroupMessageEventListener(
                     is At -> {
                         if (!isAtBot) {
                             isAtBot = singleMessage.target == botId.toLong()
+                            if (isAtBot) {
+                                continue
+                            }
                         }
                     }
 
@@ -182,7 +185,7 @@ class GroupMessageEventListener(
                         }
                     }
 
-                    is PlainText -> { /* 纯文本，直接追加内容 */
+                    is PlainText, MessageSource -> {
                     }
 
                     is QuoteReply -> {
@@ -196,9 +199,6 @@ class GroupMessageEventListener(
                         val content = source.originalMessage.content
                         appendLine(content.take(100) + if (content.length > 100) "..." else "")
                         appendLine("---REFERENCE MESSAGE END---")
-                    }
-
-                    is MessageSource -> { /* 消息源，跳过 */
                     }
 
                     else -> {
@@ -231,7 +231,7 @@ class GroupMessageEventListener(
                         botId = context.botId,
                         groupId = context.groupId,
                         senderId = context.senderId,
-                        input = "你被群友 ${context.senderId} @了，内容：${parsed.content}",
+                        input = "你被群友 ${context.senderId}(${context.senderNick}) @了，内容：${parsed.content}",
                         hit = route
                     )
                 )
