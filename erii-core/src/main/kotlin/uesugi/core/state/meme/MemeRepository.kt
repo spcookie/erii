@@ -8,8 +8,8 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.MessageType
+import uesugi.common.data.ResourceTable
 import uesugi.common.toolkit.logger
-import uesugi.core.message.resource.ResourceTable
 import uesugi.core.state.meme.MemeData.MemeEntity
 import uesugi.core.state.meme.MemeData.MemeRecord
 import uesugi.core.state.meme.MemeData.MemeScanStateEntity
@@ -257,6 +257,56 @@ class MemeRepository {
             }
             query.map { it.toRecord() }
         }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun updateMeme(id: Int, description: String?, purpose: String?, tags: String?): MemeRecord? {
+        return transaction {
+            val memo = MemeEntity.findById(id)
+            memo?.let {
+                description?.let { d -> it.description = d }
+                purpose?.let { p -> it.purpose = p }
+                tags?.let { t -> it.tags = t }
+                it.updatedAt = System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                log.debug("更新表情包元数据: memeId=$id")
+                it.toRecord()
+            }
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun createMeme(
+        botId: String,
+        groupId: String,
+        resourceId: Int,
+        md5: String,
+        description: String?,
+        purpose: String?,
+        tags: String?
+    ): MemeRecord {
+        return transaction {
+            MemeEntity.new {
+                this.botMark = botId
+                this.groupId = groupId
+                this.resourceId = resourceId
+                this.md5 = md5
+                this.contexts = json.encodeToString(emptyList<String>())
+                this.seenCount = 1
+                this.lastAnalyzedCount = 0
+                this.usageCount = 0
+                this.description = description
+                this.purpose = purpose
+                this.tags = tags
+                this.createdAt = System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                this.updatedAt = System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            }.toRecord()
+        }
+    }
+
+    fun deleteMemo(id: Int): Boolean = transaction {
+        val memo = MemeEntity.findById(id)
+        memo?.delete()
+        memo != null
     }
 
     /**

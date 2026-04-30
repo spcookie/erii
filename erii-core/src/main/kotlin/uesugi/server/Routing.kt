@@ -13,6 +13,7 @@ import io.ktor.server.resources.*
 import io.ktor.server.routing.*
 import uesugi.common.toolkit.JSON
 import uesugi.routing.configureBotStatus
+import uesugi.routing.configureBotStatusManager
 import java.nio.file.Path
 import gg.jte.ContentType as JteContentType
 
@@ -34,6 +35,7 @@ fun Application.configureRouting() {
     }
     routing {
         configureBotStatus()
+        configureBotStatusManager()
         authenticate("basic") {
             staticResources("/", "assets")
         }

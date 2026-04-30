@@ -92,4 +92,30 @@ class SummaryService(
             log.error("Failed to generate conversation summary, groupId=$groupId", e)
         }
     }
+
+    fun getAllSummariesByGroup(botMark: String, groupId: String): List<SummaryRecord> {
+        return summaryRepository.getSummariesByGroup(botMark, groupId)
+    }
+
+    fun getSummaryById(id: Int): SummaryRecord? {
+        return summaryRepository.getSummaryById(id)
+    }
+
+    fun updateSummary(
+        id: Int,
+        timeRange: String,
+        content: String,
+        keyPoints: String,
+        emotionalTone: String?,
+        participantCount: Int,
+        messageCount: Int
+    ): SummaryRecord? {
+        return summaryRepository.updateSummary(
+            id, timeRange, content, keyPoints, emotionalTone, participantCount, messageCount
+        )
+    }
+
+    fun deleteSummary(id: Int): Boolean {
+        return summaryRepository.deleteSummary(id)
+    }
 }

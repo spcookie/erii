@@ -16,7 +16,8 @@ import uesugi.core.state.summary.SummaryTable
  */
 class MemoryService(
     private val memoryAgent: MemoryAgent,
-    private val memoryRepository: MemoryRepository
+    private val memoryRepository: MemoryRepository,
+    private val factVectorStore: FactVectorStore
 ) {
 
     companion object {
@@ -254,4 +255,12 @@ class MemoryService(
         }
     }
 
+    fun deleteFact(botId: String, groupId: String, id: Int): Boolean {
+        val fact = memoryRepository.getFactById(id) ?: return false
+        if (fact.botMark != botId || fact.groupId != groupId) return false
+        fact.vectorId?.let { vectorId ->
+            factVectorStore.deleteVector(vectorId, botId, groupId)
+        }
+        return memoryRepository.deleteFact(id)
+    }
 }

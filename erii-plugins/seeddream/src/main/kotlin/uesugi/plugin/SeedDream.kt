@@ -28,9 +28,9 @@ import uesugi.common.ChatToolSet
 import uesugi.common.LLMModelsChoice
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.MessageType
+import uesugi.common.data.ResourceTable
 import uesugi.common.event.PSFeature
 import uesugi.common.toolkit.logger
-import uesugi.core.message.resource.ResourceTable
 import uesugi.spi.*
 import uesugi.spi.EmptyConfig.plus
 import java.net.URL

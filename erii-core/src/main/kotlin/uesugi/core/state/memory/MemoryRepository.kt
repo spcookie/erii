@@ -137,10 +137,13 @@ class MemoryRepository {
         }
     }
 
-    /**
-     * 更新或创建用户画像
-     */
-    fun updateUserProfile(botMark: String, groupId: String, userId: String, profile: String, preferences: String) {
+    fun updateUserProfile(
+        botMark: String,
+        groupId: String,
+        userId: String,
+        profile: String,
+        preferences: String
+    ): UserProfileRecord? =
         transaction {
             val entity = UserProfileEntity.find(
                 (UserProfileTable.botMark eq botMark) and
@@ -153,8 +156,8 @@ class MemoryRepository {
             }
             entity.profile = profile
             entity.preferences = preferences
+            entity.toRecord()
         }
-    }
 
     /**
      * 获取有效的事实记忆
@@ -285,29 +288,45 @@ class MemoryRepository {
         FactsEntity.find { FactsTable.vectorId eq vectorId }.firstOrNull()?.toRecord()
     }
 
-    /** 更新事实 */
-    fun updateFact(id: Int, keyword: String, description: String, values: String, subjects: String, scopeType: Scopes) =
+    fun updateFact(
+        id: Int,
+        keyword: String,
+        description: String,
+        values: String,
+        subjects: String,
+        scopeType: Scopes
+    ): FactsRecord? =
         transaction {
-            FactsTable.update({ FactsTable.id eq id }) {
-                it[FactsTable.keyword] = keyword
-                it[FactsTable.description] = description
-                it[FactsTable.values] = values
-                it[FactsTable.subjects] = subjects
-                it[FactsTable.scopeType] = scopeType
-            }
+            FactsEntity.findById(id)?.apply {
+                this.keyword = keyword
+                this.description = description
+                this.values = values
+                this.subjects = subjects
+                this.scopeType = scopeType
+            }?.toRecord()
         }
 
-    /** 逻辑删除事实 */
-    @OptIn(ExperimentalTime::class)
-    fun deleteFact(id: Int) = transaction {
-        FactsEntity.findById(id)?.let {
-            it.validTo = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        }
+    /** 物理删除事实 */
+    fun deleteFact(id: Int): Boolean = transaction {
+        val fact = FactsEntity.findById(id)
+        fact?.delete()
+        fact != null
     }
 
     /** 更新向量 ID */
     fun updateFactVectorId(id: Int, vectorId: String) = transaction {
         FactsTable.update({ FactsTable.id eq id }) { it[FactsTable.vectorId] = vectorId }
+    }
+
+    /** 物理删除用户画像 */
+    fun deleteUserProfile(botMark: String, groupId: String, userId: String): Boolean = transaction {
+        val entity = UserProfileEntity.find {
+            (UserProfileTable.botMark eq botMark) and
+                    (UserProfileTable.groupId eq groupId) and
+                    (UserProfileTable.userId eq userId)
+        }.firstOrNull()
+        entity?.delete()
+        entity != null
     }
 
     /**

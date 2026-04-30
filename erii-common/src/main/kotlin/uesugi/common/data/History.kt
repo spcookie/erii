@@ -8,9 +8,6 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
-import uesugi.core.message.resource.ResourceEntity
-import uesugi.core.message.resource.ResourceRecord
-import uesugi.core.message.resource.ResourceTable
 
 
 object HistoryTable : IntIdTable("chat_history") {

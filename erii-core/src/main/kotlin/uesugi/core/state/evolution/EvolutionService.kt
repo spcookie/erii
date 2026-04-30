@@ -1,6 +1,5 @@
 package uesugi.core.state.evolution
 
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.and
@@ -108,37 +107,29 @@ class EvolutionService {
         }
     }
 
-    /**
-     * 添加或更新词汇
-     *
-     * 如果词汇已存在，则更新其信息并增加热度；
-     * 如果是新词汇，则以默认热度添加
-     *
-     * @param botMark 机器人标识
-     * @param groupId 群组ID
-     * @param slangWord 流行语数据
-     */
     @OptIn(ExperimentalTime::class)
     fun addOrUpdateWord(
         botMark: String,
         groupId: String,
-        slangWord: SlangWord
-    ) = transaction {
+        slangWord: SlangWord,
+        weight: Int? = null
+    ): LearnedVocabRecord = transaction {
         val existing = LearnedVocabEntity.find {
             (LearnedVocabTable.botMark eq botMark) and
                     (LearnedVocabTable.groupId eq groupId) and
                     (LearnedVocabTable.word eq slangWord.word)
         }.firstOrNull()
 
-        if (existing != null) {
+        val entity = if (existing != null) {
             existing.apply {
                 type = slangWord.type
                 meaning = slangWord.meaning
                 example = slangWord.example
-                weight = (weight + WEIGHT_INCREASE_ON_USE).coerceAtMost(100)
+                this.weight = weight?.coerceIn(0, 100) ?: ((this.weight + WEIGHT_INCREASE_ON_USE).coerceAtMost(100))
                 lastSeen = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }
             log.debug("更新词汇成功, word=${slangWord.word}, newWeight=${existing.weight}, groupId=$groupId")
+            existing
         } else {
             LearnedVocabEntity.new {
                 this.botMark = botMark
@@ -147,11 +138,15 @@ class EvolutionService {
                 type = slangWord.type
                 meaning = slangWord.meaning
                 example = slangWord.example
-                weight = DEFAULT_WEIGHT
+                this.weight = weight?.coerceIn(0, 100) ?: DEFAULT_WEIGHT
                 lastSeen = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }
-            log.debug("新增词汇成功, word=${slangWord.word}, weight=$DEFAULT_WEIGHT, groupId=$groupId")
         }
+        entity.toRecord()
+    }
+
+    fun getVocabularyById(id: Int): LearnedVocabRecord? = transaction {
+        LearnedVocabEntity.findById(id)?.toRecord()
     }
 
     /**
@@ -279,6 +274,30 @@ class EvolutionService {
         }
     }
 
+    fun updateWordById(
+        id: Int,
+        word: String,
+        type: String,
+        meaning: String,
+        example: String,
+        weight: Int
+    ): LearnedVocabRecord? = transaction {
+        LearnedVocabEntity.findById(id)?.apply {
+            this.word = word
+            this.type = type
+            this.meaning = meaning
+            this.example = example
+            this.weight = weight.coerceIn(0, 100)
+            log.debug("更新词汇成功, id=$id, word=$word")
+        }?.toRecord()
+    }
+
+    fun deleteWordById(id: Int, botMark: String, groupId: String): Boolean = transaction {
+        val vocab = LearnedVocabEntity.findById(id)?.takeIf { it.botMark == botMark && it.groupId == groupId }
+        vocab?.delete()
+        vocab != null
+    }
+
     /**
      * 降低词汇热度（用于负面反馈）
      *
@@ -308,16 +327,3 @@ class EvolutionService {
         }
     }
 }
-
-/**
- * 捕获的消息数据结构
- *
- * @property timestamp 消息时间戳
- * @property userId 用户ID
- * @property content 消息内容
- */
-data class CapturedMessage(
-    val timestamp: LocalDateTime,
-    val userId: String,
-    val content: String
-)

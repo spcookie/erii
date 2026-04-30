@@ -8,8 +8,8 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
+import uesugi.common.data.ResourceRecord
 import uesugi.common.toolkit.JSON
-import uesugi.core.message.resource.ResourceRecord
 
 /**
  * 表情包数据模块

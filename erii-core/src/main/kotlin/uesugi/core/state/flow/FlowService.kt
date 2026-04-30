@@ -10,6 +10,7 @@ import uesugi.common.data.EmotionalTendencies
 import uesugi.common.toolkit.logger
 import uesugi.core.state.emotion.EmotionChangeEvent
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 
 data class FlowState(
     var value: Double = 0.0,
@@ -50,14 +51,14 @@ class FlowGauge(
 
         scope.launch {
             while (isActive) {
-                delay(decayIntervalMs)
+                delay(decayIntervalMs.milliseconds)
                 decayFlow()
             }
         }
 
         scope.launch {
             while (isActive) {
-                delay(persistIntervalMs)
+                delay(persistIntervalMs.milliseconds)
                 persistStateToDB()
             }
         }

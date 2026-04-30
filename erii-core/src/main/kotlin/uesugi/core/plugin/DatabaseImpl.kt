@@ -8,10 +8,10 @@ import org.jetbrains.exposed.v1.jdbc.Query
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryRecord
 import uesugi.common.data.HistoryTable
+import uesugi.common.data.ResourceRecord
+import uesugi.common.data.ResourceTable
 import uesugi.common.toolkit.ref
 import uesugi.core.component.storage.ObjectStorage
-import uesugi.core.message.resource.ResourceRecord
-import uesugi.core.message.resource.ResourceTable
 import uesugi.spi.Database
 
 internal class DatabaseImpl : Database {

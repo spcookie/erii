@@ -259,6 +259,27 @@ class MemoService(
         repository.updateScanState(botId, groupId, lastHistoryId)
     }
 
+    fun createMeme(
+        botId: String,
+        groupId: String,
+        resourceId: Int,
+        md5: String,
+        description: String? = null,
+        purpose: String? = null,
+        tags: String? = null
+    ): MemeRecord {
+        return repository.createMeme(botId, groupId, resourceId, md5, description, purpose, tags)
+    }
+
+    fun deleteMemo(botId: String, groupId: String, id: Int): Boolean {
+        val memo = getMemoById(id) ?: return false
+        if (memo.botId != botId || memo.groupId != groupId) return false
+        memo.vectorId?.let { vectorId ->
+            deleteFromVectorStore(botId, groupId, vectorId)
+        }
+        return repository.deleteMemo(id)
+    }
+
     /**
      * 获取群组中最近的图片消息及其MD5
      *
