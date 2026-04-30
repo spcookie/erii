@@ -10,7 +10,6 @@ import net.mamoe.mirai.message.data.buildMessageChain
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.event.PSFeature
-import uesugi.core.plugin.SchedulerBridge
 import uesugi.spi.Feature
 import uesugi.spi.sendAgent
 import kotlin.time.Duration.Companion.seconds
@@ -33,18 +32,11 @@ class ReminderService(private val jobScheduler: JobScheduler) {
         // 立即扫描一次，处理重启期间到期的任务
         scanDueReminders()
 
-        SchedulerBridge.register(SCAN_JOB_ID) { scanDueReminders() }
         jobScheduler.scheduleRecurrently(SCAN_JOB_ID, SCAN_INTERVAL_SECONDS.seconds.toJavaDuration()) {
-            SchedulerBridge.execute(SCAN_JOB_ID)
+            scanDueReminders()
         }
 
         log.info { "ReminderService started, scanning every $SCAN_INTERVAL_SECONDS seconds" }
-    }
-
-    fun stop() {
-        jobScheduler.deleteRecurringJob(SCAN_JOB_ID)
-        SchedulerBridge.unregister(SCAN_JOB_ID)
-        log.info { "ReminderService stopped" }
     }
 
     private fun scanDueReminders() {
