@@ -39,6 +39,10 @@ class ReminderService(private val jobScheduler: JobScheduler) {
         log.info { "ReminderService started, scanning every $SCAN_INTERVAL_SECONDS seconds" }
     }
 
+    fun stop() {
+        log.info { "ReminderService stopped" }
+    }
+
     private fun scanDueReminders() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
