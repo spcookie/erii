@@ -34,7 +34,7 @@
                         </span>
                         <span class="meta-badge timestamp">
                             <i class="fas fa-users"></i>
-                            <span>群组 ${vm.groupId}</span>
+                            <span>${vm.groupName} (${vm.groupId})</span>
                         </span>
                         <span class="meta-badge timestamp">
                             <i class="far fa-clock"></i>
