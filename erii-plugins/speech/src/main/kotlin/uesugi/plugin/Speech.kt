@@ -11,6 +11,12 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
 import uesugi.common.BotManage
@@ -27,10 +33,28 @@ class SpeechExtension : AgentExtension<Speech> {
         private const val DEFAULT_MODEL = "speech-2.8-hd"
     }
 
+    @Serializable(with = ScopesSerializer::class)
     enum class Language {
         CHINESE,   // 中文
         ENGLISH,   // 英文
-        JAPANESE  // 日语
+        JAPANESE,  // 日语
+    }
+
+    object ScopesSerializer : KSerializer<Language> {
+        override val descriptor = PrimitiveSerialDescriptor("Language", PrimitiveKind.STRING)
+
+        override fun deserialize(decoder: Decoder): Language {
+            return when (decoder.decodeString().lowercase()) {
+                "chinese" -> Language.CHINESE
+                "english" -> Language.ENGLISH
+                "japanese" -> Language.JAPANESE
+                else -> throw IllegalArgumentException("Unknown language: ${decoder.decodeString()}")
+            }
+        }
+
+        override fun serialize(encoder: Encoder, value: Language) {
+            encoder.encodeString(value.name.lowercase())
+        }
     }
 
     override fun onLoad(context: PluginContext) {
