@@ -13,8 +13,12 @@ object SchedulerBridge {
         tasks.remove(id)
     }
 
-    fun execute(id: String) {
-        val action = tasks[id] ?: error("Scheduled task not found: $id")
+    fun execute(id: String, onNotFound: (() -> Unit)? = null) {
+        val action = tasks[id]
+        if (action == null) {
+            onNotFound?.invoke()
+            error("Scheduled task not found: $id")
+        }
         action()
     }
 }
