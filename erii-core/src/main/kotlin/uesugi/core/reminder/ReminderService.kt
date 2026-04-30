@@ -32,9 +32,11 @@ class ReminderService(private val jobScheduler: JobScheduler) {
         // 立即扫描一次，处理重启期间到期的任务
         scanDueReminders()
 
-        jobScheduler.scheduleRecurrently(SCAN_JOB_ID, SCAN_INTERVAL_SECONDS.seconds.toJavaDuration()) {
-            scanDueReminders()
-        }
+        jobScheduler.scheduleRecurrently(
+            SCAN_JOB_ID,
+            SCAN_INTERVAL_SECONDS.seconds.toJavaDuration(),
+            ::scanDueReminders
+        )
 
         log.info { "ReminderService started, scanning every $SCAN_INTERVAL_SECONDS seconds" }
     }
