@@ -103,6 +103,7 @@ data class GroupStatusViewModel(
     val botId: String,
     val botName: String,
     val groupId: String,
+    val groupName: String,
     val groupStatus: BotStatus.ByGroup,
     val pluginStats: BotStatus.PluginStats,
     val currentTime: String,

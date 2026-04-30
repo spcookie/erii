@@ -313,6 +313,8 @@ fun Routing.configureBotStatus() {
                 return@get
             }
 
+            val groupName = refBot.groups.find { it.id.toString() == groupId }?.name ?: groupId
+
             val pluginStats = buildPluginStats(botId)
             val groupStatus = buildGroupStatus(
                 botId = botId,
@@ -330,6 +332,7 @@ fun Routing.configureBotStatus() {
                 botId = botId,
                 botName = roledBot.role.name,
                 groupId = groupId,
+                groupName = groupName,
                 groupStatus = groupStatus,
                 pluginStats = pluginStats,
                 currentTime = formatCurrentTime(),
