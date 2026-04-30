@@ -231,7 +231,7 @@ class GroupMessageEventListener(
                         botId = context.botId,
                         groupId = context.groupId,
                         senderId = context.senderId,
-                        input = "你被群友 ${context.senderId}(${context.senderNick}) @了，内容：${parsed.content}",
+                        input = "你被群友 ${context.senderNick}(${context.senderId}) @了，内容：${parsed.content}",
                         hit = route
                     )
                 )
