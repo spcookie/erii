@@ -51,8 +51,6 @@ class IpcRingBuffer(filePath: Path) {
         val json = Json.encodeToString(config)
         val bytes = json.toByteArray(Charsets.UTF_8)
 
-        LOG.info("Writing config to mmap: {}", json)
-
         // 写入长度 (4 bytes)
         buffer.putInt(0, bytes.size)
         // 写入JSON数据
