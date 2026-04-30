@@ -39,8 +39,11 @@ class AgentChatToolSet(
                     val messageChain = buildMessageChain {
                         var lastEnd = 0
                         for (match in matches) {
-                            if (match.range.first > lastEnd) {
-                                +PlainText(text.substring(lastEnd, match.range.first))
+                            val precededByAt = match.range.first > 0 && text[match.range.first - 1] == '@'
+                            val start = if (precededByAt) match.range.first - 1 else match.range.first
+
+                            if (start > lastEnd) {
+                                +PlainText(text.substring(lastEnd, start))
                             }
                             val userId = match.groupValues[1].toLong()
                             if (userId in memberIds) {
