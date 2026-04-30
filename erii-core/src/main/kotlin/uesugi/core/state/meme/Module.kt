@@ -6,7 +6,7 @@ import org.koin.dsl.module
 val memeModule = module {
     singleOf(::MemeAgent)
     singleOf(::MemeRepository)
-    singleOf(::MemoService)
+    singleOf(::MemeService)
     singleOf(::MemeJob)
     singleOf(::MemoVectorStore)
 }

@@ -19,7 +19,7 @@ import uesugi.core.state.meme.MemeData.MemeScanStateRecord
  * @property vectorStoreFactory 向量存储工厂
  * @property repository 表情包仓库
  */
-class MemoService(
+class MemeService(
     private val vectorStoreFactory: MemoVectorStore,
     private val repository: MemeRepository
 ) {
@@ -160,10 +160,40 @@ class MemoService(
 
         if (content.isNotBlank()) {
             val vector = vectorStoreFactory.encode(content, memo.resource?.bytes)
-            val vectorId = memo.vectorId ?: vectorStoreFactory.generateVectorId(memo.botId, memo.groupId, memo.id!!)
+            val vectorId =
+                memo.vectorId ?: vectorStoreFactory.generateVectorId(memo.botId, memo.groupId, memo.id!!).also {
+                    repository.updateVectorId(memo.id, it)
+                }
             store.upsert(vectorId, content, "", vector)
             log.debug("表情包向量已存储: vectorId=$vectorId, content=$content")
         }
+    }
+
+    /**
+     * 更新表情包元数据并同步向量存储
+     *
+     * @param botId 机器人标识
+     * @param groupId 群组ID
+     * @param id 表情包ID
+     * @param description 描述
+     * @param purpose 用途
+     * @param tags 标签
+     * @return 更新后的表情包记录
+     */
+    suspend fun updateMemo(
+        botId: String,
+        groupId: String,
+        id: Int,
+        description: String?,
+        purpose: String?,
+        tags: String?
+    ): MemeRecord? {
+        val memo = getMemoById(id) ?: return null
+        if (memo.botId != botId || memo.groupId != groupId) return null
+
+        val updated = repository.updateMeme(id, description, purpose, tags) ?: return null
+        upsertToVectorStore(updated)
+        return updated
     }
 
     /**

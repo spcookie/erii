@@ -16,7 +16,7 @@ import uesugi.core.state.emotion.EmotionService
 import uesugi.core.state.evolution.EvolutionService
 import uesugi.core.state.flow.FlowGaugeManager
 import uesugi.core.state.flow.FlowMeterState
-import uesugi.core.state.meme.MemoService
+import uesugi.core.state.meme.MemeService
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
 import uesugi.core.state.volition.VolitionGaugeManager
@@ -84,7 +84,7 @@ private fun buildGroupStatus(
     volitionGaugeManager: VolitionGaugeManager,
     evolutionService: EvolutionService,
     memoryService: MemoryService,
-    memoService: MemoService
+    memoService: MemeService
 ): BotStatus.ByGroup {
     val behaviorProfile = emotionService.getCurrentBehaviorProfile(botId, groupId)
     val pad = emotionService.getCurrentMood(botId, groupId)
@@ -164,7 +164,7 @@ fun Routing.configureBotStatus() {
         val volitionGaugeManager by inject<VolitionGaugeManager>()
         val evolutionService by inject<EvolutionService>()
         val memoryService by inject<MemoryService>()
-        val memoService by inject<MemoService>()
+        val memoService by inject<MemeService>()
 
         get("/bots") {
             call.respond(BotManage.getAllBotIds())

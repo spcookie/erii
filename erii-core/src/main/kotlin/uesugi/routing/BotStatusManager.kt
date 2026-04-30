@@ -11,7 +11,7 @@ import uesugi.core.state.evolution.EvolutionService
 import uesugi.core.state.evolution.SlangWord
 import uesugi.core.state.evolution.toRecord
 import uesugi.core.state.meme.MemeRepository
-import uesugi.core.state.meme.MemoService
+import uesugi.core.state.meme.MemeService
 import uesugi.core.state.memory.MemoryRepository
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
@@ -31,15 +31,6 @@ data class FactRequest(
 data class UpdateUserProfileRequest(
     val profile: String,
     val preferences: String
-)
-
-@Serializable
-data class CreateMemeRequest(
-    val resourceId: Int,
-    val md5: String,
-    val description: String? = null,
-    val purpose: String? = null,
-    val tags: String? = null
 )
 
 @Serializable
@@ -100,7 +91,7 @@ fun Routing.configureBotStatusManager() {
     authenticate("basic") {
         val memoryService by inject<MemoryService>()
         val memoryRepository by inject<MemoryRepository>()
-        val memoService by inject<MemoService>()
+        val memeService by inject<MemeService>()
         val memeRepository by inject<MemeRepository>()
         val evolutionService by inject<EvolutionService>()
         val summaryService by inject<SummaryService>()
@@ -190,7 +181,7 @@ fun Routing.configureBotStatusManager() {
         }
 
         get("/api/bot/{bot-id}/group/{group-id}/memes") {
-            call.respond(memoService.getAllMemos(call.botId(), call.groupId()))
+            call.respond(memeService.getAllMemos(call.botId(), call.groupId()))
         }
 
         get("/api/bot/{bot-id}/group/{group-id}/memes/{meme-id}") {
@@ -198,18 +189,8 @@ fun Routing.configureBotStatusManager() {
             val groupId = call.groupId()
             val memeId = call.intPathParam("meme-id") ?: return@get call.respond(mapOf("error" to "invalid meme-id"))
             call.respondScoped(
-                memoService.getMemoById(memeId), botId, groupId,
+                memeService.getMemoById(memeId), botId, groupId,
                 { it.botId }, { it.groupId }, "meme not found"
-            )
-        }
-
-        post("/api/bot/{bot-id}/group/{group-id}/memes") {
-            val request = call.receiveOrError<CreateMemeRequest>() ?: return@post
-            call.respond(
-                memoService.createMeme(
-                    call.botId(), call.groupId(), request.resourceId, request.md5,
-                    request.description, request.purpose, request.tags
-                )
             )
         }
 
@@ -218,15 +199,17 @@ fun Routing.configureBotStatusManager() {
             val groupId = call.groupId()
             val memeId = call.intPathParam("meme-id") ?: return@put call.respond(mapOf("error" to "invalid meme-id"))
             val request = call.receiveOrError<UpdateMemeRequest>() ?: return@put
-            call.respondScoped(
-                memeRepository.updateMeme(memeId, request.description, request.purpose, request.tags),
-                botId, groupId,
-                { it.botId }, { it.groupId }, "meme not found"
-            )
+            val updated = memeRepository.updateMeme(memeId, request.description, request.purpose, request.tags)
+            if (updated != null && updated.botId == botId && updated.groupId == groupId) {
+                memeService.upsertToVectorStore(updated)
+                call.respond(updated)
+            } else {
+                call.respond(mapOf("error" to "meme not found"))
+            }
         }
 
         delete("/api/bot/{bot-id}/group/{group-id}/memes/{meme-id}") {
-            val deleted = memoService.deleteMemo(
+            val deleted = memeService.deleteMemo(
                 call.botId(),
                 call.groupId(),
                 call.intPathParam("meme-id") ?: return@delete call.respond(mapOf("error" to "invalid meme-id"))

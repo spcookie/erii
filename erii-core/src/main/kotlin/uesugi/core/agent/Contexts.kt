@@ -25,7 +25,7 @@ import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.flow.FlowGaugeManager
 import uesugi.core.state.flow.FlowMeterState
 import uesugi.core.state.meme.MemeData.MemeResource
-import uesugi.core.state.meme.MemoService
+import uesugi.core.state.meme.MemeService
 import uesugi.core.state.memory.FactsEntity
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.UserProfileEntity
@@ -316,7 +316,7 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
     val evolutionService: EvolutionService by ref()
     val volitionGaugeManager: VolitionGaugeManager by ref()
     val flowGaugeManager: FlowGaugeManager by ref()
-    val memoService: MemoService by ref()
+    val memoService: MemeService by ref()
     val objectStorage: ObjectStorage by ref()
     return transaction {
         Context(

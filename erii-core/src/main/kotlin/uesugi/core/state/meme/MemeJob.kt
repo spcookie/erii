@@ -33,7 +33,7 @@ import uesugi.core.message.resource.ResourceService
  * @property memeAgent 表情包分析 Agent
  */
 class MemeJob(
-    private val memeService: MemoService,
+    private val memeService: MemeService,
     private val resourceService: ResourceService,
     private val storage: ObjectStorage,
     private val memeAgent: MemeAgent,

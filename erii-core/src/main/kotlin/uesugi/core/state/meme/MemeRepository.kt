@@ -6,6 +6,7 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.MessageType
 import uesugi.common.data.ResourceTable
@@ -301,6 +302,10 @@ class MemeRepository {
                 this.updatedAt = System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }.toRecord()
         }
+    }
+
+    fun updateVectorId(id: Int, vectorId: String) = transaction {
+        MemeTable.update({ MemeTable.id eq id }) { it[MemeTable.vectorId] = vectorId }
     }
 
     fun deleteMemo(id: Int): Boolean = transaction {
