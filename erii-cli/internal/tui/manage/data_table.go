@@ -2,6 +2,7 @@ package manage
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -59,12 +60,19 @@ type DataTableModel struct {
 	height    int
 	keys      tableKeys
 	help      help.Model
+
+	pageSize    int
+	currentPage int
+	sortCol     int
+	sortAsc     bool
 }
 
 func NewDataTableModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo) *DataTableModel {
 	ti := textinput.New()
 	ti.Placeholder = "Search..."
 	ti.PromptStyle = lipgloss.NewStyle().Foreground(style.Accent)
+	ti.TextStyle = lipgloss.NewStyle().Foreground(style.Text)
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(style.Accent)
 
 	t := table.New()
 	s := table.DefaultStyles()
@@ -75,10 +83,8 @@ func NewDataTableModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo) 
 		Bold(true).
 		Foreground(style.Primary)
 	s.Cell = s.Cell.
-		Padding(0, 1).
-		Foreground(style.Text)
+		Padding(0, 1)
 	s.Selected = s.Selected.
-		Background(style.Surface).
 		Foreground(style.Primary).
 		Bold(true)
 	t.SetStyles(s)
@@ -99,6 +105,12 @@ func NewDataTableModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo) 
 		keys:         defaultTableKeys,
 		help:         help.New(),
 		loading:      true,
+		width:        80,
+		height:       24,
+		pageSize:     20,
+		currentPage:  0,
+		sortCol:      -1,
+		sortAsc:      true,
 	}
 }
 
@@ -184,6 +196,21 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if m.searching {
+			if key.Matches(msg, m.keys.Up) {
+				m.table.MoveUp(1)
+				return m, nil
+			}
+			if key.Matches(msg, m.keys.Down) {
+				m.table.MoveDown(1)
+				return m, nil
+			}
+			if key.Matches(msg, m.keys.PageUp) {
+				return m.prevPage()
+			}
+			if key.Matches(msg, m.keys.PageDown) {
+				return m.nextPage()
+			}
+
 			switch msg.Type {
 			case tea.KeyEsc:
 				m.searching = false
@@ -200,12 +227,15 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateTableSize()
 				return m, nil
 			default:
-				var cmd tea.Cmd
-				m.searchInput, cmd = m.searchInput.Update(msg)
-				m.searchQuery = m.searchInput.Value()
-				m.applyFilter()
-				return m, cmd
+				if msg.Type == tea.KeyRunes || msg.Type == tea.KeyBackspace {
+					var cmd tea.Cmd
+					m.searchInput, cmd = m.searchInput.Update(msg)
+					m.searchQuery = m.searchInput.Value()
+					m.applyFilter()
+					return m, cmd
+				}
 			}
+			return m, nil
 		}
 
 		if key.Matches(msg, m.keys.Help) {
@@ -245,7 +275,7 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.filteredItems) == 0 {
 				return m, nil
 			}
-			idx := m.table.Cursor()
+			idx := m.cursorItemIndex()
 			if idx >= 0 && idx < len(m.filteredItems) {
 				item := m.filteredItems[idx]
 				return m, func() tea.Msg {
@@ -263,7 +293,7 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.filteredItems) == 0 {
 				return m, nil
 			}
-			idx := m.table.Cursor()
+			idx := m.cursorItemIndex()
 			if idx >= 0 && idx < len(m.filteredItems) {
 				item := m.filteredItems[idx]
 				k := m.formatter.getKey(item)
@@ -290,6 +320,40 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.confirmingBatchDelete = true
 			return m, nil
 		}
+
+		if key.Matches(msg, m.keys.Up) {
+			m.table.MoveUp(1)
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.Down) {
+			m.table.MoveDown(1)
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.PageUp) {
+			return m.prevPage()
+		}
+		if key.Matches(msg, m.keys.PageDown) {
+			return m.nextPage()
+		}
+		if key.Matches(msg, m.keys.Sort1) {
+			return m.applySortBy(0)
+		}
+		if key.Matches(msg, m.keys.Sort2) {
+			return m.applySortBy(1)
+		}
+		if key.Matches(msg, m.keys.Sort3) {
+			return m.applySortBy(2)
+		}
+		if key.Matches(msg, m.keys.SortToggle) {
+			if m.sortCol >= 0 {
+				m.sortAsc = !m.sortAsc
+				m.applySort()
+				m.currentPage = 0
+				m.updateTableRows()
+				m.table.SetCursor(0)
+			}
+			return m, nil
+		}
 	}
 
 	var cmd tea.Cmd
@@ -310,14 +374,28 @@ func (m *DataTableModel) applyFilter() {
 			}
 		}
 	}
+	m.currentPage = 0
+	m.applySort()
 	m.updateTableRows()
 	m.table.SetCursor(0)
 	m.table.GotoTop()
 }
 
 func (m *DataTableModel) updateTableRows() {
-	rows := make([]table.Row, len(m.filteredItems))
-	for i, item := range m.filteredItems {
+	start := m.currentPage * m.pageSize
+	end := start + m.pageSize
+	if start > len(m.filteredItems) {
+		start = len(m.filteredItems)
+	}
+	if end > len(m.filteredItems) {
+		end = len(m.filteredItems)
+	}
+	if start > end {
+		start = end
+	}
+
+	rows := make([]table.Row, end-start)
+	for i, item := range m.filteredItems[start:end] {
 		k := m.formatter.getKey(item)
 		rows[i] = m.formatter.getRow(item, m.selected[k])
 	}
@@ -329,13 +407,14 @@ func (m *DataTableModel) updateTableSize() {
 	cols := m.formatter.columns(widths)
 	m.table.SetColumns(cols)
 
-	fixed := 4 // title + header + status + help short
+	fixed := 2 // title + status (header is inside table height)
 	if m.searching {
 		fixed++
 	}
-	if m.help.ShowAll {
-		fixed += 2
-	}
+	helpLines := strings.Count(m.help.View(m.keys), "\n") + 1
+	fixed += helpLines
+	fixed += 2 // lipgloss border around table (top + bottom)
+
 	h := m.height - fixed
 	if h < 3 {
 		h = 3
@@ -344,12 +423,79 @@ func (m *DataTableModel) updateTableSize() {
 	m.table.SetWidth(m.width - 2)
 }
 
-func (m *DataTableModel) getKeyAtCursor() string {
-	idx := m.table.Cursor()
+func (m *DataTableModel) cursorItemIndex() int {
+	if len(m.filteredItems) == 0 {
+		return -1
+	}
+	idx := m.currentPage*m.pageSize + m.table.Cursor()
 	if idx < 0 || idx >= len(m.filteredItems) {
+		return -1
+	}
+	return idx
+}
+
+func (m *DataTableModel) getKeyAtCursor() string {
+	idx := m.cursorItemIndex()
+	if idx < 0 {
 		return ""
 	}
 	return m.formatter.getKey(m.filteredItems[idx])
+}
+
+func (m *DataTableModel) pageCount() int {
+	if len(m.filteredItems) == 0 {
+		return 1
+	}
+	return (len(m.filteredItems)-1)/m.pageSize + 1
+}
+
+func (m *DataTableModel) prevPage() (tea.Model, tea.Cmd) {
+	if m.currentPage > 0 {
+		m.currentPage--
+		m.updateTableRows()
+		m.table.SetCursor(0)
+	}
+	return m, nil
+}
+
+func (m *DataTableModel) nextPage() (tea.Model, tea.Cmd) {
+	totalPages := m.pageCount()
+	if m.currentPage < totalPages-1 {
+		m.currentPage++
+		m.updateTableRows()
+		m.table.SetCursor(0)
+	}
+	return m, nil
+}
+
+func (m *DataTableModel) applySort() {
+	if m.sortCol < 0 || m.sortCol >= len(m.formatter.sortColumns) {
+		return
+	}
+	col := m.formatter.sortColumns[m.sortCol]
+	sort.SliceStable(m.filteredItems, func(i, j int) bool {
+		if m.sortAsc {
+			return col.less(m.filteredItems[i], m.filteredItems[j])
+		}
+		return col.less(m.filteredItems[j], m.filteredItems[i])
+	})
+}
+
+func (m *DataTableModel) applySortBy(colIdx int) (tea.Model, tea.Cmd) {
+	if colIdx < 0 || colIdx >= len(m.formatter.sortColumns) {
+		return m, nil
+	}
+	if m.sortCol == colIdx {
+		m.sortAsc = !m.sortAsc
+	} else {
+		m.sortCol = colIdx
+		m.sortAsc = true
+	}
+	m.applySort()
+	m.currentPage = 0
+	m.updateTableRows()
+	m.table.SetCursor(0)
+	return m, nil
 }
 
 func (m *DataTableModel) doDelete(key string) tea.Cmd {
@@ -461,7 +607,7 @@ func (m *DataTableModel) renderTitleBar() string {
 		label = fmt.Sprintf("%s  \xe2\x80\x94  %d / %d items", icon, count, total)
 	}
 	if m.searching {
-		label += "  [" + SearchActiveStyle.Render("Search: "+m.searchInput.Value()) + "]"
+		label += "  " + SearchActiveStyle.Render(fmt.Sprintf("[Search: %s]", m.searchInput.Value()))
 	}
 	label = TruncateEnd(label, m.width-2)
 	return TitleBarStyle.Width(m.width).Render(label)
@@ -470,10 +616,25 @@ func (m *DataTableModel) renderTitleBar() string {
 func (m *DataTableModel) renderStatusBar() string {
 	total := len(m.filteredItems)
 	selectedInfo := fmt.Sprintf("%d selected", len(m.selected))
-	text := fmt.Sprintf("  %d items  \xe2\x94\x82  %s", total, selectedInfo)
-	if m.searchQuery != "" && !m.searching {
-		text += "  \xe2\x94\x82  Filter: " + m.searchQuery
+
+	var parts []string
+	parts = append(parts, fmt.Sprintf("%d items", total))
+	if total > m.pageSize {
+		parts = append(parts, fmt.Sprintf("Page %d/%d", m.currentPage+1, m.pageCount()))
 	}
+	parts = append(parts, selectedInfo)
+	if m.sortCol >= 0 && m.sortCol < len(m.formatter.sortColumns) {
+		dir := "↑"
+		if !m.sortAsc {
+			dir = "↓"
+		}
+		parts = append(parts, fmt.Sprintf("Sort: %s %s", m.formatter.sortColumns[m.sortCol].name, dir))
+	}
+	if m.searchQuery != "" && !m.searching {
+		parts = append(parts, "Filter: "+m.searchQuery)
+	}
+
+	text := "  " + strings.Join(parts, "  \xe2\x94\x82  ")
 	text = TruncateEnd(text, m.width-2)
 	return StatusBarStyle.Width(m.width).Render(text)
 }
@@ -496,6 +657,11 @@ func (m *DataTableModel) renderConfirmDialog(title, message string) string {
 
 // ── Formatter ──
 
+type sortColumn struct {
+	name string
+	less func(a, b any) bool
+}
+
 type tableFormatter struct {
 	title       string
 	minWidths   []int
@@ -505,6 +671,7 @@ type tableFormatter struct {
 	getKey      func(any) string
 	searchMatch func(any, string) bool
 	canCreate   bool
+	sortColumns []sortColumn
 }
 
 func (f tableFormatter) calcWidths(totalWidth int) []int {
@@ -595,6 +762,11 @@ func getFormatter(rt ResourceType) tableFormatter {
 					strings.Contains(strings.ToLower(r.ScopeType), kw)
 			},
 			canCreate: true,
+			sortColumns: []sortColumn{
+				{name: "ID", less: func(a, b any) bool { return a.(FactRecord).ID < b.(FactRecord).ID }},
+				{name: "Keyword", less: func(a, b any) bool { return strings.Compare(a.(FactRecord).Keyword, b.(FactRecord).Keyword) < 0 }},
+				{name: "Scope", less: func(a, b any) bool { return strings.Compare(a.(FactRecord).ScopeType, b.(FactRecord).ScopeType) < 0 }},
+			},
 		}
 
 	case ResourceProfiles:
@@ -633,6 +805,12 @@ func getFormatter(rt ResourceType) tableFormatter {
 					strings.Contains(strings.ToLower(r.Preferences), kw)
 			},
 			canCreate: false,
+			sortColumns: []sortColumn{
+				{name: "ID", less: func(a, b any) bool { return a.(UserProfileRecord).ID < b.(UserProfileRecord).ID }},
+				{name: "UserID", less: func(a, b any) bool {
+					return strings.Compare(a.(UserProfileRecord).UserID, b.(UserProfileRecord).UserID) < 0
+				}},
+			},
 		}
 
 	case ResourceMemes:
@@ -694,6 +872,11 @@ func getFormatter(rt ResourceType) tableFormatter {
 				return strings.Contains(strings.ToLower(fmt.Sprintf("%d", r.ID)), kw)
 			},
 			canCreate: false,
+			sortColumns: []sortColumn{
+				{name: "ID", less: func(a, b any) bool { return a.(MemeRecord).ID < b.(MemeRecord).ID }},
+				{name: "Seen", less: func(a, b any) bool { return a.(MemeRecord).SeenCount < b.(MemeRecord).SeenCount }},
+				{name: "Usage", less: func(a, b any) bool { return a.(MemeRecord).UsageCount < b.(MemeRecord).UsageCount }},
+			},
 		}
 
 	case ResourceVocabularies:
@@ -735,6 +918,11 @@ func getFormatter(rt ResourceType) tableFormatter {
 					strings.Contains(strings.ToLower(r.Example), kw)
 			},
 			canCreate: true,
+			sortColumns: []sortColumn{
+				{name: "ID", less: func(a, b any) bool { return a.(VocabRecord).ID < b.(VocabRecord).ID }},
+				{name: "Word", less: func(a, b any) bool { return strings.Compare(a.(VocabRecord).Word, b.(VocabRecord).Word) < 0 }},
+				{name: "Weight", less: func(a, b any) bool { return a.(VocabRecord).Weight < b.(VocabRecord).Weight }},
+			},
 		}
 
 	case ResourceSummaries:
@@ -793,6 +981,11 @@ func getFormatter(rt ResourceType) tableFormatter {
 				return false
 			},
 			canCreate: false,
+			sortColumns: []sortColumn{
+				{name: "ID", less: func(a, b any) bool { return a.(SummaryRecord).ID < b.(SummaryRecord).ID }},
+				{name: "Participants", less: func(a, b any) bool { return a.(SummaryRecord).ParticipantCount < b.(SummaryRecord).ParticipantCount }},
+				{name: "Messages", less: func(a, b any) bool { return a.(SummaryRecord).MessageCount < b.(SummaryRecord).MessageCount }},
+			},
 		}
 	}
 	return tableFormatter{}

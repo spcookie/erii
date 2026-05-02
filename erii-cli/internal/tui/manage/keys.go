@@ -3,18 +3,24 @@ package manage
 import "github.com/charmbracelet/bubbles/key"
 
 type tableKeys struct {
-	Up       key.Binding
-	Down     key.Binding
-	Enter    key.Binding
-	Search   key.Binding
-	Select   key.Binding
-	Delete   key.Binding
-	BatchDel key.Binding
-	New      key.Binding
-	Refresh  key.Binding
-	Back     key.Binding
-	Help     key.Binding
-	Quit     key.Binding
+	Up         key.Binding
+	Down       key.Binding
+	PageUp     key.Binding
+	PageDown   key.Binding
+	Enter      key.Binding
+	Search     key.Binding
+	Select     key.Binding
+	Delete     key.Binding
+	BatchDel   key.Binding
+	New        key.Binding
+	Refresh    key.Binding
+	Back       key.Binding
+	Help       key.Binding
+	Quit       key.Binding
+	Sort1      key.Binding
+	Sort2      key.Binding
+	Sort3      key.Binding
+	SortToggle key.Binding
 }
 
 func (k tableKeys) ShortHelp() []key.Binding {
@@ -23,9 +29,9 @@ func (k tableKeys) ShortHelp() []key.Binding {
 
 func (k tableKeys) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Enter, k.Search},
-		{k.Select, k.Delete, k.BatchDel, k.New},
-		{k.Refresh, k.Back, k.Help, k.Quit},
+		{k.Up, k.Down, k.PageUp, k.PageDown, k.Enter, k.Search},
+		{k.Select, k.Delete, k.BatchDel, k.New, k.Refresh},
+		{k.Sort1, k.Sort2, k.Sort3, k.SortToggle, k.Back, k.Help, k.Quit},
 	}
 }
 
@@ -37,6 +43,14 @@ var defaultTableKeys = tableKeys{
 	Down: key.NewBinding(
 		key.WithKeys("down", "j"),
 		key.WithHelp("\xe2\x86\x93/j", "down"),
+	),
+	PageUp: key.NewBinding(
+		key.WithKeys("pgup", "b"),
+		key.WithHelp("pgup/b", "page up"),
+	),
+	PageDown: key.NewBinding(
+		key.WithKeys("pgdown", "f"),
+		key.WithHelp("pgdown/f", "page down"),
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
@@ -77,5 +91,21 @@ var defaultTableKeys = tableKeys{
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c"),
 		key.WithHelp("ctrl+c", "quit"),
+	),
+	Sort1: key.NewBinding(
+		key.WithKeys("1"),
+		key.WithHelp("1", "sort col 1"),
+	),
+	Sort2: key.NewBinding(
+		key.WithKeys("2"),
+		key.WithHelp("2", "sort col 2"),
+	),
+	Sort3: key.NewBinding(
+		key.WithKeys("3"),
+		key.WithHelp("3", "sort col 3"),
+	),
+	SortToggle: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "toggle sort"),
 	),
 }
