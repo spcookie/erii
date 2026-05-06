@@ -20,6 +20,7 @@ type tableKeys struct {
 	Sort1      key.Binding
 	Sort2      key.Binding
 	Sort3      key.Binding
+	Sort4      key.Binding
 	SortToggle key.Binding
 }
 
@@ -31,7 +32,7 @@ func (k tableKeys) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Enter, k.Search},
 		{k.Select, k.Delete, k.BatchDel, k.New, k.Refresh},
-		{k.Sort1, k.Sort2, k.Sort3, k.SortToggle, k.Back, k.Help, k.Quit},
+		{k.Sort1, k.Sort2, k.Sort3, k.Sort4, k.SortToggle, k.Back, k.Help, k.Quit},
 	}
 }
 
@@ -104,8 +105,54 @@ var defaultTableKeys = tableKeys{
 		key.WithKeys("3"),
 		key.WithHelp("3", "sort col 3"),
 	),
+	Sort4: key.NewBinding(
+		key.WithKeys("4"),
+		key.WithHelp("4", "sort col 4"),
+	),
 	SortToggle: key.NewBinding(
 		key.WithKeys("s"),
 		key.WithHelp("s", "toggle sort"),
+	),
+}
+
+type editFormKeys struct {
+	Next   key.Binding
+	Prev   key.Binding
+	Submit key.Binding
+	Cancel key.Binding
+	Quit   key.Binding
+}
+
+func (k editFormKeys) ShortHelp() []key.Binding {
+	return []key.Binding{k.Next, k.Prev, k.Submit, k.Cancel, k.Quit}
+}
+
+func (k editFormKeys) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Next, k.Prev},
+		{k.Submit, k.Cancel, k.Quit},
+	}
+}
+
+var defaultEditFormKeys = editFormKeys{
+	Next: key.NewBinding(
+		key.WithKeys("tab", "down"),
+		key.WithHelp("tab/\xe2\x86\x93", "next field"),
+	),
+	Prev: key.NewBinding(
+		key.WithKeys("shift+tab", "up"),
+		key.WithHelp("shift+tab/\xe2\x86\x91", "prev field"),
+	),
+	Submit: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "submit"),
+	),
+	Cancel: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "cancel"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
 	),
 }

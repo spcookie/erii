@@ -2,11 +2,13 @@ package manage
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"erii-cli/internal/tui/style"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
@@ -23,6 +25,19 @@ type EditFormModel struct {
 	width        int
 	height       int
 	errMsg       string
+	keys         editFormKeys
+	help         help.Model
+
+	// Keep references to request objects so Text fields update them directly.
+	factReq     FactRequest
+	profileReq  UpdateUserProfileRequest
+	memeDesc    string
+	memePurpose string
+	memeTags    string
+	vocabReq    VocabRequest
+	vocabWeight string
+	summaryReq  UpdateSummaryRequest
+	summaryTone string
 }
 
 func NewEditFormModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo, data any, isCreate bool) *EditFormModel {
@@ -33,6 +48,8 @@ func NewEditFormModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo, d
 		groupID:      group.GroupID,
 		api:          api,
 		data:         data,
+		keys:         defaultEditFormKeys,
+		help:         help.New(),
 	}
 
 	w := m.width - 4
@@ -55,7 +72,7 @@ func NewEditFormModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo, d
 
 	if m.form != nil {
 		km := huh.NewDefaultKeyMap()
-		km.Quit = key.NewBinding(key.WithKeys("esc", "ctrl+c"))
+		km.Quit = key.NewBinding(key.WithKeys("esc"))
 		m.form.WithKeyMap(km)
 	}
 
@@ -71,10 +88,9 @@ func (m *EditFormModel) formTitle() string {
 }
 
 func (m *EditFormModel) buildFactForm(data any, isCreate bool, width int) *huh.Form {
-	var req FactRequest
 	if !isCreate && data != nil {
 		r := data.(FactRecord)
-		req = FactRequest{
+		m.factReq = FactRequest{
 			Keyword:     r.Keyword,
 			Description: r.Description,
 			Values:      r.Values,
@@ -84,108 +100,166 @@ func (m *EditFormModel) buildFactForm(data any, isCreate bool, width int) *huh.F
 	}
 	return huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().Key("keyword").Title("Keyword").Value(&req.Keyword).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Key("description").Title("Description").Value(&req.Description),
-			huh.NewInput().Key("values").Title("Values").Value(&req.Values),
-			huh.NewInput().Key("subjects").Title("Subjects").Value(&req.Subjects),
+			huh.NewInput().Key("keyword").Title("Keyword").Value(&m.factReq.Keyword).Validate(huh.ValidateNotEmpty()),
+			huh.NewText().Key("description").Title("Description (multi-line)").Value(&m.factReq.Description),
+			huh.NewInput().Key("values").Title("Values").Value(&m.factReq.Values),
+			huh.NewInput().Key("subjects").Title("Subjects (comma-separated)").Value(&m.factReq.Subjects).Validate(validateCommaSeparated),
 			huh.NewSelect[string]().Key("scopeType").Title("Scope Type").
 				Options(huh.NewOption("User", "USER"), huh.NewOption("Group", "GROUP")).
-				Value(&req.ScopeType),
+				Value(&m.factReq.ScopeType),
 		),
 	).WithWidth(width).WithShowHelp(false)
 }
 
 func (m *EditFormModel) buildProfileForm(data any, isCreate bool, width int) *huh.Form {
-	var req UpdateUserProfileRequest
 	if !isCreate && data != nil {
 		r := data.(UserProfileRecord)
-		req = UpdateUserProfileRequest{
+		m.profileReq = UpdateUserProfileRequest{
 			Profile:     r.Profile,
 			Preferences: r.Preferences,
 		}
 	}
 	return huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().Key("profile").Title("Profile").Value(&req.Profile),
-			huh.NewInput().Key("preferences").Title("Preferences").Value(&req.Preferences),
+			huh.NewText().Key("profile").Title("Profile (multi-line)").
+				Value(&m.profileReq.Profile).
+				WithHeight(4),
+			huh.NewText().Key("preferences").Title("Preferences (multi-line)").
+				Value(&m.profileReq.Preferences).
+				WithHeight(4),
 		),
 	).WithWidth(width).WithShowHelp(false)
 }
 
 func (m *EditFormModel) buildMemeForm(data any, isCreate bool, width int) *huh.Form {
-	var desc, purpose, tags string
 	if !isCreate && data != nil {
 		r := data.(MemeRecord)
 		if r.Description != nil {
-			desc = *r.Description
+			m.memeDesc = *r.Description
 		}
 		if r.Purpose != nil {
-			purpose = *r.Purpose
+			m.memePurpose = *r.Purpose
 		}
 		if r.Tags != nil {
-			tags = *r.Tags
+			m.memeTags = *r.Tags
 		}
 	}
 	return huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().Key("description").Title("Description").Value(&desc),
-			huh.NewInput().Key("purpose").Title("Purpose").Value(&purpose),
-			huh.NewInput().Key("tags").Title("Tags").Value(&tags),
+			huh.NewText().Key("description").Title("Description (multi-line)").
+				Value(&m.memeDesc).
+				WithHeight(3),
+			huh.NewText().Key("purpose").Title("Purpose (multi-line)").
+				Value(&m.memePurpose).
+				WithHeight(3),
+			huh.NewInput().Key("tags").Title("Tags").Value(&m.memeTags),
 		),
 	).WithWidth(width).WithShowHelp(false)
 }
 
 func (m *EditFormModel) buildVocabForm(data any, isCreate bool, width int) *huh.Form {
-	var req VocabRequest
-	var weightStr string
 	if !isCreate && data != nil {
 		r := data.(VocabRecord)
-		req = VocabRequest{
+		m.vocabReq = VocabRequest{
 			Word:    r.Word,
 			Type:    r.Type,
 			Meaning: r.Meaning,
 			Example: r.Example,
 			Weight:  r.Weight,
 		}
-		weightStr = fmt.Sprintf("%d", r.Weight)
+		m.vocabWeight = fmt.Sprintf("%d", r.Weight)
 	}
 	return huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().Key("word").Title("Word").Value(&req.Word).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Key("type").Title("Type").Value(&req.Type),
-			huh.NewInput().Key("meaning").Title("Meaning").Value(&req.Meaning),
-			huh.NewInput().Key("example").Title("Example").Value(&req.Example),
-			huh.NewInput().Key("weight").Title("Weight (0-100)").Value(&weightStr),
+			huh.NewInput().Key("word").Title("Word").Value(&m.vocabReq.Word).Validate(huh.ValidateNotEmpty()),
+			huh.NewInput().Key("type").Title("Type").Value(&m.vocabReq.Type),
+			huh.NewInput().Key("meaning").Title("Meaning").Value(&m.vocabReq.Meaning),
+			huh.NewInput().Key("example").Title("Example").Value(&m.vocabReq.Example),
+			huh.NewInput().Key("weight").Title("Weight (0-100)").Value(&m.vocabWeight),
 		),
 	).WithWidth(width).WithShowHelp(false)
 }
 
 func (m *EditFormModel) buildSummaryForm(data any, isCreate bool, width int) *huh.Form {
-	var req UpdateSummaryRequest
-	var toneStr, pcStr, mcStr string
 	if !isCreate && data != nil {
 		r := data.(SummaryRecord)
-		req = UpdateSummaryRequest{
+		m.summaryReq = UpdateSummaryRequest{
 			TimeRange: r.TimeRange,
 			Content:   r.Content,
 			KeyPoints: r.KeyPoints,
 		}
 		if r.EmotionalTone != nil {
-			toneStr = *r.EmotionalTone
+			m.summaryTone = *r.EmotionalTone
 		}
-		pcStr = fmt.Sprintf("%d", r.ParticipantCount)
-		mcStr = fmt.Sprintf("%d", r.MessageCount)
 	}
 	return huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().Key("timeRange").Title("Time Range").Value(&req.TimeRange),
-			huh.NewInput().Key("content").Title("Content").Value(&req.Content),
-			huh.NewInput().Key("keyPoints").Title("Key Points").Value(&req.KeyPoints),
-			huh.NewInput().Key("emotionalTone").Title("Emotional Tone").Value(&toneStr),
-			huh.NewInput().Key("participantCount").Title("Participant Count").Value(&pcStr),
-			huh.NewInput().Key("messageCount").Title("Message Count").Value(&mcStr),
+			huh.NewInput().Key("timeRange").Title("Time Range (YYYY-MM-DD HH:MM ~ YYYY-MM-DD HH:MM)").
+				Placeholder("2026-05-01 23:59 ~ 2026-05-02 13:30").
+				Value(&m.summaryReq.TimeRange).
+				Validate(validateTimeRange),
+			huh.NewText().Key("content").Title("Content (multi-line)").
+				Value(&m.summaryReq.Content).
+				WithHeight(4),
+			huh.NewText().Key("keyPoints").Title("Key Points (topic: description / line)").
+				Placeholder("话题：具体描述内容").
+				Value(&m.summaryReq.KeyPoints).
+				Validate(validateKeyPoints).
+				WithHeight(4),
+			huh.NewInput().Key("emotionalTone").Title("Emotional Tone").Value(&m.summaryTone),
 		),
 	).WithWidth(width).WithShowHelp(false)
+}
+
+var timeRangeRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2} ~ \d{4}-\d{2}-\d{2} \d{2}:\d{2}$`)
+
+func validateTimeRange(s string) error {
+	if s == "" {
+		return nil
+	}
+	if !timeRangeRegex.MatchString(s) {
+		return fmt.Errorf("格式错误，示例：2026-05-01 23:59 ~ 2026-05-02 13:30")
+	}
+	return nil
+}
+
+func validateKeyPoints(s string) error {
+	if s == "" {
+		return nil
+	}
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if !strings.Contains(line, "：") {
+			return fmt.Errorf("每行必须包含中文冒号，示例：主题：描述")
+		}
+	}
+	return nil
+}
+
+func validateCommaSeparated(s string) error {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	for _, p := range parts {
+		if strings.TrimSpace(p) == "" {
+			return fmt.Errorf("逗号分隔的每一项不能为空")
+		}
+	}
+	return nil
+}
+
+func validateNumber(s string) error {
+	if s == "" {
+		return nil
+	}
+	if _, err := strconv.Atoi(s); err != nil {
+		return fmt.Errorf("必须是数字")
+	}
+	return nil
 }
 
 func (m *EditFormModel) Init() tea.Cmd {
@@ -200,6 +274,7 @@ func (m *EditFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.help.Width = msg.Width
 		if m.form != nil {
 			w := m.width - 4
 			if w < 20 {
@@ -208,6 +283,11 @@ func (m *EditFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.form.WithWidth(w)
 		}
 		return m, nil
+
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
 
 	case error:
 		m.errMsg = msg.Error()
@@ -261,37 +341,24 @@ func (m *EditFormModel) submit() tea.Cmd {
 		var err error
 		switch rt {
 		case ResourceFacts:
-			req := FactRequest{
-				Keyword:     m.form.GetString("keyword"),
-				Description: m.form.GetString("description"),
-				Values:      m.form.GetString("values"),
-				Subjects:    m.form.GetString("subjects"),
-				ScopeType:   m.form.GetString("scopeType"),
-			}
+			req := m.factReq
 			if isCreate {
 				err = api.CreateFact(botID, groupID, req)
 			} else {
 				err = api.UpdateFact(botID, groupID, factID, req)
 			}
 		case ResourceProfiles:
-			req := UpdateUserProfileRequest{
-				Profile:     m.form.GetString("profile"),
-				Preferences: m.form.GetString("preferences"),
-			}
-			err = api.UpdateUserProfile(botID, groupID, userID, req)
+			err = api.UpdateUserProfile(botID, groupID, userID, m.profileReq)
 		case ResourceMemes:
-			desc := m.form.GetString("description")
-			purpose := m.form.GetString("purpose")
-			tags := m.form.GetString("tags")
 			var descPtr, purposePtr, tagsPtr *string
-			if desc != "" {
-				descPtr = &desc
+			if m.memeDesc != "" {
+				descPtr = &m.memeDesc
 			}
-			if purpose != "" {
-				purposePtr = &purpose
+			if m.memePurpose != "" {
+				purposePtr = &m.memePurpose
 			}
-			if tags != "" {
-				tagsPtr = &tags
+			if m.memeTags != "" {
+				tagsPtr = &m.memeTags
 			}
 			req := UpdateMemeRequest{
 				Description: descPtr,
@@ -300,41 +367,30 @@ func (m *EditFormModel) submit() tea.Cmd {
 			}
 			err = api.UpdateMeme(botID, groupID, memeID, req)
 		case ResourceVocabularies:
-			weight, _ := strconv.Atoi(m.form.GetString("weight"))
-			req := VocabRequest{
-				Word:    m.form.GetString("word"),
-				Type:    m.form.GetString("type"),
-				Meaning: m.form.GetString("meaning"),
-				Example: m.form.GetString("example"),
-				Weight:  weight,
-			}
+			weight, _ := strconv.Atoi(m.vocabWeight)
+			m.vocabReq.Weight = weight
 			if isCreate {
-				err = api.CreateVocabulary(botID, groupID, req)
+				err = api.CreateVocabulary(botID, groupID, m.vocabReq)
 			} else {
-				err = api.UpdateVocabulary(botID, groupID, vocabID, req)
+				err = api.UpdateVocabulary(botID, groupID, vocabID, m.vocabReq)
 			}
 		case ResourceSummaries:
-			pc, _ := strconv.Atoi(m.form.GetString("participantCount"))
-			mc, _ := strconv.Atoi(m.form.GetString("messageCount"))
-			tone := m.form.GetString("emotionalTone")
 			var tonePtr *string
-			if tone != "" {
-				tonePtr = &tone
+			if m.summaryTone != "" {
+				tonePtr = &m.summaryTone
 			}
 			req := UpdateSummaryRequest{
-				TimeRange:        m.form.GetString("timeRange"),
-				Content:          m.form.GetString("content"),
-				KeyPoints:        m.form.GetString("keyPoints"),
-				EmotionalTone:    tonePtr,
-				ParticipantCount: pc,
-				MessageCount:     mc,
+				TimeRange:     m.summaryReq.TimeRange,
+				Content:       m.summaryReq.Content,
+				KeyPoints:     m.summaryReq.KeyPoints,
+				EmotionalTone: tonePtr,
 			}
 			err = api.UpdateSummary(botID, groupID, summaryID, req)
 		}
 		if err != nil {
 			return err
 		}
-		return PopMsg{}
+		return PopAndRefreshMsg{}
 	}
 }
 
@@ -347,6 +403,6 @@ func (m *EditFormModel) View() string {
 	if m.form != nil {
 		parts = append(parts, m.form.View())
 	}
-	parts = append(parts, style.Muted("ESC cancel  \xc2\xb7  Enter submit"))
+	parts = append(parts, m.help.View(m.keys))
 	return strings.Join(parts, "\n")
 }

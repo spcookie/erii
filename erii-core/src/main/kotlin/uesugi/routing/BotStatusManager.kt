@@ -54,9 +54,7 @@ data class UpdateSummaryRequest(
     val timeRange: String,
     val content: String,
     val keyPoints: String,
-    val emotionalTone: String? = null,
-    val participantCount: Int,
-    val messageCount: Int
+    val emotionalTone: String? = null
 )
 
 private fun ApplicationCall.botId(): String = parameters["bot-id"]!!
@@ -286,7 +284,7 @@ fun Routing.configureBotStatusManager() {
             call.respondScoped(
                 summaryService.updateSummary(
                     summaryId, request.timeRange, request.content, request.keyPoints,
-                    request.emotionalTone, request.participantCount, request.messageCount
+                    request.emotionalTone
                 ), botId, groupId,
                 { it.botMark }, { it.groupId }, "summary not found"
             )

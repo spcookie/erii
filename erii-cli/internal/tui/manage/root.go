@@ -7,6 +7,7 @@ import (
 // Navigation messages
 type (
 	PopMsg            struct{}
+	PopAndRefreshMsg  struct{}
 	PushGroupListMsg  struct{ Bot BotInfo }
 	PushManageMenuMsg struct {
 		Bot   BotInfo
@@ -89,6 +90,31 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+
+	case PopAndRefreshMsg:
+		if !m.Pop() {
+			return m, tea.Quit
+		}
+		var cmds []tea.Cmd
+		if len(m.stack) > 0 {
+			if top := m.Current(); top != nil {
+				newTop, cmd := top.Update(RefreshMsg{})
+				m.stack[len(m.stack)-1] = newTop
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			}
+		}
+		if len(m.stack) > 0 && m.width > 0 {
+			if top := m.Current(); top != nil {
+				newTop, cmd := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+				m.stack[len(m.stack)-1] = newTop
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			}
+		}
+		return m, tea.Batch(cmds...)
 
 	case PushGroupListMsg:
 		m.Push(NewGroupListModel(getAPI(m.stack[0]), msg.Bot))

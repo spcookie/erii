@@ -52,17 +52,13 @@ class SummaryRepository {
         timeRange: String,
         content: String,
         keyPoints: String,
-        emotionalTone: String?,
-        participantCount: Int,
-        messageCount: Int
+        emotionalTone: String?
     ): SummaryRecord? = transaction {
         SummaryEntity.findById(id)?.apply {
             this.timeRange = timeRange
             this.content = content
             this.keyPoints = keyPoints
             this.emotionalTone = emotionalTone
-            this.participantCount = participantCount
-            this.messageCount = messageCount
         }?.toRecord()
     }
 

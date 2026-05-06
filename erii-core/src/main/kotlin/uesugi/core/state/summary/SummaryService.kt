@@ -106,12 +106,10 @@ class SummaryService(
         timeRange: String,
         content: String,
         keyPoints: String,
-        emotionalTone: String?,
-        participantCount: Int,
-        messageCount: Int
+        emotionalTone: String?
     ): SummaryRecord? {
         return summaryRepository.updateSummary(
-            id, timeRange, content, keyPoints, emotionalTone, participantCount, messageCount
+            id, timeRange, content, keyPoints, emotionalTone
         )
     }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -51,8 +52,10 @@ type DataTableModel struct {
 	loading bool
 	err     error
 
-	confirmingDelete      bool
-	confirmingBatchDelete bool
+	confirmForm  *huh.Form
+	confirmValue bool
+	confirmBatch bool
+	deleteKey    string
 
 	table     table.Model
 	formatter tableFormatter
@@ -114,6 +117,30 @@ func NewDataTableModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo) 
 	}
 }
 
+func newConfirmForm(title, description string, value *bool, width int) *huh.Form {
+	t := huh.ThemeBase()
+	redTitle := lipgloss.NewStyle().Align(lipgloss.Center).Foreground(style.Error).Bold(true)
+	redDesc := lipgloss.NewStyle().Align(lipgloss.Center).Foreground(style.Error)
+	t.Focused.Base = lipgloss.NewStyle().Align(lipgloss.Center)
+	t.Focused.Title = redTitle
+	t.Focused.Description = redDesc
+	t.Blurred.Base = lipgloss.NewStyle().Align(lipgloss.Center)
+	t.Blurred.Title = redTitle
+	t.Blurred.Description = redDesc
+	km := huh.NewDefaultKeyMap()
+	km.Quit = key.NewBinding(key.WithKeys("esc"))
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title(title).
+				Description(description).
+				Affirmative("Confirm").
+				Negative("Cancel").
+				Value(value),
+		),
+	).WithWidth(width).WithShowHelp(false).WithTheme(t).WithKeyMap(km)
+}
+
 func (m *DataTableModel) Init() tea.Cmd {
 	return func() tea.Msg {
 		items, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
@@ -122,6 +149,41 @@ func (m *DataTableModel) Init() tea.Cmd {
 }
 
 func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.confirmForm != nil {
+		if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
+		if wmsg, ok := msg.(tea.WindowSizeMsg); ok {
+			m.width = wmsg.Width
+			m.height = wmsg.Height
+			m.confirmForm.WithWidth(m.width)
+		}
+		newModel, cmd := m.confirmForm.Update(msg)
+		m.confirmForm = newModel.(*huh.Form)
+		switch m.confirmForm.State {
+		case huh.StateCompleted:
+			m.confirmForm = nil
+			confirmed := m.confirmValue
+			isBatch := m.confirmBatch
+			key := m.deleteKey
+			m.confirmBatch = false
+			m.deleteKey = ""
+			if confirmed {
+				if isBatch {
+					return m, m.doBatchDelete()
+				}
+				return m, m.doDelete(key)
+			}
+			return m, nil
+		case huh.StateAborted:
+			m.confirmForm = nil
+			m.confirmBatch = false
+			m.deleteKey = ""
+			return m, nil
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -175,34 +237,12 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		if m.confirmingDelete || m.confirmingBatchDelete {
-			switch msg.Type {
-			case tea.KeyEnter:
-				if m.confirmingDelete {
-					m.confirmingDelete = false
-					key := m.getKeyAtCursor()
-					return m, m.doDelete(key)
-				}
-				if m.confirmingBatchDelete {
-					m.confirmingBatchDelete = false
-					return m, m.doBatchDelete()
-				}
-			case tea.KeyEsc:
-				m.confirmingDelete = false
-				m.confirmingBatchDelete = false
-				return m, nil
-			}
-			return m, nil
-		}
-
 		if m.searching {
 			if key.Matches(msg, m.keys.Up) {
-				m.table.MoveUp(1)
-				return m, nil
+				return m.moveUp()
 			}
 			if key.Matches(msg, m.keys.Down) {
-				m.table.MoveDown(1)
-				return m, nil
+				return m.moveDown()
 			}
 			if key.Matches(msg, m.keys.PageUp) {
 				return m.prevPage()
@@ -310,24 +350,27 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.filteredItems) == 0 {
 				return m, nil
 			}
-			m.confirmingDelete = true
-			return m, nil
+			m.deleteKey = m.getKeyAtCursor()
+			m.confirmBatch = false
+			m.confirmValue = false
+			m.confirmForm = newConfirmForm("Confirm Delete", "Delete this item?", &m.confirmValue, m.width)
+			return m, m.confirmForm.Init()
 		}
 		if key.Matches(msg, m.keys.BatchDel) {
 			if len(m.selected) == 0 {
 				return m, nil
 			}
-			m.confirmingBatchDelete = true
-			return m, nil
+			m.confirmBatch = true
+			m.confirmValue = false
+			m.confirmForm = newConfirmForm("Confirm Batch Delete", fmt.Sprintf("Delete %d selected items?", len(m.selected)), &m.confirmValue, m.width)
+			return m, m.confirmForm.Init()
 		}
 
 		if key.Matches(msg, m.keys.Up) {
-			m.table.MoveUp(1)
-			return m, nil
+			return m.moveUp()
 		}
 		if key.Matches(msg, m.keys.Down) {
-			m.table.MoveDown(1)
-			return m, nil
+			return m.moveDown()
 		}
 		if key.Matches(msg, m.keys.PageUp) {
 			return m.prevPage()
@@ -343,6 +386,9 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if key.Matches(msg, m.keys.Sort3) {
 			return m.applySortBy(2)
+		}
+		if key.Matches(msg, m.keys.Sort4) {
+			return m.applySortBy(3)
 		}
 		if key.Matches(msg, m.keys.SortToggle) {
 			if m.sortCol >= 0 {
@@ -468,6 +514,39 @@ func (m *DataTableModel) nextPage() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *DataTableModel) moveUp() (tea.Model, tea.Cmd) {
+	if len(m.table.Rows()) == 0 {
+		return m, nil
+	}
+	if m.table.Cursor() > 0 {
+		m.table.MoveUp(1)
+		return m, nil
+	}
+	if m.currentPage > 0 {
+		m.currentPage--
+		m.updateTableRows()
+		m.table.SetCursor(len(m.table.Rows()) - 1)
+	}
+	return m, nil
+}
+
+func (m *DataTableModel) moveDown() (tea.Model, tea.Cmd) {
+	if len(m.table.Rows()) == 0 {
+		return m, nil
+	}
+	if m.table.Cursor() < len(m.table.Rows())-1 {
+		m.table.MoveDown(1)
+		return m, nil
+	}
+	totalPages := m.pageCount()
+	if m.currentPage < totalPages-1 {
+		m.currentPage++
+		m.updateTableRows()
+		m.table.SetCursor(0)
+	}
+	return m, nil
+}
+
 func (m *DataTableModel) applySort() {
 	if m.sortCol < 0 || m.sortCol >= len(m.formatter.sortColumns) {
 		return
@@ -574,11 +653,14 @@ func (m *DataTableModel) View() string {
 	if m.err != nil {
 		return "\n  " + style.ErrorText("Error: "+m.err.Error()) + "\n\n  " + style.Muted("Press r to retry, ESC to go back")
 	}
-	if m.confirmingDelete {
-		return m.renderConfirmDialog("Confirm Delete", "Delete this item?")
-	}
-	if m.confirmingBatchDelete {
-		return m.renderConfirmDialog("Confirm Batch Delete", fmt.Sprintf("Delete %d selected items?", len(m.selected)))
+	if m.confirmForm != nil {
+		view := m.confirmForm.View()
+		lines := strings.Split(view, "\n")
+		padTop := (m.height - len(lines)) / 2
+		if padTop < 0 {
+			padTop = 0
+		}
+		return strings.Repeat("\n", padTop) + view
 	}
 
 	var parts []string
@@ -618,7 +700,12 @@ func (m *DataTableModel) renderStatusBar() string {
 	selectedInfo := fmt.Sprintf("%d selected", len(m.selected))
 
 	var parts []string
-	parts = append(parts, fmt.Sprintf("%d items", total))
+	cursorIdx := m.cursorItemIndex()
+	if cursorIdx >= 0 {
+		parts = append(parts, fmt.Sprintf("%d/%d item", cursorIdx+1, total))
+	} else {
+		parts = append(parts, "0/0 item")
+	}
 	if total > m.pageSize {
 		parts = append(parts, fmt.Sprintf("Page %d/%d", m.currentPage+1, m.pageCount()))
 	}
@@ -637,22 +724,6 @@ func (m *DataTableModel) renderStatusBar() string {
 	text := "  " + strings.Join(parts, "  \xe2\x94\x82  ")
 	text = TruncateEnd(text, m.width-2)
 	return StatusBarStyle.Width(m.width).Render(text)
-}
-
-func (m *DataTableModel) renderConfirmDialog(title, message string) string {
-	cardW := min(50, m.width-4)
-	content := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(style.BorderColor).
-		Background(style.SurfaceAlt).
-		Padding(1, 2).
-		Width(cardW).
-		Render(
-			style.ErrorStyle.Render(title) + "\n\n" +
-				message + "\n\n" +
-				lipgloss.NewStyle().Foreground(style.TextMuted).Render("[Enter] Confirm  [Esc] Cancel"),
-		)
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
 }
 
 // ── Formatter ──
@@ -874,6 +945,16 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canCreate: false,
 			sortColumns: []sortColumn{
 				{name: "ID", less: func(a, b any) bool { return a.(MemeRecord).ID < b.(MemeRecord).ID }},
+				{name: "Description", less: func(a, b any) bool {
+					da, db := "", ""
+					if a.(MemeRecord).Description != nil {
+						da = *a.(MemeRecord).Description
+					}
+					if b.(MemeRecord).Description != nil {
+						db = *b.(MemeRecord).Description
+					}
+					return strings.Compare(da, db) < 0
+				}},
 				{name: "Seen", less: func(a, b any) bool { return a.(MemeRecord).SeenCount < b.(MemeRecord).SeenCount }},
 				{name: "Usage", less: func(a, b any) bool { return a.(MemeRecord).UsageCount < b.(MemeRecord).UsageCount }},
 			},
@@ -983,6 +1064,9 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canCreate: false,
 			sortColumns: []sortColumn{
 				{name: "ID", less: func(a, b any) bool { return a.(SummaryRecord).ID < b.(SummaryRecord).ID }},
+				{name: "TimeRange", less: func(a, b any) bool {
+					return strings.Compare(a.(SummaryRecord).TimeRange, b.(SummaryRecord).TimeRange) < 0
+				}},
 				{name: "Participants", less: func(a, b any) bool { return a.(SummaryRecord).ParticipantCount < b.(SummaryRecord).ParticipantCount }},
 				{name: "Messages", less: func(a, b any) bool { return a.(SummaryRecord).MessageCount < b.(SummaryRecord).MessageCount }},
 			},

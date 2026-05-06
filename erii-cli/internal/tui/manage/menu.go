@@ -82,11 +82,11 @@ func NewManageMenuModel(bot BotInfo, group GroupInfo) *ManageMenuModel {
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
 	items := []list.Item{
-		menuItem{resourceType: ResourceFacts, title: "\xf0\x9f\xa7\xa0  Memory (Facts)", desc: "Manage group memory facts"},
-		menuItem{resourceType: ResourceProfiles, title: "\xf0\x9f\x91\xa4  User Profiles", desc: "Manage user profiles"},
-		menuItem{resourceType: ResourceSummaries, title: "\xf0\x9f\x93\x9d  Summaries", desc: "Manage conversation summaries"},
-		menuItem{resourceType: ResourceMemes, title: "\xf0\x9f\x96\xbc\xef\xb8\x8f  Memes", desc: "Manage meme metadata"},
-		menuItem{resourceType: ResourceVocabularies, title: "\xf0\x9f\x94\xa5  Vocabulary", desc: "Manage learned vocabulary"},
+		menuItem{resourceType: ResourceFacts, title: "🗂️  Memory", desc: "Manage group memory facts"},
+		menuItem{resourceType: ResourceProfiles, title: "🪪  User Profiles", desc: "Manage user profiles"},
+		menuItem{resourceType: ResourceSummaries, title: "📑  Summaries", desc: "Manage conversation summaries"},
+		menuItem{resourceType: ResourceMemes, title: "🎭  Memes", desc: "Manage meme metadata"},
+		menuItem{resourceType: ResourceVocabularies, title: "📖  Vocabulary", desc: "Manage learned vocabulary"},
 	}
 	l.SetItems(items)
 

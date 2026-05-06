@@ -117,12 +117,10 @@ type SummaryRecord struct {
 }
 
 type UpdateSummaryRequest struct {
-	TimeRange        string  `json:"timeRange"`
-	Content          string  `json:"content"`
-	KeyPoints        string  `json:"keyPoints"`
-	EmotionalTone    *string `json:"emotionalTone"`
-	ParticipantCount int     `json:"participantCount"`
-	MessageCount     int     `json:"messageCount"`
+	TimeRange     string  `json:"timeRange"`
+	Content       string  `json:"content"`
+	KeyPoints     string  `json:"keyPoints"`
+	EmotionalTone *string `json:"emotionalTone"`
 }
 
 // ── Resource Type Enum ──
