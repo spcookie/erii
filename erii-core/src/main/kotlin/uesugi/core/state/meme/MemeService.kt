@@ -311,6 +311,31 @@ class MemeService(
     }
 
     /**
+     * 清理低热度表情包
+     *
+     * 删除数据库中 [daysAgo] 天前未再出现且 seenCount 未达到分析阈值的表情包，
+     * 同时尝试清理可能存在的向量存储数据。
+     *
+     * @param daysAgo 距今天数（默认 7 天）
+     * @return 已清理的表情包数量
+     */
+    fun cleanupLowHeatMemes(daysAgo: Int = 7): Int {
+        val deleted = repository.deleteLowHeatMemes(daysAgo)
+
+        deleted.forEach { memo ->
+            memo.vectorId?.let { vectorId ->
+                try {
+                    deleteFromVectorStore(memo.botId, memo.groupId, vectorId)
+                } catch (e: Exception) {
+                    log.warn("Failed to delete the meme vector: vectorId={}, error={}", vectorId, e.message)
+                }
+            }
+        }
+
+        return deleted.size
+    }
+
+    /**
      * 获取群组中最近的图片消息及其MD5
      *
      * 注意：此方法已移至 [MemeRepository]
