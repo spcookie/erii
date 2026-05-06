@@ -78,7 +78,7 @@ class SummaryJob(
                                     try {
                                         summaryService.processSummaryForGroup(currentBotId, groupId)
                                     } catch (e: Exception) {
-                                        log.error("为群组 $groupId 生成摘要失败", e)
+                                        log.error("Failed to generate a summary for a group $groupId", e)
                                     }
                                 }
                             }
@@ -87,7 +87,7 @@ class SummaryJob(
 
                     log.debug("摘要任务执行完成")
                 } catch (e: Exception) {
-                    log.error("摘要任务执行失败", e)
+                    log.error("Summary task execution failed", e)
                 } finally {
                     mutex.unlock()
                 }
@@ -116,12 +116,12 @@ class SummaryJob(
                     }
 
                     if (deleted > 0) {
-                        log.info("摘要清理任务完成, 共删除 $deleted 条过期记录 (cutoff=$cutoff)")
+                        log.info("Summary cleanup task completed, $deleted expired records deleted (cutoff=$cutoff)")
                     } else {
                         log.debug("摘要清理任务完成, 无过期记录")
                     }
                 } catch (e: Exception) {
-                    log.error("摘要清理任务执行失败", e)
+                    log.error("Summary cleanup task execution failed", e)
                 } finally {
                     cleanupMutex.unlock()
                 }
