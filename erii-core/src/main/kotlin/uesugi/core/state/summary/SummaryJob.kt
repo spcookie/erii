@@ -2,10 +2,16 @@ package uesugi.core.state.summary
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.toolkit.logger
 import uesugi.core.state.memory.MemoryRepository
+import uesugi.core.state.summary.SummaryJob.Companion.SUMMARY_RETENTION_DAYS
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.ExperimentalTime
 
 /**
  * 摘要任务 - 定时调度对话摘要生成
@@ -15,14 +21,17 @@ import uesugi.core.state.memory.MemoryRepository
 class SummaryJob(
     val jobScheduler: JobScheduler,
     private val memoryRepository: MemoryRepository,
-    private val summaryService: SummaryService
+    private val summaryService: SummaryService,
+    private val summaryRepository: SummaryRepository
 ) {
 
     companion object {
         private val log = logger()
+        private const val SUMMARY_RETENTION_DAYS = 7L
     }
 
     private val mutex = Mutex()
+    private val cleanupMutex = Mutex()
 
     /**
      * 开启定时触发
@@ -34,7 +43,12 @@ class SummaryJob(
             "*/5 * * * *",  // 每 5 分钟
             ::doSummaryProcessing
         )
-        log.info("Summary task timer started, execution cycle: every 5 minutes")
+        jobScheduler.scheduleRecurrently(
+            "summary-cleanup-job",
+            "0 3 * * *",  // 每日 03:00
+            ::doSummaryCleanup
+        )
+        log.info("Summary task timer started, generation: every 5 minutes, cleanup: daily 03:00")
     }
 
     /**
@@ -79,6 +93,40 @@ class SummaryJob(
                 }
             } else {
                 log.debug("摘要任务正在执行中, 跳过本次调度")
+            }
+        }
+    }
+
+    /**
+     * 执行摘要清理
+     * 删除 createdAt 早于 [SUMMARY_RETENTION_DAYS] 天的记录
+     */
+    @OptIn(ExperimentalTime::class)
+    fun doSummaryCleanup() {
+        runBlocking {
+            if (cleanupMutex.tryLock()) {
+                try {
+                    val cutoff = Clock.System.now()
+                        .minus(SUMMARY_RETENTION_DAYS.days)
+                        .toLocalDateTime(TimeZone.currentSystemDefault())
+                    log.debug("摘要清理任务开始执行, cutoff={}", cutoff)
+
+                    val deleted = withContext(Dispatchers.IO) {
+                        summaryRepository.deleteSummariesBefore(cutoff)
+                    }
+
+                    if (deleted > 0) {
+                        log.info("摘要清理任务完成, 共删除 $deleted 条过期记录 (cutoff=$cutoff)")
+                    } else {
+                        log.debug("摘要清理任务完成, 无过期记录")
+                    }
+                } catch (e: Exception) {
+                    log.error("摘要清理任务执行失败", e)
+                } finally {
+                    cleanupMutex.unlock()
+                }
+            } else {
+                log.debug("摘要清理任务正在执行中, 跳过本次调度")
             }
         }
     }
