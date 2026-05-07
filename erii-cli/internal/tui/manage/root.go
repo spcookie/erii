@@ -29,6 +29,15 @@ type (
 		Data         any
 		IsCreate     bool
 	}
+	PushStateMenuMsg struct {
+		Bot   BotInfo
+		Group GroupInfo
+	}
+	PushStateDetailMsg struct {
+		StateType StateType
+		Bot       BotInfo
+		Group     GroupInfo
+	}
 	RefreshMsg struct{}
 )
 
@@ -48,6 +57,18 @@ func NewRootModel(initial tea.Model) *RootModel {
 
 func (m *RootModel) Push(screen tea.Model) {
 	m.stack = append(m.stack, screen)
+}
+
+func (m *RootModel) pushWithSize(screen tea.Model) (tea.Model, tea.Cmd) {
+	m.Push(screen)
+	cmd := m.Current().Init()
+	if m.width > 0 {
+		if top := m.Current(); top != nil {
+			newTop, _ := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+			m.stack[len(m.stack)-1] = newTop
+		}
+	}
+	return m, cmd
 }
 
 func (m *RootModel) Pop() bool {
@@ -121,61 +142,25 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case PushGroupListMsg:
-		m.Push(NewGroupListModel(getAPI(m.stack[0]), msg.Bot))
-		cmd := m.Current().Init()
-		if m.width > 0 {
-			if top := m.Current(); top != nil {
-				newTop, _ := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-				m.stack[len(m.stack)-1] = newTop
-			}
-		}
-		return m, cmd
+		return m.pushWithSize(NewGroupListModel(getAPI(m.stack[0]), msg.Bot))
 
 	case PushManageMenuMsg:
-		m.Push(NewManageMenuModel(msg.Bot, msg.Group))
-		cmd := m.Current().Init()
-		if m.width > 0 {
-			if top := m.Current(); top != nil {
-				newTop, _ := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-				m.stack[len(m.stack)-1] = newTop
-			}
-		}
-		return m, cmd
+		return m.pushWithSize(NewManageMenuModel(msg.Bot, msg.Group))
 
 	case PushTableMsg:
-		api := getAPI(m.stack[0])
-		m.Push(NewDataTableModel(api, msg.ResourceType, msg.Bot, msg.Group))
-		cmd := m.Current().Init()
-		if m.width > 0 {
-			if top := m.Current(); top != nil {
-				newTop, _ := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-				m.stack[len(m.stack)-1] = newTop
-			}
-		}
-		return m, cmd
+		return m.pushWithSize(NewDataTableModel(getAPI(m.stack[0]), msg.ResourceType, msg.Bot, msg.Group))
 
 	case PushMessageMenuMsg:
-		m.Push(NewMessageMenuModel(msg.Bot, msg.Group))
-		cmd := m.Current().Init()
-		if m.width > 0 {
-			if top := m.Current(); top != nil {
-				newTop, _ := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-				m.stack[len(m.stack)-1] = newTop
-			}
-		}
-		return m, cmd
+		return m.pushWithSize(NewMessageMenuModel(msg.Bot, msg.Group))
 
 	case PushEditMsg:
-		api := getAPI(m.stack[0])
-		m.Push(NewEditFormModel(api, msg.ResourceType, msg.Bot, msg.Group, msg.Data, msg.IsCreate))
-		cmd := m.Current().Init()
-		if m.width > 0 {
-			if top := m.Current(); top != nil {
-				newTop, _ := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-				m.stack[len(m.stack)-1] = newTop
-			}
-		}
-		return m, cmd
+		return m.pushWithSize(NewEditFormModel(getAPI(m.stack[0]), msg.ResourceType, msg.Bot, msg.Group, msg.Data, msg.IsCreate))
+
+	case PushStateMenuMsg:
+		return m.pushWithSize(NewStateMenuModel(msg.Bot, msg.Group))
+
+	case PushStateDetailMsg:
+		return m.pushWithSize(NewStateDetailModel(getAPI(m.stack[0]), msg.StateType, msg.Bot, msg.Group))
 	}
 
 	if top := m.Current(); top != nil {

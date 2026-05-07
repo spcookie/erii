@@ -89,6 +89,7 @@ func NewManageMenuModel(bot BotInfo, group GroupInfo) *ManageMenuModel {
 		menuItem{resourceType: ResourceMemes, action: "pushTable", title: "🎭  Memes", desc: "Manage meme metadata"},
 		menuItem{resourceType: ResourceVocabularies, action: "pushTable", title: "📖  Vocabulary", desc: "Manage learned vocabulary"},
 		menuItem{action: "pushMessageMenu", title: "💬  Messages", desc: "Manage message history and resources"},
+		menuItem{action: "pushStateMenu", title: "📊  State", desc: "View and edit emotion, flow, volition"},
 	}
 	l.SetItems(items)
 
@@ -128,6 +129,13 @@ func (m *ManageMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case "pushMessageMenu":
 					return m, func() tea.Msg {
 						return PushMessageMenuMsg{
+							Bot:   m.bot,
+							Group: m.group,
+						}
+					}
+				case "pushStateMenu":
+					return m, func() tea.Msg {
+						return PushStateMenuMsg{
 							Bot:   m.bot,
 							Group: m.group,
 						}

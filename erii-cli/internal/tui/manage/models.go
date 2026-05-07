@@ -246,3 +246,127 @@ func (r ResourceType) CanCreate() bool {
 		return false
 	}
 }
+
+// ── PAD ──
+
+type PAD struct {
+	P float64 `json:"p"`
+	A float64 `json:"a"`
+	D float64 `json:"d"`
+}
+
+// ── BehaviorProfile ──
+
+type BehaviorProfile struct {
+	Emotion        string `json:"emotion"`
+	Tone           string `json:"tone"`
+	Aggressiveness string `json:"aggressiveness"`
+	EmojiLevel     string `json:"emojiLevel"`
+}
+
+// ── Emotion ──
+
+type EmotionRecord struct {
+	ID                      int             `json:"id"`
+	BotMark                 string          `json:"botMark"`
+	GroupID                 string          `json:"groupId"`
+	EmotionalTendency       string          `json:"emotionalTendency"`
+	Stimulus                PAD             `json:"stimulus"`
+	Emotion                 PAD             `json:"emotion"`
+	Mood                    PAD             `json:"mood"`
+	Behavior                BehaviorProfile `json:"behavior"`
+	HistoryMessageProcessed int             `json:"historyMessageProcessed"`
+}
+
+type UpdateEmotionRequest struct {
+	EmotionalTendency string          `json:"emotionalTendency"`
+	Stimulus          PAD             `json:"stimulus"`
+	Emotion           PAD             `json:"emotion"`
+	Mood              PAD             `json:"mood"`
+	Behavior          BehaviorProfile `json:"behavior"`
+}
+
+// ── Flow ──
+
+type FlowRecord struct {
+	ID                     int     `json:"id"`
+	BotMark                string  `json:"botMark"`
+	GroupID                string  `json:"groupId"`
+	LastProcessedHistoryId int     `json:"lastProcessedHistoryId"`
+	LastProcessedAt        string  `json:"lastProcessedAt"`
+	CurrentTopic           string  `json:"currentTopic"`
+	FlowValue              float64 `json:"flowValue"`
+	LastUpdateTime         int64   `json:"lastUpdateTime"`
+}
+
+type UpdateFlowRequest struct {
+	FlowValue    float64 `json:"flowValue"`
+	CurrentTopic string  `json:"currentTopic"`
+}
+
+// ── Volition ──
+
+type VolitionRecord struct {
+	ID                     int     `json:"id"`
+	BotMark                string  `json:"botMark"`
+	GroupID                string  `json:"groupId"`
+	Fatigue                float64 `json:"fatigue"`
+	Stimulus               float64 `json:"stimulus"`
+	LastActiveTime         int64   `json:"lastActiveTime"`
+	LastProcessedHistoryId int     `json:"lastProcessedHistoryId"`
+	LastProcessedAt        string  `json:"lastProcessedAt"`
+}
+
+type UpdateVolitionRequest struct {
+	Fatigue  float64 `json:"fatigue"`
+	Stimulus float64 `json:"stimulus"`
+}
+
+// ── State type enum ──
+
+type StateType int
+
+const (
+	StateEmotion StateType = iota
+	StateFlow
+	StateVolition
+)
+
+func (s StateType) String() string {
+	switch s {
+	case StateEmotion:
+		return "emotion"
+	case StateFlow:
+		return "flow"
+	case StateVolition:
+		return "volition"
+	default:
+		return "unknown"
+	}
+}
+
+func (s StateType) Title() string {
+	switch s {
+	case StateEmotion:
+		return "Emotion"
+	case StateFlow:
+		return "Flow"
+	case StateVolition:
+		return "Volition"
+	default:
+		return "Unknown"
+	}
+}
+
+func (s StateType) Icon() string {
+	switch s {
+	case StateEmotion:
+		return "\xf0\x9f\x92\x96"
+	case StateFlow:
+		return "\xf0\x9f\x8c\x8a"
+	case StateVolition:
+		return "\xe2\x9a\xa1"
+	default:
+		return "?"
+	}
+}

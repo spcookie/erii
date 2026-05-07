@@ -336,3 +336,81 @@ func (a *API) GetResources(botID, groupID string) ([]ResourceRecord, error) {
 	}
 	return records, nil
 }
+
+// ── Emotion ──
+
+func (a *API) GetEmotion(botID, groupID string) (*EmotionRecord, error) {
+	data, err := a.doRequest("GET", fmt.Sprintf("/api/bot/%s/group/%s/emotion", botID, groupID), nil)
+	if err != nil {
+		return nil, err
+	}
+	var record EmotionRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (a *API) UpdateEmotion(botID, groupID string, req UpdateEmotionRequest) (*EmotionRecord, error) {
+	data, err := a.doRequest("PUT", fmt.Sprintf("/api/bot/%s/group/%s/emotion", botID, groupID), req)
+	if err != nil {
+		return nil, err
+	}
+	var record EmotionRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// ── Flow ──
+
+func (a *API) GetFlow(botID, groupID string) (*FlowRecord, error) {
+	data, err := a.doRequest("GET", fmt.Sprintf("/api/bot/%s/group/%s/flow", botID, groupID), nil)
+	if err != nil {
+		return nil, err
+	}
+	var record FlowRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (a *API) UpdateFlow(botID, groupID string, req UpdateFlowRequest) (*FlowRecord, error) {
+	data, err := a.doRequest("PUT", fmt.Sprintf("/api/bot/%s/group/%s/flow", botID, groupID), req)
+	if err != nil {
+		return nil, err
+	}
+	var record FlowRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// ── Volition ──
+
+func (a *API) GetVolition(botID, groupID string) (*VolitionRecord, error) {
+	data, err := a.doRequest("GET", fmt.Sprintf("/api/bot/%s/group/%s/volition", botID, groupID), nil)
+	if err != nil {
+		return nil, err
+	}
+	var record VolitionRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (a *API) UpdateVolition(botID, groupID string, req UpdateVolitionRequest) (*VolitionRecord, error) {
+	data, err := a.doRequest("PUT", fmt.Sprintf("/api/bot/%s/group/%s/volition", botID, groupID), req)
+	if err != nil {
+		return nil, err
+	}
+	var record VolitionRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}

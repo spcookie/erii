@@ -10,17 +10,17 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type messageMenuItem struct {
-	resourceType ResourceType
-	title        string
-	desc         string
+type stateMenuItem struct {
+	stateType StateType
+	title     string
+	desc      string
 }
 
-func (i messageMenuItem) Title() string       { return i.title }
-func (i messageMenuItem) Description() string { return i.desc }
-func (i messageMenuItem) FilterValue() string { return i.title }
+func (i stateMenuItem) Title() string       { return i.title }
+func (i stateMenuItem) Description() string { return i.desc }
+func (i stateMenuItem) FilterValue() string { return i.title }
 
-type MessageMenuModel struct {
+type StateMenuModel struct {
 	bot    BotInfo
 	group  GroupInfo
 	list   list.Model
@@ -29,10 +29,10 @@ type MessageMenuModel struct {
 	height int
 }
 
-func NewMessageMenuModel(bot BotInfo, group GroupInfo) *MessageMenuModel {
+func NewStateMenuModel(bot BotInfo, group GroupInfo) *StateMenuModel {
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 	l := list.New([]list.Item{}, delegate, 0, 0)
-	l.Title = style.Title("Select Messages Type")
+	l.Title = style.Title("Select State Type")
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
@@ -40,12 +40,13 @@ func NewMessageMenuModel(bot BotInfo, group GroupInfo) *MessageMenuModel {
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
 	items := []list.Item{
-		messageMenuItem{resourceType: ResourceHistory, title: "📜  History", desc: "View and edit message history"},
-		messageMenuItem{resourceType: ResourceResource, title: "📎  Resources", desc: "View message resources"},
+		stateMenuItem{stateType: StateEmotion, title: StateEmotion.Icon() + "  Emotion", desc: "View and edit emotional state"},
+		stateMenuItem{stateType: StateFlow, title: StateFlow.Icon() + "  Flow", desc: "View and edit flow state"},
+		stateMenuItem{stateType: StateVolition, title: StateVolition.Icon() + "  Volition", desc: "View and edit volition state"},
 	}
 	l.SetItems(items)
 
-	return &MessageMenuModel{
+	return &StateMenuModel{
 		bot:   bot,
 		group: group,
 		list:  l,
@@ -53,11 +54,11 @@ func NewMessageMenuModel(bot BotInfo, group GroupInfo) *MessageMenuModel {
 	}
 }
 
-func (m *MessageMenuModel) Init() tea.Cmd {
+func (m *StateMenuModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *MessageMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *StateMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -76,12 +77,12 @@ func (m *MessageMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			idx := m.list.Index()
 			items := m.list.Items()
 			if idx >= 0 && idx < len(items) {
-				item := items[idx].(messageMenuItem)
+				item := items[idx].(stateMenuItem)
 				return m, func() tea.Msg {
-					return PushTableMsg{
-						ResourceType: item.resourceType,
-						Bot:          m.bot,
-						Group:        m.group,
+					return PushStateDetailMsg{
+						StateType: item.stateType,
+						Bot:       m.bot,
+						Group:     m.group,
 					}
 				}
 			}
@@ -93,7 +94,7 @@ func (m *MessageMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *MessageMenuModel) View() string {
+func (m *StateMenuModel) View() string {
 	header := lipgloss.NewStyle().
 		Foreground(style.Secondary).
 		MarginBottom(1).
