@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"erii-cli/internal/path"
 )
 
 const (
@@ -22,12 +24,12 @@ type ServerConfig struct {
 }
 
 func ReadConfig() (*ServerConfig, error) {
-	dirPath := os.Getenv("ERII_IPC_PATH")
-	if dirPath == "" {
-		dirPath = "."
+	var filePath string
+	if dirPath := os.Getenv("ERII_IPC_PATH"); dirPath != "" {
+		filePath = filepath.Join(dirPath, DefaultSock)
+	} else {
+		filePath = filepath.Join(path.ConfMetaDir, "erii.sock")
 	}
-
-	filePath := filepath.Join(dirPath, DefaultSock)
 
 	// 创建父目录
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {

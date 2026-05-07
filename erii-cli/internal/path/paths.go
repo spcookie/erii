@@ -16,8 +16,20 @@ var (
 )
 
 func init() {
-	ConfDir = resolveConfDir()
-	ConfMetaDir = resolveConfMetaDir()
+	InitPaths("", "")
+}
+
+func InitPaths(confDir, confMetaDir string) {
+	if confDir != "" {
+		ConfDir = confDir
+	} else {
+		ConfDir = resolveConfDir()
+	}
+	if confMetaDir != "" {
+		ConfMetaDir = confMetaDir
+	} else {
+		ConfMetaDir = resolveConfMetaDir()
+	}
 	EnvFile = filepath.Join(ConfDir, ".env.local")
 	AppFile = filepath.Join(ConfDir, "application.conf")
 	SoulsDir = filepath.Join(ConfDir, "souls")
