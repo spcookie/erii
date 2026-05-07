@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"erii-cli/internal/path"
 )
@@ -41,29 +42,30 @@ func ReadConfig() (*ServerConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open IPC file: %w", err)
 	}
-	defer func(file *os.File) {
-		_ = file.Close()
-	}(file)
 
 	// Ensure file is large enough
 	info, err := file.Stat()
 	if err != nil {
+		file.Close()
 		return nil, err
 	}
 	if info.Size() < SIZE {
 		if err := file.Truncate(SIZE); err != nil {
+			file.Close()
 			return nil, fmt.Errorf("failed to truncate IPC file: %w", err)
 		}
 	}
 
-	// mmap the file
-	data, err := syscall.Mmap(int(file.Fd()), 0, SIZE, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+	// mmap the file - golang.org/x/sys/unix 在 Windows 上也可用
+	data, err := unix.Mmap(int(file.Fd()), 0, SIZE, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED)
 	if err != nil {
+		file.Close()
 		return nil, fmt.Errorf("failed to mmap: %w", err)
 	}
-	defer func(b []byte) {
-		_ = syscall.Munmap(b)
-	}(data)
+	defer func() {
+		_ = unix.Munmap(data)
+		file.Close()
+	}()
 
 	// Read config length (first 4 bytes) - use big endian to match Kotlin MappedByteBuffer
 	configLen := binary.BigEndian.Uint32(data[0:4])
