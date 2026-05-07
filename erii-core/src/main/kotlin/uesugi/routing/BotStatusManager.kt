@@ -338,10 +338,36 @@ fun Routing.configureBotStatusManager() {
         }
 
         delete("/api/bot/{bot-id}/group/{group-id}/history/{history-id}") {
-            val deleted = historyService.deleteHistory(
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val historyId =
                 call.intPathParam("history-id") ?: return@delete call.respond(mapOf("error" to "invalid history-id"))
-            )
-            call.respond(if (deleted) mapOf("success" to true) else mapOf("error" to "history not found"))
+
+            val history = historyService.getHistoryById(historyId)
+            if (history == null || history.botMark != botId || history.groupId != groupId) {
+                call.respond(mapOf("error" to "history not found"))
+                return@delete
+            }
+
+            val resourceId = history.resource?.id
+
+            val deleted = historyService.deleteHistory(historyId)
+            if (!deleted) {
+                call.respond(mapOf("error" to "history not found"))
+                return@delete
+            }
+
+            if (resourceId != null) {
+                val memes = memeRepository.findMemesByResourceId(resourceId)
+                memes.forEach { meme ->
+                    meme.id?.let { memeId ->
+                        memeService.deleteMemo(botId, groupId, memeId)
+                    }
+                }
+                resourceService.deleteResource(resourceId)
+            }
+
+            call.respond(mapOf("success" to true))
         }
 
         // ── Resources ──

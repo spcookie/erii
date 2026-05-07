@@ -326,6 +326,14 @@ class MemeRepository {
      * @param daysAgo 距今天数（默认 7 天）
      * @return 已删除的表情包记录列表（用于后续清理向量存储等关联资源）
      */
+    fun findMemesByResourceId(resourceId: Int): List<MemeRecord> {
+        return transaction {
+            MemeEntity.find {
+                MemeTable.resourceId eq resourceId
+            }.map { it.toRecord() }
+        }
+    }
+
     @OptIn(ExperimentalTime::class)
     fun deleteLowHeatMemes(daysAgo: Int = 7): List<MemeRecord> {
         return transaction {
