@@ -1,9 +1,12 @@
+@file:UseSerializers(LocalDateTimeAsDateSerializer::class)
+
 package uesugi.core.state.memory
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
@@ -14,6 +17,7 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
+import uesugi.common.toolkit.LocalDateTimeAsDateSerializer
 import uesugi.core.state.emotion.EmotionTable.DEFAULT_LENGTH
 
 /**
@@ -105,6 +109,98 @@ data class FactsRecord(
     val validFrom: LocalDateTime,
     val validTo: LocalDateTime?,
     val vectorId: String? = null
+)
+
+// ==================== 事实提取与冲突解决数据模型 ====================
+
+/**
+ * LLM 提取的原始事实
+ */
+@Serializable
+@LLMDescription("从消息中提取的事实")
+data class ExtractedFact(
+    @property:LLMDescription("关键词，2-6个字")
+    val keyword: String,
+    @property:LLMDescription("事实的自然语言描述，20-50字")
+    val description: String,
+    @property:LLMDescription("相关值/属性，如地点名称、职业名称等")
+    val values: String = "",
+    @property:LLMDescription("涉及的用户ID，逗号分隔")
+    val subjects: String = "",
+    @property:LLMDescription("范围类型: user 或 group")
+    val scope: Scopes = Scopes.USER
+)
+
+/**
+ * 事实提取结果
+ */
+@Serializable
+@LLMDescription("事实提取结果")
+data class FactExtractionResult(
+    @property:LLMDescription("提取出的事实列表")
+    val facts: List<ExtractedFact>
+)
+
+/**
+ * 记忆操作类型
+ */
+@Serializable(with = MemoryActionSerializer::class)
+enum class MemoryAction {
+    @LLMDescription("添加新事实")
+    ADD,
+
+    @LLMDescription("更新已有事实")
+    UPDATE,
+
+    @LLMDescription("废弃过时事实")
+    DELETE,
+
+    @LLMDescription("无需操作")
+    NONE
+}
+
+object MemoryActionSerializer : KSerializer<MemoryAction> {
+    override val descriptor = PrimitiveSerialDescriptor("MemoryAction", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): MemoryAction {
+        return when (val value = decoder.decodeString().lowercase()) {
+            "add" -> MemoryAction.ADD
+            "update" -> MemoryAction.UPDATE
+            "delete" -> MemoryAction.DELETE
+            "none" -> MemoryAction.NONE
+            else -> throw IllegalArgumentException("Unknown action: $value")
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: MemoryAction) {
+        encoder.encodeString(value.name.lowercase())
+    }
+}
+
+/**
+ * 单条冲突解决决策
+ */
+@Serializable
+@LLMDescription("记忆冲突解决决策")
+data class MemoryDecision(
+    @property:LLMDescription("操作类型: ADD/UPDATE/DELETE/NONE")
+    val action: MemoryAction,
+    @property:LLMDescription("新提取的事实（ADD/UPDATE 时必填）")
+    val newFact: ExtractedFact? = null,
+    @property:LLMDescription("已有事实的ID（UPDATE/DELETE 时必填）")
+    val existingFactId: Int? = null,
+    @property:LLMDescription("决策原因")
+    val reason: String = ""
+)
+
+/**
+ * 冲突解决结果
+ */
+@Serializable
+@LLMDescription("冲突解决结果")
+data class ConflictResolutionResult(
+    @property:LLMDescription("所有决策列表")
+    val decisions: List<MemoryDecision>
 )
 
 /**

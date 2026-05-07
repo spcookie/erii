@@ -54,4 +54,39 @@ class HistoryService {
             }.toRecord()
         }
     }
+
+    fun getAllHistoryByGroup(botMark: String, groupId: String, limit: Int = 500): List<HistoryRecord> {
+        return transaction {
+            HistoryEntity.find {
+                (HistoryTable.botMark eq botMark) and (HistoryTable.groupId eq groupId)
+            }
+                .orderBy(HistoryTable.createdAt to SortOrder.DESC)
+                .limit(limit)
+                .toList()
+                .map { it.toRecord() }
+        }
+    }
+
+    fun getHistoryById(id: Int): HistoryRecord? {
+        return transaction {
+            HistoryEntity.findById(id)?.toRecord()
+        }
+    }
+
+    fun updateHistory(id: Int, content: String?, nick: String?): HistoryRecord? {
+        return transaction {
+            val entity = HistoryEntity.findById(id) ?: return@transaction null
+            content?.let { entity.content = it }
+            nick?.let { entity.nick = it }
+            entity.toRecord()
+        }
+    }
+
+    fun deleteHistory(id: Int): Boolean {
+        return transaction {
+            val entity = HistoryEntity.findById(id) ?: return@transaction false
+            entity.delete()
+            true
+        }
+    }
 }

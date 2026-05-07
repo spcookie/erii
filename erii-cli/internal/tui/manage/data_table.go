@@ -12,10 +12,35 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
+
+type previewHelpKeyMap struct{}
+
+func (previewHelpKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		key.NewBinding(key.WithKeys("esc", "enter"), key.WithHelp("esc/enter", "close")),
+		key.NewBinding(key.WithKeys("up", "down", "k", "j"), key.WithHelp("↑/↓/k/j", "scroll")),
+		key.NewBinding(key.WithKeys("pgup", "pgdown", "b", "f"), key.WithHelp("pgup/pgdown/b/f", "page")),
+		key.NewBinding(key.WithKeys("u", "d"), key.WithHelp("u/d", "half page")),
+	}
+}
+
+func (previewHelpKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{
+			key.NewBinding(key.WithKeys("esc", "enter"), key.WithHelp("esc/enter", "close")),
+			key.NewBinding(key.WithKeys("up", "down", "k", "j"), key.WithHelp("↑/↓/k/j", "scroll")),
+			key.NewBinding(key.WithKeys("pgup", "pgdown", "b", "f"), key.WithHelp("pgup/pgdown/b/f", "page")),
+			key.NewBinding(key.WithKeys("u", "d"), key.WithHelp("u/d", "half page")),
+		},
+	}
+}
+
+var previewHelpKeys = previewHelpKeyMap{}
 
 // Messages
 
@@ -56,6 +81,10 @@ type DataTableModel struct {
 	confirmValue bool
 	confirmBatch bool
 	deleteKey    string
+
+	previewing  bool
+	previewItem any
+	previewVP   viewport.Model
 
 	table     table.Model
 	formatter tableFormatter
@@ -182,6 +211,36 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, cmd
+	}
+
+	if m.previewing {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.Type == tea.KeyCtrlC {
+				return m, tea.Quit
+			}
+			if key.Matches(msg, m.keys.Back) || msg.Type == tea.KeyEnter {
+				m.previewing = false
+				m.previewItem = nil
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.previewVP, cmd = m.previewVP.Update(msg)
+			return m, cmd
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			m.previewVP.Width = msg.Width - 10
+			if m.previewVP.Width < 20 {
+				m.previewVP.Width = 20
+			}
+			m.previewVP.Height = msg.Height - 6
+			if m.previewVP.Height < 5 {
+				m.previewVP.Height = 5
+			}
+			return m, nil
+		}
+		return m, nil
 	}
 
 	switch msg := msg.(type) {
@@ -316,8 +375,11 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			idx := m.cursorItemIndex()
-			if idx >= 0 && idx < len(m.filteredItems) {
-				item := m.filteredItems[idx]
+			if idx < 0 || idx >= len(m.filteredItems) {
+				return m, nil
+			}
+			item := m.filteredItems[idx]
+			if m.formatter.canEdit {
 				return m, func() tea.Msg {
 					return PushEditMsg{
 						ResourceType: m.resourceType,
@@ -328,6 +390,19 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+			m.enterPreview(item)
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.Preview) {
+			if len(m.filteredItems) == 0 {
+				return m, nil
+			}
+			idx := m.cursorItemIndex()
+			if idx < 0 || idx >= len(m.filteredItems) {
+				return m, nil
+			}
+			m.enterPreview(m.filteredItems[idx])
+			return m, nil
 		}
 		if key.Matches(msg, m.keys.Select) {
 			if len(m.filteredItems) == 0 {
@@ -346,7 +421,7 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-		if key.Matches(msg, m.keys.Delete) {
+		if key.Matches(msg, m.keys.Delete) && m.formatter.canDelete {
 			if len(m.filteredItems) == 0 {
 				return m, nil
 			}
@@ -356,7 +431,7 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.confirmForm = newConfirmForm("Confirm Delete", "Delete this item?", &m.confirmValue, m.width)
 			return m, m.confirmForm.Init()
 		}
-		if key.Matches(msg, m.keys.BatchDel) {
+		if key.Matches(msg, m.keys.BatchDel) && m.formatter.canDelete {
 			if len(m.selected) == 0 {
 				return m, nil
 			}
@@ -599,6 +674,9 @@ func (m *DataTableModel) doDelete(key string) tea.Cmd {
 		case ResourceSummaries:
 			id, _ := strconv.Atoi(key)
 			err = api.DeleteSummary(botID, groupID, id)
+		case ResourceHistory:
+			id, _ := strconv.Atoi(key)
+			err = api.DeleteHistory(botID, groupID, id)
 		}
 		return deleteDoneMsg{Error: err}
 	}
@@ -633,6 +711,9 @@ func (m *DataTableModel) doBatchDelete() tea.Cmd {
 			case ResourceSummaries:
 				id, _ := strconv.Atoi(key)
 				err = api.DeleteSummary(botID, groupID, id)
+			case ResourceHistory:
+				id, _ := strconv.Atoi(key)
+				err = api.DeleteHistory(botID, groupID, id)
 			}
 			if err != nil {
 				lastErr = err
@@ -661,6 +742,42 @@ func (m *DataTableModel) View() string {
 			padTop = 0
 		}
 		return strings.Repeat("\n", padTop) + view
+	}
+
+	if m.previewing {
+		borderStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(style.Accent).
+			Padding(0, 1)
+		panel := borderStyle.Render(m.previewVP.View())
+
+		helpView := m.help.View(previewHelpKeys)
+		helpLines := strings.Count(helpView, "\n") + 1
+
+		panelLines := strings.Split(panel, "\n")
+		totalHeight := len(panelLines) + helpLines + 1
+		padTop := (m.height - totalHeight) / 2
+		if padTop < 0 {
+			padTop = 0
+		}
+		padLeft := (m.width - m.previewVP.Width - 6) / 2
+		if padLeft < 0 {
+			padLeft = 0
+		}
+
+		leftPad := strings.Repeat(" ", padLeft)
+		var result []string
+		for i := 0; i < padTop; i++ {
+			result = append(result, "")
+		}
+		for _, line := range panelLines {
+			result = append(result, leftPad+line)
+		}
+		result = append(result, "")
+		for _, line := range strings.Split(helpView, "\n") {
+			result = append(result, leftPad+line)
+		}
+		return strings.Join(result, "\n")
 	}
 
 	var parts []string
@@ -726,6 +843,161 @@ func (m *DataTableModel) renderStatusBar() string {
 	return StatusBarStyle.Width(m.width).Render(text)
 }
 
+func (m *DataTableModel) enterPreview(item any) {
+	m.previewItem = item
+	m.previewing = true
+	m.previewVP.SetContent(m.buildPreviewContent())
+	m.previewVP.Width = m.width - 10
+	if m.previewVP.Width < 20 {
+		m.previewVP.Width = 20
+	}
+	m.previewVP.Height = m.height - 6
+	if m.previewVP.Height < 5 {
+		m.previewVP.Height = 5
+	}
+	m.previewVP.GotoTop()
+}
+
+func (m *DataTableModel) buildPreviewContent() string {
+	panelWidth := m.width - 8
+	if panelWidth > 80 {
+		panelWidth = 80
+	}
+	if panelWidth < 30 {
+		panelWidth = 30
+	}
+
+	innerWidth := panelWidth - 4
+
+	wrap := func(label, value string) string {
+		lines := wrapText(value, innerWidth-len(label)-2)
+		var result []string
+		for i, line := range lines {
+			if i == 0 {
+				result = append(result, fmt.Sprintf("%s: %s", label, line))
+			} else {
+				result = append(result, strings.Repeat(" ", len(label)+2)+line)
+			}
+		}
+		return strings.Join(result, "\n")
+	}
+
+	ptrStr := func(s *string) string {
+		if s == nil {
+			return ""
+		}
+		return *s
+	}
+
+	var title string
+	var contentLines []string
+
+	switch r := m.previewItem.(type) {
+	case FactRecord:
+		title = r.Keyword
+		contentLines = []string{
+			wrap("ID", fmt.Sprintf("%d", r.ID)),
+			wrap("Keyword", r.Keyword),
+			wrap("Description", r.Description),
+			wrap("Values", r.Values),
+			wrap("Subjects", r.Subjects),
+			wrap("Scope", r.ScopeType),
+			wrap("ValidFrom", r.ValidFrom),
+			wrap("ValidTo", ptrStr(r.ValidTo)),
+			wrap("Created", r.CreatedAt),
+		}
+	case UserProfileRecord:
+		title = r.UserID
+		contentLines = []string{
+			wrap("ID", fmt.Sprintf("%d", r.ID)),
+			wrap("UserID", r.UserID),
+			wrap("Profile", r.Profile),
+			wrap("Preferences", r.Preferences),
+			wrap("Created", r.CreatedAt),
+		}
+	case MemeRecord:
+		title = fmt.Sprintf("Meme #%d", r.ID)
+		contentLines = []string{
+			wrap("ID", fmt.Sprintf("%d", r.ID)),
+			wrap("Md5", r.Md5),
+			wrap("SeenCount", fmt.Sprintf("%d", r.SeenCount)),
+			wrap("Description", ptrStr(r.Description)),
+			wrap("Purpose", ptrStr(r.Purpose)),
+			wrap("Tags", ptrStr(r.Tags)),
+			wrap("UsageCount", fmt.Sprintf("%d", r.UsageCount)),
+			wrap("Created", r.CreatedAt),
+			wrap("Updated", r.UpdatedAt),
+		}
+	case VocabRecord:
+		title = r.Word
+		contentLines = []string{
+			wrap("ID", fmt.Sprintf("%d", r.ID)),
+			wrap("Word", r.Word),
+			wrap("Type", r.Type),
+			wrap("Meaning", r.Meaning),
+			wrap("Example", r.Example),
+			wrap("Weight", fmt.Sprintf("%d", r.Weight)),
+			wrap("LastSeen", r.LastSeen),
+			wrap("Created", r.CreatedAt),
+		}
+	case SummaryRecord:
+		title = r.TimeRange
+		contentLines = []string{
+			wrap("ID", fmt.Sprintf("%d", r.ID)),
+			wrap("TimeRange", r.TimeRange),
+			wrap("Content", r.Content),
+			wrap("KeyPoints", r.KeyPoints),
+			wrap("EmotionalTone", ptrStr(r.EmotionalTone)),
+			wrap("Participants", fmt.Sprintf("%d", r.ParticipantCount)),
+			wrap("Messages", fmt.Sprintf("%d", r.MessageCount)),
+			wrap("Created", r.CreatedAt),
+		}
+	case HistoryRecord:
+		title = fmt.Sprintf("History #%d", r.ID)
+		content := ""
+		if r.Content != nil {
+			content = *r.Content
+		}
+		resource := ""
+		if r.Resource != nil {
+			resource = fmt.Sprintf("%s (%s)", r.Resource.FileName, r.Resource.URL)
+		}
+		contentLines = []string{
+			wrap("ID", fmt.Sprintf("%d", r.ID)),
+			wrap("UserID", r.UserID),
+			wrap("Nick", r.Nick),
+			wrap("Type", r.MessageType),
+			wrap("Content", content),
+			wrap("Resource", resource),
+			wrap("Created", r.CreatedAt),
+		}
+	case ResourceRecord:
+		title = r.FileName
+		contentLines = []string{
+			wrap("ID", fmt.Sprintf("%d", r.ID)),
+			wrap("FileName", r.FileName),
+			wrap("URL", r.URL),
+			wrap("Size", fmt.Sprintf("%d", r.Size)),
+			wrap("MD5", r.Md5),
+			wrap("Created", r.CreatedAt),
+		}
+	default:
+		return ""
+	}
+
+	content := strings.Join(contentLines, "\n")
+
+	return style.Title(title) + "\n\n" + content + "\n"
+}
+
+func wrapText(text string, maxWidth int) []string {
+	if maxWidth <= 0 {
+		return []string{text}
+	}
+	wrapped := lipgloss.NewStyle().Width(maxWidth).Render(text)
+	return strings.Split(wrapped, "\n")
+}
+
 // ── Formatter ──
 
 type sortColumn struct {
@@ -742,6 +1014,8 @@ type tableFormatter struct {
 	getKey      func(any) string
 	searchMatch func(any, string) bool
 	canCreate   bool
+	canEdit     bool
+	canDelete   bool
 	sortColumns []sortColumn
 }
 
@@ -833,6 +1107,8 @@ func getFormatter(rt ResourceType) tableFormatter {
 					strings.Contains(strings.ToLower(r.ScopeType), kw)
 			},
 			canCreate: true,
+			canEdit:   true,
+			canDelete: true,
 			sortColumns: []sortColumn{
 				{name: "ID", less: func(a, b any) bool { return a.(FactRecord).ID < b.(FactRecord).ID }},
 				{name: "Keyword", less: func(a, b any) bool { return strings.Compare(a.(FactRecord).Keyword, b.(FactRecord).Keyword) < 0 }},
@@ -876,6 +1152,8 @@ func getFormatter(rt ResourceType) tableFormatter {
 					strings.Contains(strings.ToLower(r.Preferences), kw)
 			},
 			canCreate: false,
+			canEdit:   true,
+			canDelete: true,
 			sortColumns: []sortColumn{
 				{name: "ID", less: func(a, b any) bool { return a.(UserProfileRecord).ID < b.(UserProfileRecord).ID }},
 				{name: "UserID", less: func(a, b any) bool {
@@ -943,6 +1221,8 @@ func getFormatter(rt ResourceType) tableFormatter {
 				return strings.Contains(strings.ToLower(fmt.Sprintf("%d", r.ID)), kw)
 			},
 			canCreate: false,
+			canEdit:   true,
+			canDelete: true,
 			sortColumns: []sortColumn{
 				{name: "ID", less: func(a, b any) bool { return a.(MemeRecord).ID < b.(MemeRecord).ID }},
 				{name: "Description", less: func(a, b any) bool {
@@ -999,6 +1279,8 @@ func getFormatter(rt ResourceType) tableFormatter {
 					strings.Contains(strings.ToLower(r.Example), kw)
 			},
 			canCreate: true,
+			canEdit:   true,
+			canDelete: true,
 			sortColumns: []sortColumn{
 				{name: "ID", less: func(a, b any) bool { return a.(VocabRecord).ID < b.(VocabRecord).ID }},
 				{name: "Word", less: func(a, b any) bool { return strings.Compare(a.(VocabRecord).Word, b.(VocabRecord).Word) < 0 }},
@@ -1062,6 +1344,8 @@ func getFormatter(rt ResourceType) tableFormatter {
 				return false
 			},
 			canCreate: false,
+			canEdit:   true,
+			canDelete: true,
 			sortColumns: []sortColumn{
 				{name: "ID", less: func(a, b any) bool { return a.(SummaryRecord).ID < b.(SummaryRecord).ID }},
 				{name: "TimeRange", less: func(a, b any) bool {
@@ -1069,6 +1353,130 @@ func getFormatter(rt ResourceType) tableFormatter {
 				}},
 				{name: "Participants", less: func(a, b any) bool { return a.(SummaryRecord).ParticipantCount < b.(SummaryRecord).ParticipantCount }},
 				{name: "Messages", less: func(a, b any) bool { return a.(SummaryRecord).MessageCount < b.(SummaryRecord).MessageCount }},
+			},
+		}
+
+	case ResourceHistory:
+		return tableFormatter{
+			title:     "History",
+			minWidths: []int{8, 12, 10, 8, 15, 12, 16},
+			columns: func(widths []int) []table.Column {
+				return []table.Column{
+					{Title: "", Width: widths[0]},
+					{Title: "ID", Width: widths[1]},
+					{Title: "UserID", Width: widths[2]},
+					{Title: "Nick", Width: widths[3]},
+					{Title: "Type", Width: widths[4]},
+					{Title: "Content", Width: widths[5]},
+					{Title: "Resource", Width: widths[6]},
+					{Title: "Created", Width: widths[7]},
+				}
+			},
+			getRow: func(a any, selected bool) table.Row {
+				r := a.(HistoryRecord)
+				cb := "[ ]"
+				if selected {
+					cb = "[x]"
+				}
+				content := ""
+				if r.Content != nil {
+					content = *r.Content
+				}
+				resource := ""
+				if r.Resource != nil {
+					resource = r.Resource.FileName
+				}
+				return table.Row{
+					cb,
+					fmt.Sprintf("%d", r.ID),
+					r.UserID,
+					r.Nick,
+					r.MessageType,
+					TruncateEnd(content, 30),
+					resource,
+					r.CreatedAt,
+				}
+			},
+			getID:  func(a any) int { return a.(HistoryRecord).ID },
+			getKey: func(a any) string { return fmt.Sprintf("%d", a.(HistoryRecord).ID) },
+			searchMatch: func(a any, kw string) bool {
+				r := a.(HistoryRecord)
+				if strings.Contains(strings.ToLower(r.UserID), kw) ||
+					strings.Contains(strings.ToLower(r.Nick), kw) ||
+					strings.Contains(strings.ToLower(r.MessageType), kw) {
+					return true
+				}
+				if r.Content != nil && strings.Contains(strings.ToLower(*r.Content), kw) {
+					return true
+				}
+				if r.Resource != nil && strings.Contains(strings.ToLower(r.Resource.FileName), kw) {
+					return true
+				}
+				return false
+			},
+			canCreate: false,
+			canEdit:   true,
+			canDelete: true,
+			sortColumns: []sortColumn{
+				{name: "ID", less: func(a, b any) bool { return a.(HistoryRecord).ID < b.(HistoryRecord).ID }},
+				{name: "Nick", less: func(a, b any) bool { return strings.Compare(a.(HistoryRecord).Nick, b.(HistoryRecord).Nick) < 0 }},
+				{name: "Type", less: func(a, b any) bool {
+					return strings.Compare(a.(HistoryRecord).MessageType, b.(HistoryRecord).MessageType) < 0
+				}},
+				{name: "Created", less: func(a, b any) bool {
+					return strings.Compare(a.(HistoryRecord).CreatedAt, b.(HistoryRecord).CreatedAt) < 0
+				}},
+			},
+		}
+
+	case ResourceResource:
+		return tableFormatter{
+			title:     "Resources",
+			minWidths: []int{5, 8, 20, 10, 12, 20},
+			columns: func(widths []int) []table.Column {
+				return []table.Column{
+					{Title: "", Width: widths[0]},
+					{Title: "ID", Width: widths[1]},
+					{Title: "FileName", Width: widths[2]},
+					{Title: "Size", Width: widths[3]},
+					{Title: "MD5", Width: widths[4]},
+					{Title: "URL", Width: widths[5]},
+					{Title: "Created", Width: widths[6]},
+				}
+			},
+			getRow: func(a any, selected bool) table.Row {
+				r := a.(ResourceRecord)
+				cb := "[ ]"
+				if selected {
+					cb = "[x]"
+				}
+				return table.Row{
+					cb,
+					fmt.Sprintf("%d", r.ID),
+					r.FileName,
+					fmt.Sprintf("%d", r.Size),
+					TruncateEnd(r.Md5, 12),
+					TruncateMiddle(r.URL, 30),
+					r.CreatedAt,
+				}
+			},
+			getID:  func(a any) int { return a.(ResourceRecord).ID },
+			getKey: func(a any) string { return fmt.Sprintf("%d", a.(ResourceRecord).ID) },
+			searchMatch: func(a any, kw string) bool {
+				r := a.(ResourceRecord)
+				return strings.Contains(strings.ToLower(r.FileName), kw) ||
+					strings.Contains(strings.ToLower(r.Md5), kw) ||
+					strings.Contains(strings.ToLower(r.URL), kw)
+			},
+			canCreate: false,
+			canEdit:   false,
+			canDelete: false,
+			sortColumns: []sortColumn{
+				{name: "ID", less: func(a, b any) bool { return a.(ResourceRecord).ID < b.(ResourceRecord).ID }},
+				{name: "FileName", less: func(a, b any) bool {
+					return strings.Compare(a.(ResourceRecord).FileName, b.(ResourceRecord).FileName) < 0
+				}},
+				{name: "Size", less: func(a, b any) bool { return a.(ResourceRecord).Size < b.(ResourceRecord).Size }},
 			},
 		}
 	}
@@ -1121,6 +1529,26 @@ func loadResourceData(rt ResourceType, api *API, botID, groupID string) ([]any, 
 		return items, nil
 	case ResourceSummaries:
 		records, err := api.GetSummaries(botID, groupID)
+		if err != nil {
+			return nil, err
+		}
+		items := make([]any, len(records))
+		for i, r := range records {
+			items[i] = r
+		}
+		return items, nil
+	case ResourceHistory:
+		records, err := api.GetHistory(botID, groupID)
+		if err != nil {
+			return nil, err
+		}
+		items := make([]any, len(records))
+		for i, r := range records {
+			items[i] = r
+		}
+		return items, nil
+	case ResourceResource:
+		records, err := api.GetResources(botID, groupID)
 		if err != nil {
 			return nil, err
 		}

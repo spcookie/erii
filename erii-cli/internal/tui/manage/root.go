@@ -18,6 +18,10 @@ type (
 		Bot          BotInfo
 		Group        GroupInfo
 	}
+	PushMessageMenuMsg struct {
+		Bot   BotInfo
+		Group GroupInfo
+	}
 	PushEditMsg struct {
 		ResourceType ResourceType
 		Bot          BotInfo
@@ -141,6 +145,17 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case PushTableMsg:
 		api := getAPI(m.stack[0])
 		m.Push(NewDataTableModel(api, msg.ResourceType, msg.Bot, msg.Group))
+		cmd := m.Current().Init()
+		if m.width > 0 {
+			if top := m.Current(); top != nil {
+				newTop, _ := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+				m.stack[len(m.stack)-1] = newTop
+			}
+		}
+		return m, cmd
+
+	case PushMessageMenuMsg:
+		m.Push(NewMessageMenuModel(msg.Bot, msg.Group))
 		cmd := m.Current().Init()
 		if m.width > 0 {
 			if top := m.Current(); top != nil {

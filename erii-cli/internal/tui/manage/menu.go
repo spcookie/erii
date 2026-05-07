@@ -12,6 +12,7 @@ import (
 
 type menuItem struct {
 	resourceType ResourceType
+	action       string
 	title        string
 	desc         string
 }
@@ -82,11 +83,12 @@ func NewManageMenuModel(bot BotInfo, group GroupInfo) *ManageMenuModel {
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
 	items := []list.Item{
-		menuItem{resourceType: ResourceFacts, title: "🗂️  Memory", desc: "Manage group memory facts"},
-		menuItem{resourceType: ResourceProfiles, title: "🪪  User Profiles", desc: "Manage user profiles"},
-		menuItem{resourceType: ResourceSummaries, title: "📑  Summaries", desc: "Manage conversation summaries"},
-		menuItem{resourceType: ResourceMemes, title: "🎭  Memes", desc: "Manage meme metadata"},
-		menuItem{resourceType: ResourceVocabularies, title: "📖  Vocabulary", desc: "Manage learned vocabulary"},
+		menuItem{resourceType: ResourceFacts, action: "pushTable", title: "🗂️  Memory", desc: "Manage group memory facts"},
+		menuItem{resourceType: ResourceProfiles, action: "pushTable", title: "🪪  User Profiles", desc: "Manage user profiles"},
+		menuItem{resourceType: ResourceSummaries, action: "pushTable", title: "📑  Summaries", desc: "Manage conversation summaries"},
+		menuItem{resourceType: ResourceMemes, action: "pushTable", title: "🎭  Memes", desc: "Manage meme metadata"},
+		menuItem{resourceType: ResourceVocabularies, action: "pushTable", title: "📖  Vocabulary", desc: "Manage learned vocabulary"},
+		menuItem{action: "pushMessageMenu", title: "💬  Messages", desc: "Manage message history and resources"},
 	}
 	l.SetItems(items)
 
@@ -122,11 +124,21 @@ func (m *ManageMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items := m.list.Items()
 			if idx >= 0 && idx < len(items) {
 				item := items[idx].(menuItem)
-				return m, func() tea.Msg {
-					return PushTableMsg{
-						ResourceType: item.resourceType,
-						Bot:          m.bot,
-						Group:        m.group,
+				switch item.action {
+				case "pushMessageMenu":
+					return m, func() tea.Msg {
+						return PushMessageMenuMsg{
+							Bot:   m.bot,
+							Group: m.group,
+						}
+					}
+				default:
+					return m, func() tea.Msg {
+						return PushTableMsg{
+							ResourceType: item.resourceType,
+							Bot:          m.bot,
+							Group:        m.group,
+						}
 					}
 				}
 			}

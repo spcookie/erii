@@ -73,7 +73,11 @@ class SummaryService(
         try {
             log.debug("开始生成对话摘要, scopeId=$groupId")
 
-            val summary = memoryAgent.generateSummary(messages, groupId)
+            val previousSummaryContext = withContext(Dispatchers.IO) {
+                summaryRepository.getLatestSummary(botMark, groupId)
+            }?.let(::buildPreviousSummaryContext)
+
+            val summary = memoryAgent.generateSummary(messages, groupId, previousSummaryContext)
 
             // 保存到数据库
             summaryRepository.saveSummary(
@@ -92,6 +96,21 @@ class SummaryService(
             log.error("Failed to generate conversation summary, groupId=$groupId", e)
         }
     }
+
+    /**
+     * 将上一条摘要拼装为可读的上下文片段，用于喂给摘要生成的 prompt
+     */
+    private fun buildPreviousSummaryContext(previous: SummaryRecord): String = buildString {
+        appendLine("时间范围: ${previous.timeRange}")
+        previous.emotionalTone?.takeIf { it.isNotBlank() }?.let {
+            appendLine("情感基调: $it")
+        }
+        appendLine("摘要内容: ${previous.content}")
+        if (previous.keyPoints.isNotBlank()) {
+            appendLine("关键要点:")
+            append(previous.keyPoints)
+        }
+    }.trimEnd()
 
     fun getAllSummariesByGroup(botMark: String, groupId: String): List<SummaryRecord> {
         return summaryRepository.getSummariesByGroup(botMark, groupId)

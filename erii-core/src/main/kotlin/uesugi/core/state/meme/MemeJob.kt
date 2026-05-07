@@ -48,9 +48,10 @@ class MemeJob(
     /**
      * 开启定时触发
      *
-     * 启动两个定时任务：
+     * 启动三个定时任务：
      * - 收集任务：每 30 分钟执行一次
      * - 提取任务：每 1 小时执行一次
+     * - 清理任务：每天凌晨 3 点执行一次
      */
     fun openTimingTriggerSignal() {
         // 收集任务：每 30 分钟一次
@@ -67,7 +68,14 @@ class MemeJob(
             ::doExtracting
         )
 
-        log.info("Emoji task started - Collect: 30 minutes, Extract: 1 hour")
+        // 清理任务：每天凌晨 3 点一次
+        BackgroundJob.scheduleRecurrently(
+            "meme-cleanup-job",
+            "0 3 * * *",
+            ::doCleanup
+        )
+
+        log.info("Emoji task started - Collect: 30 minutes, Extract: 1 hour, Cleanup: daily at 03:00")
     }
 
     /**
@@ -332,6 +340,30 @@ class MemeJob(
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 表情包提取失败", e)
+        }
+    }
+
+    /**
+     * 执行表情包清理任务
+     *
+     * 清理 7 天前未再出现且 seenCount 未达到分析阈值的低热度表情包，
+     * 同时清理对应的数据库记录与可能的向量存储数据。
+     */
+    fun doCleanup() {
+        runBlocking {
+            if (mutex.tryLock()) {
+                try {
+                    log.debug("表情包清理任务开始执行")
+                    val count = memeService.cleanupLowHeatMemes(daysAgo = 7)
+                    log.info("Completed the emoticon cleanup task: cleaned up {} low-popularity emoticons", count)
+                } catch (e: Exception) {
+                    log.error("Emoticon cleanup task failed", e)
+                } finally {
+                    mutex.unlock()
+                }
+            } else {
+                log.debug("表情包任务正在执行中, 跳过本次清理调度")
+            }
         }
     }
 }

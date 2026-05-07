@@ -29,15 +29,17 @@ type EditFormModel struct {
 	help         help.Model
 
 	// Keep references to request objects so Text fields update them directly.
-	factReq     FactRequest
-	profileReq  UpdateUserProfileRequest
-	memeDesc    string
-	memePurpose string
-	memeTags    string
-	vocabReq    VocabRequest
-	vocabWeight string
-	summaryReq  UpdateSummaryRequest
-	summaryTone string
+	factReq        FactRequest
+	profileReq     UpdateUserProfileRequest
+	memeDesc       string
+	memePurpose    string
+	memeTags       string
+	vocabReq       VocabRequest
+	vocabWeight    string
+	summaryReq     UpdateSummaryRequest
+	summaryTone    string
+	historyContent string
+	historyNick    string
 }
 
 func NewEditFormModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo, data any, isCreate bool) *EditFormModel {
@@ -68,6 +70,10 @@ func NewEditFormModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo, d
 		m.form = m.buildVocabForm(data, isCreate, w)
 	case ResourceSummaries:
 		m.form = m.buildSummaryForm(data, isCreate, w)
+	case ResourceHistory:
+		m.form = m.buildHistoryForm(data, isCreate, w)
+	default:
+		panic("unhandled default case")
 	}
 
 	if m.form != nil {
@@ -211,6 +217,24 @@ func (m *EditFormModel) buildSummaryForm(data any, isCreate bool, width int) *hu
 	).WithWidth(width).WithShowHelp(false)
 }
 
+func (m *EditFormModel) buildHistoryForm(data any, isCreate bool, width int) *huh.Form {
+	if !isCreate && data != nil {
+		r := data.(HistoryRecord)
+		if r.Content != nil {
+			m.historyContent = *r.Content
+		}
+		m.historyNick = r.Nick
+	}
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewText().Key("content").Title("Content (multi-line)").
+				Value(&m.historyContent).
+				WithHeight(4),
+			huh.NewInput().Key("nick").Title("Nick").Value(&m.historyNick),
+		),
+	).WithWidth(width).WithShowHelp(false)
+}
+
 var timeRangeRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2} ~ \d{4}-\d{2}-\d{2} \d{2}:\d{2}$`)
 
 func validateTimeRange(s string) error {
@@ -319,7 +343,7 @@ func (m *EditFormModel) submit() tea.Cmd {
 	groupID := m.groupID
 	isCreate := m.isCreate
 
-	var factID, memeID, vocabID, summaryID int
+	var factID, memeID, vocabID, summaryID, historyID int
 	var userID string
 
 	if !isCreate && m.data != nil {
@@ -334,6 +358,8 @@ func (m *EditFormModel) submit() tea.Cmd {
 			vocabID = d.ID
 		case SummaryRecord:
 			summaryID = d.ID
+		case HistoryRecord:
+			historyID = d.ID
 		}
 	}
 
@@ -386,6 +412,18 @@ func (m *EditFormModel) submit() tea.Cmd {
 				EmotionalTone: tonePtr,
 			}
 			err = api.UpdateSummary(botID, groupID, summaryID, req)
+		case ResourceHistory:
+			var contentPtr *string
+			if m.historyContent != "" {
+				contentPtr = &m.historyContent
+			}
+			req := UpdateHistoryRequest{
+				Content: contentPtr,
+				Nick:    m.historyNick,
+			}
+			err = api.UpdateHistory(botID, groupID, historyID, req)
+		default:
+			panic("unhandled default case")
 		}
 		if err != nil {
 			return err

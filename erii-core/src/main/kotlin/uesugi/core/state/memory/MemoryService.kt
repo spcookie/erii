@@ -93,8 +93,13 @@ class MemoryService(
     }
 
     /**
-     * 使用 Agent + Tool 方式整理事实记忆
-     * Agent 自主分析消息和现有事实，调用工具执行操作（向量同步已内联）
+     * 整理事实记忆
+     *
+     * 流程：
+     * 1. LLM 提取事实（extractFacts）
+     * 2. LLM 冲突解决（resolveConflicts）→ ADD / UPDATE / DELETE / NONE
+     * 3. 批量执行决策
+     * 4. 统一向量同步
      */
     private suspend fun organizeFacts(
         botMark: String,
@@ -102,8 +107,7 @@ class MemoryService(
         messages: List<MemoryAgent.MemoryMessage>
     ) {
         try {
-            log.debug("开始使用 Agent 整理事实记忆, groupId=$groupId, 消息数=${messages.size}")
-            // 调用 organize 方法（内部使用 Agent + Tool 方式，向量同步已内联）
+            log.debug("开始整理事实记忆, groupId=$groupId, message count=${messages.size}")
             memoryAgent.organize(botMark, groupId, messages)
 
             log.info("Fact memory sorting completed, botId=$botMark, groupId=$groupId")

@@ -1,13 +1,17 @@
+@file:UseSerializers(LocalDateTimeAsDateSerializer::class)
+
 package uesugi.core.state.memory
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
 import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
+import uesugi.common.toolkit.LocalDateTimeAsDateSerializer
 
 /**
  * 记忆处理状态表 - 记录每个群组已处理的最大 history ID

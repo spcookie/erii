@@ -18,7 +18,9 @@ import uesugi.core.state.meme.MemeData.MemeScanStateRecord
 import uesugi.core.state.meme.MemeData.MemeScanStateTable
 import uesugi.core.state.meme.MemeData.MemeTable
 import uesugi.core.state.meme.MemeData.toRecord
+import uesugi.core.state.meme.MemeRepository.Companion.ANALYZE_THRESHOLD
 import kotlin.time.Clock.System
+import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
 
 /**
@@ -312,6 +314,49 @@ class MemeRepository {
         val memo = MemeEntity.findById(id)
         memo?.delete()
         memo != null
+    }
+
+    /**
+     * 删除低热度表情包
+     *
+     * 低热度判定（同时满足）：
+     * - updatedAt < daysAgo 天前（一段时间内没有新的出现）
+     * - seenCount < [ANALYZE_THRESHOLD]（从未达到分析阈值，仍为噪声）
+     *
+     * @param daysAgo 距今天数（默认 7 天）
+     * @return 已删除的表情包记录列表（用于后续清理向量存储等关联资源）
+     */
+    fun findMemesByResourceId(resourceId: Int): List<MemeRecord> {
+        return transaction {
+            MemeEntity.find {
+                MemeTable.resourceId eq resourceId
+            }.map { it.toRecord() }
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun deleteLowHeatMemes(daysAgo: Int = 7): List<MemeRecord> {
+        return transaction {
+            val cutoff = System.now()
+                .minus(daysAgo.days)
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+
+            val targets = MemeEntity.find {
+                (MemeTable.updatedAt less cutoff) and
+                        (MemeTable.seenCount less ANALYZE_THRESHOLD)
+            }.toList()
+
+            val records = targets.map { it.toRecord() }
+            targets.forEach { it.delete() }
+
+            if (records.isNotEmpty()) {
+                log.info(
+                    "清理低热度表情包: {} 条 ({} 天前未更新且 seenCount < {})",
+                    records.size, daysAgo, ANALYZE_THRESHOLD
+                )
+            }
+            records
+        }
     }
 
     /**

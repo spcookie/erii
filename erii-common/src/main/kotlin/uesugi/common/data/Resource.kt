@@ -1,14 +1,18 @@
+@file:UseSerializers(LocalDateTimeAsDateSerializer::class)
+
 package uesugi.common.data
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlinx.serialization.UseSerializers
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
 import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
+import uesugi.common.toolkit.LocalDateTimeAsDateSerializer
 
 object ResourceTable : IntIdTable("chat_resource") {
     const val DEFAULT_LENGTH = 255
