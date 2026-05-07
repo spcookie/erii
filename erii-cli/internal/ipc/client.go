@@ -46,12 +46,18 @@ func ReadConfig() (*ServerConfig, error) {
 	// Ensure file is large enough
 	info, err := file.Stat()
 	if err != nil {
-		file.Close()
+		err := file.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, err
 	}
 	if info.Size() < SIZE {
 		if err := file.Truncate(SIZE); err != nil {
-			file.Close()
+			err := file.Close()
+			if err != nil {
+				return nil, err
+			}
 			return nil, fmt.Errorf("failed to truncate IPC file: %w", err)
 		}
 	}
@@ -59,12 +65,18 @@ func ReadConfig() (*ServerConfig, error) {
 	// mmap the file - golang.org/x/sys/unix 在 Windows 上也可用
 	data, err := unix.Mmap(int(file.Fd()), 0, SIZE, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED)
 	if err != nil {
-		file.Close()
+		err := file.Close()
+		if err != nil {
+			return nil, err
+		}
 		return nil, fmt.Errorf("failed to mmap: %w", err)
 	}
 	defer func() {
 		_ = unix.Munmap(data)
-		file.Close()
+		err := file.Close()
+		if err != nil {
+			return
+		}
 	}()
 
 	// Read config length (first 4 bytes) - use big endian to match Kotlin MappedByteBuffer
