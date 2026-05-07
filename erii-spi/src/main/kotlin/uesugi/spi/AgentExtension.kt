@@ -26,10 +26,10 @@ import org.pf4j.ExtensionPoint
 import org.pf4j.Plugin
 import org.pf4j.PluginWrapper
 import uesugi.common.ChatToolSet
-import uesugi.common.HistoryRecord
 import uesugi.common.IBotManage
-import uesugi.common.PSFeature
-import uesugi.common.ProactiveSpeakFeature
+import uesugi.common.data.HistoryRecord
+import uesugi.common.event.PSFeature
+import uesugi.common.event.ProactiveSpeakFeature
 import java.io.InputStream
 import java.util.*
 import kotlin.reflect.KClass
