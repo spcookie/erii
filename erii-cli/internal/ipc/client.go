@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"golang.org/x/sys/unix"
-
 	"erii-cli/internal/path"
 )
 
@@ -62,8 +60,8 @@ func ReadConfig() (*ServerConfig, error) {
 		}
 	}
 
-	// mmap the file - golang.org/x/sys/unix 在 Windows 上也可用
-	data, err := unix.Mmap(int(file.Fd()), 0, SIZE, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_SHARED)
+	// mmap the file - 平台特定实现
+	data, err := doMmap(int(file.Fd()), SIZE)
 	if err != nil {
 		err := file.Close()
 		if err != nil {
@@ -72,7 +70,7 @@ func ReadConfig() (*ServerConfig, error) {
 		return nil, fmt.Errorf("failed to mmap: %w", err)
 	}
 	defer func() {
-		_ = unix.Munmap(data)
+		_ = doMunmap(data)
 		err := file.Close()
 		if err != nil {
 			return
