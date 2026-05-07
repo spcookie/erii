@@ -1,9 +1,17 @@
 package uesugi.common.toolkit
 
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.format
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.contextual
 import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
 import java.sql.ResultSet
@@ -17,11 +25,26 @@ fun logger(name: String) = LoggerFactory.getLogger(name)!!
 
 val JSON = Json {
     ignoreUnknownKeys = true
+    serializersModule = SerializersModule {
+        contextual(LocalDateTimeAsDateSerializer)
+    }
 }
 
 @OptIn(FormatStringsInDatetimeFormats::class)
 val DateTimeFormat = LocalDateTime.Format {
     byUnicodePattern("yyyy-MM-dd HH:mm:ss")
+}
+
+object LocalDateTimeAsDateSerializer : KSerializer<LocalDateTime> {
+    override val descriptor = PrimitiveSerialDescriptor("LocalDateTime", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: LocalDateTime) {
+        encoder.encodeString(value.format(DateTimeFormat))
+    }
+
+    override fun deserialize(decoder: Decoder): LocalDateTime {
+        return LocalDateTime.parse(decoder.decodeString(), DateTimeFormat)
+    }
 }
 
 fun ResultSet.rowMapMapper(): List<Map<String, Any?>> {

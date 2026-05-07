@@ -1,7 +1,10 @@
+@file:UseSerializers(LocalDateTimeAsDateSerializer::class)
+
 package uesugi.core.state.meme
 
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.IntIdTable
 import org.jetbrains.exposed.v1.dao.IntEntity
@@ -10,6 +13,7 @@ import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
 import uesugi.common.data.ResourceRecord
 import uesugi.common.toolkit.JSON
+import uesugi.common.toolkit.LocalDateTimeAsDateSerializer
 
 /**
  * 表情包数据模块

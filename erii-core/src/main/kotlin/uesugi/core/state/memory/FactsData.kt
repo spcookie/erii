@@ -1,9 +1,12 @@
+@file:UseSerializers(LocalDateTimeAsDateSerializer::class)
+
 package uesugi.core.state.memory
 
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
@@ -14,6 +17,7 @@ import org.jetbrains.exposed.v1.dao.IntEntity
 import org.jetbrains.exposed.v1.dao.IntEntityClass
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.datetime.datetime
+import uesugi.common.toolkit.LocalDateTimeAsDateSerializer
 import uesugi.core.state.emotion.EmotionTable.DEFAULT_LENGTH
 
 /**
