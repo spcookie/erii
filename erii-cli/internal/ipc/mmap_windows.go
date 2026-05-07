@@ -4,15 +4,20 @@ package ipc
 
 import (
 	"fmt"
+	"sync"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-// doMmap 内存映射文件 (Windows)
+// mmapHandles 保存所有映射句柄，用于 munmap 时释放 (key=数据指针)
+var mmapHandles sync.Map
+
 func doMmap(fd int, size int) ([]byte, error) {
-	low := uint32(size)
-	high := uint32(size >> 32)
+	// Windows 32-bit 不支持 >4GB 文件，这里统一用 uint64 避免 shift 未定义行为
+	size64 := uint64(size)
+	low := uint32(size64)
+	high := uint32(size64 >> 32)
 
 	h, err := windows.CreateFileMapping(
 		windows.Handle(fd),
@@ -28,7 +33,7 @@ func doMmap(fd int, size int) ([]byte, error) {
 
 	addr, err := windows.MapViewOfFile(
 		h,
-		0xF001F, // FILE_MAP_ALL_ACCESS
+		windows.FILE_MAP_WRITE,
 		0,
 		0,
 		uintptr(size),
@@ -38,23 +43,23 @@ func doMmap(fd int, size int) ([]byte, error) {
 		return nil, fmt.Errorf("map view of file failed: %w", err)
 	}
 
-	// 保存 handle 以便 munmap 时关闭
-	mmapHandle = h
+	// 用数据指针做 key 保存句柄，支持多并发映射
+	mmapHandles.Store(addr, h)
 
 	// 将指针转换为 []byte
 	data := unsafe.Slice((*byte)(unsafe.Pointer(addr)), size)
 	return data, nil
 }
 
-// mmapHandle 保存当前映射句柄，用于 munmap 时释放
-var mmapHandle windows.Handle
-
 // doMunmap 解除内存映射 (Windows)
 func doMunmap(data []byte) error {
-	_ = windows.UnmapViewOfFile(uintptr(unsafe.Pointer(unsafe.SliceData(data))))
-	if mmapHandle != 0 {
-		_ = windows.CloseHandle(mmapHandle)
-		mmapHandle = 0
+	if len(data) == 0 {
+		return nil
+	}
+	ptr := uintptr(unsafe.Pointer(unsafe.SliceData(data)))
+	_ = windows.UnmapViewOfFile(ptr)
+	if h, ok := mmapHandles.LoadAndDelete(ptr); ok {
+		_ = windows.CloseHandle(h.(windows.Handle))
 	}
 	return nil
 }
