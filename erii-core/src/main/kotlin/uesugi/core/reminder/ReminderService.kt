@@ -45,7 +45,7 @@ class ReminderService(private val jobScheduler: JobScheduler) {
         log.info { "ReminderService stopped" }
     }
 
-    private fun scanDueReminders() {
+    fun scanDueReminders() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val now = System.currentTimeMillis()
