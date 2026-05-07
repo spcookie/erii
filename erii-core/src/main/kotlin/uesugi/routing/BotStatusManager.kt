@@ -7,6 +7,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
+import uesugi.core.message.history.HistoryService
+import uesugi.core.message.resource.ResourceService
 import uesugi.core.state.evolution.EvolutionService
 import uesugi.core.state.evolution.SlangWord
 import uesugi.core.state.evolution.toRecord
@@ -57,6 +59,12 @@ data class UpdateSummaryRequest(
     val emotionalTone: String? = null
 )
 
+@Serializable
+data class UpdateHistoryRequest(
+    val content: String? = null,
+    val nick: String? = null
+)
+
 private fun ApplicationCall.botId(): String = parameters["bot-id"]!!
 private fun ApplicationCall.groupId(): String = parameters["group-id"]!!
 private fun ApplicationCall.userId(): String = parameters["user-id"]!!
@@ -93,6 +101,8 @@ fun Routing.configureBotStatusManager() {
         val memeRepository by inject<MemeRepository>()
         val evolutionService by inject<EvolutionService>()
         val summaryService by inject<SummaryService>()
+        val historyService by inject<HistoryService>()
+        val resourceService by inject<ResourceService>()
 
         get("/api/bot/{bot-id}/group/{group-id}/facts") {
             call.respond(memoryService.getAllFactsByGroup(call.botId(), call.groupId()).map { it.toRecord() })
@@ -295,6 +305,49 @@ fun Routing.configureBotStatusManager() {
                 call.intPathParam("summary-id") ?: return@delete call.respond(mapOf("error" to "invalid summary-id"))
             )
             call.respond(if (deleted) mapOf("success" to true) else mapOf("error" to "summary not found"))
+        }
+
+        // ── History ──
+
+        get("/api/bot/{bot-id}/group/{group-id}/history") {
+            call.respond(historyService.getAllHistoryByGroup(call.botId(), call.groupId()))
+        }
+
+        get("/api/bot/{bot-id}/group/{group-id}/history/{history-id}") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val historyId =
+                call.intPathParam("history-id") ?: return@get call.respond(mapOf("error" to "invalid history-id"))
+            call.respondScoped(
+                historyService.getHistoryById(historyId), botId, groupId,
+                { it.botMark }, { it.groupId }, "history not found"
+            )
+        }
+
+        put("/api/bot/{bot-id}/group/{group-id}/history/{history-id}") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val historyId =
+                call.intPathParam("history-id") ?: return@put call.respond(mapOf("error" to "invalid history-id"))
+            val request = call.receiveOrError<UpdateHistoryRequest>() ?: return@put
+            call.respondScoped(
+                historyService.updateHistory(historyId, request.content, request.nick),
+                botId, groupId,
+                { it.botMark }, { it.groupId }, "history not found"
+            )
+        }
+
+        delete("/api/bot/{bot-id}/group/{group-id}/history/{history-id}") {
+            val deleted = historyService.deleteHistory(
+                call.intPathParam("history-id") ?: return@delete call.respond(mapOf("error" to "invalid history-id"))
+            )
+            call.respond(if (deleted) mapOf("success" to true) else mapOf("error" to "history not found"))
+        }
+
+        // ── Resources ──
+
+        get("/api/bot/{bot-id}/group/{group-id}/resources") {
+            call.respond(resourceService.getAllResourcesByGroup(call.botId(), call.groupId()))
         }
     }
 }

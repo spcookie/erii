@@ -56,7 +56,9 @@ func (a *API) doRequest(method, path string, body any) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -283,4 +285,54 @@ func (a *API) UpdateSummary(botID, groupID string, id int, req UpdateSummaryRequ
 func (a *API) DeleteSummary(botID, groupID string, id int) error {
 	_, err := a.doRequest("DELETE", fmt.Sprintf("/api/bot/%s/group/%s/summaries/%d", botID, groupID, id), nil)
 	return err
+}
+
+// ── History ──
+
+func (a *API) GetHistory(botID, groupID string) ([]HistoryRecord, error) {
+	data, err := a.doRequest("GET", fmt.Sprintf("/api/bot/%s/group/%s/history", botID, groupID), nil)
+	if err != nil {
+		return nil, err
+	}
+	var records []HistoryRecord
+	if err := json.Unmarshal(data, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (a *API) GetHistoryByID(botID, groupID string, id int) (*HistoryRecord, error) {
+	data, err := a.doRequest("GET", fmt.Sprintf("/api/bot/%s/group/%s/history/%d", botID, groupID, id), nil)
+	if err != nil {
+		return nil, err
+	}
+	var record HistoryRecord
+	if err := json.Unmarshal(data, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (a *API) UpdateHistory(botID, groupID string, id int, req UpdateHistoryRequest) error {
+	_, err := a.doRequest("PUT", fmt.Sprintf("/api/bot/%s/group/%s/history/%d", botID, groupID, id), req)
+	return err
+}
+
+func (a *API) DeleteHistory(botID, groupID string, id int) error {
+	_, err := a.doRequest("DELETE", fmt.Sprintf("/api/bot/%s/group/%s/history/%d", botID, groupID, id), nil)
+	return err
+}
+
+// ── Resources ──
+
+func (a *API) GetResources(botID, groupID string) ([]ResourceRecord, error) {
+	data, err := a.doRequest("GET", fmt.Sprintf("/api/bot/%s/group/%s/resources", botID, groupID), nil)
+	if err != nil {
+		return nil, err
+	}
+	var records []ResourceRecord
+	if err := json.Unmarshal(data, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
 }

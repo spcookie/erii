@@ -123,6 +123,44 @@ type UpdateSummaryRequest struct {
 	EmotionalTone *string `json:"emotionalTone"`
 }
 
+// ── History ──
+
+type HistoryRecord struct {
+	ID          int            `json:"id"`
+	BotMark     string         `json:"botMark"`
+	GroupID     string         `json:"groupId"`
+	UserID      string         `json:"userId"`
+	Nick        string         `json:"nick"`
+	MessageType string         `json:"messageType"`
+	Content     *string        `json:"content"`
+	Resource    *ResourceBrief `json:"resource"`
+	CreatedAt   string         `json:"createdAt"`
+}
+
+type ResourceBrief struct {
+	ID       int    `json:"id"`
+	FileName string `json:"fileName"`
+	URL      string `json:"url"`
+}
+
+type UpdateHistoryRequest struct {
+	Content *string `json:"content"`
+	Nick    string  `json:"nick"`
+}
+
+// ── Resources ──
+
+type ResourceRecord struct {
+	ID        int    `json:"id"`
+	BotMark   string `json:"botMark"`
+	GroupID   string `json:"groupId"`
+	URL       string `json:"url"`
+	FileName  string `json:"fileName"`
+	Size      int64  `json:"size"`
+	Md5       string `json:"md5"`
+	CreatedAt string `json:"createdAt"`
+}
+
 // ── Resource Type Enum ──
 
 type ResourceType int
@@ -133,6 +171,8 @@ const (
 	ResourceMemes
 	ResourceVocabularies
 	ResourceSummaries
+	ResourceHistory
+	ResourceResource
 )
 
 func (r ResourceType) String() string {
@@ -147,6 +187,10 @@ func (r ResourceType) String() string {
 		return "vocabulary"
 	case ResourceSummaries:
 		return "summaries"
+	case ResourceHistory:
+		return "history"
+	case ResourceResource:
+		return "resources"
 	default:
 		return "unknown"
 	}
@@ -164,6 +208,10 @@ func (r ResourceType) Title() string {
 		return "Vocabulary"
 	case ResourceSummaries:
 		return "Summaries"
+	case ResourceHistory:
+		return "History"
+	case ResourceResource:
+		return "Resources"
 	default:
 		return "Unknown"
 	}
@@ -181,6 +229,10 @@ func (r ResourceType) Icon() string {
 		return "\xf0\x9f\x94\xa5"
 	case ResourceSummaries:
 		return "\xf0\x9f\x93\x9d"
+	case ResourceHistory:
+		return "\xf0\x9f\x93\x9c"
+	case ResourceResource:
+		return "\xf0\x9f\x93\x8e"
 	default:
 		return "?"
 	}

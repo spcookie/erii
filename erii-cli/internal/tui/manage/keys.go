@@ -22,16 +22,17 @@ type tableKeys struct {
 	Sort3      key.Binding
 	Sort4      key.Binding
 	SortToggle key.Binding
+	Preview    key.Binding
 }
 
 func (k tableKeys) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Enter, k.Search, k.Back, k.Help, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Enter, k.Search, k.Preview, k.Back, k.Help, k.Quit}
 }
 
 func (k tableKeys) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Enter, k.Search},
-		{k.Select, k.Delete, k.BatchDel, k.New, k.Refresh},
+		{k.Select, k.Delete, k.BatchDel, k.New, k.Refresh, k.Preview},
 		{k.Sort1, k.Sort2, k.Sort3, k.Sort4, k.SortToggle, k.Back, k.Help, k.Quit},
 	}
 }
@@ -112,6 +113,10 @@ var defaultTableKeys = tableKeys{
 	SortToggle: key.NewBinding(
 		key.WithKeys("s"),
 		key.WithHelp("s", "toggle sort"),
+	),
+	Preview: key.NewBinding(
+		key.WithKeys("v"),
+		key.WithHelp("v", "preview"),
 	),
 }
 
