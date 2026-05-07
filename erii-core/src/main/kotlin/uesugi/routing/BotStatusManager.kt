@@ -7,11 +7,19 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
+import uesugi.common.data.EmotionalTendencies
+import uesugi.common.data.PAD
 import uesugi.core.message.history.HistoryService
 import uesugi.core.message.resource.ResourceService
+import uesugi.core.state.emotion.BehaviorProfile
+import uesugi.core.state.emotion.EmotionRepository
+import uesugi.core.state.emotion.toRecord
 import uesugi.core.state.evolution.EvolutionService
 import uesugi.core.state.evolution.SlangWord
 import uesugi.core.state.evolution.toRecord
+import uesugi.core.state.flow.FlowGaugeManager
+import uesugi.core.state.flow.FlowRepository
+import uesugi.core.state.flow.toRecord
 import uesugi.core.state.meme.MemeRepository
 import uesugi.core.state.meme.MemeService
 import uesugi.core.state.memory.MemoryRepository
@@ -19,6 +27,9 @@ import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
 import uesugi.core.state.memory.toRecord
 import uesugi.core.state.summary.SummaryService
+import uesugi.core.state.volition.VolitionGaugeManager
+import uesugi.core.state.volition.VolitionRepository
+import uesugi.core.state.volition.toRecord
 
 @Serializable
 data class FactRequest(
@@ -65,6 +76,27 @@ data class UpdateHistoryRequest(
     val nick: String? = null
 )
 
+@Serializable
+data class UpdateEmotionRequest(
+    val emotionalTendency: String,
+    val stimulus: PAD,
+    val emotion: PAD,
+    val mood: PAD,
+    val behavior: BehaviorProfile
+)
+
+@Serializable
+data class UpdateFlowRequest(
+    val flowValue: Double,
+    val currentTopic: String
+)
+
+@Serializable
+data class UpdateVolitionRequest(
+    val fatigue: Double,
+    val stimulus: Double
+)
+
 private fun ApplicationCall.botId(): String = parameters["bot-id"]!!
 private fun ApplicationCall.groupId(): String = parameters["group-id"]!!
 private fun ApplicationCall.userId(): String = parameters["user-id"]!!
@@ -103,6 +135,11 @@ fun Routing.configureBotStatusManager() {
         val summaryService by inject<SummaryService>()
         val historyService by inject<HistoryService>()
         val resourceService by inject<ResourceService>()
+        val emotionRepository by inject<EmotionRepository>()
+        val flowRepository by inject<FlowRepository>()
+        val flowGaugeManager by inject<FlowGaugeManager>()
+        val volitionRepository by inject<VolitionRepository>()
+        val volitionGaugeManager by inject<VolitionGaugeManager>()
 
         get("/api/bot/{bot-id}/group/{group-id}/facts") {
             call.respond(memoryService.getAllFactsByGroup(call.botId(), call.groupId()).map { it.toRecord() })
@@ -374,6 +411,140 @@ fun Routing.configureBotStatusManager() {
 
         get("/api/bot/{bot-id}/group/{group-id}/resources") {
             call.respond(resourceService.getAllResourcesByGroup(call.botId(), call.groupId()))
+        }
+
+        // ── Emotion ──
+
+        get("/api/bot/{bot-id}/group/{group-id}/emotion") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val emotion = emotionRepository.getLatestEmotion(botId, groupId)
+            if (emotion == null) {
+                call.respond(mapOf("error" to "emotion not found"))
+            } else {
+                call.respond(emotion.toRecord())
+            }
+        }
+
+        put("/api/bot/{bot-id}/group/{group-id}/emotion") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val request = call.receiveOrError<UpdateEmotionRequest>() ?: return@put
+            val entity = emotionRepository.getLatestEmotion(botId, groupId)
+            if (entity == null) {
+                call.respond(mapOf("error" to "emotion not found"))
+                return@put
+            }
+            val tendency = try {
+                EmotionalTendencies.valueOf(request.emotionalTendency)
+            } catch (_: IllegalArgumentException) {
+                call.respond(mapOf("error" to "invalid emotional tendency"))
+                return@put
+            }
+            listOf(
+                "stimulus" to request.stimulus,
+                "emotion" to request.emotion,
+                "mood" to request.mood
+            ).forEach { (name, pad) ->
+                pad.validate()?.let { error ->
+                    call.respond(mapOf("error" to "$name: $error"))
+                    return@put
+                }
+            }
+            emotionRepository.updateEmotion(
+                entity = entity,
+                emotionalTendency = tendency,
+                stimulus = request.stimulus,
+                emotion = request.emotion,
+                mood = request.mood,
+                behavior = request.behavior
+            )
+            val updated = emotionRepository.getLatestEmotion(botId, groupId)
+            if (updated == null) {
+                call.respond(mapOf("error" to "emotion not found"))
+            } else {
+                call.respond(updated.toRecord())
+            }
+        }
+
+        // ── Flow ──
+
+        get("/api/bot/{bot-id}/group/{group-id}/flow") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val gauge = flowGaugeManager.get(botId, groupId)
+            val entity = flowRepository.getFlowState(botId, groupId)
+            if (entity == null) {
+                call.respond(mapOf("error" to "flow state not found"))
+                return@get
+            }
+            val record = entity.toRecord()
+            val updatedRecord = if (gauge != null) {
+                record.copy(flowValue = gauge.state.value)
+            } else {
+                record
+            }
+            call.respond(updatedRecord)
+        }
+
+        put("/api/bot/{bot-id}/group/{group-id}/flow") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val request = call.receiveOrError<UpdateFlowRequest>() ?: return@put
+            val coercedFlowValue = request.flowValue.coerceIn(0.0, 100.0)
+            val gauge = flowGaugeManager.get(botId, groupId)
+            if (gauge != null) {
+                gauge.state.value = coercedFlowValue
+                gauge.flush()
+            }
+            flowRepository.updateFlowStateDirect(botId, groupId, coercedFlowValue, request.currentTopic)
+            val entity = flowRepository.getFlowState(botId, groupId)
+            if (entity == null) {
+                call.respond(mapOf("error" to "flow state not found"))
+            } else {
+                call.respond(entity.toRecord())
+            }
+        }
+
+        // ── Volition ──
+
+        get("/api/bot/{bot-id}/group/{group-id}/volition") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val gauge = volitionGaugeManager.get(botId, groupId)
+            val entity = volitionRepository.getVolitionState(botId, groupId)
+            if (entity == null) {
+                call.respond(mapOf("error" to "volition state not found"))
+                return@get
+            }
+            val record = entity.toRecord()
+            val updatedRecord = if (gauge != null) {
+                record.copy(fatigue = gauge.state.fatigue, stimulus = gauge.state.stimulus)
+            } else {
+                record
+            }
+            call.respond(updatedRecord)
+        }
+
+        put("/api/bot/{bot-id}/group/{group-id}/volition") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val request = call.receiveOrError<UpdateVolitionRequest>() ?: return@put
+            val coercedFatigue = request.fatigue.coerceIn(0.0, 100.0)
+            val coercedStimulus = request.stimulus.coerceIn(0.0, 100.0)
+            val gauge = volitionGaugeManager.get(botId, groupId)
+            if (gauge != null) {
+                gauge.state.fatigue = coercedFatigue
+                gauge.state.stimulus = coercedStimulus
+                gauge.flush()
+            }
+            volitionRepository.updateVolitionStateDirect(botId, groupId, coercedFatigue, coercedStimulus)
+            val entity = volitionRepository.getVolitionState(botId, groupId)
+            if (entity == null) {
+                call.respond(mapOf("error" to "volition state not found"))
+            } else {
+                call.respond(entity.toRecord())
+            }
         }
     }
 }

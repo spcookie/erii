@@ -180,6 +180,10 @@ class FlowGauge(
         return state.value
     }
 
+    fun flush() {
+        persistStateToDB()
+    }
+
     fun stop() {
         persistStateToDB()
         scope.cancel()

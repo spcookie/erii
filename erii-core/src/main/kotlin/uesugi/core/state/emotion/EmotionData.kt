@@ -59,7 +59,7 @@ private class PADColumnTransformer : ColumnTransformer<String, PAD> {
         return if (dimensions.size >= 3) {
             PAD(p = dimensions[0], a = dimensions[1], d = dimensions[2])
         } else {
-            throw IllegalArgumentException("Invalid stimulus format: $value")
+            throw IllegalArgumentException("Invalid PAD format: $value")
         }
     }
 
@@ -154,3 +154,28 @@ fun EmotionEntity.Companion.findNotAnalysisHistoryGroupIds(
             }
     }
 }
+
+@Serializable
+data class EmotionRecord(
+    val id: Int,
+    val botMark: String,
+    val groupId: String,
+    val emotionalTendency: String,
+    val stimulus: PAD,
+    val emotion: PAD,
+    val mood: PAD,
+    val behavior: BehaviorProfile,
+    val historyMessageProcessed: Int
+)
+
+fun EmotionEntity.toRecord(): EmotionRecord = EmotionRecord(
+    id = id.value,
+    botMark = botMark,
+    groupId = groupId,
+    emotionalTendency = emotionalTendency.name,
+    stimulus = stimulus,
+    emotion = emotion,
+    mood = mood,
+    behavior = behavior,
+    historyMessageProcessed = historyMessageProcessed
+)

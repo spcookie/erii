@@ -130,6 +130,15 @@ data class PAD(
         return PAD(this.p / other.p, this.a / other.a, this.d / other.d)
     }
 
+    fun validate(): String? {
+        return when {
+            p < -4.0 || p > 4.0 -> "PAD P must be between -4.0 and 4.0"
+            a < -4.0 || a > 4.0 -> "PAD A must be between -4.0 and 4.0"
+            d < -4.0 || d > 4.0 -> "PAD D must be between -4.0 and 4.0"
+            else -> null
+        }
+    }
+
     companion object {
 
         val ZERO = PAD(p = 0.0, a = 0.0, d = 0.0)

@@ -112,4 +112,28 @@ class VolitionRepository {
             log.debug("主动意愿状态已更新, groupId=$groupId, lastHistoryId=$lastHistoryId")
         }
     }
+
+    /**
+     * 直接更新意愿状态（用于外部 API 修改）
+     */
+    fun updateVolitionStateDirect(botMark: String, groupId: String, fatigue: Double, stimulus: Double) {
+        transaction {
+            val existing = VolitionStateEntity.find(
+                (VolitionStateTable.botMark eq botMark) and (VolitionStateTable.groupId eq groupId)
+            ).firstOrNull()
+
+            if (existing != null) {
+                existing.fatigue = fatigue
+                existing.stimulus = stimulus
+            } else {
+                VolitionStateEntity.new {
+                    this.botMark = botMark
+                    this.groupId = groupId
+                    this.fatigue = fatigue
+                    this.stimulus = stimulus
+                }
+            }
+            log.debug("直接更新意愿状态, groupId=$groupId, fatigue=$fatigue, stimulus=$stimulus")
+        }
+    }
 }

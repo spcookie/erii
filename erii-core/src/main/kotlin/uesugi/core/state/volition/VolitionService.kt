@@ -221,6 +221,10 @@ class VolitionGauge(
         return impulse > threshold
     }
 
+    fun flush() {
+        persistStateToDB()
+    }
+
     fun stop() {
         persistStateToDB()
         scope.cancel()

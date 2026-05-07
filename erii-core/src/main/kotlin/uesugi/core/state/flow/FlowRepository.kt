@@ -111,4 +111,28 @@ class FlowRepository {
             log.debug("心流状态已更新, groupId=$groupId, lastHistoryId=$lastHistoryId")
         }
     }
+
+    /**
+     * 直接更新心流状态（用于外部 API 修改）
+     */
+    fun updateFlowStateDirect(botMark: String, groupId: String, flowValue: Double, currentTopic: String) {
+        transaction {
+            val existing = FlowStateEntity.find(
+                (FlowStateTable.botMark eq botMark) and (FlowStateTable.groupId eq groupId)
+            ).firstOrNull()
+
+            if (existing != null) {
+                existing.flowValue = flowValue
+                existing.currentTopic = currentTopic
+            } else {
+                FlowStateEntity.new {
+                    this.botMark = botMark
+                    this.groupId = groupId
+                    this.flowValue = flowValue
+                    this.currentTopic = currentTopic
+                }
+            }
+            log.debug("直接更新心流状态, groupId=$groupId, flowValue=$flowValue")
+        }
+    }
 }
