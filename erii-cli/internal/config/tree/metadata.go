@@ -452,11 +452,13 @@ func matchWildcardPattern(pattern string, pathParts []string) bool {
 
 // CanCopy checks if the given dot-separated path allows copying/new items.
 func CanCopy(pluginName, path string) bool {
+	pathParts := strings.Split(path, ".")
+
 	// Check plugin-specific patterns first
 	if pluginName != "" {
 		if patterns, ok := GlobalMetadata.CopyPlugin[pluginName]; ok {
 			for _, p := range patterns {
-				if matchCopyPattern(p, path) {
+				if matchCopyPattern(p, pathParts) {
 					return true
 				}
 			}
@@ -465,7 +467,7 @@ func CanCopy(pluginName, path string) bool {
 
 	// Check main patterns
 	for _, p := range GlobalMetadata.CopyMain {
-		if matchCopyPattern(p, path) {
+		if matchCopyPattern(p, pathParts) {
 			return true
 		}
 	}
@@ -474,21 +476,17 @@ func CanCopy(pluginName, path string) bool {
 
 // matchCopyPattern supports simple wildcard: "onebot.*" matches "onebot.bots" etc.
 // Pattern matches if it is a suffix of the path.
-func matchCopyPattern(pattern, path string) bool {
-	if pattern == path {
-		return true
-	}
+func matchCopyPattern(pattern string, pathParts []string) bool {
 	pp := strings.Split(pattern, ".")
-	vp := strings.Split(path, ".")
-	if len(pp) > len(vp) {
+	if len(pp) > len(pathParts) {
 		return false
 	}
-	offset := len(vp) - len(pp)
+	offset := len(pathParts) - len(pp)
 	for i := range pp {
 		if pp[i] == "*" {
 			continue
 		}
-		if pp[i] != vp[offset+i] {
+		if pp[i] != pathParts[offset+i] {
 			return false
 		}
 	}

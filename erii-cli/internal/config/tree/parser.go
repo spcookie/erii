@@ -198,6 +198,16 @@ func (p *EnvParser) Parse(path string) (ConfigNode, error) {
 }
 
 func (p *EnvParser) Save(path string, root ConfigNode) error {
+	// Build a map of leaf values for O(1) lookup.
+	leafMap := make(map[string]any)
+	if branch, ok := root.(*BranchNode); ok {
+		for _, child := range branch.Children() {
+			if leaf, ok := child.(*LeafNode); ok {
+				leafMap[leaf.Title()] = leaf.Value()
+			}
+		}
+	}
+
 	// Preserve existing comments and structure if possible.
 	var lines []string
 	var written = make(map[string]bool)
@@ -217,38 +227,22 @@ func (p *EnvParser) Save(path string, root ConfigNode) error {
 				continue
 			}
 			key := strings.TrimSpace(trimmed[:idx])
-			if val := getLeafValue(root, key); val != nil {
+			if val, ok := leafMap[key]; ok {
 				lines = append(lines, fmt.Sprintf("%s=%v", key, val))
 				written[key] = true
-			} else {
-				lines = append(lines, line)
 			}
+			// If key no longer exists in root, drop the line (delete)
 		}
 	}
 
 	// Append new keys
-	if branch, ok := root.(*BranchNode); ok {
-		for _, child := range branch.Children() {
-			if leaf, ok := child.(*LeafNode); ok {
-				if !written[leaf.Title()] {
-					lines = append(lines, fmt.Sprintf("%s=%v", leaf.Title(), leaf.Value()))
-				}
-			}
+	for key, val := range leafMap {
+		if !written[key] {
+			lines = append(lines, fmt.Sprintf("%s=%v", key, val))
 		}
 	}
 
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0644)
-}
-
-func getLeafValue(root ConfigNode, key string) any {
-	if branch, ok := root.(*BranchNode); ok {
-		for _, child := range branch.Children() {
-			if leaf, ok := child.(*LeafNode); ok && leaf.Title() == key {
-				return leaf.Value()
-			}
-		}
-	}
-	return nil
 }
 
 // HOCONParser wraps the existing HOCON config into the tree model.

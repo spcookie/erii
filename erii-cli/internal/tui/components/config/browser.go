@@ -95,85 +95,86 @@ func (i NodeItem) Title() string {
 }
 
 func (i NodeItem) Description() string {
-	if i.Node.IsLeaf() {
-		leaf := i.Node.(*tree.LeafNode)
-		// Check IsNull first for null values
-		if leaf.IsNull() {
-			return "(null)"
-		}
-		switch leaf.ValueType() {
-		case tree.TypeArray:
-			switch v := leaf.Value().(type) {
-			case []string:
-				return fmt.Sprintf("array[%d]", len(v))
-			case []any:
-				return fmt.Sprintf("array[%d]", len(v))
-			default:
-				return "array"
-			}
-		case tree.TypeObject:
-			return "object"
-		case tree.TypeBool:
-			if leaf.Value() == nil {
-				return "(empty)"
-			}
-			return fmt.Sprintf("%v", leaf.Value())
-		case tree.TypeNumber:
-			if leaf.Value() == nil {
-				return "(empty)"
-			}
-			return fmt.Sprintf("%v", leaf.Value())
-		case tree.TypeText:
-			s := fmt.Sprintf("%v", leaf.Value())
-			if s == "" || s == "<nil>" {
-				return "(empty)"
-			}
-			if len(s) > 40 {
-				s = s[:40] + "..."
-			}
-			return s
-		default:
-			s := fmt.Sprintf("%v", leaf.Value())
-			if s == "" || s == "<nil>" {
-				return "(empty)"
-			}
-			if len(s) > 40 {
-				s = s[:40] + "..."
-			}
-			return s
-		}
+	if !i.Node.IsLeaf() {
+		return i.Node.Description()
 	}
-	return i.Node.Description()
+	leaf := i.Node.(*tree.LeafNode)
+	if leaf.IsNull() {
+		return "(null)"
+	}
+	return formatLeafValue(leaf)
+}
+
+func formatLeafValue(leaf *tree.LeafNode) string {
+	switch leaf.ValueType() {
+	case tree.TypeArray:
+		return formatArrayValue(leaf.Value())
+	case tree.TypeObject:
+		return "object"
+	case tree.TypeBool, tree.TypeNumber:
+		if leaf.Value() == nil {
+			return "(empty)"
+		}
+		return fmt.Sprintf("%v", leaf.Value())
+	case tree.TypeText, tree.TypeString:
+		return formatStringValue(leaf.Value())
+	default:
+		return formatStringValue(leaf.Value())
+	}
+}
+
+func formatArrayValue(v any) string {
+	switch val := v.(type) {
+	case []string:
+		return fmt.Sprintf("array[%d]", len(val))
+	case []any:
+		return fmt.Sprintf("array[%d]", len(val))
+	default:
+		return "array"
+	}
+}
+
+func formatStringValue(v any) string {
+	s := fmt.Sprintf("%v", v)
+	if s == "" || s == "<nil>" {
+		return "(empty)"
+	}
+	if len(s) > 40 {
+		s = s[:40] + "..."
+	}
+	return s
 }
 
 func (i NodeItem) FilterValue() string { return i.Node.Title() }
 
 // BrowserModel is a generic config file browser using list + node tree.
 type BrowserModel struct {
-	Root          tree.ConfigNode
-	current       *tree.BranchNode
-	stack         []*tree.BranchNode
-	List          list.Model
-	width         int
-	height        int
-	Keys          BrowserKeyMap
-	help          help.Model
-	onEdit        func(leaf *tree.LeafNode, onSave func() tea.Cmd)
-	OnSaveFile    func(root tree.ConfigNode) error
-	title         string
-	pluginName    string
-	errMsg        string
-	adding        bool
-	addTitle      string
-	addDesc       string
-	addForm       *huh.Form
-	renaming      bool
-	renameValue   string
-	renameDesc    string
-	renameForm    *huh.Form
-	deleting      bool
-	deleteConfirm bool
-	deleteForm    *huh.Form
+	Root           tree.ConfigNode
+	current        *tree.BranchNode
+	stack          []*tree.BranchNode
+	List           list.Model
+	width          int
+	height         int
+	Keys           BrowserKeyMap
+	help           help.Model
+	onEdit         func(leaf *tree.LeafNode, onSave func() tea.Cmd)
+	OnSaveFile     func(root tree.ConfigNode) error
+	title          string
+	pluginName     string
+	errMsg         string
+	adding         bool
+	addTitle       string
+	addDesc        string
+	addForm        *huh.Form
+	renaming       bool
+	renameValue    string
+	renameDesc     string
+	renameForm     *huh.Form
+	deleting       bool
+	deleteConfirm  bool
+	deleteForm     *huh.Form
+	editable       bool
+	newItemFactory func(title, desc string) tree.ConfigNode
 }
 
 func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.LeafNode, onSave func() tea.Cmd), OnSaveFile func(root tree.ConfigNode) error) *BrowserModel {
@@ -204,6 +205,22 @@ func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.
 // WithPlugin sets the plugin context for metadata lookups.
 func (m *BrowserModel) WithPlugin(name string) *BrowserModel {
 	m.pluginName = name
+	return m
+}
+
+func (m *BrowserModel) canModify() bool {
+	return m.editable || tree.CanCopy(m.pluginName, m.currentPath())
+}
+
+// WithEditable enables add/delete/rename without copy.json permission.
+func (m *BrowserModel) WithEditable(v bool) *BrowserModel {
+	m.editable = v
+	return m
+}
+
+// WithNewItemFactory sets a custom factory for creating new items.
+func (m *BrowserModel) WithNewItemFactory(f func(title, desc string) tree.ConfigNode) *BrowserModel {
+	m.newItemFactory = f
 	return m
 }
 
@@ -524,7 +541,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, m.Keys.New) {
-			if !tree.CanCopy(m.pluginName, m.currentPath()) {
+			if !m.canModify() {
 				return m, nil
 			}
 			m.adding = true
@@ -536,7 +553,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.buildAddForm()
 		}
 		if key.Matches(msg, m.Keys.Rename) {
-			if !tree.CanCopy(m.pluginName, m.currentPath()) {
+			if !m.canModify() {
 				return m, nil
 			}
 			if item, ok := m.List.SelectedItem().(NodeItem); ok {
@@ -550,7 +567,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, m.Keys.Delete) {
-			if !tree.CanCopy(m.pluginName, m.currentPath()) {
+			if !m.canModify() {
 				return m, nil
 			}
 			m.deleting = true
@@ -596,6 +613,9 @@ func cloneStructure(node tree.ConfigNode) tree.ConfigNode {
 }
 
 func (m *BrowserModel) createNodeFromTemplate(title, desc string) tree.ConfigNode {
+	if m.newItemFactory != nil {
+		return m.newItemFactory(title, desc)
+	}
 	if len(m.current.Children()) > 0 {
 		template := m.current.Children()[0]
 		cloned := cloneStructure(template)
@@ -620,7 +640,7 @@ func (m *BrowserModel) ShortHelp() []key.Binding {
 
 func (m *BrowserModel) FullHelp() [][]key.Binding {
 	var middle []key.Binding
-	if tree.CanCopy(m.pluginName, m.currentPath()) {
+	if m.canModify() {
 		middle = append(middle, m.Keys.New)
 		if item, ok := m.List.SelectedItem().(NodeItem); ok {
 			if !item.Node.IsLeaf() {

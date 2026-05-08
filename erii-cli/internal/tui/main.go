@@ -25,7 +25,12 @@ func Start() error {
 		switch index {
 		case 0:
 			parser := tree.DetectParser(path.EnvFile)
-			root.pendingPush = buildConfigBrowser(parser, path.EnvFile, "Env Config", pushScreen, "")
+			browser := buildConfigBrowser(parser, path.EnvFile, "Env Config", pushScreen, "").
+				WithEditable(true).
+				WithNewItemFactory(func(title, desc string) tree.ConfigNode {
+					return tree.NewLeaf(title, desc, tree.TypeString, "")
+				})
+			root.pendingPush = browser
 		case 1:
 			parser := tree.DetectParser(path.AppFile)
 			root.pendingPush = buildConfigBrowser(parser, path.AppFile, "Application Config", pushScreen, "")
@@ -51,7 +56,7 @@ func Start() error {
 	return err
 }
 
-func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushScreen func(tea.Model), pluginName string) tea.Model {
+func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushScreen func(tea.Model), pluginName string) *cfgcomp.BrowserModel {
 	rootNode, err := parser.Parse(filePath)
 	if err != nil {
 		rootNode = tree.NewBranch("root", "Configuration")
