@@ -34,9 +34,9 @@ class RollPigService(
         private val AVATAR_EXTENSIONS = listOf("png", "jpg", "jpeg", "webp", "gif")
     }
 
-    suspend fun rollPigForUser(userId: String, forceNew: Boolean = false): PigData {
+    suspend fun rollPigForUser(userId: String, todayDate: String, forceNew: Boolean = false): PigData {
         if (!forceNew) {
-            store.getUserPig(userId)?.let { return it }
+            store.getUserPig(userId, todayDate)?.let { return it }
         }
 
         val pigList = store.getPigList()
@@ -45,7 +45,7 @@ class RollPigService(
         }
 
         val pig = pigList[Random.nextInt(pigList.size)]
-        store.setUserPig(userId, pig)
+        store.setUserPig(userId, pig, todayDate)
         return pig
     }
 

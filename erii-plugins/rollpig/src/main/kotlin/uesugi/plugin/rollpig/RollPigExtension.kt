@@ -23,6 +23,11 @@ class RollPigExtension : CmdExtension<RollPigContext, RollPigArgParser, RollPig>
     private lateinit var service: RollPigService
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    companion object {
+        private const val DAILY_RESET_JOB_ID = "rollpig-daily-reset"
+        private const val DAILY_RESET_CRON = "0 0 * * *"
+    }
+
     override fun onLoad(context: PluginContext) {
         this.context = context
 
@@ -34,6 +39,7 @@ class RollPigExtension : CmdExtension<RollPigContext, RollPigArgParser, RollPig>
         service = RollPigService(store)
 
         registerCommandHandler()
+        startDailyResetTask()
 
         log.info { "RollPigExtension loaded" }
     }
@@ -64,7 +70,22 @@ class RollPigExtension : CmdExtension<RollPigContext, RollPigArgParser, RollPig>
     }
 
     override fun onUnload() {
+        context.scheduler.cancel(DAILY_RESET_JOB_ID)
         scope.cancel()
         log.info { "RollPigExtension unloaded" }
+    }
+
+    private fun startDailyResetTask() {
+        context.scheduler.scheduleRecurrently(DAILY_RESET_JOB_ID, DAILY_RESET_CRON) {
+            log.info { "Running rollpig daily reset" }
+            try {
+                runBlocking {
+                    store.clearTodayCache()
+                }
+            } catch (e: Exception) {
+                log.error(e) { "Error in rollpig daily reset" }
+            }
+        }
+        log.info { "RollPig daily reset scheduled with cron: $DAILY_RESET_CRON" }
     }
 }

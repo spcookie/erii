@@ -19,6 +19,7 @@ data class RollPigContext(
     fun sendText(text: String) {
         sendMessage(buildMessageChain {
             +At(senderId)
+            +" "
             +text
         })
     }

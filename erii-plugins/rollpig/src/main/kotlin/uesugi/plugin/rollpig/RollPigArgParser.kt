@@ -3,6 +3,7 @@ package uesugi.plugin.rollpig
 import kotlinx.coroutines.runBlocking
 import uesugi.spi.ArgParserHolder
 import uesugi.spi.Meta
+import java.time.LocalDate
 
 class RollPigArgParser : ArgParserHolder<RollPigContext>() {
 
@@ -15,7 +16,8 @@ class RollPigArgParser : ArgParserHolder<RollPigContext>() {
     override fun run() {
         runBlocking {
             val userId = context.senderId.toString()
-            val pig = context.service.rollPigForUser(userId)
+            val today = LocalDate.now().toString()
+            val pig = context.service.rollPigForUser(userId, today)
 
             val imageBytes = context.service.renderPigImage(pig)
             if (imageBytes != null) {
