@@ -4,9 +4,10 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import uesugi.common.BotManage
 import uesugi.common.data.HistoryRecord
 import uesugi.common.data.HistoryTable
-import kotlin.collections.reversed
+import uesugi.common.toolkit.ConfigHolder
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
@@ -14,6 +15,10 @@ import kotlin.time.ExperimentalTime
 fun Meta.getRefBot() = roledBot.refBot
 
 fun Meta.getGroup() = getRefBot().getGroupOrFail(groupId.toLong())
+
+fun Meta.getAdmins() = ConfigHolder.getAdmins(BotManage.getConfigKey(botId), groupId)
+
+fun Meta.isAdmin() = senderId in getAdmins()
 
 @OptIn(ExperimentalTime::class)
 suspend fun Database.getLatestHistory(
