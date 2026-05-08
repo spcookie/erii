@@ -42,8 +42,8 @@ object CmdRuleRegister {
     // 全局注册表: cmdName -> (pluginId, rule)
     private val parsers = mutableMapOf<String, Pair<String, CmdRouteRule>>()
 
-    fun addRule(name: String, pluginId: String) {
-        parsers[name] = pluginId to CmdRouteRule(name)
+    fun addRule(name: String, pluginId: String, ruleName: String = name) {
+        parsers[name] = pluginId to CmdRouteRule(ruleName)
     }
 
     fun getRule(name: String): CmdRouteRule? {
@@ -57,14 +57,14 @@ object CmdRuleRegister {
     }
 
     fun getAllRules(): List<CmdRouteRule> {
-        return parsers.values.map { it.second }.toList()
+        return parsers.values.map { it.second }.distinctBy { it.name }.toList()
     }
 
     fun getRulesForBot(botId: String): List<CmdRouteRule> {
         val configKey = BotManage.getConfigKey(botId)
         return parsers.filterValues { (pId, _) ->
             ConfigHolder.isPluginEnabled(configKey, pId)
-        }.values.map { it.second }.toList()
+        }.values.map { it.second }.distinctBy { it.name }.toList()
     }
 }
 

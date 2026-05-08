@@ -79,14 +79,17 @@ interface AgentExtension<T : AgentPlugin> : ExtensionPoint {
 
 interface CmdExtension<Context, Arg : ArgParserHolder<Context>, Plugin : AgentPlugin> : AgentExtension<Plugin> {
     val cmd: String
+    val alias: List<String>
+        get() = emptyList()
 
     fun Meta.parser(context: Context): Arg {
         val holder = getHolder(this@parser)
         holder.init(this@parser, context)
+        val withoutSlash = input!!.removePrefix("/")
+        val matched = (listOf(cmd) + alias).firstOrNull { withoutSlash.startsWith(it) } ?: cmd
         val args = buildList {
             addAll(
-                input!!.removePrefix("/")
-                    .removePrefix(cmd)
+                withoutSlash.removePrefix(matched)
                     .split(" ")
                     .filter { it.isNotBlank() }
                     .map { it.trim() }

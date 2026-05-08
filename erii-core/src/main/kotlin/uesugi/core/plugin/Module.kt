@@ -77,7 +77,10 @@ fun pluginModule() = module(createdAtStart = true) {
         extensions.filterIsInstance<CmdExtension<*, *, *>>()
             .forEach { plugin ->
                 val cmdName = plugin.cmd
-                CmdRuleRegister.addRule(cmdName, pluginId)
+                CmdRuleRegister.addRule(cmdName, pluginId, cmdName)
+                plugin.alias.forEach { alias ->
+                    CmdRuleRegister.addRule(alias, pluginId, cmdName)
+                }
             }
     }
 
