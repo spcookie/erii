@@ -22,36 +22,37 @@ class SchedulerImpl(
 
     override fun scheduleRecurrently(id: String, cron: String, action: () -> Unit) {
         val qid = qualifiedId(id)
-        SchedulerBridge.register(qid, action)
+        SchedulerBridge.register(qid, action, onMissing = { cancel(id) })
         recurringJobIds += qid
         jobScheduler.scheduleRecurrently(qid, cron) {
-            SchedulerBridge.execute(qid) { cancel(id) }
+            SchedulerBridge.runTask(qid)
         }
     }
 
     override fun scheduleRecurrently(id: String, interval: Duration, action: () -> Unit) {
         val qid = qualifiedId(id)
-        SchedulerBridge.register(qid, action)
+        SchedulerBridge.register(qid, action, onMissing = { cancel(id) })
         recurringJobIds += qid
         jobScheduler.scheduleRecurrently(qid, interval.toJavaDuration()) {
-            SchedulerBridge.execute(qid) { cancel(id) }
+            SchedulerBridge.runTask(qid)
         }
     }
 
     override fun schedule(id: String, delay: Duration, action: () -> Unit) {
         val qid = qualifiedId(id)
-        SchedulerBridge.register(qid, action)
-        // schedule 不接受自定义 String ID，返回 JobId
+        SchedulerBridge.register(qid, action, onMissing = { cancel(id) })
         val jobId = jobScheduler.schedule(java.time.Instant.now().plus(delay.toJavaDuration())) {
-            SchedulerBridge.execute(qid) { cancel(id) }
+            SchedulerBridge.runTask(qid)
         }
         oneTimeJobIds[qid] = jobId.asUUID()
     }
 
     override fun enqueue(id: String, action: () -> Unit) {
         val qid = qualifiedId(id)
-        SchedulerBridge.register(qid, action)
-        val jobId = jobScheduler.enqueue { SchedulerBridge.execute(qid) { cancel(id) } }
+        SchedulerBridge.register(qid, action, onMissing = { cancel(id) })
+        val jobId = jobScheduler.enqueue {
+            SchedulerBridge.runTask(qid)
+        }
         oneTimeJobIds[qid] = jobId.asUUID()
     }
 
