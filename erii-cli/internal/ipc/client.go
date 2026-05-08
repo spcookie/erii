@@ -2,10 +2,12 @@ package ipc
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
+
 	"os"
 	"path/filepath"
+
+	"github.com/vmihailenco/msgpack/v5"
 
 	"erii-cli/internal/path"
 )
@@ -16,10 +18,10 @@ const (
 )
 
 type ServerConfig struct {
-	Type     string `json:"type"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Type     string `msgpack:"type" json:"type"`
+	Port     int    `msgpack:"port" json:"port"`
+	Username string `msgpack:"username" json:"username"`
+	Password string `msgpack:"password" json:"password"`
 }
 
 func ReadConfig() (*ServerConfig, error) {
@@ -87,11 +89,11 @@ func ReadConfig() (*ServerConfig, error) {
 		return nil, fmt.Errorf("invalid config length: %d", configLen)
 	}
 
-	// Read JSON config data
+	// Read MessagePack config data
 	configData := data[4 : 4+configLen]
 
 	var config ServerConfig
-	if err := json.Unmarshal(configData, &config); err != nil {
+	if err := msgpack.Unmarshal(configData, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 

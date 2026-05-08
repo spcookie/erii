@@ -1,8 +1,8 @@
 package uesugi.cli
 
+import com.ensarsarajcic.kotlinx.serialization.msgpack.MsgPack
 import io.ktor.server.application.*
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import uesugi.common.toolkit.logger
 import java.io.RandomAccessFile
 import java.nio.MappedByteBuffer
@@ -48,12 +48,11 @@ class IpcRingBuffer(filePath: Path) {
             username = username,
             password = password
         )
-        val json = Json.encodeToString(config)
-        val bytes = json.toByteArray(Charsets.UTF_8)
+        val bytes = MsgPack.encodeToByteArray(ServerConfig.serializer(), config)
 
         // 写入长度 (4 bytes)
         buffer.putInt(0, bytes.size)
-        // 写入JSON数据
+        // 写入 MessagePack 数据
         buffer.position(4)
         buffer.put(bytes)
         // 刷盘确保写入
@@ -69,7 +68,11 @@ class IpcRingBuffer(filePath: Path) {
 }
 
 object IpcWriter {
-    private val dirPath: Path = Path.of(System.getenv("ERII_IPC_PATH") ?: ".")
+    private val dirPath: Path = Path.of(
+        System.getProperty("erii.ipc.path")
+            ?: System.getenv("ERII_IPC_PATH")
+            ?: "."
+    )
     private var ringBuffer: IpcRingBuffer? = null
 
     fun init() {

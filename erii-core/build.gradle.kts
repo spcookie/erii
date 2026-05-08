@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.snakeyaml)
     implementation(libs.okio)
     implementation(libs.pf4j)
+    implementation(libs.kotlinx.serialization.msgpack)
     compileOnly(libs.jte.kotlin)
     compileOnly(libs.autoservice.annotations)
     // 测试

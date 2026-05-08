@@ -29,6 +29,7 @@ typesafe = "1.4.0"
 snakeyaml = "2.2"
 pf4j = "3.15.0"
 kotlin-logging = "7.0.13"
+kotlinx-serialization-msgpack = "0.5.5"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -91,6 +92,7 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref 
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 typesafe-config = { module = "com.typesafe:config", version.ref = "typesafe" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+kotlinx-serialization-msgpack = { module = "com.ensarsarajcic.kotlinx:serialization-msgpack", version.ref = "kotlinx-serialization-msgpack" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
