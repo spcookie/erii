@@ -16,6 +16,9 @@ class RollPigExtension : CmdExtension<RollPigContext, RollPigArgParser, RollPig>
 
     override val cmd: String = "rollpig"
 
+    override val alias: List<String>
+        get() = listOf("rp", "今日小猪", "抽小猪")
+
     private val log = KotlinLogging.logger {}
 
     private lateinit var context: PluginContext
@@ -33,7 +36,6 @@ class RollPigExtension : CmdExtension<RollPigContext, RollPigArgParser, RollPig>
 
         store = RollPigStore(context.kv)
 
-        // Load pig data from resources
         loadPigData(context)
 
         service = RollPigService(store)

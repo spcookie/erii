@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import uesugi.plugin.rollpig.service.RollPigService
 import uesugi.plugin.rollpig.store.RollPigStore
 import uesugi.spi.Meta
+import uesugi.spi.isAdmin
 
 class RollPigCommandHandler(
     private val store: RollPigStore,
@@ -18,7 +19,8 @@ class RollPigCommandHandler(
         meta = meta,
         store = store,
         service = service,
-        scope = scope
+        scope = scope,
+        isAdmin = meta.isAdmin()
     )
 
     fun handleWithError(meta: Meta, parser: (RollPigContext) -> Unit) {

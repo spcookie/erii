@@ -15,7 +15,8 @@ object RollPigContextFactory {
         meta: Meta,
         store: RollPigStore,
         service: RollPigService,
-        scope: CoroutineScope
+        scope: CoroutineScope,
+        isAdmin: Boolean,
     ): RollPigContext {
         val userId = meta.senderId?.toLongOrNull() ?: 0L
         val senderNick = meta.senderId ?: "User"
@@ -26,6 +27,7 @@ object RollPigContextFactory {
             groupId = meta.groupId,
             senderId = userId,
             senderNick = senderNick,
+            isAdmin = isAdmin,
             sendMessage = { msg ->
                 scope.launch {
                     meta.getGroup().sendMessage(msg)

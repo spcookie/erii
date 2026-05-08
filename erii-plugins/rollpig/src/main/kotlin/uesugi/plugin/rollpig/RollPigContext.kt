@@ -13,6 +13,7 @@ data class RollPigContext(
     val groupId: String,
     val senderId: Long,
     val senderNick: String,
+    val isAdmin: Boolean,
     val sendMessage: (MessageChain) -> Unit,
     val createImage: (ByteArray) -> Image?,
 ) {
