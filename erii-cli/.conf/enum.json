@@ -1,11 +1,7 @@
 {
-  "__main__": {
-    "llm.choice-model": [
-      "GOOGLE",
-      "MINIMAX",
-      "DEEP_SEEK"
-    ]
-  },
-  "__plugin__": {
-  }
+  "llm.choice-model": [
+    "GOOGLE",
+    "MINIMAX",
+    "DEEP_SEEK"
+  ]
 }

@@ -1,11 +1,4 @@
-{
-  "__main__": [
-    "onebot",
-    "onebot.*.groups"
-  ],
-  "__plugin__": {
-    "net-ease-music": [
-      "onebot"
-    ]
-  }
-}
+[
+  "onebot",
+  "onebot.*.groups"
+]

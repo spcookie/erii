@@ -1,9 +1,0 @@
-{
-  "api-base": "http://127.0.0.1:13000",
-  "onebot": {
-    "erii": {
-      "http-url": "http://127.0.0.1:3000",
-      "token": "${NAPCAT_TOKEN}"
-    }
-  }
-}

@@ -1,201 +1,177 @@
 {
-  "__main__": {
-    "browser.playwright-host": {
-      "type": "string",
-      "nullable": true,
-      "default": ""
-    },
-    "browser.status-host": {
-      "type": "string",
-      "nullable": true,
-      "default": ""
-    },
-    "embedding.api-key": {
-      "type": "string",
-      "nullable": true,
-      "default": ""
-    },
-    "embedding.provider": {
-      "type": "string",
-      "default": ""
-    },
-    "embedding.url": {
-      "type": "string",
-      "default": ""
-    },
-    "groups.debug-group-id": {
-      "type": "string",
-      "default": ""
-    },
-    "groups.enable-groups": {
-      "type": "array",
-      "default": []
-    },
-    "groups.message-redirect-map": {
-      "type": "array",
-      "default": []
-    },
-    "llm.choice-model": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.deep-seek.api-key": {
-      "type": "string",
-      "nullable": true,
-      "default": ""
-    },
-    "llm.deep-seek.base-url": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.deep-seek.models.flash": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.deep-seek.models.lite": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.deep-seek.models.pro": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.google.api-key": {
-      "type": "string",
-      "nullable": true,
-      "default": ""
-    },
-    "llm.google.base-url": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.google.models.flash": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.google.models.lite": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.google.models.pro": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.minimax.api-key": {
-      "type": "string",
-      "nullable": true,
-      "default": ""
-    },
-    "llm.minimax.base-url": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.minimax.models.flash": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.minimax.models.lite": {
-      "type": "string",
-      "default": ""
-    },
-    "llm.minimax.models.pro": {
-      "type": "string",
-      "default": ""
-    },
-    "onebot.bots.*.disabled-plugins": {
-      "type": "array",
-      "default": []
-    },
-    "onebot.bots.*.enabled-plugins": {
-      "type": "array",
-      "default": []
-    },
-    "onebot.bots.*.groups-override.debug-group-id": {
-      "type": "string",
-      "nullable": true
-    },
-    "onebot.bots.*.groups-override.enable-groups": {
-      "type": "array",
-      "default": []
-    },
-    "onebot.bots.*.groups-override.message-redirect-map": {
-      "type": "array",
-      "default": []
-    },
-    "onebot.bots.*.groups.*.admins": {
-      "type": "array",
-      "default": []
-    },
-    "onebot.bots.*.groups.*.desire": {
-      "type": "number",
-      "default": 25
-    },
-    "onebot.bots.*.role-id": {
-      "type": "string",
-      "default": "erii"
-    },
-    "onebot.bots.*.token": {
-      "type": "string",
-      "nullable": true
-    },
-    "onebot.bots.*.ws": {
-      "type": "string",
-      "default": ""
-    },
-    "proxy.http": {
-      "type": "string",
-      "nullable": true,
-      "default": ""
-    },
-    "proxy.socks": {
-      "type": "string",
-      "nullable": true
-    },
-    "search.api-key": {
-      "type": "string",
-      "nullable": true
-    },
-    "search.provider": {
-      "type": "string",
-      "default": ""
-    },
-    "search.url": {
-      "type": "string",
-      "default": ""
-    },
-    "vision.api-key": {
-      "type": "string",
-      "nullable": true
-    },
-    "vision.provider": {
-      "type": "string",
-      "default": ""
-    },
-    "vision.url": {
-      "type": "string",
-      "default": ""
-    }
+  "browser.playwright-host": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
   },
-  "__plugin__": {
-    "net-ease-music": {
-      "api-base": {
-        "type": "string",
-        "default": ""
-      },
-      "onebot.*.http-url": {
-        "type": "string",
-        "default": ""
-      },
-      "onebot.*.token": {
-        "type": "string",
-        "nullable": true
-      }
-    },
-    "speech": {
-      "minimax-api-key": {
-        "type": "string",
-        "nullable": true
-      }
-    }
+  "browser.status-host": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "embedding.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "embedding.provider": {
+    "type": "string",
+    "default": ""
+  },
+  "embedding.url": {
+    "type": "string",
+    "default": ""
+  },
+  "groups.debug-group-id": {
+    "type": "string",
+    "default": ""
+  },
+  "groups.enable-groups": {
+    "type": "array",
+    "default": []
+  },
+  "groups.message-redirect-map": {
+    "type": "array",
+    "default": []
+  },
+  "llm.choice-model": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.deep-seek.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "llm.deep-seek.base-url": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.deep-seek.models.flash": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.deep-seek.models.lite": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.deep-seek.models.pro": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.google.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "llm.google.base-url": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.google.models.flash": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.google.models.lite": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.google.models.pro": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.minimax.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "llm.minimax.base-url": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.minimax.models.flash": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.minimax.models.lite": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.minimax.models.pro": {
+    "type": "string",
+    "default": ""
+  },
+  "onebot.bots.*.disabled-plugins": {
+    "type": "array",
+    "default": []
+  },
+  "onebot.bots.*.enabled-plugins": {
+    "type": "array",
+    "default": []
+  },
+  "onebot.bots.*.groups-override.debug-group-id": {
+    "type": "string",
+    "nullable": true
+  },
+  "onebot.bots.*.groups-override.enable-groups": {
+    "type": "array",
+    "default": []
+  },
+  "onebot.bots.*.groups-override.message-redirect-map": {
+    "type": "array",
+    "default": []
+  },
+  "onebot.bots.*.groups.*.admins": {
+    "type": "array",
+    "default": []
+  },
+  "onebot.bots.*.groups.*.desire": {
+    "type": "number",
+    "default": 25
+  },
+  "onebot.bots.*.role-id": {
+    "type": "string",
+    "default": "erii"
+  },
+  "onebot.bots.*.token": {
+    "type": "string",
+    "nullable": true
+  },
+  "onebot.bots.*.ws": {
+    "type": "string",
+    "default": ""
+  },
+  "proxy.http": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "proxy.socks": {
+    "type": "string",
+    "nullable": true
+  },
+  "search.api-key": {
+    "type": "string",
+    "nullable": true
+  },
+  "search.provider": {
+    "type": "string",
+    "default": ""
+  },
+  "search.url": {
+    "type": "string",
+    "default": ""
+  },
+  "vision.api-key": {
+    "type": "string",
+    "nullable": true
+  },
+  "vision.provider": {
+    "type": "string",
+    "default": ""
+  },
+  "vision.url": {
+    "type": "string",
+    "default": ""
   }
 }

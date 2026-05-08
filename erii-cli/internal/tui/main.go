@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"log"
+
 	"erii-cli/internal/config/tree"
 	"erii-cli/internal/path"
 	"erii-cli/internal/tui/components"
@@ -12,7 +14,12 @@ import (
 )
 
 func Start() error {
-	_ = tree.LoadMetadata(path.ConfMetaDir)
+	if err := tree.InitializePluginConfigs(path.PluginDir, path.PluginConfigDir, path.PluginSchemaDir); err != nil {
+		log.Printf("warn: plugin config initialization failed: %v", err)
+	}
+	if err := tree.LoadMetadata(path.ConfMetaDir); err != nil {
+		log.Printf("warn: metadata load failed: %v", err)
+	}
 
 	var root *RootModel
 

@@ -13,13 +13,15 @@ var (
 	SoulsDir        string
 	RulesDir        string
 	PluginConfigDir string
+	PluginDir       string
+	PluginSchemaDir string
 )
 
 func init() {
-	InitPaths("", "")
+	InitPaths("", "", "")
 }
 
-func InitPaths(confDir, confMetaDir string) {
+func InitPaths(confDir, confMetaDir, pluginDir string) {
 	if confDir != "" {
 		ConfDir = confDir
 	} else {
@@ -35,86 +37,72 @@ func InitPaths(confDir, confMetaDir string) {
 	SoulsDir = filepath.Join(ConfDir, "souls")
 	RulesDir = filepath.Join(ConfDir, "rules")
 	PluginConfigDir = filepath.Join(ConfDir, "plugin-config")
+	PluginSchemaDir = filepath.Join(PluginConfigDir, "schema")
+	if pluginDir != "" {
+		PluginDir = pluginDir
+	} else {
+		PluginDir = resolvePluginDir()
+	}
 }
 
 func resolveConfMetaDir() string {
-	// Try CWD first
-	if cwd, err := os.Getwd(); err == nil {
-		candidate := filepath.Join(cwd, ".conf")
-		if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
-			return candidate
-		}
-		// Walk up from CWD looking for .conf
-		for dir := cwd; ; dir = filepath.Dir(dir) {
-			candidate = filepath.Join(dir, ".conf")
-			if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
-				return candidate
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-		}
-	}
+	return resolveDir(".conf", func() string {
+		return filepath.Join(filepath.Dir(ConfDir), ".conf")
+	})
+}
 
-	// Try executable directory
-	if ex, err := os.Executable(); err == nil {
-		exDir := filepath.Dir(ex)
-		for dir := exDir; ; dir = filepath.Dir(dir) {
-			candidate := filepath.Join(dir, ".conf")
-			if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
-				return candidate
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
+func resolvePluginDir() string {
+	return resolveDir("plugins", func() string {
+		if cwd, err := os.Getwd(); err == nil {
+			return filepath.Join(cwd, "plugins")
 		}
-	}
-
-	// Fallback to sibling of ConfDir
-	return filepath.Join(filepath.Dir(ConfDir), ".conf")
+		return "./plugins"
+	})
 }
 
 func resolveConfDir() string {
+	return resolveDir("conf", func() string {
+		if cwd, err := os.Getwd(); err == nil {
+			return filepath.Join(cwd, "conf")
+		}
+		return "./conf"
+	})
+}
+
+// resolveDir searches for a directory named `name` starting from CWD,
+// then from the executable directory, walking upward in both cases.
+// If not found, it returns the result of fallback().
+func resolveDir(name string, fallback func() string) string {
 	// Try CWD first
 	if cwd, err := os.Getwd(); err == nil {
-		candidate := filepath.Join(cwd, "conf")
+		if dir := findDirUpward(cwd, name); dir != "" {
+			return dir
+		}
+	}
+	// Try executable directory
+	if ex, err := os.Executable(); err == nil {
+		if dir := findDirUpward(filepath.Dir(ex), name); dir != "" {
+			return dir
+		}
+	}
+	return fallback()
+}
+
+// findDirUpward walks from start upward, looking for a directory named `name`.
+func findDirUpward(start, name string) string {
+	candidate := filepath.Join(start, name)
+	if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
+		return candidate
+	}
+	for dir := filepath.Dir(start); ; dir = filepath.Dir(dir) {
+		candidate = filepath.Join(dir, name)
 		if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
 			return candidate
 		}
-
-		// Walk up from CWD looking for conf
-		for dir := cwd; ; dir = filepath.Dir(dir) {
-			candidate = filepath.Join(dir, "conf")
-			if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
-				return candidate
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
 		}
 	}
-
-	// Try executable directory
-	if ex, err := os.Executable(); err == nil {
-		exDir := filepath.Dir(ex)
-		for dir := exDir; ; dir = filepath.Dir(dir) {
-			candidate := filepath.Join(dir, "conf")
-			if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
-				return candidate
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-		}
-	}
-
-	// Fallback to CWD-relative
-	if cwd, err := os.Getwd(); err == nil {
-		return filepath.Join(cwd, "conf")
-	}
-	return "./conf"
+	return ""
 }
