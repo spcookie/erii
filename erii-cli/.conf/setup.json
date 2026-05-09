@@ -1,0 +1,19 @@
+{
+  "providers": [
+    {
+      "name": "Google",
+      "desc": "Google Gemini models",
+      "base-url": "https://generativelanguage.googleapis.com"
+    },
+    {
+      "name": "DeepSeek",
+      "desc": "DeepSeek models",
+      "base-url": "https://api.deepseek.com"
+    },
+    {
+      "name": "MiniMax",
+      "desc": "MiniMax models (Anthropic-compatible API)",
+      "base-url": "https://api.minimaxi.com"
+    }
+  ]
+}
