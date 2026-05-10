@@ -143,6 +143,9 @@ func modifyConfig(d *SetupData, filePath string) error {
 				if isKey(trimmed, "status-host") && d.StatusHost != "" {
 					lines[i] = replaceHoconValue(line, d.StatusHost)
 				}
+				if isKey(trimmed, "provider") && d.BrowserProvider != "" {
+					lines[i] = replaceHoconValue(line, d.BrowserProvider)
+				}
 			}
 		}
 
