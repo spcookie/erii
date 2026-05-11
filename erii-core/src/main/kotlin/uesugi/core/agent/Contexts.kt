@@ -350,12 +350,14 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
             },
             facts = {
                 withContext(Dispatchers.IO) {
-                    transaction {
+                    val (subjects, query) = transaction {
                         val records =
                             historyService.getLatestHistory(currentBotId, groupId, 20, 12.hours)
                         val subjects = records.map { it.userId }.distinct().toList()
-                        memoryService.getFacts(currentBotId, groupId, subjects, 15)
+                        val query = records.mapNotNull { it.content }.joinToString(" ")
+                        subjects to query
                     }
+                    memoryService.getFactsWithVector(currentBotId, groupId, subjects, query, 15)
                 }
             },
             userProfiles = {

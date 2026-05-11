@@ -178,6 +178,47 @@ class MemoryService(
         }
     }
 
+    suspend fun getFactsWithVector(
+        botMark: String,
+        groupId: String,
+        subjects: List<String>,
+        query: String,
+        limit: Int = 15
+    ): List<FactsEntity> {
+        val dbFacts = getFacts(botMark, groupId, subjects, limit)
+
+        if (query.isBlank()) return dbFacts
+
+        val vectorResults = try {
+            factVectorStore.search(query, groupId, botMark, limit)
+        } catch (e: Exception) {
+            log.warn("Vector search failed for facts, falling back to DB only", e)
+            emptyList()
+        }
+
+        val dbFactIds = dbFacts.map { it.id.value }.toSet()
+
+        val newVectorFacts = withContext(Dispatchers.IO) {
+            transaction {
+                val factIds = vectorResults
+                    .mapNotNull { it.factId }
+                    .filter { it !in dbFactIds }
+
+                if (factIds.isEmpty()) {
+                    emptyList()
+                } else {
+                    FactsEntity.find {
+                        (FactsTable.id inList factIds) and
+                                (FactsTable.validFrom lessEq CurrentDateTime) and
+                                (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
+                    }.toList()
+                }
+            }
+        }
+
+        return dbFacts + newVectorFacts
+    }
+
     fun getAllFactsByGroup(
         botMark: String,
         groupId: String
