@@ -17,7 +17,7 @@ import net.mamoe.mirai.utils.ExternalResource
 import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
 import uesugi.common.ChatToolSet
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.event.PSFeature
 import uesugi.common.toolkit.calcHumanTypingDelay
 import uesugi.common.toolkit.logger
@@ -146,7 +146,7 @@ class LolisukiExtension : RouteExtension<Lolisuki> {
 
         val result = llm.executeStructured<TagGroup>(
             prompt,
-            LLMModelsChoice.Lite
+            LLMProviderChoice.Lite
         )
 
         var tags: List<String>? = null

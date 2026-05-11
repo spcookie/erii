@@ -10,7 +10,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import uesugi.common.BotManage
 import uesugi.common.EventBus
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.data.HistoryRecord
 import uesugi.common.event.ChatUrgentEvent
 import uesugi.common.event.InterruptionMode
@@ -201,7 +201,7 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
             }
         }
 
-        val responses = promptExecutor.execute(prompt, LLMModelsChoice.Flash)
+        val responses = promptExecutor.execute(prompt, LLMProviderChoice.Flash)
         val content = responses.filterIsInstance<Message.Assistant>().firstOrNull()?.content
         log.info { "Relevance continue determine LLM response: $content" }
         return content != null && content.contains("CONTINUE")

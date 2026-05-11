@@ -10,7 +10,7 @@ import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.JSON
@@ -97,9 +97,9 @@ class VolitionAgent {
         return try {
             val response = promptExecutor.executeStructured<StimulusAnalysis>(
                 prompt,
-                model = LLMModelsChoice.Flash,
+                model = LLMProviderChoice.Flash,
                 fixingParser = StructureFixingParser(
-                    model = LLMModelsChoice.Lite,
+                    model = LLMProviderChoice.Lite,
                     retries = 2
                 ),
                 examples = listOf(

@@ -17,7 +17,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonNull
 import uesugi.common.EventBus
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.event.*
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
@@ -173,7 +173,7 @@ object BotAgent {
                             promptExecutor = promptExecutor,
                             agentConfig = AIAgentConfig(
                                 prompt = buildPrompt(context),
-                                model = LLMModelsChoice.Pro,
+                                model = LLMProviderChoice.Pro,
                                 maxAgentIterations = 20,
                             ),
                             strategy = strategy
@@ -269,7 +269,7 @@ object BotAgent {
                 agentInput = event.input ?: DEFAULT_INPUT,
                 agentConfig = AIAgentConfig(
                     prompt = buildPrompt(context),
-                    model = LLMModelsChoice.Pro,
+                    model = LLMProviderChoice.Pro,
                     maxAgentIterations = 20,
                 ),
                 additionalToolRegistry = with(buildToolEnv(event, context)) { buildToolRegistry() },

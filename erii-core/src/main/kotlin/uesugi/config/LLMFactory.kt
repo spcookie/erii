@@ -14,7 +14,7 @@ import ai.koog.prompt.llm.LLMProvider
 import io.ktor.client.*
 import io.ktor.client.engine.*
 import io.ktor.client.plugins.logging.*
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.toolkit.ConfigHolder
 import kotlin.time.ExperimentalTime
 
@@ -72,8 +72,8 @@ class LLMFactory {
                             apiKey = minimaxApiKey,
                             settings = AnthropicClientSettings(
                                 modelVersionsMap = mapOf(
-                                    LLMModelsChoice.Pro to LLMModelsChoice.Pro.id,
-                                    LLMModelsChoice.Flash to LLMModelsChoice.Flash.id
+                                    LLMProviderChoice.Pro to LLMProviderChoice.Pro.id,
+                                    LLMProviderChoice.Flash to LLMProviderChoice.Flash.id
                                 ),
                                 baseUrl = minimaxBaseUrl,
                                 messagesPath = "anthropic/v1/messages"

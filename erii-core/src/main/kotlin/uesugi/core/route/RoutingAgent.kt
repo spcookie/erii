@@ -4,7 +4,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.message.Message
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
 import uesugi.core.agent.buildHistoriesPrompt
@@ -74,7 +74,7 @@ object RoutingAgent {
         try {
             val result = promptExecutor.execute(
                 prompt,
-                model = LLMModelsChoice.Lite,
+                model = LLMProviderChoice.Lite,
             )
             val assistant = result.filterIsInstance<Message.Assistant>().first()
             return RouteRuleRegister.getRule(assistant.content.trim())!!

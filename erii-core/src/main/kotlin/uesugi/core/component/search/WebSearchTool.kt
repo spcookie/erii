@@ -11,7 +11,7 @@ import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.message.Message
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.extend.SearchResultItem
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
@@ -66,9 +66,9 @@ object WebSearchTool : ToolSet {
 
         val result = promptExecutor.executeStructured<SearchPlan>(
             prompt = rewritePrompt,
-            model = LLMModelsChoice.Lite,
+            model = LLMProviderChoice.Lite,
             fixingParser = StructureFixingParser(
-                model = LLMModelsChoice.Lite,
+                model = LLMProviderChoice.Lite,
                 retries = 2
             )
         )
@@ -138,7 +138,7 @@ object WebSearchTool : ToolSet {
             )
         }
 
-        val result = promptExecutor.execute(synthesizePrompt, model = LLMModelsChoice.Lite)
+        val result = promptExecutor.execute(synthesizePrompt, model = LLMProviderChoice.Lite)
         return result.filterIsInstance<Message.Assistant>().firstOrNull()?.content
             ?: throw IllegalStateException("LLM synthesis returned no assistant message")
     }

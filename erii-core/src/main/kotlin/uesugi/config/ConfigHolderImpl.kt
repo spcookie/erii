@@ -117,7 +117,7 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getLlmMinimaxModels(): Map<String, String> =
         getLlmModelsHierarchical("minimax", DEFAULT_MINIMAX_MODELS)
 
-    override fun getChoiceModel(): String = config.getString("llm.choice-model")
+    override fun getChoiceProvider(): String = config.getString("llm.choice-provider")
 
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
     override fun getEmbeddingProvider(): String = config.getString("embedding.provider")

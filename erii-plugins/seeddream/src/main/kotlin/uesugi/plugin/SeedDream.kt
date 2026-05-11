@@ -25,7 +25,7 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.pf4j.Extension
 import uesugi.common.ChatToolSet
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.MessageType
 import uesugi.common.data.ResourceTable
@@ -294,7 +294,7 @@ class SeedDreamExtension : RouteExtension<SeedDream> {
                 user(prompt)
             }
 
-            val result = llm.executeStructured<SeedDreamRequest>(promt, LLMModelsChoice.Pro)
+            val result = llm.executeStructured<SeedDreamRequest>(promt, LLMProviderChoice.Pro)
 
             val request = result.getOrThrow().data
 

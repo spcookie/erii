@@ -6,13 +6,13 @@ import ai.koog.prompt.llm.LLModel
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 
-object LLMModelsChoice {
+object LLMProviderChoice {
 
     private val log = logger()
 
     private val choice by lazy {
-        val choice = ConfigHolder.getChoiceModel()
-        log.info("apply llm choice: $choice")
+        val choice = ConfigHolder.getChoiceProvider()
+        log.info("apply llm provider: $choice")
         choice
     }
 

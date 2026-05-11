@@ -9,7 +9,7 @@ import kotlinx.coroutines.*
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
@@ -171,9 +171,9 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<UserProfileAnalysis>(
             prompt = prompt,
-            model = LLMModelsChoice.Flash,
+            model = LLMProviderChoice.Flash,
             fixingParser = StructureFixingParser(
-                model = LLMModelsChoice.Lite,
+                model = LLMProviderChoice.Lite,
                 retries = 2
             )
         )
@@ -259,9 +259,9 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<SummaryAnalysis>(
             prompt = prompt,
-            model = LLMModelsChoice.Flash,
+            model = LLMProviderChoice.Flash,
             fixingParser = StructureFixingParser(
-                model = LLMModelsChoice.Lite,
+                model = LLMProviderChoice.Lite,
                 retries = 2
             )
         )
@@ -416,9 +416,9 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<FactExtractionResult>(
             prompt = prompt,
-            model = LLMModelsChoice.Flash,
+            model = LLMProviderChoice.Flash,
             fixingParser = StructureFixingParser(
-                model = LLMModelsChoice.Lite,
+                model = LLMProviderChoice.Lite,
                 retries = 2
             )
         )
@@ -491,9 +491,9 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<ConflictResolutionResult>(
             prompt = prompt,
-            model = LLMModelsChoice.Pro,  // 冲突解决需要更强的模型
+            model = LLMProviderChoice.Pro,  // 冲突解决需要更强的模型
             fixingParser = StructureFixingParser(
-                model = LLMModelsChoice.Lite,
+                model = LLMProviderChoice.Lite,
                 retries = 2
             )
         )

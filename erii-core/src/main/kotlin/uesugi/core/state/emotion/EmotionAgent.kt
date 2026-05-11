@@ -8,7 +8,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
-import uesugi.common.LLMModelsChoice
+import uesugi.common.LLMProviderChoice
 import uesugi.common.data.PadScale12
 import uesugi.common.toolkit.DateTimeFormat
 import kotlin.time.ExperimentalTime
@@ -155,9 +155,9 @@ suspend fun analyzeStimulus(history: List<GMessage>): Stimulus {
     // 执行结构化 LLM 调用
     val result = promptExecutor.executeStructured<PadScale12>(
         prompt = prompt,
-        model = LLMModelsChoice.Pro,
+        model = LLMProviderChoice.Pro,
         fixingParser = StructureFixingParser(
-            model = LLMModelsChoice.Lite,
+            model = LLMProviderChoice.Lite,
             retries = 2
         ),
         examples = listOf(

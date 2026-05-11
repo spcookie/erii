@@ -50,7 +50,7 @@ interface ConfigProvider {
     fun getLlmMinimaxApiKey(): String
     fun getLlmMinimaxBaseUrl(): String
     fun getLlmMinimaxModels(): Map<String, String>
-    fun getChoiceModel(): String
+    fun getChoiceProvider(): String
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String
@@ -118,7 +118,7 @@ object ConfigHolder {
     fun getLlmMinimaxApiKey(): String = provider.getLlmMinimaxApiKey()
     fun getLlmMinimaxBaseUrl(): String = provider.getLlmMinimaxBaseUrl()
     fun getLlmMinimaxModels(): Map<String, String> = provider.getLlmMinimaxModels()
-    fun getChoiceModel(): String = provider.getChoiceModel()
+    fun getChoiceProvider(): String = provider.getChoiceProvider()
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()

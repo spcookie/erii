@@ -1,5 +1,5 @@
 {
-  "llm.choice-model": [
+  "llm.choice-provider": [
     "GOOGLE",
     "MINIMAX",
     "DEEP_SEEK"
