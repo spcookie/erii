@@ -74,7 +74,8 @@ interface ConfigProvider {
     fun getAdmins(botConfigKey: String, groupId: String): List<String>
 
     // ===== Web =====
-    fun getPlaywrightHost(): String
+    fun getPlaywrightUrl(): String
+    fun getBrowserDownload(): Boolean
 
     // ===== 群组 =====
     fun getDebugGroupId(): String?
@@ -141,7 +142,8 @@ object ConfigHolder {
     fun getAdmins(botConfigKey: String, groupId: String): List<String> = provider.getAdmins(botConfigKey, groupId)
 
     // ===== Web =====
-    fun getPlaywrightHost(): String = provider.getPlaywrightHost()
+    fun getPlaywrightUrl(): String = provider.getPlaywrightUrl()
+    fun getBrowserDownload(): Boolean = provider.getBrowserDownload()
 
     // ===== 群组 =====
     fun getDebugGroupId(): String? = provider.getDebugGroupId()
