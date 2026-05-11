@@ -1,0 +1,3 @@
+[submodule "erii-plugins"]
+	path = erii-plugins
+	url = git@github.com:spcookie/erii-plugins.git
