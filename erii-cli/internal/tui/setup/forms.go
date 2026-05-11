@@ -54,40 +54,6 @@ func buildLLMForm(d *SetupData) *huh.Form {
 	)
 }
 
-func buildToolsMenuForm(d *SetupData) *huh.Form {
-	return wrapForm(
-		huh.NewGroup(
-			huh.NewSelect[bool]().
-				Title("Embedding").
-				Description("Configure embedding service").
-				Options(huh.NewOption("Enable", true), huh.NewOption("Skip", false)).
-				Value(&d.EmbeddingEnabled),
-			huh.NewSelect[bool]().
-				Title("Search").
-				Description("Configure search service").
-				Options(huh.NewOption("Enable", true), huh.NewOption("Skip", false)).
-				Value(&d.SearchEnabled),
-			huh.NewSelect[bool]().
-				Title("Vision").
-				Description("Configure vision service").
-				Options(huh.NewOption("Enable", true), huh.NewOption("Skip", false)).
-				Value(&d.VisionEnabled),
-		).WithShowHelp(false),
-		huh.NewGroup(
-			huh.NewSelect[bool]().
-				Title("Browser").
-				Description("Configure browser automation").
-				Options(huh.NewOption("Enable", true), huh.NewOption("Skip", false)).
-				Value(&d.BrowserEnabled),
-			huh.NewSelect[bool]().
-				Title("Proxy").
-				Description("Configure proxy").
-				Options(huh.NewOption("Enable", true), huh.NewOption("Skip", false)).
-				Value(&d.ProxyEnabled),
-		).WithShowHelp(false),
-	)
-}
-
 func buildEmbeddingForm(d *SetupData) *huh.Form {
 	if d.EmbeddingProvider == "" && len(d.ToolProviders.Embedding) > 0 {
 		d.EmbeddingProvider = d.ToolProviders.Embedding[0].Name

@@ -470,6 +470,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateForm(msg, StepGroups)
 	case StepGroups:
 		return m.updateForm(msg, StepDone)
+	default:
+		panic("unhandled default case")
 	}
 
 	return m, nil
@@ -490,13 +492,11 @@ func (m Model) View() string {
 		return styleText("Setup cancelled.\n\nPress any key to exit...")
 	}
 
-	header := renderHeader(m.width)
-	timeline := renderTimeline(m.step.node(), m.data, m.width)
+	timeline := renderTimeline(m.step.node(), m.data)
 	content := m.renderContent()
 	footer := m.help.View(m.currentKeys())
 
 	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
 		timeline,
 		content,
 		"",
@@ -668,6 +668,8 @@ func (m *Model) setToolEnabled(step Step) {
 		m.data.BrowserEnabled = true
 	case StepToolsProxy:
 		m.data.ProxyEnabled = true
+	default:
+		panic("unhandled default case")
 	}
 }
 

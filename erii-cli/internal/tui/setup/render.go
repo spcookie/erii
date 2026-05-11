@@ -10,12 +10,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// ---- Header / Footer ----
-
-func renderHeader(width int) string {
-	return style.Title("Erii Setup Wizard")
-}
-
 // ---- Unified step layout ----
 
 func renderStepPage(title, content string) string {
@@ -35,18 +29,18 @@ func renderFormStep(title string, form *huh.Form) string {
 
 // ---- Timeline ----
 
-func renderTimeline(currentNode int, data *SetupData, width int) string {
+func renderTimeline(currentNode int, data *SetupData) string {
 	var b strings.Builder
 
 	for i, label := range nodeLabels {
-		status := getNodeStatus(i, currentNode, data)
+		status := getNodeStatus(i, currentNode)
 		icon := nodeIcon(status)
 		suffix := nodeSuffix(i, status, data)
 		connector := nodeConnector(i, len(nodeLabels))
 
 		iconStyled := styleNodeIcon(icon, status)
 		labelStyled := styleNodeLabel(label, status)
-		suffixStyled := styleNodeSuffix(suffix, status)
+		suffixStyled := styleNodeSuffix(suffix)
 
 		line := fmt.Sprintf("  %s %s %s", iconStyled, labelStyled, suffixStyled)
 		b.WriteString(line)
@@ -70,7 +64,7 @@ const (
 	nodePending
 )
 
-func getNodeStatus(idx int, currentNode int, data *SetupData) nodeStatus {
+func getNodeStatus(idx int, currentNode int) nodeStatus {
 	if idx < currentNode {
 		return nodeDone
 	}
@@ -162,7 +156,7 @@ func styleNodeLabel(label string, status nodeStatus) string {
 	}
 }
 
-func styleNodeSuffix(suffix string, status nodeStatus) string {
+func styleNodeSuffix(suffix string) string {
 	if suffix == "" {
 		return ""
 	}
