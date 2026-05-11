@@ -10,10 +10,10 @@ import uesugi.common.toolkit.ConfigHolder
 class BrowserSession : AutoCloseable {
 
     val playwright: Playwright = Playwright.create(Playwright.CreateOptions().apply {
-        setEnv(mapOf("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD" to "true"))
+        setEnv(mapOf("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD" to (!ConfigHolder.getBrowserDownload()).toString()))
     })
 
-    val browser: Browser = playwright.chromium().connect(ConfigHolder.getPlaywrightHost())
+    val browser: Browser = playwright.chromium().connect(ConfigHolder.getPlaywrightUrl())
 
     override fun close() {
         try {

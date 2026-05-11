@@ -250,7 +250,9 @@ class ConfigHolderImpl : ConfigProvider {
         return groupConfig.admins
     }
 
-    override fun getPlaywrightHost(): String = config.getString("browser.playwright-host")
+    override fun getPlaywrightUrl(): String = config.getString("browser.playwright-url")
+
+    override fun getBrowserDownload(): Boolean = config.getBoolean("browser.download")
 
     override fun getDebugGroupId(): String? = config.tryGetString("groups.debug-group-id")
 
