@@ -1,5 +1,9 @@
 {
-  "browser.playwright-host": {
+  "browser.download": {
+    "type": "boolean",
+    "default": false
+  },
+  "browser.playwright-url": {
     "type": "string",
     "nullable": true,
     "default": ""

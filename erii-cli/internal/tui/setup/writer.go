@@ -137,8 +137,11 @@ func modifyConfig(d *SetupData, filePath string) error {
 		// browser
 		if d.BrowserEnabled {
 			if ctx.match("browser") {
-				if isKey(trimmed, "playwright-host") && d.PlaywrightHost != "" {
-					lines[i] = replaceHoconValue(line, d.PlaywrightHost)
+				if isKey(trimmed, "download") {
+					lines[i] = replaceHoconValue(line, fmt.Sprintf("%v", d.BrowserDownload))
+				}
+				if isKey(trimmed, "playwright-url") && d.PlaywrightURL != "" {
+					lines[i] = replaceHoconValue(line, d.PlaywrightURL)
 				}
 				if isKey(trimmed, "status-host") && d.StatusHost != "" {
 					lines[i] = replaceHoconValue(line, d.StatusHost)

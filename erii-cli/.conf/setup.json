@@ -15,5 +15,59 @@
       "desc": "MiniMax models (Anthropic-compatible API)",
       "base-url": "https://api.minimaxi.com"
     }
-  ]
+  ],
+  "defaults": {
+    "llm": {
+      "base-url": "",
+      "model-mode": "separate",
+      "lite-model": "gemini-2.0-flash-lite",
+      "flash-model": "gemini-2.0-flash",
+      "pro-model": "gemini-2.5-pro",
+      "all-model": "deepseek-chat"
+    },
+    "bot": {
+      "ws": "ws://127.0.0.1:3001",
+      "token": ""
+    },
+    "groups": {
+      "debug-group-id": "",
+      "enable-groups": "",
+      "message-redirect-map": ""
+    },
+    "browser": {
+      "download": false,
+      "playwright-url": "ws://127.0.0.1:13001",
+      "status-host": "localhost"
+    },
+    "proxy": {
+      "http": "",
+      "socks": ""
+    }
+  },
+  "tool-providers": {
+    "embedding": [
+      {
+        "name": "ByteDance",
+        "url": "https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal"
+      }
+    ],
+    "search": [
+      {
+        "name": "Exa",
+        "url": "https://api.exa.ai/search"
+      }
+    ],
+    "vision": [
+      {
+        "name": "MiniMax",
+        "url": "https://api.minimaxi.com/v1/coding_plan/vlm"
+      }
+    ],
+    "browser": [
+      {
+        "name": "Playwright",
+        "url": "ws://127.0.0.1:13001"
+      }
+    ]
+  }
 }

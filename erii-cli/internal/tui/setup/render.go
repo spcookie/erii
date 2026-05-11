@@ -10,26 +10,37 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// ---- Header / Footer ----
+// ---- Unified step layout ----
 
-func renderHeader(width int) string {
-	return style.Title("Erii Setup Wizard")
+func renderStepPage(title, content string) string {
+	var b strings.Builder
+	b.WriteString(style.Title(title))
+	b.WriteString("\n\n")
+	b.WriteString(content)
+	return b.String()
+}
+
+func renderFormStep(title string, form *huh.Form) string {
+	if form == nil {
+		return renderStepPage(title, "")
+	}
+	return style.Title(title) + "\n\n" + form.View()
 }
 
 // ---- Timeline ----
 
-func renderTimeline(currentNode int, data *SetupData, width int) string {
+func renderTimeline(currentNode int, data *SetupData) string {
 	var b strings.Builder
 
 	for i, label := range nodeLabels {
-		status := getNodeStatus(i, currentNode, data)
+		status := getNodeStatus(i, currentNode)
 		icon := nodeIcon(status)
 		suffix := nodeSuffix(i, status, data)
 		connector := nodeConnector(i, len(nodeLabels))
 
 		iconStyled := styleNodeIcon(icon, status)
 		labelStyled := styleNodeLabel(label, status)
-		suffixStyled := styleNodeSuffix(suffix, status)
+		suffixStyled := styleNodeSuffix(suffix)
 
 		line := fmt.Sprintf("  %s %s %s", iconStyled, labelStyled, suffixStyled)
 		b.WriteString(line)
@@ -53,7 +64,7 @@ const (
 	nodePending
 )
 
-func getNodeStatus(idx int, currentNode int, data *SetupData) nodeStatus {
+func getNodeStatus(idx int, currentNode int) nodeStatus {
 	if idx < currentNode {
 		return nodeDone
 	}
@@ -145,7 +156,7 @@ func styleNodeLabel(label string, status nodeStatus) string {
 	}
 }
 
-func styleNodeSuffix(suffix string, status nodeStatus) string {
+func styleNodeSuffix(suffix string) string {
 	if suffix == "" {
 		return ""
 	}
@@ -160,15 +171,15 @@ func huhTheme() *huh.Theme {
 	// Tighter field spacing
 	t.FieldSeparator = lipgloss.NewStyle().SetString("\n\n")
 
-	// Focused field: green accent matching list selection
+	// Focused field: purple titles (matching list desc), green interactive elements (matching list title)
 	t.Focused.Base = t.Focused.Base.BorderForeground(style.Primary)
 	t.Focused.Title = t.Focused.Title.Foreground(style.Secondary).Bold(true).MarginBottom(0)
 	t.Focused.Description = t.Focused.Description.Foreground(style.TextMuted)
-	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(style.Primary)
-	t.Focused.NextIndicator = t.Focused.NextIndicator.Foreground(style.Primary)
-	t.Focused.PrevIndicator = t.Focused.PrevIndicator.Foreground(style.Primary)
+	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(style.Secondary)
+	t.Focused.NextIndicator = t.Focused.NextIndicator.Foreground(style.Secondary)
+	t.Focused.PrevIndicator = t.Focused.PrevIndicator.Foreground(style.Secondary)
 	t.Focused.Option = t.Focused.Option.Foreground(style.Text)
-	t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(style.Primary)
+	t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(style.Secondary)
 	t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(style.Primary)
 	t.Focused.SelectedPrefix = t.Focused.SelectedPrefix.Foreground(style.Primary)
 	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(style.Text)
@@ -178,6 +189,7 @@ func huhTheme() *huh.Theme {
 	t.Focused.TextInput.Cursor = t.Focused.TextInput.Cursor.Foreground(style.Primary)
 	t.Focused.TextInput.Placeholder = t.Focused.TextInput.Placeholder.Foreground(style.TextMuted)
 	t.Focused.TextInput.Prompt = t.Focused.TextInput.Prompt.Foreground(style.Primary)
+	t.Focused.TextInput.Text = t.Focused.TextInput.Text.Foreground(style.Text)
 	t.Focused.ErrorIndicator = t.Focused.ErrorIndicator.Foreground(style.Error)
 	t.Focused.ErrorMessage = t.Focused.ErrorMessage.Foreground(style.Error)
 
@@ -186,10 +198,18 @@ func huhTheme() *huh.Theme {
 	t.Blurred.Base = t.Blurred.Base.BorderStyle(lipgloss.HiddenBorder())
 	t.Blurred.NextIndicator = lipgloss.NewStyle()
 	t.Blurred.PrevIndicator = lipgloss.NewStyle()
+	t.Blurred.TextInput.Prompt = t.Blurred.TextInput.Prompt.Foreground(style.TextMuted)
+	t.Blurred.TextInput.Text = t.Blurred.TextInput.Text.Foreground(style.Text)
 
-	// Group title
-	t.Group.Title = t.Focused.Title
-	t.Group.Description = t.Focused.Description
+	// Group title — align with style.Title (Primary + Bold)
+	t.Group.Title = lipgloss.NewStyle().Foreground(style.Primary).Bold(true)
+	t.Group.Description = lipgloss.NewStyle().Foreground(style.TextMuted)
 
 	return t
 }
+
+// ---- Style helpers ----
+
+func styleText(s string) string    { return lipgloss.NewStyle().Foreground(style.Text).Render(s) }
+func styleSuccess(s string) string { return style.SuccessText(s) }
+func styleError(s string) string   { return style.ErrorText(s) }
