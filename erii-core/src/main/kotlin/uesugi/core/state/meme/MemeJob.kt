@@ -105,7 +105,7 @@ class MemeJob(
 
                     log.debug("表情包收集任务执行完成")
                 } catch (e: Exception) {
-                    log.error("表情包收集任务执行失败", e)
+                    log.error("Emoticon collection task failed", e)
                 } finally {
                     mutex.unlock()
                 }
@@ -173,7 +173,7 @@ class MemeJob(
 
                     log.debug("处理图片: md5=${image.md5}, historyId=${image.historyId}")
                 } catch (e: Exception) {
-                    log.error("处理图片 ${image.resourceId} 失败", e)
+                    log.error("Processing image ${image.resourceId} failed", e)
                 }
             }
 
@@ -186,7 +186,7 @@ class MemeJob(
             log.debug("群组 $groupId 表情包收集完成")
 
         } catch (e: Exception) {
-            log.error("处理群组 $groupId 表情包收集失败", e)
+            log.error("Handling group $groupId meme collection failure", e)
         }
     }
 
@@ -259,7 +259,7 @@ class MemeJob(
 
                     log.debug("表情包提取任务执行完成")
                 } catch (e: Exception) {
-                    log.error("表情包提取任务执行失败", e)
+                    log.error("Emoticon extraction task failed", e)
                 } finally {
                     mutex.unlock()
                 }
@@ -332,7 +332,7 @@ class MemeJob(
                         log.debug("表情包分析完成: memoId=${memo.id}, seenCount=$currentSeenCount, description=${analysis.description}")
                     }
                 } catch (e: Exception) {
-                    log.error("分析表情包 ${memo.id} 失败", e)
+                    log.error("Failed to analyze memes ${memo.id}", e)
                 }
             }
 
