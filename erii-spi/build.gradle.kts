@@ -1,9 +1,18 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    `maven-publish`
 }
 
 group = "uesugi"
 version = "0.0.1"
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
+}
 
 dependencies {
     compileOnly(project(":erii-common"))

@@ -9,12 +9,4 @@ dependencyResolutionManagement {
 include("erii-common")
 include("erii-spi")
 include("erii-core")
-include("erii-plugins")
-include("erii-plugins:speech")
-
-include("erii-plugins:lolisuki")
-include("erii-plugins:seeddream")
-include("erii-plugins:qq-face")
-include("erii-plugins:net-ease-music")
-include("erii-plugins:animal")
-include("erii-plugins:rollpig")
+include("erii-plugin-gradle")

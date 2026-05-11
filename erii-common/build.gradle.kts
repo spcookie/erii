@@ -1,10 +1,19 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.plugin.serialization)
+    `maven-publish`
 }
 
 group = "uesugi"
 version = "0.0.1"
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
+}
 
 dependencies {
     compileOnly(libs.mirai.overflow)
