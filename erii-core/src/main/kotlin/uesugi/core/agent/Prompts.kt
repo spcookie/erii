@@ -30,18 +30,18 @@ internal suspend fun buildPrompt(context: Context): Prompt {
         system {
             markdown {
                 text(context.botRole.personality(context.currentBotId))
-                buildConstraintsPrompt(constraints)
                 buildConstraintRulePrompt()
                 buildRulesPrompt(transient.rules)
-                buildMemeAwarenessPrompt(transient.memes)
                 transient.admins.ifNotEmpty {
                     buildAdminInfoPrompt(transient.admins)
                     buildRuleAwarenessPrompt()
                 }
-                buildVocabularyPrompt(transient.vocabulary)
-                buildFactsPrompt(transient.facts)
-                buildUserProfilesPrompt(transient.userProfiles)
                 buildMetadataPrompt()
+                buildMemeAwarenessPrompt(transient.memes)
+                buildConstraintsPrompt(constraints)
+                buildVocabularyPrompt(transient.vocabulary)
+                buildUserProfilesPrompt(transient.userProfiles)
+                buildFactsPrompt(transient.facts)
             }
         }
         user {
