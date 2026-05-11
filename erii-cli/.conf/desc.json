@@ -1,6 +1,7 @@
 {
   "browser": "Browser automation configuration",
-  "browser.playwright-host": "Playwright WebSocket host",
+  "browser.download": "Download browser binary",
+  "browser.playwright-url": "Playwright URL",
   "embedding": "Embedding service configuration",
   "embedding.api-key": "Embedding API key",
   "embedding.provider": "Embedding provider",

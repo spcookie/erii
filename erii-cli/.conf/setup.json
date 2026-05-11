@@ -35,8 +35,9 @@
       "message-redirect-map": ""
     },
     "browser": {
-      "playwright-host": "ws://127.0.0.1:13001",
-      "status-host": "http://127.0.0.1:13002"
+      "download": false,
+      "playwright-url": "ws://127.0.0.1:13001",
+      "status-host": "localhost"
     },
     "proxy": {
       "http": "",

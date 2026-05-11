@@ -52,8 +52,9 @@ type GroupsDefaults struct {
 }
 
 type BrowserDefaults struct {
-	PlaywrightHost string `json:"playwright-host"`
-	StatusHost     string `json:"status-host"`
+	Download      bool   `json:"download"`
+	PlaywrightURL string `json:"playwright-url"`
+	StatusHost    string `json:"status-host"`
 }
 
 type ProxyDefaults struct {
@@ -106,8 +107,8 @@ type SetupData struct {
 	VisionURL         string
 	VisionProvider    string
 	BrowserEnabled    bool
-	BrowserProvider   string
-	PlaywrightHost    string
+	BrowserDownload   bool
+	PlaywrightURL     string
 	StatusHost        string
 	ProxyEnabled      bool
 	HTTPProxy         string
@@ -171,8 +172,10 @@ func (s Step) prevMainStep() Step {
 		return StepProviderSelect
 	case StepLLMConfig:
 		return StepProviderSelect
-	case StepToolsMenu, StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy:
+	case StepToolsMenu:
 		return StepProviderSelect
+	case StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy:
+		return StepToolsMenu
 	case StepBot:
 		return StepToolsMenu
 	case StepGroups:
@@ -257,6 +260,40 @@ var DefaultSetupKeys = SetupKeyMap{
 	),
 }
 
+var FormKeys = SetupKeyMap{
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "confirm"),
+	),
+	Nav: key.NewBinding(
+		key.WithKeys("tab", "shift+tab"),
+		key.WithHelp("tab/shift+tab", "navigate"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
+	),
+	Scroll: key.NewBinding(
+		key.WithKeys("pgup", "pgdown", "ctrl+up", "ctrl+down"),
+		key.WithHelp("pgup/pgdn", "scroll"),
+	),
+}
+
+func (m Model) currentKeys() SetupKeyMap {
+	if m.step == StepProviderSelect || m.step == StepToolsMenu {
+		return DefaultSetupKeys
+	}
+	return FormKeys
+}
+
 // ---- List item ----
 
 type providerItem struct {
@@ -269,6 +306,22 @@ type providerItem struct {
 func (i providerItem) Title() string       { return i.name }
 func (i providerItem) Description() string { return fmt.Sprintf("%s  |  %s", i.desc, i.baseURL) }
 func (i providerItem) FilterValue() string { return i.name }
+
+type toolItem struct {
+	name   string
+	desc   string
+	step   Step
+	isDone bool
+}
+
+func (i toolItem) Title() string { return i.name }
+func (i toolItem) Description() string {
+	if i.isDone {
+		return ""
+	}
+	return i.desc
+}
+func (i toolItem) FilterValue() string { return i.name }
 
 // ---- Model ----
 
@@ -302,7 +355,8 @@ func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolP
 		AllModel:           defaults.LLM.AllModel,
 		BotWS:              defaults.Bot.WS,
 		BotToken:           defaults.Bot.Token,
-		PlaywrightHost:     defaults.Browser.PlaywrightHost,
+		BrowserDownload:    defaults.Browser.Download,
+		PlaywrightURL:      defaults.Browser.PlaywrightURL,
 		StatusHost:         defaults.Browser.StatusHost,
 		HTTPProxy:          defaults.Proxy.HTTP,
 		SOCKSProxy:         defaults.Proxy.SOCKS,
@@ -312,25 +366,14 @@ func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolP
 		ToolProviders:      toolProviders,
 	}
 
-	items := make([]list.Item, len(providers))
-	for i, p := range providers {
-		items[i] = providerItem{name: p.Name, desc: p.Desc, baseURL: p.BaseURL, index: i}
-	}
-
-	delegate := style.StyleDelegate(list.NewDefaultDelegate())
-	l := list.New(items, delegate, 0, 0)
-	l.SetShowTitle(false)
-	l.SetShowHelp(false)
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
-
-	return Model{
+	m := Model{
 		step: StepProviderSelect,
 		data: data,
-		list: l,
 		help: help.New(),
 		keys: DefaultSetupKeys,
 	}
+	m.buildProviderList()
+	return m
 }
 
 // ---- Entry point ----
@@ -420,9 +463,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StepLLMConfig:
 		return m.updateForm(msg, StepToolsMenu)
 	case StepToolsMenu:
-		return m.updateForm(msg, m.nextEnabledTool())
+		return m.updateToolsMenu(msg)
 	case StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy:
-		return m.updateForm(msg, m.nextEnabledTool())
+		return m.updateForm(msg, StepToolsMenu)
 	case StepBot:
 		return m.updateForm(msg, StepGroups)
 	case StepGroups:
@@ -450,7 +493,7 @@ func (m Model) View() string {
 	header := renderHeader(m.width)
 	timeline := renderTimeline(m.step.node(), m.data, m.width)
 	content := m.renderContent()
-	footer := m.help.View(m.keys)
+	footer := m.help.View(m.currentKeys())
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
@@ -492,9 +535,9 @@ func (m Model) stepTitle() string {
 
 func (m Model) renderContent() string {
 	switch m.step {
-	case StepProviderSelect:
+	case StepProviderSelect, StepToolsMenu:
 		return renderStepPage(m.stepTitle(), m.list.View())
-	case StepLLMConfig, StepToolsMenu, StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy, StepBot, StepGroups:
+	case StepLLMConfig, StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy, StepBot, StepGroups:
 		return renderFormStep(m.stepTitle(), m.form)
 	case StepDone:
 		return m.renderSummary()
@@ -537,7 +580,7 @@ func (m Model) renderSummary() string {
 		b.WriteString(fmt.Sprintf("  Vision: provider=%s\n", d.VisionProvider))
 	}
 	if d.BrowserEnabled {
-		b.WriteString(fmt.Sprintf("  Browser: provider=%s playwright-host=%s\n", d.BrowserProvider, d.PlaywrightHost))
+		b.WriteString(fmt.Sprintf("  Browser: download=%v playwright-url=%s\n", d.BrowserDownload, d.PlaywrightURL))
 	}
 	if d.ProxyEnabled {
 		b.WriteString(fmt.Sprintf("  Proxy: http=%s socks=%s\n", d.HTTPProxy, d.SOCKSProxy))
@@ -589,6 +632,45 @@ func (m *Model) updateProviderSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *Model) updateToolsMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			if item, ok := m.list.SelectedItem().(toolItem); ok {
+				if item.isDone {
+					m.step = StepBot
+					m.rebuildCurrentStep()
+					return m, m.currentInitCmd()
+				}
+				m.setToolEnabled(item.step)
+				m.step = item.step
+				m.rebuildCurrentStep()
+				return m, m.currentInitCmd()
+			}
+		}
+	}
+	return m, cmd
+}
+
+func (m *Model) setToolEnabled(step Step) {
+	switch step {
+	case StepToolsEmbedding:
+		m.data.EmbeddingEnabled = true
+	case StepToolsSearch:
+		m.data.SearchEnabled = true
+	case StepToolsVision:
+		m.data.VisionEnabled = true
+	case StepToolsBrowser:
+		m.data.BrowserEnabled = true
+	case StepToolsProxy:
+		m.data.ProxyEnabled = true
+	}
+}
+
 func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 	if m.form == nil {
 		return m, nil
@@ -621,12 +703,57 @@ func (m *Model) collectFormData() {
 
 // ---- Form builders ----
 
+func (m *Model) buildProviderList() {
+	items := make([]list.Item, len(m.data.Providers))
+	for i, p := range m.data.Providers {
+		items[i] = providerItem{name: p.Name, desc: p.Desc, baseURL: p.BaseURL, index: i}
+	}
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
+	l := list.New(items, delegate, 0, 0)
+	l.SetShowTitle(false)
+	l.SetShowHelp(false)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	m.list = l
+}
+
+func (m *Model) buildToolsList() {
+	d := m.data
+	items := []list.Item{
+		toolItem{name: "Embedding", desc: d.toolStatus(d.EmbeddingEnabled), step: StepToolsEmbedding},
+		toolItem{name: "Search", desc: d.toolStatus(d.SearchEnabled), step: StepToolsSearch},
+		toolItem{name: "Vision", desc: d.toolStatus(d.VisionEnabled), step: StepToolsVision},
+		toolItem{name: "Browser", desc: d.toolStatus(d.BrowserEnabled), step: StepToolsBrowser},
+		toolItem{name: "Proxy", desc: d.toolStatus(d.ProxyEnabled), step: StepToolsProxy},
+		toolItem{name: "Done →", isDone: true},
+	}
+
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
+	l := list.New(items, delegate, 0, 0)
+	l.SetShowTitle(false)
+	l.SetShowHelp(false)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	m.list = l
+}
+
+func (d *SetupData) toolStatus(enabled bool) string {
+	if enabled {
+		return "configured"
+	}
+	return "not configured"
+}
+
 func (m *Model) rebuildCurrentStep() {
 	switch m.step {
+	case StepProviderSelect:
+		m.form = nil
+		m.buildProviderList()
 	case StepLLMConfig:
 		m.form = buildLLMForm(m.data)
 	case StepToolsMenu:
-		m.form = buildToolsMenuForm(m.data)
+		m.form = nil
+		m.buildToolsList()
 	case StepToolsEmbedding:
 		m.form = buildEmbeddingForm(m.data)
 	case StepToolsSearch:
@@ -654,7 +781,7 @@ func (m *Model) syncSizes() {
 	m.help.Width = m.width
 
 	listHeight := m.height - 12
-	if m.step == StepProviderSelect {
+	if m.step == StepProviderSelect || m.step == StepToolsMenu {
 		// renderStepPage adds title + "\n\n" = 3 extra lines
 		listHeight = m.height - 13
 	}

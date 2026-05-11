@@ -167,22 +167,19 @@ func buildVisionForm(d *SetupData) *huh.Form {
 }
 
 func buildBrowserForm(d *SetupData) *huh.Form {
-	if d.BrowserProvider == "" && len(d.ToolProviders.Browser) > 0 {
-		d.BrowserProvider = d.ToolProviders.Browser[0].Name
-	}
-	if d.PlaywrightHost == "" {
-		d.PlaywrightHost = defaultToolURL(d.ToolProviders.Browser, d.BrowserProvider)
+	if d.PlaywrightURL == "" && len(d.ToolProviders.Browser) > 0 {
+		d.PlaywrightURL = d.ToolProviders.Browser[0].URL
 	}
 	return wrapForm(
 		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Provider").
-				Options(buildToolProviderOptions(d.ToolProviders.Browser)...).
-				Value(&d.BrowserProvider),
+			huh.NewSelect[bool]().
+				Title("Download").
+				Options(huh.NewOption("Enable", true), huh.NewOption("Disable", false)).
+				Value(&d.BrowserDownload),
 			huh.NewInput().
-				Title("Playwright Host").
-				Value(&d.PlaywrightHost).
-				Placeholder(placeholderOrValue(d.PlaywrightHost)),
+				Title("Playwright URL").
+				Value(&d.PlaywrightURL).
+				Placeholder(placeholderOrValue(d.PlaywrightURL)),
 			huh.NewInput().
 				Title("Status Host").
 				Value(&d.StatusHost).
