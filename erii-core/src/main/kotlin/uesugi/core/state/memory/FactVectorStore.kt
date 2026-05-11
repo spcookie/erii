@@ -56,11 +56,13 @@ class FactVectorStore {
             }
         }
 
-        val vector: FloatArray = withContext(Dispatchers.IO) {
-            EmbeddingManager.get().embedding(listOf(content)).first()
+        runCatching {
+            val vector: FloatArray = withContext(Dispatchers.IO) {
+                EmbeddingManager.get().embedding(listOf(content)).first()
+            }
+            val store = getStore(botMark, groupId)
+            store.upsert(vectorId, content, fact.scopeType.name, vector)
         }
-        val store = getStore(botMark, groupId)
-        store.upsert(vectorId, content, fact.scopeType.name, vector)
 
         return vectorId
     }
@@ -74,8 +76,13 @@ class FactVectorStore {
         botMark: String,
         topK: Int
     ): List<FactSearchResult> {
-        val vector: FloatArray = withContext(Dispatchers.IO) {
-            EmbeddingManager.get().embedding(listOf(query)).first()
+        val vector: FloatArray
+        try {
+            vector = withContext(Dispatchers.IO) {
+                EmbeddingManager.get().embedding(listOf(query)).first()
+            }
+        } catch (_: Exception) {
+            return emptyList()
         }
         val store = getStore(botMark, groupId)
         val results = store.search(vector, topK)
