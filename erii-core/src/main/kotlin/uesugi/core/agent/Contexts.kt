@@ -31,7 +31,6 @@ import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.UserProfileEntity
 import uesugi.core.state.summary.SummaryEntity
 import uesugi.core.state.volition.VolitionGaugeManager
-import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 
 data class SpeechConstraints(
@@ -353,7 +352,7 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
                 withContext(Dispatchers.IO) {
                     transaction {
                         val records =
-                            historyService.getLatestHistory(currentBotId, groupId, 20, 1.days)
+                            historyService.getLatestHistory(currentBotId, groupId, 20, 12.hours)
                         val subjects = records.map { it.userId }.distinct().toList()
                         memoryService.getFacts(currentBotId, groupId, subjects, 25)
                     }
@@ -363,7 +362,7 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
                 withContext(Dispatchers.IO) {
                     transaction {
                         val records =
-                            historyService.getLatestHistory(currentBotId, groupId, 20, 1.days)
+                            historyService.getLatestHistory(currentBotId, groupId, 20, 12.hours)
                         val subjects = records.map { it.userId }.distinct().toList()
                         memoryService.getUserProfiles(currentBotId, groupId, subjects)
                     }
