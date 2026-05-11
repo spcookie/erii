@@ -36,7 +36,6 @@ internal suspend fun buildPrompt(context: Context): Prompt {
                     buildAdminInfoPrompt(transient.admins)
                     buildRuleAwarenessPrompt()
                 }
-                buildMetadataPrompt()
                 buildMemeAwarenessPrompt(transient.memes)
                 buildConstraintsPrompt(constraints)
                 buildVocabularyPrompt(transient.vocabulary)
@@ -46,6 +45,7 @@ internal suspend fun buildPrompt(context: Context): Prompt {
         }
         user {
             markdown {
+                buildMetadataPrompt()
                 buildSummaryPrompt(transient.summary)
                 buildHistoriesPrompt(transient.histories, context.currentBotId)
             }
