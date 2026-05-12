@@ -70,7 +70,7 @@ class EriiGradlePlugin : Plugin<Project> {
     // --- Tasks ---
 
     private fun registerTasks(project: Project) {
-        val pluginsDir = project.layout.buildDirectory.dir("plugins")
+        val pluginsDir = project.layout.buildDirectory.dir("plugin")
 
         val pluginZip = project.tasks.register("pluginZip", Zip::class.java) { zip ->
             zip.archiveBaseName.set(project.name)
@@ -104,6 +104,7 @@ class EriiGradlePlugin : Plugin<Project> {
 
         val assemblePlugin = project.tasks.register("assemblePlugin", Copy::class.java) { copy ->
             copy.from(pluginZip)
+            copy.from(project.file("README.md"))
             copy.into(pluginsDir)
         }
 
