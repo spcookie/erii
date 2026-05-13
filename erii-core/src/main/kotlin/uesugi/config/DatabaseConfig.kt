@@ -9,5 +9,5 @@ fun configureH2Console() {
     if (!enabled) return
     val h2Console = Server.createWebServer("-web", "-webPort", port)
     h2Console.start()
-    LOG.info("H2 console started at http://localhost:8082")
+    LOG.info("H2 console started at http://localhost:${port}")
 }

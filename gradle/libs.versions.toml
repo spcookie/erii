@@ -10,6 +10,7 @@ ktor = "3.3.2"
 koog = "0.7.2"
 jobrunr = '8.3.1'
 logback = "1.4.14"
+janino = "3.1.12"
 caffeine = "3.1.8"
 atomicfu = "0.23.2"
 google-genai = "1.28.0"
@@ -70,6 +71,7 @@ ktor-client-serialization-jackson = { module = "io.ktor:ktor-serialization-jacks
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 mapdb = { module = "org.mapdb:mapdb", version.ref = "mapdb" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+janino = { module = "org.codehaus.janino:janino", version.ref = "janino" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 okio = { module = "com.squareup.okio:okio-jvm", version.ref = "okio" }

@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.ktor.server.compression)
     implementation(libs.ktor.server.netty)
     implementation(libs.logback.classic)
+    implementation(libs.janino)
     implementation(libs.ktor.server.config.yaml)
     implementation(libs.ktor.server.jte)
     // 客户端

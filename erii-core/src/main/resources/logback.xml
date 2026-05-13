@@ -3,7 +3,10 @@
     <!-- 日志目录 -->
     <property name="LOG_HOME" value="./logs"/>
 
-    <!-- Console 输出 -->
+    <!-- 读取环境变量 ERII_START_MODE -->
+    <property scope="context" name="ERII_START_MODE" source="ERII_START_MODE"/>
+
+    <!-- Console 输出 （非 CLI 模式使用） -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>
@@ -12,44 +15,58 @@
         </encoder>
     </appender>
 
-    <!--  ERROR 文件输出 -->
+    <!-- ERROR 文件输出 -->
     <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-
-        <!-- 当前日志文件 -->
         <file>${LOG_HOME}/error.log</file>
-
-        <!-- 只接收 ERROR -->
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>ERROR</level>
         </filter>
-
-        <!-- 滚动策略 -->
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-
-            <!-- 按天滚动 + gzip压缩 -->
             <fileNamePattern>${LOG_HOME}/error.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
-
-            <!-- 保留 15 天 -->
             <maxHistory>15</maxHistory>
-
-            <!-- 总大小限制 -->
             <totalSizeCap>2GB</totalSizeCap>
-
         </rollingPolicy>
-
         <encoder>
             <pattern>
                 %date{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{50} - %msg%n%ex
             </pattern>
         </encoder>
-
     </appender>
 
-    <!-- 根日志 -->
-    <root level="INFO">
-        <appender-ref ref="STDOUT"/>
-        <appender-ref ref="ERROR_FILE"/>
-    </root>
+    <!-- CLI 模式 INFO 文件输出 -->
+    <appender name="INFO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/info.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/info.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>15</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>
+                %date{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{50} - %msg%n%ex
+            </pattern>
+        </encoder>
+    </appender>
+
+    <!-- 非 CLI 模式：控制台 + ERROR 文件 -->
+    <if condition='!"CLI".equals(property("ERII_START_MODE"))'>
+        <then>
+            <root level="INFO">
+                <appender-ref ref="STDOUT"/>
+                <appender-ref ref="ERROR_FILE"/>
+            </root>
+        </then>
+    </if>
+
+    <!-- CLI 模式：所有日志写入文件，不输出控制台 -->
+    <if condition='"CLI".equals(property("ERII_START_MODE"))'>
+        <then>
+            <root level="INFO">
+                <appender-ref ref="INFO_FILE"/>
+                <appender-ref ref="ERROR_FILE"/>
+            </root>
+        </then>
+    </if>
 
     <!-- Ktor 日志 -->
     <logger name="io.ktor" level="INFO"/>

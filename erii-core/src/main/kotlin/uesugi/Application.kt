@@ -40,6 +40,27 @@ fun Application.module() {
     configureBotAgent()
     configureConnectBots()
     configureH2Console()
+
+    printStartupInfo()
+}
+
+fun Application.printStartupInfo() {
+    if (System.getenv("ERII_START_MODE") != "CLI") return
+
+    val port = environment.config.property("ktor.deployment.port").getString().toInt()
+    println("Erii started successfully at http://localhost:${port}")
+
+    val h2ConsoleEnabled = System.getProperty("h2.console.enabled", "false").toBoolean()
+    if (h2ConsoleEnabled) {
+        val h2Port = System.getProperty("h2.console.port", "8082")
+        println("H2 Console -> http://localhost:${h2Port}")
+    }
+
+    val jobrunrDashboardEnabled = System.getProperty("jobrunr.dashboard.enabled", "false").toBoolean()
+    if (jobrunrDashboardEnabled) {
+        val jobrunrPort = System.getProperty("jobrunr.dashboard.port", "8000")
+        println("JobRunr Dashboard -> http://localhost:${jobrunrPort}")
+    }
 }
 
 fun printBanner() {
