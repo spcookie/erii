@@ -4,7 +4,7 @@ import org.h2.tools.Server
 import uesugi.LOG
 
 fun configureH2Console() {
-    val enabled = System.getProperty("h2.console.enabled", "true").toBoolean()
+    val enabled = System.getProperty("h2.console.enabled", "false").toBoolean()
     if (!enabled) return
     val h2Console = Server.createWebServer("-web", "-webPort", "8082")
     h2Console.start()
