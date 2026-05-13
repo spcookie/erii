@@ -1,12 +1,12 @@
 <configuration>
 
+    <!-- 抑制 logback 内部状态输出 -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
     <!-- 日志目录 -->
     <property name="LOG_HOME" value="./logs"/>
 
-    <!-- 读取环境变量 ERII_START_MODE -->
-    <property scope="context" name="ERII_START_MODE" source="ERII_START_MODE"/>
-
-    <!-- Console 输出 （非 CLI 模式使用） -->
+    <!-- Console 输出（非 CLI 模式使用） -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>
@@ -33,7 +33,7 @@
         </encoder>
     </appender>
 
-    <!-- CLI 模式 INFO 文件输出 -->
+    <!-- INFO 文件输出（CLI 模式使用） -->
     <appender name="INFO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_HOME}/info.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -49,7 +49,8 @@
     </appender>
 
     <!-- 非 CLI 模式：控制台 + ERROR 文件 -->
-    <if condition='!"CLI".equals(property("ERII_START_MODE"))'>
+    <if>
+        <condition>!"CLI".equals(property("ERII_START_MODE"))</condition>
         <then>
             <root level="INFO">
                 <appender-ref ref="STDOUT"/>
@@ -59,7 +60,8 @@
     </if>
 
     <!-- CLI 模式：所有日志写入文件，不输出控制台 -->
-    <if condition='"CLI".equals(property("ERII_START_MODE"))'>
+    <if>
+        <condition>"CLI".equals(property("ERII_START_MODE"))</condition>
         <then>
             <root level="INFO">
                 <appender-ref ref="INFO_FILE"/>
@@ -68,7 +70,6 @@
         </then>
     </if>
 
-    <!-- Ktor 日志 -->
     <logger name="io.ktor" level="INFO"/>
     <logger name="io.netty" level="INFO"/>
 
