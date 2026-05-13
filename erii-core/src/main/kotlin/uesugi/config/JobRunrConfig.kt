@@ -16,7 +16,7 @@ class JobRunrConfig(
             .useJobActivator(Activator)
             .useStorageProvider(H2StorageProvider(dataSource))
             .useBackgroundJobServer()
-            .useDashboard()
+            .useDashboard(System.getProperty("jobrunr.dashboard.port", "8000").toInt())
             .initialize()
             .jobScheduler
     }
