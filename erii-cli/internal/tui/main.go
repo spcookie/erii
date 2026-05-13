@@ -14,7 +14,7 @@ import (
 )
 
 func Start() error {
-	if err := tree.InitializePluginConfigs(path.PluginDir, path.PluginConfigDir, path.PluginSchemaDir); err != nil {
+	if _, err := tree.InitializePluginConfigs(path.PluginDir, path.PluginConfigDir, path.PluginSchemaDir); err != nil {
 		log.Printf("warn: plugin config initialization failed: %v", err)
 	}
 	if err := tree.LoadMetadata(path.ConfMetaDir); err != nil {
