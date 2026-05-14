@@ -136,7 +136,7 @@ class EriiGradlePlugin : Plugin<Project> {
             "io.ktor:ktor-serialization-jackson:3.3.2",
             "org.jetbrains.kotlinx:atomicfu:0.23.2",
             "io.arrow-kt:arrow-core:2.0.0",
-            "io.github.oshai:kotlin-logging-jvm:7.0.13",
+            "io.github.oshai:kotlin-logging-jvm:8.0.02",
         )
 
         private val KAPT_DEPS = listOf(

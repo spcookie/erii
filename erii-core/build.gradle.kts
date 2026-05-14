@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.okio)
     implementation(libs.pf4j)
     implementation(libs.kotlinx.serialization.msgpack)
+    implementation(libs.kotlin.logging)
     compileOnly(libs.jte.kotlin)
     compileOnly(libs.autoservice.annotations)
     // 测试

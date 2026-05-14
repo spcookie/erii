@@ -1,12 +1,9 @@
 <configuration>
 
-    <!-- 抑制 logback 内部状态输出 -->
-    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
-
     <!-- 日志目录 -->
     <property name="LOG_HOME" value="./logs"/>
 
-    <!-- Console 输出（非 CLI 模式使用） -->
+    <!-- Console 输出 -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>
@@ -33,7 +30,7 @@
         </encoder>
     </appender>
 
-    <!-- INFO 文件输出（CLI 模式使用） -->
+    <!-- INFO 文件输出（CLI 模式通过代码切换使用） -->
     <appender name="INFO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_HOME}/info.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -48,27 +45,11 @@
         </encoder>
     </appender>
 
-    <!-- 非 CLI 模式：控制台 + ERROR 文件 -->
-    <if>
-        <condition>!"CLI".equals(property("ERII_START_MODE"))</condition>
-        <then>
-            <root level="INFO">
-                <appender-ref ref="STDOUT"/>
-                <appender-ref ref="ERROR_FILE"/>
-            </root>
-        </then>
-    </if>
-
-    <!-- CLI 模式：所有日志写入文件，不输出控制台 -->
-    <if>
-        <condition>"CLI".equals(property("ERII_START_MODE"))</condition>
-        <then>
-            <root level="INFO">
-                <appender-ref ref="INFO_FILE"/>
-                <appender-ref ref="ERROR_FILE"/>
-            </root>
-        </then>
-    </if>
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="ERROR_FILE"/>
+        <appender-ref ref="INFO_FILE"/>
+    </root>
 
     <logger name="io.ktor" level="INFO"/>
     <logger name="io.netty" level="INFO"/>
