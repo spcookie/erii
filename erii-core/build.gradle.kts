@@ -52,7 +52,7 @@ dependencies {
     implementation(libs.ktor.server.compression)
     implementation(libs.ktor.server.netty)
     implementation(libs.logback.classic)
-    implementation(libs.janino)
+    implementation(libs.kotlinx.serialization.msgpack)
     implementation(libs.ktor.server.config.yaml)
     implementation(libs.ktor.server.jte)
     // 客户端
@@ -78,7 +78,6 @@ dependencies {
     implementation(libs.snakeyaml)
     implementation(libs.okio)
     implementation(libs.pf4j)
-    implementation(libs.kotlinx.serialization.msgpack)
     implementation(libs.kotlin.logging)
     compileOnly(libs.jte.kotlin)
     compileOnly(libs.autoservice.annotations)
