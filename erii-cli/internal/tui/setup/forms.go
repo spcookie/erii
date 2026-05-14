@@ -189,10 +189,6 @@ func buildGroupsForm(d *SetupData) *huh.Form {
 	return wrapForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("Debug Group ID").
-				Value(&d.DebugGroupID).
-				Placeholder(placeholderOrValue(d.DebugGroupID)),
-			huh.NewInput().
 				Title("Enabled Groups (comma-separated)").
 				Value(&d.EnableGroups).
 				Placeholder(placeholderOrValue(d.EnableGroups)),
@@ -200,6 +196,10 @@ func buildGroupsForm(d *SetupData) *huh.Form {
 				Title("Message Redirect Map (comma-separated)").
 				Value(&d.MessageRedirectMap).
 				Placeholder(placeholderOrValue(d.MessageRedirectMap)),
+			huh.NewInput().
+				Title("Debug Group ID").
+				Value(&d.DebugGroupID).
+				Placeholder(placeholderOrValue(d.DebugGroupID)),
 		).WithShowHelp(false),
 	)
 }

@@ -18,12 +18,22 @@
   ],
   "defaults": {
     "llm": {
-      "base-url": "",
-      "model-mode": "separate",
-      "lite-model": "gemini-2.0-flash-lite",
-      "flash-model": "gemini-2.0-flash",
-      "pro-model": "gemini-2.5-pro",
-      "all-model": "deepseek-chat"
+      "google": {
+        "model-mode": "separate",
+        "lite-model": "gemini-2.0-flash-lite",
+        "flash-model": "gemini-2.0-flash",
+        "pro-model": "gemini-2.5-pro"
+      },
+      "deep-seek": {
+        "model-mode": "all",
+        "all-model": "deepseek-chat"
+      },
+      "minimax": {
+        "model-mode": "separate",
+        "lite-model": "MiniMax-M2.5",
+        "flash-model": "MiniMax-M2.5",
+        "pro-model": "MiniMax-M2.7"
+      }
     },
     "bot": {
       "ws": "ws://127.0.0.1:3001",

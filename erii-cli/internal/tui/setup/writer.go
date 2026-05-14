@@ -49,8 +49,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 			ctx.pop()
 		}
 
-		// llm.choice-model
-		if ctx.match("llm") && isKey(trimmed, "choice-model") {
+		// llm.choice-provider
+		if ctx.match("llm") && isKey(trimmed, "choice-provider") {
 			lines[i] = replaceHoconValue(line, choiceModel)
 		}
 

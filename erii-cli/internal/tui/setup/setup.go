@@ -63,11 +63,11 @@ type ProxyDefaults struct {
 }
 
 type DefaultsConfig struct {
-	LLM     LLMDefaults     `json:"llm"`
-	Bot     BotDefaults     `json:"bot"`
-	Groups  GroupsDefaults  `json:"groups"`
-	Browser BrowserDefaults `json:"browser"`
-	Proxy   ProxyDefaults   `json:"proxy"`
+	LLM     map[string]LLMDefaults `json:"llm"`
+	Bot     BotDefaults            `json:"bot"`
+	Groups  GroupsDefaults         `json:"groups"`
+	Browser BrowserDefaults        `json:"browser"`
+	Proxy   ProxyDefaults          `json:"proxy"`
 }
 
 type ToolProvidersConfig struct {
@@ -86,6 +86,7 @@ type SetupFile struct {
 type SetupData struct {
 	Providers    []Provider
 	SelectedProv int
+	LLMDefaults  map[string]LLMDefaults
 	APIKey       string
 	BaseURL      string
 	ModelMode    string
@@ -347,12 +348,7 @@ type Model struct {
 func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolProvidersConfig) Model {
 	data := &SetupData{
 		Providers:          providers,
-		BaseURL:            defaults.LLM.BaseURL,
-		ModelMode:          defaults.LLM.ModelMode,
-		LiteModel:          defaults.LLM.LiteModel,
-		FlashModel:         defaults.LLM.FlashModel,
-		ProModel:           defaults.LLM.ProModel,
-		AllModel:           defaults.LLM.AllModel,
+		LLMDefaults:        defaults.LLM,
 		BotWS:              defaults.Bot.WS,
 		BotToken:           defaults.Bot.Token,
 		BrowserDownload:    defaults.Browser.Download,
@@ -470,6 +466,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateForm(msg, StepGroups)
 	case StepGroups:
 		return m.updateForm(msg, StepDone)
+	case StepDone:
+		// All interactions handled in tea.KeyMsg block above
 	default:
 		panic("unhandled default case")
 	}
@@ -622,6 +620,14 @@ func (m *Model) updateProviderSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.data.SelectedProv = item.index
 				if item.baseURL != "" {
 					m.data.BaseURL = item.baseURL
+				}
+				// Populate model defaults for the selected provider
+				if cfg, ok := m.data.LLMDefaults[providerToHoconKey(item.name)]; ok {
+					m.data.ModelMode = cfg.ModelMode
+					m.data.LiteModel = cfg.LiteModel
+					m.data.FlashModel = cfg.FlashModel
+					m.data.ProModel = cfg.ProModel
+					m.data.AllModel = cfg.AllModel
 				}
 				m.step = StepLLMConfig
 				m.rebuildCurrentStep()
