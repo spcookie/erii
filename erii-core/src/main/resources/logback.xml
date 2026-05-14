@@ -3,8 +3,20 @@
     <!-- 日志目录 -->
     <property name="LOG_HOME" value="./logs"/>
 
-    <!-- Console 输出 -->
+    <!-- Console 输出（非 CLI 模式） -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                %date{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %gray([%thread]) %boldMagenta(%logger{50}) %msg%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <!-- CLI 模式下仅 ERROR 级别输出到控制台 -->
+    <appender name="CLI_ERROR_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
         <encoder>
             <pattern>
                 %date{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %gray([%thread]) %boldMagenta(%logger{50}) %msg%n
@@ -47,6 +59,7 @@
 
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
+        <appender-ref ref="CLI_ERROR_STDOUT"/>
         <appender-ref ref="ERROR_FILE"/>
         <appender-ref ref="INFO_FILE"/>
     </root>

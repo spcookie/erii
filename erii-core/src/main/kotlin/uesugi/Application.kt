@@ -19,12 +19,12 @@ import uesugi.server.*
 internal val LOG by lazy { logger("uesugi") }
 
 fun main(args: Array<String>) {
-    printBanner()
-    configureLogging()
     EngineMain.main(args)
 }
 
 fun Application.module() {
+    printBanner()
+    configureLogging()
     checkDefaultCredentials()
     configurePrintCliStartupInfo()
 
@@ -59,6 +59,7 @@ fun configureLogging() {
         rootLogger.detachAppender("STDOUT")
     } else {
         rootLogger.detachAppender("INFO_FILE")
+        rootLogger.detachAppender("CLI_ERROR_STDOUT")
     }
 }
 
