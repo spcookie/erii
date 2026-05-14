@@ -9,9 +9,12 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
+import uesugi.core.component.llm.AnthropicClientProvider
 import uesugi.core.component.llm.DeepSeekClientProvider
 import uesugi.core.component.llm.GoogleClientProvider
 import uesugi.core.component.llm.MiniMaxClientProvider
+import uesugi.core.component.llm.OpenAIClientProvider
+import uesugi.core.component.llm.OpenRouterClientProvider
 import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.core.component.storage.ObjectStorage
@@ -89,7 +92,10 @@ val infrastructureModule = module {
             listOf(
                 GoogleClientProvider(),
                 DeepSeekClientProvider(),
-                MiniMaxClientProvider()
+                MiniMaxClientProvider(),
+                OpenAIClientProvider(),
+                AnthropicClientProvider(),
+                OpenRouterClientProvider()
             )
         ).promptExecutor()
     }

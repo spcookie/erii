@@ -77,11 +77,70 @@ object LLMProviderChoice {
         )
     }
 
+    private fun openaiModel(tier: String): LLModel {
+        val models = ConfigHolder.getLlmOpenAIModels()
+        val modelId = resolveModelId(models, tier)
+        return LLModel(
+            provider = LLMProvider.OpenAI,
+            id = modelId,
+            capabilities = listOf(
+                LLMCapability.Completion,
+                LLMCapability.PromptCaching,
+                LLMCapability.Temperature,
+                LLMCapability.Tools,
+                LLMCapability.ToolChoice,
+                LLMCapability.MultipleChoices
+            ),
+            contextLength = 128_000,
+            maxOutputTokens = 16_000
+        )
+    }
+
+    private fun anthropicModel(tier: String): LLModel {
+        val models = ConfigHolder.getLlmAnthropicModels()
+        val modelId = resolveModelId(models, tier)
+        return LLModel(
+            provider = LLMProvider.Anthropic,
+            id = modelId,
+            capabilities = listOf(
+                LLMCapability.Completion,
+                LLMCapability.PromptCaching,
+                LLMCapability.Temperature,
+                LLMCapability.Tools,
+                LLMCapability.ToolChoice,
+                LLMCapability.MultipleChoices
+            ),
+            contextLength = 200_000,
+            maxOutputTokens = 16_000
+        )
+    }
+
+    private fun openrouterModel(tier: String): LLModel {
+        val models = ConfigHolder.getLlmOpenRouterModels()
+        val modelId = resolveModelId(models, tier)
+        return LLModel(
+            provider = LLMProvider.OpenRouter,
+            id = modelId,
+            capabilities = listOf(
+                LLMCapability.Completion,
+                LLMCapability.Temperature,
+                LLMCapability.Tools,
+                LLMCapability.ToolChoice,
+                LLMCapability.MultipleChoices
+            ),
+            contextLength = 128_000,
+            maxOutputTokens = 16_000
+        )
+    }
+
     val Lite by lazy {
         when (choice) {
             "GOOGLE" -> googleModel("lite")
             "DEEP_SEEK" -> deepSeekModel("lite")
             "MINIMAX" -> minimaxModel("lite")
+            "OPENAI" -> openaiModel("lite")
+            "ANTHROPIC" -> anthropicModel("lite")
+            "OPENROUTER" -> openrouterModel("lite")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }
@@ -91,6 +150,9 @@ object LLMProviderChoice {
             "GOOGLE" -> googleModel("flash")
             "DEEP_SEEK" -> deepSeekModel("flash")
             "MINIMAX" -> minimaxModel("flash")
+            "OPENAI" -> openaiModel("flash")
+            "ANTHROPIC" -> anthropicModel("flash")
+            "OPENROUTER" -> openrouterModel("flash")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }
@@ -100,6 +162,9 @@ object LLMProviderChoice {
             "GOOGLE" -> googleModel("pro")
             "DEEP_SEEK" -> deepSeekModel("pro")
             "MINIMAX" -> minimaxModel("pro")
+            "OPENAI" -> openaiModel("pro")
+            "ANTHROPIC" -> anthropicModel("pro")
+            "OPENROUTER" -> openrouterModel("pro")
             else -> throw RuntimeException("Unknown choice model: $choice")
         }
     }

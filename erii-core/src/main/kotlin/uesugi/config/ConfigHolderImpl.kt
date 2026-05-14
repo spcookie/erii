@@ -32,6 +32,21 @@ class ConfigHolderImpl : ConfigProvider {
             "flash" to "MiniMax-M2.5",
             "pro" to "MiniMax-M2.7"
         )
+        private val DEFAULT_OPENAI_MODELS = mapOf(
+            "lite" to "gpt-4.1-nano",
+            "flash" to "gpt-4.1-mini",
+            "pro" to "gpt-4.1"
+        )
+        private val DEFAULT_ANTHROPIC_MODELS = mapOf(
+            "lite" to "claude-haiku-4-5-20251001",
+            "flash" to "claude-sonnet-4-6",
+            "pro" to "claude-sonnet-4-6"
+        )
+        private val DEFAULT_OPENROUTER_MODELS = mapOf(
+            "lite" to "openai/gpt-4.1-nano",
+            "flash" to "openai/gpt-4.1-mini",
+            "pro" to "anthropic/claude-sonnet-4-6"
+        )
     }
 
     private fun getLlmModelsHierarchical(provider: String, defaults: Map<String, String>): Map<String, String> {
@@ -116,6 +131,21 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getLlmMinimaxBaseUrl(): String = config.getString("llm.minimax.base-url")
     override fun getLlmMinimaxModels(): Map<String, String> =
         getLlmModelsHierarchical("minimax", DEFAULT_MINIMAX_MODELS)
+
+    override fun getLlmOpenAIApiKey(): String = config.getString("llm.openai.api-key")
+    override fun getLlmOpenAIBaseUrl(): String = config.getString("llm.openai.base-url")
+    override fun getLlmOpenAIModels(): Map<String, String> =
+        getLlmModelsHierarchical("openai", DEFAULT_OPENAI_MODELS)
+
+    override fun getLlmAnthropicApiKey(): String = config.getString("llm.anthropic.api-key")
+    override fun getLlmAnthropicBaseUrl(): String = config.getString("llm.anthropic.base-url")
+    override fun getLlmAnthropicModels(): Map<String, String> =
+        getLlmModelsHierarchical("anthropic", DEFAULT_ANTHROPIC_MODELS)
+
+    override fun getLlmOpenRouterApiKey(): String = config.getString("llm.openrouter.api-key")
+    override fun getLlmOpenRouterBaseUrl(): String = config.getString("llm.openrouter.base-url")
+    override fun getLlmOpenRouterModels(): Map<String, String> =
+        getLlmModelsHierarchical("openrouter", DEFAULT_OPENROUTER_MODELS)
 
     override fun getChoiceProvider(): String = config.getString("llm.choice-provider")
 

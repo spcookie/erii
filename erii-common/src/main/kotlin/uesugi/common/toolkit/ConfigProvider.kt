@@ -50,6 +50,15 @@ interface ConfigProvider {
     fun getLlmMinimaxApiKey(): String
     fun getLlmMinimaxBaseUrl(): String
     fun getLlmMinimaxModels(): Map<String, String>
+    fun getLlmOpenAIApiKey(): String
+    fun getLlmOpenAIBaseUrl(): String
+    fun getLlmOpenAIModels(): Map<String, String>
+    fun getLlmAnthropicApiKey(): String
+    fun getLlmAnthropicBaseUrl(): String
+    fun getLlmAnthropicModels(): Map<String, String>
+    fun getLlmOpenRouterApiKey(): String
+    fun getLlmOpenRouterBaseUrl(): String
+    fun getLlmOpenRouterModels(): Map<String, String>
     fun getChoiceProvider(): String
 
     // ===== 第三方服务 =====
@@ -118,6 +127,15 @@ object ConfigHolder {
     fun getLlmMinimaxApiKey(): String = provider.getLlmMinimaxApiKey()
     fun getLlmMinimaxBaseUrl(): String = provider.getLlmMinimaxBaseUrl()
     fun getLlmMinimaxModels(): Map<String, String> = provider.getLlmMinimaxModels()
+    fun getLlmOpenAIApiKey(): String = provider.getLlmOpenAIApiKey()
+    fun getLlmOpenAIBaseUrl(): String = provider.getLlmOpenAIBaseUrl()
+    fun getLlmOpenAIModels(): Map<String, String> = provider.getLlmOpenAIModels()
+    fun getLlmAnthropicApiKey(): String = provider.getLlmAnthropicApiKey()
+    fun getLlmAnthropicBaseUrl(): String = provider.getLlmAnthropicBaseUrl()
+    fun getLlmAnthropicModels(): Map<String, String> = provider.getLlmAnthropicModels()
+    fun getLlmOpenRouterApiKey(): String = provider.getLlmOpenRouterApiKey()
+    fun getLlmOpenRouterBaseUrl(): String = provider.getLlmOpenRouterBaseUrl()
+    fun getLlmOpenRouterModels(): Map<String, String> = provider.getLlmOpenRouterModels()
     fun getChoiceProvider(): String = provider.getChoiceProvider()
 
     // ===== 第三方服务 =====
