@@ -21,7 +21,6 @@ import (
 
 // EditorKeyMap defines keybindings for the leaf editor.
 type EditorKeyMap struct {
-	Save    key.Binding
 	Back    key.Binding
 	PickEnv key.Binding
 	Enter   key.Binding
@@ -30,21 +29,17 @@ type EditorKeyMap struct {
 }
 
 func (k EditorKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Save, k.Back, k.PickEnv, k.Enter, k.Null, k.Quit}
+	return []key.Binding{k.Back, k.PickEnv, k.Enter, k.Null, k.Quit}
 }
 
 func (k EditorKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Save, k.PickEnv, k.Enter},
+		{k.PickEnv, k.Enter},
 		{k.Back, k.Null, k.Quit},
 	}
 }
 
 var DefaultEditorKeys = EditorKeyMap{
-	Save: key.NewBinding(
-		key.WithKeys("ctrl+s"),
-		key.WithHelp("ctrl+s", "save"),
-	),
 	Back: key.NewBinding(
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
@@ -471,15 +466,6 @@ func (m *LeafEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keys.Back) {
 			return m, func() tea.Msg { return components.PopScreenMsg{} }
 		}
-		if key.Matches(msg, m.keys.Save) {
-			m.saveValue()
-			var cmds []tea.Cmd
-			if m.onSave != nil {
-				cmds = append(cmds, m.onSave())
-			}
-			cmds = append(cmds, func() tea.Msg { return components.PopScreenMsg{} })
-			return m, tea.Batch(cmds...)
-		}
 		if key.Matches(msg, m.keys.PickEnv) {
 			// Only for string/text/number types
 			vt := m.leaf.ValueType()
@@ -655,7 +641,7 @@ var envPickKeys = envPickKeyMap{
 }
 
 func (m *LeafEditorModel) ShortHelp() []key.Binding {
-	bindings := []key.Binding{m.keys.Save, m.keys.Back, m.keys.Enter, m.keys.Quit}
+	bindings := []key.Binding{m.keys.Back, m.keys.Enter, m.keys.Quit}
 	if vt := m.leaf.ValueType(); vt == tree.TypeString || vt == tree.TypeText || vt == tree.TypeNumber {
 		bindings = append(bindings, m.keys.PickEnv)
 	}
@@ -665,7 +651,7 @@ func (m *LeafEditorModel) ShortHelp() []key.Binding {
 
 func (m *LeafEditorModel) FullHelp() [][]key.Binding {
 	var first []key.Binding
-	first = append(first, m.keys.Save, m.keys.Enter)
+	first = append(first, m.keys.Enter)
 	if vt := m.leaf.ValueType(); vt != tree.TypeEnum && vt != tree.TypeBool {
 		first = append(first, m.keys.PickEnv)
 	}

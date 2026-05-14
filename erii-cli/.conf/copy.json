@@ -1,4 +1,4 @@
 [
-  "onebot",
-  "onebot.*.groups"
+  "onebot.bots",
+  "onebot.bots.*.groups"
 ]

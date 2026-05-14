@@ -25,7 +25,6 @@ type BrowserKeyMap struct {
 	New    key.Binding
 	Rename key.Binding
 	Delete key.Binding
-	Save   key.Binding
 	Help   key.Binding
 	Quit   key.Binding
 }
@@ -37,7 +36,7 @@ func (k BrowserKeyMap) ShortHelp() []key.Binding {
 func (k BrowserKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Enter},
-		{k.New, k.Rename, k.Delete, k.Save},
+		{k.New, k.Rename, k.Delete},
 		{k.Back, k.Help, k.Quit},
 	}
 }
@@ -70,10 +69,6 @@ var DefaultBrowserKeys = BrowserKeyMap{
 	Delete: key.NewBinding(
 		key.WithKeys("ctrl+d"),
 		key.WithHelp("ctrl+d", "delete"),
-	),
-	Save: key.NewBinding(
-		key.WithKeys("ctrl+s"),
-		key.WithHelp("ctrl+s", "save"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
@@ -210,6 +205,14 @@ func (m *BrowserModel) WithPlugin(name string) *BrowserModel {
 
 func (m *BrowserModel) canModify() bool {
 	return m.editable || tree.CanCopy(m.pluginName, m.currentPath())
+}
+
+func (m *BrowserModel) autoSave() {
+	if m.OnSaveFile != nil {
+		if err := m.OnSaveFile(m.Root); err != nil {
+			m.errMsg = err.Error()
+		}
+	}
 }
 
 // WithEditable enables add/delete/rename without copy.json permission.
@@ -402,6 +405,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if rawDesc := strings.TrimSpace(m.addDesc); rawDesc != "" {
 					_ = tree.SaveDesc(nodePath, rawDesc)
 				}
+				m.autoSave()
 			}
 		}
 		return m, cmd
@@ -449,6 +453,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if rawDesc := strings.TrimSpace(m.renameDesc); rawDesc != "" {
 					_ = tree.SaveDesc(nodePath, rawDesc)
 				}
+				m.autoSave()
 			}
 			return m, cmd
 		}
@@ -471,6 +476,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				idx := m.List.Index()
 				if m.current.RemoveChildAt(idx) {
 					m.refreshList()
+					m.autoSave()
 				}
 			}
 			return m, cmd
@@ -500,16 +506,6 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.refreshList()
 			} else {
 				return m, func() tea.Msg { return components.PopScreenMsg{} }
-			}
-			return m, nil
-		}
-		if key.Matches(msg, m.Keys.Save) {
-			if m.OnSaveFile != nil {
-				if err := m.OnSaveFile(m.Root); err != nil {
-					m.errMsg = err.Error()
-					return m, nil
-				}
-				m.errMsg = ""
 			}
 			return m, nil
 		}
@@ -649,7 +645,6 @@ func (m *BrowserModel) FullHelp() [][]key.Binding {
 			middle = append(middle, m.Keys.Delete)
 		}
 	}
-	middle = append(middle, m.Keys.Save)
 	return [][]key.Binding{
 		{m.Keys.Up, m.Keys.Down, m.Keys.Enter},
 		middle,
