@@ -466,8 +466,9 @@ func ApplyMetadataWithPlugin(node ConfigNode, path string, pluginName string) {
 				// Apply value config (type, nullable, default)
 				if vc := GetValueConfig(pluginName, childPath); vc != nil {
 					leaf.valueConfig = vc
-					// Override ValueType based on vc.Type if specified
-					if vc.Type != "" {
+					// Override ValueType based on vc.Type if specified,
+					// but don't override enum type (enum takes precedence).
+					if vc.Type != "" && leaf.valueType != TypeEnum {
 						switch vc.Type {
 						case "string":
 							leaf.valueType = TypeString

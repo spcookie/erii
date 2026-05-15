@@ -111,7 +111,7 @@ func NewLeafEditorModel(leaf *tree.LeafNode, onSave func() tea.Cmd) *LeafEditorM
 	// If leaf value is zero/nil/empty and has a default, use the default
 	if m.shouldApplyDefault() {
 		switch leaf.ValueConfig().Type {
-		case "string":
+		case "string", "enum":
 			if str, ok := leaf.ValueConfig().Default.(string); ok {
 				m.formValue = str
 			}
@@ -160,7 +160,7 @@ func (m *LeafEditorModel) shouldApplyDefault() bool {
 	}
 	// Check if current value is "zero"
 	switch m.leaf.ValueType() {
-	case tree.TypeString, tree.TypeText:
+	case tree.TypeString, tree.TypeText, tree.TypeEnum:
 		return m.formValue == ""
 	case tree.TypeNumber:
 		return m.formValue == ""
@@ -177,8 +177,6 @@ func (m *LeafEditorModel) shouldApplyDefault() bool {
 		}
 	case tree.TypeBool:
 		return false // don't auto-apply default for bool
-	default:
-		panic("unhandled default case")
 	}
 	return false
 }
@@ -215,8 +213,6 @@ func (m *LeafEditorModel) hasChanges() bool {
 			}
 		}
 		return false
-	default:
-		panic("unhandled default case")
 	}
 	return false
 }
@@ -232,7 +228,7 @@ func (m *LeafEditorModel) shouldApplyDefaultOnSave() bool {
 		return false
 	}
 	switch m.leaf.ValueType() {
-	case tree.TypeString, tree.TypeText:
+	case tree.TypeString, tree.TypeText, tree.TypeEnum:
 		return m.formValue == ""
 	case tree.TypeNumber:
 		return m.formValue == ""
@@ -245,8 +241,6 @@ func (m *LeafEditorModel) shouldApplyDefaultOnSave() bool {
 			}
 		}
 		return true
-	default:
-		panic("unhandled default case")
 	}
 	return false
 }
@@ -272,8 +266,6 @@ func leafValueToString(leaf *tree.LeafNode) string {
 			}
 			return strings.Join(items, "\n")
 		}
-	default:
-		panic("unhandled default case")
 	}
 	return ""
 }
@@ -342,8 +334,6 @@ func (m *LeafEditorModel) buildForm() {
 			Placeholder(placeholder).
 			Value(&m.formValue).
 			Key("value"))
-	default:
-		panic("unhandled default case")
 	}
 
 	if len(fields) > 0 {
@@ -610,8 +600,6 @@ func (m *LeafEditorModel) saveValue() {
 			}
 		}
 		m.leaf.SetValue(items)
-	default:
-		panic("unhandled default case")
 	}
 }
 
