@@ -1,4 +1,2 @@
 erii-core/src/main/resources/readability.js linguist-vendored
 doc/assets/LOGO.svg filter=lfs diff=lfs merge=lfs -text
-erii-plugins/animal/src/main/resources/**/*.svg filter=lfs diff=lfs merge=lfs -text
-erii-plugins/rollpig/src/main/resources/**/*.png filter=lfs diff=lfs merge=lfs -text
