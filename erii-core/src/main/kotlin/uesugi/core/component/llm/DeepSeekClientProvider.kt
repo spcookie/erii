@@ -13,7 +13,7 @@ import kotlin.time.ExperimentalTime
 class DeepSeekClientProvider : LLMClientProvider {
 
     override val provider: LLMProvider = LLMProvider.DeepSeek
-    override val choiceKey: String = "DEEP_SEEK"
+    override val choiceKey: String = "DEEPSEEK"
 
     private val apiKey by lazy { ConfigHolder.getLlmDeepSeekApiKey() }
     private val baseUrl by lazy { ConfigHolder.getLlmDeepSeekBaseUrl() }
