@@ -38,9 +38,9 @@
     "type": "array",
     "default": []
   },
-  "llm.choice-model": {
-    "type": "string",
-    "default": ""
+  "llm.choice-provider": {
+    "type": "enum",
+    "default": "none"
   },
   "llm.deep-seek.api-key": {
     "type": "string",
@@ -102,6 +102,69 @@
     "default": ""
   },
   "llm.minimax.models.pro": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.openai.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "llm.openai.base-url": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.openai.models.flash": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.openai.models.lite": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.openai.models.pro": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.anthropic.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "llm.anthropic.base-url": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.anthropic.models.flash": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.anthropic.models.lite": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.anthropic.models.pro": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.openrouter.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "llm.openrouter.base-url": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.openrouter.models.flash": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.openrouter.models.lite": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.openrouter.models.pro": {
     "type": "string",
     "default": ""
   },

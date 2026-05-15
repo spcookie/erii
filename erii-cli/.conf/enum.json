@@ -1,7 +1,11 @@
 {
   "llm.choice-provider": [
-    "GOOGLE",
-    "MINIMAX",
-    "DEEP_SEEK"
+    "none",
+    "google",
+    "minimax",
+    "deep-seek",
+    "openai",
+    "anthropic",
+    "openrouter"
   ]
 }

@@ -29,8 +29,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 
 	ctx := pathStack{}
 	prov := d.Providers[d.SelectedProv]
-	provKey := providerToHoconKey(prov.Name)
-	choiceModel := providerToChoiceModel(prov.Name)
+	provKey := prov.Key
+	choiceModel := hoconKeyToChoiceModel(prov.Key)
 
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]

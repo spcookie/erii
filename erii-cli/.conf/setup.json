@@ -2,31 +2,37 @@
   "providers": [
     {
       "name": "Google",
+      "key": "google",
       "desc": "Google Gemini models",
       "base-url": "https://generativelanguage.googleapis.com"
     },
     {
       "name": "DeepSeek",
+      "key": "deep-seek",
       "desc": "DeepSeek models",
       "base-url": "https://api.deepseek.com"
     },
     {
       "name": "MiniMax",
+      "key": "minimax",
       "desc": "MiniMax models (Anthropic-compatible API)",
       "base-url": "https://api.minimaxi.com"
     },
     {
       "name": "OpenAI",
+      "key": "openai",
       "desc": "OpenAI models",
       "base-url": "https://api.openai.com/v1"
     },
     {
       "name": "Anthropic",
+      "key": "anthropic",
       "desc": "Anthropic Claude models",
       "base-url": "https://api.anthropic.com"
     },
     {
       "name": "OpenRouter",
+      "key": "openrouter",
       "desc": "OpenRouter - unified API for multiple LLM providers",
       "base-url": "https://openrouter.ai/api"
     }

@@ -22,6 +22,7 @@ import (
 
 type Provider struct {
 	Name    string `json:"name"`
+	Key     string `json:"key"`
 	Desc    string `json:"desc"`
 	BaseURL string `json:"base-url"`
 }
@@ -186,30 +187,8 @@ func (s Step) prevMainStep() Step {
 	}
 }
 
-func providerToHoconKey(name string) string {
-	switch strings.ToLower(name) {
-	case "google":
-		return "google"
-	case "deepseek":
-		return "deep-seek"
-	case "minimax":
-		return "minimax"
-	default:
-		return strings.ToLower(name)
-	}
-}
-
-func providerToChoiceModel(name string) string {
-	switch strings.ToUpper(name) {
-	case "GOOGLE":
-		return "GOOGLE"
-	case "DEEPSEEK":
-		return "DEEP_SEEK"
-	case "MINIMAX":
-		return "MINIMAX"
-	default:
-		return strings.ToUpper(name)
-	}
+func hoconKeyToChoiceModel(key string) string {
+	return strings.ReplaceAll(strings.ToUpper(key), "-", "_")
 }
 
 // ---- Key bindings ----
@@ -299,6 +278,7 @@ func (m Model) currentKeys() SetupKeyMap {
 
 type providerItem struct {
 	name    string
+	key     string
 	desc    string
 	baseURL string
 	index   int
@@ -622,7 +602,7 @@ func (m *Model) updateProviderSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.data.BaseURL = item.baseURL
 				}
 				// Populate model defaults for the selected provider
-				if cfg, ok := m.data.LLMDefaults[providerToHoconKey(item.name)]; ok {
+				if cfg, ok := m.data.LLMDefaults[item.key]; ok {
 					m.data.ModelMode = cfg.ModelMode
 					m.data.LiteModel = cfg.LiteModel
 					m.data.FlashModel = cfg.FlashModel
@@ -714,7 +694,7 @@ func (m *Model) collectFormData() {
 func (m *Model) buildProviderList() {
 	items := make([]list.Item, len(m.data.Providers))
 	for i, p := range m.data.Providers {
-		items[i] = providerItem{name: p.Name, desc: p.Desc, baseURL: p.BaseURL, index: i}
+		items[i] = providerItem{name: p.Name, key: p.Key, desc: p.Desc, baseURL: p.BaseURL, index: i}
 	}
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 	l := list.New(items, delegate, 0, 0)
