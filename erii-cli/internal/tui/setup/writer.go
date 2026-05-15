@@ -38,9 +38,9 @@ func modifyConfig(d *SetupData, filePath string) error {
 
 		if isBlockStart(trimmed) && !strings.ContainsRune(trimmed, '}') {
 			blockName := trimmed
-			blockName = strings.TrimSuffix(blockName, " {")
 			blockName = strings.TrimSuffix(blockName, " = {")
 			blockName = strings.TrimSuffix(blockName, " ={")
+			blockName = strings.TrimSuffix(blockName, " {")
 			blockName = strings.TrimSpace(blockName)
 			ctx.push(blockName)
 		}
