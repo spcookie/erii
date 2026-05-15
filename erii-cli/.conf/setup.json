@@ -104,6 +104,10 @@
       {
         "name": "Exa",
         "url": "https://api.exa.ai/search"
+      },
+      {
+        "name": "MiniMax",
+        "url": "https://api.minimaxi.com/v1/coding_plan/search"
       }
     ],
     "vision": [

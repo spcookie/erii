@@ -30,7 +30,7 @@ class MiniMaxSearch : ISearch {
     override suspend fun search(query: String?, urls: List<String>?, maxResult: Int): List<SearchResultItem> {
         try {
             val items = mutableListOf<SearchResultItem>()
-            val searchUrl = ConfigHolder.getSearchUrl() + "/v1/coding_plan/search"
+            val searchUrl = ConfigHolder.getSearchUrl()
 
             if (!query.isNullOrBlank()) {
                 val root: JsonNode = httpClient.post(searchUrl) {
