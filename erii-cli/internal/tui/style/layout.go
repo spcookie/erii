@@ -2,6 +2,9 @@ package style
 
 import "github.com/charmbracelet/lipgloss"
 
+// ErrorCardWidth is the fixed width of error notification cards.
+const ErrorCardWidth = 52
+
 // Layout styles
 var (
 	BorderedPanel = lipgloss.NewStyle().

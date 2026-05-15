@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -54,7 +55,7 @@ func (a *API) doRequest(method, path string, body any) ([]byte, error) {
 
 	resp, err := a.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, friendlyRequestError(err)
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
@@ -62,13 +63,28 @@ func (a *API) doRequest(method, path string, body any) ([]byte, error) {
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 	return respBody, nil
+}
+
+// friendlyRequestError converts network-level errors into user-friendly messages.
+func friendlyRequestError(err error) error {
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "connection refused"):
+		return fmt.Errorf("cannot connect to Erii service, please make sure it is running")
+	case strings.Contains(msg, "timeout") || strings.Contains(msg, "timed out"):
+		return fmt.Errorf("connection to Erii service timed out, please check network or service status")
+	case strings.Contains(msg, "no such host"):
+		return fmt.Errorf("unable to resolve service address")
+	default:
+		return fmt.Errorf("request failed: %w", err)
+	}
 }
 
 // ── Bots & Groups (shared) ──

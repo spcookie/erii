@@ -1,6 +1,7 @@
 package manage
 
 import (
+	"erii-cli/internal/tui/components"
 	"erii-cli/internal/tui/style"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -91,6 +92,7 @@ type BotListModel struct {
 	keys   navKeys
 	width  int
 	height int
+	err    error
 }
 
 func NewBotListModel(api *API) *BotListModel {
@@ -129,7 +131,7 @@ func (m *BotListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case botsLoadedMsg:
 		if msg.Error != nil {
-			m.list = setErrorItem(m.list, msg.Error.Error())
+			m.err = msg.Error
 			return m, nil
 		}
 		m.bots = msg.Bots
@@ -139,6 +141,16 @@ func (m *BotListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.err != nil {
+			switch msg.String() {
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			case "r":
+				m.err = nil
+				return m, m.Init()
+			}
+			return m, nil
+		}
 		if key.Matches(msg, m.keys.Quit) {
 			return m, tea.Quit
 		}
@@ -162,6 +174,9 @@ func (m *BotListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *BotListModel) View() string {
+	if m.err != nil {
+		return components.RenderErrorCard(m.width, m.height, m.err.Error(), "press r to retry    press q to quit")
+	}
 	return m.list.View() + "\n\n" + m.help.View(m.keys)
 }
 
@@ -176,6 +191,7 @@ type GroupListModel struct {
 	keys   navKeys
 	width  int
 	height int
+	err    error
 }
 
 func NewGroupListModel(api *API, bot BotInfo) *GroupListModel {
@@ -215,7 +231,7 @@ func (m *GroupListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case groupsLoadedMsg:
 		if msg.Error != nil {
-			m.list = setErrorItem(m.list, msg.Error.Error())
+			m.err = msg.Error
 			return m, nil
 		}
 		m.groups = msg.Groups
@@ -225,6 +241,18 @@ func (m *GroupListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.err != nil {
+			switch msg.String() {
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			case "esc", "backspace":
+				return m, func() tea.Msg { return PopMsg{} }
+			case "r":
+				m.err = nil
+				return m, m.Init()
+			}
+			return m, nil
+		}
 		if key.Matches(msg, m.keys.Quit) {
 			return m, tea.Quit
 		}
@@ -251,6 +279,9 @@ func (m *GroupListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *GroupListModel) View() string {
+	if m.err != nil {
+		return components.RenderErrorCard(m.width, m.height, m.err.Error(), "press r to retry    esc back    q quit")
+	}
 	return m.list.View() + "\n\n" + m.help.View(m.keys)
 }
 
@@ -262,9 +293,4 @@ func setListItems[T any](data []T, mapper func(T) list.Item) []list.Item {
 		items[i] = mapper(v)
 	}
 	return items
-}
-
-func setErrorItem(m list.Model, errMsg string) list.Model {
-	m.SetItems([]list.Item{item{title: style.ErrorText("Error: " + errMsg), desc: ""}})
-	return m
 }
