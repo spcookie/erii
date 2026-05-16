@@ -1,7 +1,7 @@
 package manage
 
 import (
-	"erii-cli/internal/ipc"
+	"erii-cli/internal/api"
 	"erii-cli/internal/tui/components"
 	"fmt"
 
@@ -10,7 +10,7 @@ import (
 
 func Start() error {
 	for {
-		config, err := ipc.ReadConfig()
+		client, err := api.NewClientFromIPC()
 		if err != nil {
 			model := components.NewConnectionErrorModel(err)
 			p := tea.NewProgram(model, tea.WithAltScreen())
@@ -23,13 +23,7 @@ func Start() error {
 			continue
 		}
 
-		port := config.Port
-		if port == 0 {
-			port = 8080
-		}
-
-		api := NewAPI(port, config.Username, config.Password)
-		initial := NewBotListModel(api)
+		initial := NewBotListModel(client)
 		root := NewRootModel(initial)
 
 		p := tea.NewProgram(root, tea.WithAltScreen())

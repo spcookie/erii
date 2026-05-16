@@ -1,6 +1,8 @@
 package manage
 
 import (
+	"erii-cli/internal/api"
+
 	"github.com/charmbracelet/bubbletea"
 )
 
@@ -8,35 +10,35 @@ import (
 type (
 	PopMsg            struct{}
 	PopAndRefreshMsg  struct{}
-	PushGroupListMsg  struct{ Bot BotInfo }
+	PushGroupListMsg  struct{ Bot api.BotInfo }
 	PushManageMenuMsg struct {
-		Bot   BotInfo
-		Group GroupInfo
+		Bot   api.BotInfo
+		Group api.GroupInfo
 	}
 	PushTableMsg struct {
 		ResourceType ResourceType
-		Bot          BotInfo
-		Group        GroupInfo
+		Bot          api.BotInfo
+		Group        api.GroupInfo
 	}
 	PushMessageMenuMsg struct {
-		Bot   BotInfo
-		Group GroupInfo
+		Bot   api.BotInfo
+		Group api.GroupInfo
 	}
 	PushEditMsg struct {
 		ResourceType ResourceType
-		Bot          BotInfo
-		Group        GroupInfo
+		Bot          api.BotInfo
+		Group        api.GroupInfo
 		Data         any
 		IsCreate     bool
 	}
 	PushStateMenuMsg struct {
-		Bot   BotInfo
-		Group GroupInfo
+		Bot   api.BotInfo
+		Group api.GroupInfo
 	}
 	PushStateDetailMsg struct {
 		StateType StateType
-		Bot       BotInfo
-		Group     GroupInfo
+		Bot       api.BotInfo
+		Group     api.GroupInfo
 	}
 	RefreshMsg struct{}
 )
@@ -178,7 +180,7 @@ func (m *RootModel) View() string {
 	return ""
 }
 
-func getAPI(model tea.Model) *API {
+func getAPI(model tea.Model) *api.Client {
 	switch m := model.(type) {
 	case *BotListModel:
 		return m.api

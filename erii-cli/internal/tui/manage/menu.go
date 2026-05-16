@@ -1,6 +1,7 @@
 package manage
 
 import (
+	"erii-cli/internal/api"
 	"erii-cli/internal/tui/style"
 	"fmt"
 
@@ -64,15 +65,15 @@ var menuDefaultKeys = menuKeys{
 }
 
 type ManageMenuModel struct {
-	bot    BotInfo
-	group  GroupInfo
+	bot    api.BotInfo
+	group  api.GroupInfo
 	list   list.Model
 	keys   menuKeys
 	width  int
 	height int
 }
 
-func NewManageMenuModel(bot BotInfo, group GroupInfo) *ManageMenuModel {
+func NewManageMenuModel(bot api.BotInfo, group api.GroupInfo) *ManageMenuModel {
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = style.Title("Select Data Type")

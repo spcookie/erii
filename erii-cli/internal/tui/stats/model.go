@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"erii-cli/internal/api"
 	"fmt"
 	"strings"
 
@@ -18,22 +19,22 @@ import (
 // Navigation messages
 type (
 	PopMsg            struct{}
-	PushGroupListMsg  struct{ Bot BotInfo }
+	PushGroupListMsg  struct{ Bot api.BotInfo }
 	PushStatusViewMsg struct {
-		Bot   BotInfo
-		Group GroupInfo
+		Bot   api.BotInfo
+		Group api.GroupInfo
 	}
 )
 
 // Data messages
 type (
 	BotsLoadedMsg struct {
-		Bots  []BotInfo
+		Bots  []api.BotInfo
 		Error error
 	}
 	GroupsLoadedMsg struct {
-		Bot    BotInfo
-		Groups []GroupInfo
+		Bot    api.BotInfo
+		Groups []api.GroupInfo
 		Error  error
 	}
 )
@@ -116,8 +117,8 @@ func (i item) FilterValue() string { return i.title }
 // ── BotListModel ──
 
 type BotListModel struct {
-	api    *API
-	bots   []BotInfo
+	api    *api.Client
+	bots   []api.BotInfo
 	list   list.Model
 	help   help.Model
 	keys   navKeys
@@ -126,7 +127,7 @@ type BotListModel struct {
 	err    error
 }
 
-func NewBotListModel(api *API) *BotListModel {
+func NewBotListModel(api *api.Client) *BotListModel {
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
@@ -167,7 +168,7 @@ func (m *BotListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.bots = msg.Bots
-		m.list.SetItems(setListItems(m.bots, func(b BotInfo) list.Item {
+		m.list.SetItems(setListItems(m.bots, func(b api.BotInfo) list.Item {
 			return item{title: SymArrow + " " + b.BotName, desc: "   ID: " + b.BotID}
 		}))
 		return m, nil
@@ -230,9 +231,9 @@ func setErrorItem(m list.Model, errMsg string) list.Model {
 // ── GroupListModel ──
 
 type GroupListModel struct {
-	api    *API
-	bot    BotInfo
-	groups []GroupInfo
+	api    *api.Client
+	bot    api.BotInfo
+	groups []api.GroupInfo
 	list   list.Model
 	help   help.Model
 	keys   navKeys
@@ -241,7 +242,7 @@ type GroupListModel struct {
 	err    error
 }
 
-func NewGroupListModel(api *API, bot BotInfo) *GroupListModel {
+func NewGroupListModel(api *api.Client, bot api.BotInfo) *GroupListModel {
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
@@ -283,7 +284,7 @@ func (m *GroupListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.groups = msg.Groups
-		m.list.SetItems(setListItems(m.groups, func(g GroupInfo) list.Item {
+		m.list.SetItems(setListItems(m.groups, func(g api.GroupInfo) list.Item {
 			return item{title: SymArrow + " " + g.GroupName, desc: "   ID: " + g.GroupID}
 		}))
 		return m, nil
@@ -336,10 +337,10 @@ func (m *GroupListModel) View() string {
 // ── StatusViewModel ──
 
 type StatusViewModel struct {
-	api      *API
-	bot      BotInfo
-	group    GroupInfo
-	status   *GroupStatus
+	api      *api.Client
+	bot      api.BotInfo
+	group    api.GroupInfo
+	status   *api.GroupStatus
 	keys     navKeys
 	help     help.Model
 	viewport viewport.Model
@@ -349,7 +350,7 @@ type StatusViewModel struct {
 	err      error
 }
 
-func NewStatusViewModel(api *API, bot BotInfo, group GroupInfo) *StatusViewModel {
+func NewStatusViewModel(api *api.Client, bot api.BotInfo, group api.GroupInfo) *StatusViewModel {
 	return &StatusViewModel{
 		api:      api,
 		bot:      bot,
@@ -403,7 +404,7 @@ func (m *StatusViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case *GroupStatus:
+	case *api.GroupStatus:
 		m.status = msg
 		m.loading = false
 		m.viewport.SetContent(m.buildContent())
@@ -463,7 +464,7 @@ func (m *StatusViewModel) buildContent() string {
 			style.InfoText(fmt.Sprintf("%d", s.PluginStats.PassiveExtensions)),
 		))
 
-	// PAD Emotion
+	// api.PAD Emotion
 	rows = append(rows, hline(innerW))
 	rows = append(rows, sectionTitle("Emotion"))
 	if s.BehaviorProfile != nil {

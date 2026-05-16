@@ -1,6 +1,7 @@
 package manage
 
 import (
+	"erii-cli/internal/api"
 	"erii-cli/internal/tui/style"
 	"fmt"
 
@@ -21,15 +22,15 @@ func (i stateMenuItem) Description() string { return i.desc }
 func (i stateMenuItem) FilterValue() string { return i.title }
 
 type StateMenuModel struct {
-	bot    BotInfo
-	group  GroupInfo
+	bot    api.BotInfo
+	group  api.GroupInfo
 	list   list.Model
 	keys   menuKeys
 	width  int
 	height int
 }
 
-func NewStateMenuModel(bot BotInfo, group GroupInfo) *StateMenuModel {
+func NewStateMenuModel(bot api.BotInfo, group api.GroupInfo) *StateMenuModel {
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = style.Title("Select State Type")

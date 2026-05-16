@@ -1,6 +1,7 @@
 package manage
 
 import (
+	"erii-cli/internal/api"
 	"fmt"
 	"strconv"
 	"strings"
@@ -81,15 +82,15 @@ var detailDefaultKeys = detailKeys{
 // ── StateDetailModel ──
 
 type StateDetailModel struct {
-	api       *API
-	bot       BotInfo
-	group     GroupInfo
+	api       *api.Client
+	bot       api.BotInfo
+	group     api.GroupInfo
 	stateType StateType
 
 	// Data
-	emotion  *EmotionRecord
-	flow     *FlowRecord
-	volition *VolitionRecord
+	emotion  *api.EmotionRecord
+	flow     *api.FlowRecord
+	volition *api.VolitionRecord
 	loading  bool
 	err      error
 
@@ -118,7 +119,7 @@ type StateDetailModel struct {
 	viewport   viewport.Model
 }
 
-func NewStateDetailModel(api *API, st StateType, bot BotInfo, group GroupInfo) *StateDetailModel {
+func NewStateDetailModel(api *api.Client, st StateType, bot api.BotInfo, group api.GroupInfo) *StateDetailModel {
 	m := &StateDetailModel{
 		api:       api,
 		bot:       bot,
@@ -157,15 +158,15 @@ func (m *StateDetailModel) loadState() tea.Cmd {
 func (m *StateDetailModel) applyStateUpdate(msg StateUpdatedMsg) {
 	switch msg.Type {
 	case StateEmotion:
-		if d, ok := msg.Data.(*EmotionRecord); ok {
+		if d, ok := msg.Data.(*api.EmotionRecord); ok {
 			m.emotion = d
 		}
 	case StateFlow:
-		if d, ok := msg.Data.(*FlowRecord); ok {
+		if d, ok := msg.Data.(*api.FlowRecord); ok {
 			m.flow = d
 		}
 	case StateVolition:
-		if d, ok := msg.Data.(*VolitionRecord); ok {
+		if d, ok := msg.Data.(*api.VolitionRecord); ok {
 			m.volition = d
 		}
 	}
@@ -635,7 +636,7 @@ func (m *StateDetailModel) startVolitionEdit(w, h int) {
 }
 
 func (m *StateDetailModel) submit() tea.Cmd {
-	api := m.api
+	client := m.api
 	botID := m.bot.BotID
 	groupID := m.group.GroupID
 	st := m.stateType
@@ -646,19 +647,19 @@ func (m *StateDetailModel) submit() tea.Cmd {
 			p, _ := strconv.ParseFloat(m.moodP, 64)
 			a, _ := strconv.ParseFloat(m.moodA, 64)
 			d, _ := strconv.ParseFloat(m.moodD, 64)
-			req := UpdateEmotionRequest{
+			req := api.UpdateEmotionRequest{
 				EmotionalTendency: m.emotionalTendency,
-				Stimulus:          PAD{P: p, A: a, D: d},
-				Emotion:           PAD{P: p, A: a, D: d},
-				Mood:              PAD{P: p, A: a, D: d},
-				Behavior: BehaviorProfile{
+				Stimulus:          api.PAD{P: p, A: a, D: d},
+				Emotion:           api.PAD{P: p, A: a, D: d},
+				Mood:              api.PAD{P: p, A: a, D: d},
+				Behavior: api.BehaviorProfile{
 					Emotion:        m.emotionalTendency,
 					Tone:           m.tone,
 					Aggressiveness: m.aggressiveness,
 					EmojiLevel:     m.emojiLevel,
 				},
 			}
-			data, err := api.UpdateEmotion(botID, groupID, req)
+			data, err := client.UpdateEmotion(botID, groupID, req)
 			if err != nil {
 				return err
 			}
@@ -666,11 +667,11 @@ func (m *StateDetailModel) submit() tea.Cmd {
 
 		case StateFlow:
 			fv, _ := strconv.ParseFloat(m.flowValue, 64)
-			req := UpdateFlowRequest{
+			req := api.UpdateFlowRequest{
 				FlowValue:    fv,
 				CurrentTopic: m.currentTopic,
 			}
-			data, err := api.UpdateFlow(botID, groupID, req)
+			data, err := client.UpdateFlow(botID, groupID, req)
 			if err != nil {
 				return err
 			}
@@ -679,11 +680,11 @@ func (m *StateDetailModel) submit() tea.Cmd {
 		case StateVolition:
 			stimulus, _ := strconv.ParseFloat(m.volitionStimulus, 64)
 			fatigue, _ := strconv.ParseFloat(m.volitionFatigue, 64)
-			req := UpdateVolitionRequest{
+			req := api.UpdateVolitionRequest{
 				Stimulus: stimulus,
 				Fatigue:  fatigue,
 			}
-			data, err := api.UpdateVolition(botID, groupID, req)
+			data, err := client.UpdateVolition(botID, groupID, req)
 			if err != nil {
 				return err
 			}

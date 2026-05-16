@@ -1,6 +1,7 @@
 package manage
 
 import (
+	"erii-cli/internal/api"
 	"fmt"
 	"sort"
 	"strconv"
@@ -64,7 +65,7 @@ type DataTableModel struct {
 	resourceType ResourceType
 	botID        string
 	groupID      string
-	api          *API
+	api          *api.Client
 
 	items         []any
 	filteredItems []any
@@ -99,7 +100,7 @@ type DataTableModel struct {
 	sortAsc     bool
 }
 
-func NewDataTableModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo) *DataTableModel {
+func NewDataTableModel(api *api.Client, rt ResourceType, bot api.BotInfo, group api.GroupInfo) *DataTableModel {
 	ti := textinput.New()
 	ti.Placeholder = "Search..."
 	ti.PromptStyle = lipgloss.NewStyle().Foreground(style.Accent)
@@ -363,8 +364,8 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg {
 				return PushEditMsg{
 					ResourceType: m.resourceType,
-					Bot:          BotInfo{BotID: m.botID},
-					Group:        GroupInfo{GroupID: m.groupID},
+					Bot:          api.BotInfo{BotID: m.botID},
+					Group:        api.GroupInfo{GroupID: m.groupID},
 					Data:         nil,
 					IsCreate:     true,
 				}
@@ -383,8 +384,8 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, func() tea.Msg {
 					return PushEditMsg{
 						ResourceType: m.resourceType,
-						Bot:          BotInfo{BotID: m.botID},
-						Group:        GroupInfo{GroupID: m.groupID},
+						Bot:          api.BotInfo{BotID: m.botID},
+						Group:        api.GroupInfo{GroupID: m.groupID},
 						Data:         item,
 						IsCreate:     false,
 					}
@@ -654,7 +655,7 @@ func (m *DataTableModel) applySortBy(colIdx int) (tea.Model, tea.Cmd) {
 
 func (m *DataTableModel) doDelete(key string) tea.Cmd {
 	rt := m.resourceType
-	api := m.api
+	client := m.api
 	botID := m.botID
 	groupID := m.groupID
 	return func() tea.Msg {
@@ -662,21 +663,21 @@ func (m *DataTableModel) doDelete(key string) tea.Cmd {
 		switch rt {
 		case ResourceFacts:
 			id, _ := strconv.Atoi(key)
-			err = api.DeleteFact(botID, groupID, id)
+			err = client.DeleteFact(botID, groupID, id)
 		case ResourceProfiles:
-			err = api.DeleteUserProfile(botID, groupID, key)
+			err = client.DeleteUserProfile(botID, groupID, key)
 		case ResourceMemes:
 			id, _ := strconv.Atoi(key)
-			err = api.DeleteMeme(botID, groupID, id)
+			err = client.DeleteMeme(botID, groupID, id)
 		case ResourceVocabularies:
 			id, _ := strconv.Atoi(key)
-			err = api.DeleteVocabulary(botID, groupID, id)
+			err = client.DeleteVocabulary(botID, groupID, id)
 		case ResourceSummaries:
 			id, _ := strconv.Atoi(key)
-			err = api.DeleteSummary(botID, groupID, id)
+			err = client.DeleteSummary(botID, groupID, id)
 		case ResourceHistory:
 			id, _ := strconv.Atoi(key)
-			err = api.DeleteHistory(botID, groupID, id)
+			err = client.DeleteHistory(botID, groupID, id)
 		}
 		return deleteDoneMsg{Error: err}
 	}
@@ -684,7 +685,7 @@ func (m *DataTableModel) doDelete(key string) tea.Cmd {
 
 func (m *DataTableModel) doBatchDelete() tea.Cmd {
 	rt := m.resourceType
-	api := m.api
+	client := m.api
 	botID := m.botID
 	groupID := m.groupID
 	selected := make(map[string]bool)
@@ -699,21 +700,21 @@ func (m *DataTableModel) doBatchDelete() tea.Cmd {
 			switch rt {
 			case ResourceFacts:
 				id, _ := strconv.Atoi(key)
-				err = api.DeleteFact(botID, groupID, id)
+				err = client.DeleteFact(botID, groupID, id)
 			case ResourceProfiles:
-				err = api.DeleteUserProfile(botID, groupID, key)
+				err = client.DeleteUserProfile(botID, groupID, key)
 			case ResourceMemes:
 				id, _ := strconv.Atoi(key)
-				err = api.DeleteMeme(botID, groupID, id)
+				err = client.DeleteMeme(botID, groupID, id)
 			case ResourceVocabularies:
 				id, _ := strconv.Atoi(key)
-				err = api.DeleteVocabulary(botID, groupID, id)
+				err = client.DeleteVocabulary(botID, groupID, id)
 			case ResourceSummaries:
 				id, _ := strconv.Atoi(key)
-				err = api.DeleteSummary(botID, groupID, id)
+				err = client.DeleteSummary(botID, groupID, id)
 			case ResourceHistory:
 				id, _ := strconv.Atoi(key)
-				err = api.DeleteHistory(botID, groupID, id)
+				err = client.DeleteHistory(botID, groupID, id)
 			}
 			if err != nil {
 				lastErr = err
@@ -893,7 +894,7 @@ func (m *DataTableModel) buildPreviewContent() string {
 	var contentLines []string
 
 	switch r := m.previewItem.(type) {
-	case FactRecord:
+	case api.FactRecord:
 		title = r.Keyword
 		contentLines = []string{
 			wrap("ID", fmt.Sprintf("%d", r.ID)),
@@ -906,7 +907,7 @@ func (m *DataTableModel) buildPreviewContent() string {
 			wrap("ValidTo", ptrStr(r.ValidTo)),
 			wrap("Created", r.CreatedAt),
 		}
-	case UserProfileRecord:
+	case api.UserProfileRecord:
 		title = r.UserID
 		contentLines = []string{
 			wrap("ID", fmt.Sprintf("%d", r.ID)),
@@ -915,7 +916,7 @@ func (m *DataTableModel) buildPreviewContent() string {
 			wrap("Preferences", r.Preferences),
 			wrap("Created", r.CreatedAt),
 		}
-	case MemeRecord:
+	case api.MemeRecord:
 		title = fmt.Sprintf("Meme #%d", r.ID)
 		contentLines = []string{
 			wrap("ID", fmt.Sprintf("%d", r.ID)),
@@ -928,7 +929,7 @@ func (m *DataTableModel) buildPreviewContent() string {
 			wrap("Created", r.CreatedAt),
 			wrap("Updated", r.UpdatedAt),
 		}
-	case VocabRecord:
+	case api.VocabRecord:
 		title = r.Word
 		contentLines = []string{
 			wrap("ID", fmt.Sprintf("%d", r.ID)),
@@ -940,7 +941,7 @@ func (m *DataTableModel) buildPreviewContent() string {
 			wrap("LastSeen", r.LastSeen),
 			wrap("Created", r.CreatedAt),
 		}
-	case SummaryRecord:
+	case api.SummaryRecord:
 		title = r.TimeRange
 		contentLines = []string{
 			wrap("ID", fmt.Sprintf("%d", r.ID)),
@@ -952,7 +953,7 @@ func (m *DataTableModel) buildPreviewContent() string {
 			wrap("Messages", fmt.Sprintf("%d", r.MessageCount)),
 			wrap("Created", r.CreatedAt),
 		}
-	case HistoryRecord:
+	case api.HistoryRecord:
 		title = fmt.Sprintf("History #%d", r.ID)
 		content := ""
 		if r.Content != nil {
@@ -971,7 +972,7 @@ func (m *DataTableModel) buildPreviewContent() string {
 			wrap("Resource", resource),
 			wrap("Created", r.CreatedAt),
 		}
-	case ResourceRecord:
+	case api.ResourceRecord:
 		title = r.FileName
 		contentLines = []string{
 			wrap("ID", fmt.Sprintf("%d", r.ID)),
@@ -1081,7 +1082,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				}
 			},
 			getRow: func(a any, selected bool) table.Row {
-				r := a.(FactRecord)
+				r := a.(api.FactRecord)
 				cb := "[ ]"
 				if selected {
 					cb = "[x]"
@@ -1096,10 +1097,10 @@ func getFormatter(rt ResourceType) tableFormatter {
 					r.ScopeType,
 				}
 			},
-			getID:  func(a any) int { return a.(FactRecord).ID },
-			getKey: func(a any) string { return fmt.Sprintf("%d", a.(FactRecord).ID) },
+			getID:  func(a any) int { return a.(api.FactRecord).ID },
+			getKey: func(a any) string { return fmt.Sprintf("%d", a.(api.FactRecord).ID) },
 			searchMatch: func(a any, kw string) bool {
-				r := a.(FactRecord)
+				r := a.(api.FactRecord)
 				return strings.Contains(strings.ToLower(r.Keyword), kw) ||
 					strings.Contains(strings.ToLower(r.Description), kw) ||
 					strings.Contains(strings.ToLower(r.Values), kw) ||
@@ -1110,9 +1111,13 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canEdit:   true,
 			canDelete: true,
 			sortColumns: []sortColumn{
-				{name: "ID", less: func(a, b any) bool { return a.(FactRecord).ID < b.(FactRecord).ID }},
-				{name: "Keyword", less: func(a, b any) bool { return strings.Compare(a.(FactRecord).Keyword, b.(FactRecord).Keyword) < 0 }},
-				{name: "Scope", less: func(a, b any) bool { return strings.Compare(a.(FactRecord).ScopeType, b.(FactRecord).ScopeType) < 0 }},
+				{name: "ID", less: func(a, b any) bool { return a.(api.FactRecord).ID < b.(api.FactRecord).ID }},
+				{name: "Keyword", less: func(a, b any) bool {
+					return strings.Compare(a.(api.FactRecord).Keyword, b.(api.FactRecord).Keyword) < 0
+				}},
+				{name: "Scope", less: func(a, b any) bool {
+					return strings.Compare(a.(api.FactRecord).ScopeType, b.(api.FactRecord).ScopeType) < 0
+				}},
 			},
 		}
 
@@ -1130,7 +1135,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				}
 			},
 			getRow: func(a any, selected bool) table.Row {
-				r := a.(UserProfileRecord)
+				r := a.(api.UserProfileRecord)
 				cb := "[ ]"
 				if selected {
 					cb = "[x]"
@@ -1143,10 +1148,10 @@ func getFormatter(rt ResourceType) tableFormatter {
 					r.Preferences,
 				}
 			},
-			getID:  func(a any) int { return a.(UserProfileRecord).ID },
-			getKey: func(a any) string { return a.(UserProfileRecord).UserID },
+			getID:  func(a any) int { return a.(api.UserProfileRecord).ID },
+			getKey: func(a any) string { return a.(api.UserProfileRecord).UserID },
 			searchMatch: func(a any, kw string) bool {
-				r := a.(UserProfileRecord)
+				r := a.(api.UserProfileRecord)
 				return strings.Contains(strings.ToLower(r.UserID), kw) ||
 					strings.Contains(strings.ToLower(r.Profile), kw) ||
 					strings.Contains(strings.ToLower(r.Preferences), kw)
@@ -1155,9 +1160,9 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canEdit:   true,
 			canDelete: true,
 			sortColumns: []sortColumn{
-				{name: "ID", less: func(a, b any) bool { return a.(UserProfileRecord).ID < b.(UserProfileRecord).ID }},
+				{name: "ID", less: func(a, b any) bool { return a.(api.UserProfileRecord).ID < b.(api.UserProfileRecord).ID }},
 				{name: "UserID", less: func(a, b any) bool {
-					return strings.Compare(a.(UserProfileRecord).UserID, b.(UserProfileRecord).UserID) < 0
+					return strings.Compare(a.(api.UserProfileRecord).UserID, b.(api.UserProfileRecord).UserID) < 0
 				}},
 			},
 		}
@@ -1178,7 +1183,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				}
 			},
 			getRow: func(a any, selected bool) table.Row {
-				r := a.(MemeRecord)
+				r := a.(api.MemeRecord)
 				cb := "[ ]"
 				if selected {
 					cb = "[x]"
@@ -1205,10 +1210,10 @@ func getFormatter(rt ResourceType) tableFormatter {
 					fmt.Sprintf("%d", r.UsageCount),
 				}
 			},
-			getID:  func(a any) int { return a.(MemeRecord).ID },
-			getKey: func(a any) string { return fmt.Sprintf("%d", a.(MemeRecord).ID) },
+			getID:  func(a any) int { return a.(api.MemeRecord).ID },
+			getKey: func(a any) string { return fmt.Sprintf("%d", a.(api.MemeRecord).ID) },
 			searchMatch: func(a any, kw string) bool {
-				r := a.(MemeRecord)
+				r := a.(api.MemeRecord)
 				if r.Description != nil && strings.Contains(strings.ToLower(*r.Description), kw) {
 					return true
 				}
@@ -1224,19 +1229,19 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canEdit:   true,
 			canDelete: true,
 			sortColumns: []sortColumn{
-				{name: "ID", less: func(a, b any) bool { return a.(MemeRecord).ID < b.(MemeRecord).ID }},
+				{name: "ID", less: func(a, b any) bool { return a.(api.MemeRecord).ID < b.(api.MemeRecord).ID }},
 				{name: "Description", less: func(a, b any) bool {
 					da, db := "", ""
-					if a.(MemeRecord).Description != nil {
-						da = *a.(MemeRecord).Description
+					if a.(api.MemeRecord).Description != nil {
+						da = *a.(api.MemeRecord).Description
 					}
-					if b.(MemeRecord).Description != nil {
-						db = *b.(MemeRecord).Description
+					if b.(api.MemeRecord).Description != nil {
+						db = *b.(api.MemeRecord).Description
 					}
 					return strings.Compare(da, db) < 0
 				}},
-				{name: "Seen", less: func(a, b any) bool { return a.(MemeRecord).SeenCount < b.(MemeRecord).SeenCount }},
-				{name: "Usage", less: func(a, b any) bool { return a.(MemeRecord).UsageCount < b.(MemeRecord).UsageCount }},
+				{name: "Seen", less: func(a, b any) bool { return a.(api.MemeRecord).SeenCount < b.(api.MemeRecord).SeenCount }},
+				{name: "Usage", less: func(a, b any) bool { return a.(api.MemeRecord).UsageCount < b.(api.MemeRecord).UsageCount }},
 			},
 		}
 
@@ -1255,7 +1260,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				}
 			},
 			getRow: func(a any, selected bool) table.Row {
-				r := a.(VocabRecord)
+				r := a.(api.VocabRecord)
 				cb := "[ ]"
 				if selected {
 					cb = "[x]"
@@ -1269,10 +1274,10 @@ func getFormatter(rt ResourceType) tableFormatter {
 					fmt.Sprintf("%d", r.Weight),
 				}
 			},
-			getID:  func(a any) int { return a.(VocabRecord).ID },
-			getKey: func(a any) string { return fmt.Sprintf("%d", a.(VocabRecord).ID) },
+			getID:  func(a any) int { return a.(api.VocabRecord).ID },
+			getKey: func(a any) string { return fmt.Sprintf("%d", a.(api.VocabRecord).ID) },
 			searchMatch: func(a any, kw string) bool {
-				r := a.(VocabRecord)
+				r := a.(api.VocabRecord)
 				return strings.Contains(strings.ToLower(r.Word), kw) ||
 					strings.Contains(strings.ToLower(r.Type), kw) ||
 					strings.Contains(strings.ToLower(r.Meaning), kw) ||
@@ -1282,9 +1287,9 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canEdit:   true,
 			canDelete: true,
 			sortColumns: []sortColumn{
-				{name: "ID", less: func(a, b any) bool { return a.(VocabRecord).ID < b.(VocabRecord).ID }},
-				{name: "Word", less: func(a, b any) bool { return strings.Compare(a.(VocabRecord).Word, b.(VocabRecord).Word) < 0 }},
-				{name: "Weight", less: func(a, b any) bool { return a.(VocabRecord).Weight < b.(VocabRecord).Weight }},
+				{name: "ID", less: func(a, b any) bool { return a.(api.VocabRecord).ID < b.(api.VocabRecord).ID }},
+				{name: "Word", less: func(a, b any) bool { return strings.Compare(a.(api.VocabRecord).Word, b.(api.VocabRecord).Word) < 0 }},
+				{name: "Weight", less: func(a, b any) bool { return a.(api.VocabRecord).Weight < b.(api.VocabRecord).Weight }},
 			},
 		}
 
@@ -1305,7 +1310,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				}
 			},
 			getRow: func(a any, selected bool) table.Row {
-				r := a.(SummaryRecord)
+				r := a.(api.SummaryRecord)
 				cb := "[ ]"
 				if selected {
 					cb = "[x]"
@@ -1325,10 +1330,10 @@ func getFormatter(rt ResourceType) tableFormatter {
 					fmt.Sprintf("%d", r.MessageCount),
 				}
 			},
-			getID:  func(a any) int { return a.(SummaryRecord).ID },
-			getKey: func(a any) string { return fmt.Sprintf("%d", a.(SummaryRecord).ID) },
+			getID:  func(a any) int { return a.(api.SummaryRecord).ID },
+			getKey: func(a any) string { return fmt.Sprintf("%d", a.(api.SummaryRecord).ID) },
 			searchMatch: func(a any, kw string) bool {
-				r := a.(SummaryRecord)
+				r := a.(api.SummaryRecord)
 				if strings.Contains(strings.ToLower(r.TimeRange), kw) {
 					return true
 				}
@@ -1347,12 +1352,14 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canEdit:   true,
 			canDelete: true,
 			sortColumns: []sortColumn{
-				{name: "ID", less: func(a, b any) bool { return a.(SummaryRecord).ID < b.(SummaryRecord).ID }},
+				{name: "ID", less: func(a, b any) bool { return a.(api.SummaryRecord).ID < b.(api.SummaryRecord).ID }},
 				{name: "TimeRange", less: func(a, b any) bool {
-					return strings.Compare(a.(SummaryRecord).TimeRange, b.(SummaryRecord).TimeRange) < 0
+					return strings.Compare(a.(api.SummaryRecord).TimeRange, b.(api.SummaryRecord).TimeRange) < 0
 				}},
-				{name: "Participants", less: func(a, b any) bool { return a.(SummaryRecord).ParticipantCount < b.(SummaryRecord).ParticipantCount }},
-				{name: "Messages", less: func(a, b any) bool { return a.(SummaryRecord).MessageCount < b.(SummaryRecord).MessageCount }},
+				{name: "Participants", less: func(a, b any) bool {
+					return a.(api.SummaryRecord).ParticipantCount < b.(api.SummaryRecord).ParticipantCount
+				}},
+				{name: "Messages", less: func(a, b any) bool { return a.(api.SummaryRecord).MessageCount < b.(api.SummaryRecord).MessageCount }},
 			},
 		}
 
@@ -1373,7 +1380,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				}
 			},
 			getRow: func(a any, selected bool) table.Row {
-				r := a.(HistoryRecord)
+				r := a.(api.HistoryRecord)
 				cb := "[ ]"
 				if selected {
 					cb = "[x]"
@@ -1397,10 +1404,10 @@ func getFormatter(rt ResourceType) tableFormatter {
 					r.CreatedAt,
 				}
 			},
-			getID:  func(a any) int { return a.(HistoryRecord).ID },
-			getKey: func(a any) string { return fmt.Sprintf("%d", a.(HistoryRecord).ID) },
+			getID:  func(a any) int { return a.(api.HistoryRecord).ID },
+			getKey: func(a any) string { return fmt.Sprintf("%d", a.(api.HistoryRecord).ID) },
 			searchMatch: func(a any, kw string) bool {
-				r := a.(HistoryRecord)
+				r := a.(api.HistoryRecord)
 				if strings.Contains(strings.ToLower(r.UserID), kw) ||
 					strings.Contains(strings.ToLower(r.Nick), kw) ||
 					strings.Contains(strings.ToLower(r.MessageType), kw) {
@@ -1418,13 +1425,15 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canEdit:   true,
 			canDelete: true,
 			sortColumns: []sortColumn{
-				{name: "ID", less: func(a, b any) bool { return a.(HistoryRecord).ID < b.(HistoryRecord).ID }},
-				{name: "Nick", less: func(a, b any) bool { return strings.Compare(a.(HistoryRecord).Nick, b.(HistoryRecord).Nick) < 0 }},
+				{name: "ID", less: func(a, b any) bool { return a.(api.HistoryRecord).ID < b.(api.HistoryRecord).ID }},
+				{name: "Nick", less: func(a, b any) bool {
+					return strings.Compare(a.(api.HistoryRecord).Nick, b.(api.HistoryRecord).Nick) < 0
+				}},
 				{name: "Type", less: func(a, b any) bool {
-					return strings.Compare(a.(HistoryRecord).MessageType, b.(HistoryRecord).MessageType) < 0
+					return strings.Compare(a.(api.HistoryRecord).MessageType, b.(api.HistoryRecord).MessageType) < 0
 				}},
 				{name: "Created", less: func(a, b any) bool {
-					return strings.Compare(a.(HistoryRecord).CreatedAt, b.(HistoryRecord).CreatedAt) < 0
+					return strings.Compare(a.(api.HistoryRecord).CreatedAt, b.(api.HistoryRecord).CreatedAt) < 0
 				}},
 			},
 		}
@@ -1445,7 +1454,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				}
 			},
 			getRow: func(a any, selected bool) table.Row {
-				r := a.(ResourceRecord)
+				r := a.(api.ResourceRecord)
 				cb := "[ ]"
 				if selected {
 					cb = "[x]"
@@ -1460,10 +1469,10 @@ func getFormatter(rt ResourceType) tableFormatter {
 					r.CreatedAt,
 				}
 			},
-			getID:  func(a any) int { return a.(ResourceRecord).ID },
-			getKey: func(a any) string { return fmt.Sprintf("%d", a.(ResourceRecord).ID) },
+			getID:  func(a any) int { return a.(api.ResourceRecord).ID },
+			getKey: func(a any) string { return fmt.Sprintf("%d", a.(api.ResourceRecord).ID) },
 			searchMatch: func(a any, kw string) bool {
-				r := a.(ResourceRecord)
+				r := a.(api.ResourceRecord)
 				return strings.Contains(strings.ToLower(r.FileName), kw) ||
 					strings.Contains(strings.ToLower(r.Md5), kw) ||
 					strings.Contains(strings.ToLower(r.URL), kw)
@@ -1472,11 +1481,11 @@ func getFormatter(rt ResourceType) tableFormatter {
 			canEdit:   false,
 			canDelete: false,
 			sortColumns: []sortColumn{
-				{name: "ID", less: func(a, b any) bool { return a.(ResourceRecord).ID < b.(ResourceRecord).ID }},
+				{name: "ID", less: func(a, b any) bool { return a.(api.ResourceRecord).ID < b.(api.ResourceRecord).ID }},
 				{name: "FileName", less: func(a, b any) bool {
-					return strings.Compare(a.(ResourceRecord).FileName, b.(ResourceRecord).FileName) < 0
+					return strings.Compare(a.(api.ResourceRecord).FileName, b.(api.ResourceRecord).FileName) < 0
 				}},
-				{name: "Size", less: func(a, b any) bool { return a.(ResourceRecord).Size < b.(ResourceRecord).Size }},
+				{name: "Size", less: func(a, b any) bool { return a.(api.ResourceRecord).Size < b.(api.ResourceRecord).Size }},
 			},
 		}
 	}
@@ -1485,7 +1494,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 
 // ── Data loading ──
 
-func loadResourceData(rt ResourceType, api *API, botID, groupID string) ([]any, error) {
+func loadResourceData(rt ResourceType, api *api.Client, botID, groupID string) ([]any, error) {
 	switch rt {
 	case ResourceFacts:
 		records, err := api.GetFacts(botID, groupID)

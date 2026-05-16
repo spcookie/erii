@@ -1,6 +1,7 @@
 package manage
 
 import (
+	"erii-cli/internal/api"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -19,7 +20,7 @@ type EditFormModel struct {
 	isCreate     bool
 	botID        string
 	groupID      string
-	api          *API
+	api          *api.Client
 	data         any
 	form         *huh.Form
 	width        int
@@ -29,20 +30,20 @@ type EditFormModel struct {
 	help         help.Model
 
 	// Keep references to request objects so Text fields update them directly.
-	factReq        FactRequest
-	profileReq     UpdateUserProfileRequest
+	factReq        api.FactRequest
+	profileReq     api.UpdateUserProfileRequest
 	memeDesc       string
 	memePurpose    string
 	memeTags       string
-	vocabReq       VocabRequest
+	vocabReq       api.VocabRequest
 	vocabWeight    string
-	summaryReq     UpdateSummaryRequest
+	summaryReq     api.UpdateSummaryRequest
 	summaryTone    string
 	historyContent string
 	historyNick    string
 }
 
-func NewEditFormModel(api *API, rt ResourceType, bot BotInfo, group GroupInfo, data any, isCreate bool) *EditFormModel {
+func NewEditFormModel(api *api.Client, rt ResourceType, bot api.BotInfo, group api.GroupInfo, data any, isCreate bool) *EditFormModel {
 	m := &EditFormModel{
 		resourceType: rt,
 		isCreate:     isCreate,
@@ -95,8 +96,8 @@ func (m *EditFormModel) formTitle() string {
 
 func (m *EditFormModel) buildFactForm(data any, isCreate bool, width int) *huh.Form {
 	if !isCreate && data != nil {
-		r := data.(FactRecord)
-		m.factReq = FactRequest{
+		r := data.(api.FactRecord)
+		m.factReq = api.FactRequest{
 			Keyword:     r.Keyword,
 			Description: r.Description,
 			Values:      r.Values,
@@ -119,8 +120,8 @@ func (m *EditFormModel) buildFactForm(data any, isCreate bool, width int) *huh.F
 
 func (m *EditFormModel) buildProfileForm(data any, isCreate bool, width int) *huh.Form {
 	if !isCreate && data != nil {
-		r := data.(UserProfileRecord)
-		m.profileReq = UpdateUserProfileRequest{
+		r := data.(api.UserProfileRecord)
+		m.profileReq = api.UpdateUserProfileRequest{
 			Profile:     r.Profile,
 			Preferences: r.Preferences,
 		}
@@ -139,7 +140,7 @@ func (m *EditFormModel) buildProfileForm(data any, isCreate bool, width int) *hu
 
 func (m *EditFormModel) buildMemeForm(data any, isCreate bool, width int) *huh.Form {
 	if !isCreate && data != nil {
-		r := data.(MemeRecord)
+		r := data.(api.MemeRecord)
 		if r.Description != nil {
 			m.memeDesc = *r.Description
 		}
@@ -165,8 +166,8 @@ func (m *EditFormModel) buildMemeForm(data any, isCreate bool, width int) *huh.F
 
 func (m *EditFormModel) buildVocabForm(data any, isCreate bool, width int) *huh.Form {
 	if !isCreate && data != nil {
-		r := data.(VocabRecord)
-		m.vocabReq = VocabRequest{
+		r := data.(api.VocabRecord)
+		m.vocabReq = api.VocabRequest{
 			Word:    r.Word,
 			Type:    r.Type,
 			Meaning: r.Meaning,
@@ -188,8 +189,8 @@ func (m *EditFormModel) buildVocabForm(data any, isCreate bool, width int) *huh.
 
 func (m *EditFormModel) buildSummaryForm(data any, isCreate bool, width int) *huh.Form {
 	if !isCreate && data != nil {
-		r := data.(SummaryRecord)
-		m.summaryReq = UpdateSummaryRequest{
+		r := data.(api.SummaryRecord)
+		m.summaryReq = api.UpdateSummaryRequest{
 			TimeRange: r.TimeRange,
 			Content:   r.Content,
 			KeyPoints: r.KeyPoints,
@@ -219,7 +220,7 @@ func (m *EditFormModel) buildSummaryForm(data any, isCreate bool, width int) *hu
 
 func (m *EditFormModel) buildHistoryForm(data any, isCreate bool, width int) *huh.Form {
 	if !isCreate && data != nil {
-		r := data.(HistoryRecord)
+		r := data.(api.HistoryRecord)
 		if r.Content != nil {
 			m.historyContent = *r.Content
 		}
@@ -338,7 +339,7 @@ func (m *EditFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *EditFormModel) submit() tea.Cmd {
 	rt := m.resourceType
-	api := m.api
+	client := m.api
 	botID := m.botID
 	groupID := m.groupID
 	isCreate := m.isCreate
@@ -348,17 +349,17 @@ func (m *EditFormModel) submit() tea.Cmd {
 
 	if !isCreate && m.data != nil {
 		switch d := m.data.(type) {
-		case FactRecord:
+		case api.FactRecord:
 			factID = d.ID
-		case UserProfileRecord:
+		case api.UserProfileRecord:
 			userID = d.UserID
-		case MemeRecord:
+		case api.MemeRecord:
 			memeID = d.ID
-		case VocabRecord:
+		case api.VocabRecord:
 			vocabID = d.ID
-		case SummaryRecord:
+		case api.SummaryRecord:
 			summaryID = d.ID
-		case HistoryRecord:
+		case api.HistoryRecord:
 			historyID = d.ID
 		}
 	}
@@ -369,12 +370,12 @@ func (m *EditFormModel) submit() tea.Cmd {
 		case ResourceFacts:
 			req := m.factReq
 			if isCreate {
-				err = api.CreateFact(botID, groupID, req)
+				err = client.CreateFact(botID, groupID, req)
 			} else {
-				err = api.UpdateFact(botID, groupID, factID, req)
+				err = client.UpdateFact(botID, groupID, factID, req)
 			}
 		case ResourceProfiles:
-			err = api.UpdateUserProfile(botID, groupID, userID, m.profileReq)
+			err = client.UpdateUserProfile(botID, groupID, userID, m.profileReq)
 		case ResourceMemes:
 			var descPtr, purposePtr, tagsPtr *string
 			if m.memeDesc != "" {
@@ -386,42 +387,42 @@ func (m *EditFormModel) submit() tea.Cmd {
 			if m.memeTags != "" {
 				tagsPtr = &m.memeTags
 			}
-			req := UpdateMemeRequest{
+			req := api.UpdateMemeRequest{
 				Description: descPtr,
 				Purpose:     purposePtr,
 				Tags:        tagsPtr,
 			}
-			err = api.UpdateMeme(botID, groupID, memeID, req)
+			err = client.UpdateMeme(botID, groupID, memeID, req)
 		case ResourceVocabularies:
 			weight, _ := strconv.Atoi(m.vocabWeight)
 			m.vocabReq.Weight = weight
 			if isCreate {
-				err = api.CreateVocabulary(botID, groupID, m.vocabReq)
+				err = client.CreateVocabulary(botID, groupID, m.vocabReq)
 			} else {
-				err = api.UpdateVocabulary(botID, groupID, vocabID, m.vocabReq)
+				err = client.UpdateVocabulary(botID, groupID, vocabID, m.vocabReq)
 			}
 		case ResourceSummaries:
 			var tonePtr *string
 			if m.summaryTone != "" {
 				tonePtr = &m.summaryTone
 			}
-			req := UpdateSummaryRequest{
+			req := api.UpdateSummaryRequest{
 				TimeRange:     m.summaryReq.TimeRange,
 				Content:       m.summaryReq.Content,
 				KeyPoints:     m.summaryReq.KeyPoints,
 				EmotionalTone: tonePtr,
 			}
-			err = api.UpdateSummary(botID, groupID, summaryID, req)
+			err = client.UpdateSummary(botID, groupID, summaryID, req)
 		case ResourceHistory:
 			var contentPtr *string
 			if m.historyContent != "" {
 				contentPtr = &m.historyContent
 			}
-			req := UpdateHistoryRequest{
+			req := api.UpdateHistoryRequest{
 				Content: contentPtr,
 				Nick:    m.historyNick,
 			}
-			err = api.UpdateHistory(botID, groupID, historyID, req)
+			err = client.UpdateHistory(botID, groupID, historyID, req)
 		default:
 			panic("unhandled default case")
 		}

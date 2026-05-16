@@ -1,6 +1,7 @@
 package manage
 
 import (
+	"erii-cli/internal/api"
 	"erii-cli/internal/tui/components"
 	"erii-cli/internal/tui/style"
 
@@ -73,20 +74,20 @@ func (i item) FilterValue() string { return i.title }
 // ── Bots loaded message ──
 
 type botsLoadedMsg struct {
-	Bots  []BotInfo
+	Bots  []api.BotInfo
 	Error error
 }
 
 type groupsLoadedMsg struct {
-	Groups []GroupInfo
+	Groups []api.GroupInfo
 	Error  error
 }
 
 // ── BotListModel ──
 
 type BotListModel struct {
-	api    *API
-	bots   []BotInfo
+	api    *api.Client
+	bots   []api.BotInfo
 	list   list.Model
 	help   help.Model
 	keys   navKeys
@@ -95,7 +96,7 @@ type BotListModel struct {
 	err    error
 }
 
-func NewBotListModel(api *API) *BotListModel {
+func NewBotListModel(api *api.Client) *BotListModel {
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = style.Title("Select Bot")
@@ -135,7 +136,7 @@ func (m *BotListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.bots = msg.Bots
-		m.list.SetItems(setListItems(m.bots, func(b BotInfo) list.Item {
+		m.list.SetItems(setListItems(m.bots, func(b api.BotInfo) list.Item {
 			return item{title: "> " + b.BotName, desc: "   ID: " + b.BotID}
 		}))
 		return m, nil
@@ -183,9 +184,9 @@ func (m *BotListModel) View() string {
 // ── GroupListModel ──
 
 type GroupListModel struct {
-	api    *API
-	bot    BotInfo
-	groups []GroupInfo
+	api    *api.Client
+	bot    api.BotInfo
+	groups []api.GroupInfo
 	list   list.Model
 	help   help.Model
 	keys   navKeys
@@ -194,7 +195,7 @@ type GroupListModel struct {
 	err    error
 }
 
-func NewGroupListModel(api *API, bot BotInfo) *GroupListModel {
+func NewGroupListModel(api *api.Client, bot api.BotInfo) *GroupListModel {
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.Title = style.Title("Select Group  \xe2\x80\x94  " + bot.BotName)
@@ -235,7 +236,7 @@ func (m *GroupListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.groups = msg.Groups
-		m.list.SetItems(setListItems(m.groups, func(g GroupInfo) list.Item {
+		m.list.SetItems(setListItems(m.groups, func(g api.GroupInfo) list.Item {
 			return item{title: "> " + g.GroupName, desc: "   ID: " + g.GroupID}
 		}))
 		return m, nil
