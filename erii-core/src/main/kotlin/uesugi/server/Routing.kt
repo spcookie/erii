@@ -12,6 +12,7 @@ import io.ktor.server.plugins.doublereceive.*
 import io.ktor.server.resources.*
 import io.ktor.server.routing.*
 import uesugi.common.toolkit.JSON
+import uesugi.routing.configureBotConfigManager
 import uesugi.routing.configureBotStatus
 import uesugi.routing.configureBotStatusManager
 import java.nio.file.Path
@@ -36,6 +37,7 @@ fun Application.configureRouting() {
     routing {
         configureBotStatus()
         configureBotStatusManager()
+        configureBotConfigManager()
         authenticate("basic") {
             staticResources("/", "assets")
         }

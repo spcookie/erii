@@ -10,67 +10,14 @@ import uesugi.common.toolkit.BotGroupsOverride
 import uesugi.common.toolkit.ConfigProvider
 import uesugi.common.toolkit.GroupConfig
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
 class ConfigHolderImpl : ConfigProvider {
 
     private val log = KotlinLogging.logger {}
 
-    companion object {
-        private val DEFAULT_GOOGLE_MODELS = mapOf(
-            "lite" to "gemini-2.0-flash-lite",
-            "flash" to "gemini-2.0-flash",
-            "pro" to "gemini-2.5-pro"
-        )
-        private val DEFAULT_DEEP_SEEK_MODELS = mapOf(
-            "lite" to "deepseek-chat",
-            "flash" to "deepseek-chat",
-            "pro" to "deepseek-chat"
-        )
-        private val DEFAULT_MINIMAX_MODELS = mapOf(
-            "lite" to "MiniMax-M2.5",
-            "flash" to "MiniMax-M2.5",
-            "pro" to "MiniMax-M2.7"
-        )
-        private val DEFAULT_OPENAI_MODELS = mapOf(
-            "lite" to "gpt-4.1-nano",
-            "flash" to "gpt-4.1-mini",
-            "pro" to "gpt-4.1"
-        )
-        private val DEFAULT_ANTHROPIC_MODELS = mapOf(
-            "lite" to "claude-haiku-4-5-20251001",
-            "flash" to "claude-sonnet-4-6",
-            "pro" to "claude-sonnet-4-6"
-        )
-        private val DEFAULT_OPENROUTER_MODELS = mapOf(
-            "lite" to "openai/gpt-4.1-nano",
-            "flash" to "openai/gpt-4.1-mini",
-            "pro" to "anthropic/claude-sonnet-4-6"
-        )
-    }
-
-    private fun getLlmModelsHierarchical(provider: String, defaults: Map<String, String>): Map<String, String> {
-        val hierarchicalPath = "llm.$provider.models"
-        return try {
-            val hierarchicalConfig = config.getConfig(hierarchicalPath)
-            val result = defaults.toMutableMap()
-            // Read all tier keys from config
-            hierarchicalConfig.root().keys.forEach { key ->
-                val keyStr = key.toString()
-                if (keyStr != "all") {
-                    result[keyStr] = hierarchicalConfig.getString(keyStr)
-                }
-            }
-            // "all" override logic
-            val allOverride = hierarchicalConfig.tryGetString("all")
-            if (!allOverride.isNullOrBlank()) {
-                result.keys.forEach { tier -> result[tier] = allOverride }
-            }
-            result
-        } catch (_: Exception) {
-            defaults
-        }
-    }
+    private val pluginConfigCache = ConcurrentHashMap<String, Config>()
 
     private val configPath: String? by lazy {
         val raw = System.getProperty("config.path")
@@ -118,34 +65,53 @@ class ConfigHolderImpl : ConfigProvider {
         return base.withFallback(overrideConfig)
     }
 
+    private fun getLlmModelsHierarchical(provider: String): Map<String, String> {
+        val hierarchicalPath = "llm.$provider.models"
+        val hierarchicalConfig = config.getConfig(hierarchicalPath)
+        val result = mutableMapOf<String, String>()
+        // Read all tier keys from config
+        hierarchicalConfig.root().keys.forEach { key ->
+            val keyStr = key.toString()
+            if (keyStr != "all") {
+                result[keyStr] = hierarchicalConfig.getString(keyStr)
+            }
+        }
+        // "all" override logic
+        val allOverride = hierarchicalConfig.tryGetString("all")
+        if (!allOverride.isNullOrBlank()) {
+            result.keys.forEach { tier -> result[tier] = allOverride }
+        }
+        return result
+    }
+
     override fun getLlmGoogleApiKey(): String = config.getString("llm.google.api-key")
     override fun getLlmGoogleBaseUrl(): String = config.getString("llm.google.base-url")
-    override fun getLlmGoogleModels(): Map<String, String> = getLlmModelsHierarchical("google", DEFAULT_GOOGLE_MODELS)
+    override fun getLlmGoogleModels(): Map<String, String> = getLlmModelsHierarchical("google")
 
     override fun getLlmDeepSeekApiKey(): String = config.getString("llm.deep-seek.api-key")
     override fun getLlmDeepSeekBaseUrl(): String = config.getString("llm.deep-seek.base-url")
     override fun getLlmDeepSeekModels(): Map<String, String> =
-        getLlmModelsHierarchical("deep-seek", DEFAULT_DEEP_SEEK_MODELS)
+        getLlmModelsHierarchical("deep-seek")
 
     override fun getLlmMinimaxApiKey(): String = config.getString("llm.minimax.api-key")
     override fun getLlmMinimaxBaseUrl(): String = config.getString("llm.minimax.base-url")
     override fun getLlmMinimaxModels(): Map<String, String> =
-        getLlmModelsHierarchical("minimax", DEFAULT_MINIMAX_MODELS)
+        getLlmModelsHierarchical("minimax")
 
     override fun getLlmOpenAIApiKey(): String = config.getString("llm.openai.api-key")
     override fun getLlmOpenAIBaseUrl(): String = config.getString("llm.openai.base-url")
     override fun getLlmOpenAIModels(): Map<String, String> =
-        getLlmModelsHierarchical("openai", DEFAULT_OPENAI_MODELS)
+        getLlmModelsHierarchical("openai")
 
     override fun getLlmAnthropicApiKey(): String = config.getString("llm.anthropic.api-key")
     override fun getLlmAnthropicBaseUrl(): String = config.getString("llm.anthropic.base-url")
     override fun getLlmAnthropicModels(): Map<String, String> =
-        getLlmModelsHierarchical("anthropic", DEFAULT_ANTHROPIC_MODELS)
+        getLlmModelsHierarchical("anthropic")
 
     override fun getLlmOpenRouterApiKey(): String = config.getString("llm.openrouter.api-key")
     override fun getLlmOpenRouterBaseUrl(): String = config.getString("llm.openrouter.base-url")
     override fun getLlmOpenRouterModels(): Map<String, String> =
-        getLlmModelsHierarchical("openrouter", DEFAULT_OPENROUTER_MODELS)
+        getLlmModelsHierarchical("openrouter")
 
     override fun getChoiceProvider(): String = config.getString("llm.choice-provider")
 
@@ -333,36 +299,38 @@ class ConfigHolderImpl : ConfigProvider {
     // 高优先级配置覆盖低优先级配置
 
     override fun getPluginConfig(pluginClass: KClass<*>, pluginName: String): Config {
-        val pluginId = pluginName.substringBeforeLast("_")
+        return pluginConfigCache.computeIfAbsent(pluginName) {
+            val pluginId = pluginName.substringBeforeLast("_")
 
-        // 1. 从 classpath 加载 resourcePath 作为基础配置
-        var config = ConfigFactory.empty()
-        val resourcePath = "plugin.json"
-        val resourceAsStream = pluginClass.java.classLoader.getResourceAsStream(resourcePath)
-        if (resourceAsStream != null) {
-            log.info { "Loading base config for $pluginName from classpath: $resourcePath" }
-            config = resourceAsStream.use { inputStream ->
-                ConfigFactory.parseReader(inputStream.reader()).resolve()
+            // 1. 从 classpath 加载 resourcePath 作为基础配置
+            var config = ConfigFactory.empty()
+            val resourcePath = "plugin.json"
+            val resourceAsStream = pluginClass.java.classLoader.getResourceAsStream(resourcePath)
+            if (resourceAsStream != null) {
+                log.info { "Loading base config for $pluginName from classpath: $resourcePath" }
+                config = resourceAsStream.use { inputStream ->
+                    ConfigFactory.parseReader(inputStream.reader()).resolve()
+                }
             }
-        }
 
-        // 2. pluginConfigDir 中的配置覆盖基础配置
-        if (pluginConfigDir != null) {
-            val pluginConfigFile = File(pluginConfigDir, "$pluginId.json")
-            if (pluginConfigFile.exists()) {
-                log.info { "Overriding config for $pluginId from dir: ${pluginConfigFile.absolutePath}" }
-                config = ConfigFactory.parseFile(pluginConfigFile).resolve().withFallback(config)
+            // 2. pluginConfigDir 中的配置覆盖基础配置
+            if (pluginConfigDir != null) {
+                val pluginConfigFile = File(pluginConfigDir, "$pluginId.json")
+                if (pluginConfigFile.exists()) {
+                    log.info { "Overriding config for $pluginId from dir: ${pluginConfigFile.absolutePath}" }
+                    config = ConfigFactory.parseFile(pluginConfigFile).resolve().withFallback(config)
+                }
             }
-        }
 
-        // 3. 系统属性 plugin.$pluginId.config 覆盖其他配置
-        val customPath = System.getProperty("plugin.$pluginId.config")
-        if (customPath != null) {
-            log.info { "Overriding config for $pluginId with: $customPath" }
-            config = ConfigFactory.parseFile(File(customPath)).resolve().withFallback(config)
-        }
+            // 3. 系统属性 plugin.$pluginId.config 覆盖其他配置
+            val customPath = System.getProperty("plugin.$pluginId.config")
+            if (customPath != null) {
+                log.info { "Overriding config for $pluginId with: $customPath" }
+                config = ConfigFactory.parseFile(File(customPath)).resolve().withFallback(config)
+            }
 
-        return config
+            config
+        }
     }
 
     private fun parseStringList(cfg: Config, path: String): List<String> {
@@ -384,6 +352,11 @@ class ConfigHolderImpl : ConfigProvider {
 
     override fun getDisabledPlugins(botKey: String): List<String>? =
         getOnebotBots()[botKey]?.disabledPlugins
+
+    override fun refresh() {
+        pluginConfigCache.clear()
+        log.info { "Plugin config cache cleared" }
+    }
 
     override fun isPluginEnabled(botKey: String, pluginName: String): Boolean {
         // builtin 插件始终启用，忽略 disabled 配置

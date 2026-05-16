@@ -22,12 +22,8 @@ internal class ConfigImpl(val plugin: AgentExtension<*>) : PluginConfig {
         }
     }
 
-    private val config by lazy {
-        ConfigHolder.getPluginConfig(plugin::class, plugin.name)
-    }
-
     override fun invoke(): Config {
-        return config
+        return ConfigHolder.getPluginConfig(plugin::class, plugin.name)
     }
 
 }
