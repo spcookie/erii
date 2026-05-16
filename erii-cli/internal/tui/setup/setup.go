@@ -323,6 +323,10 @@ type Model struct {
 	wrote    bool
 	writeErr error
 	quitting bool
+
+	lastEmbeddingProvider string
+	lastSearchProvider    string
+	lastVisionProvider    string
 }
 
 func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolProvidersConfig) Model {
@@ -669,6 +673,11 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 		m.form = f2
 	}
 
+	if m.syncProviderURL() {
+		m.rebuildCurrentStep()
+		return m, m.currentInitCmd()
+	}
+
 	if m.form.State == huh.StateCompleted {
 		m.collectFormData()
 		m.step = nextStep
@@ -687,6 +696,35 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 
 func (m *Model) collectFormData() {
 	// Data is bound via pointers in form builders — nothing to extract here.
+}
+
+func (m *Model) syncProviderURL() bool {
+	switch m.step {
+	case StepToolsEmbedding:
+		return m.syncToolURL(m.data.ToolProviders.Embedding, &m.lastEmbeddingProvider, &m.data.EmbeddingProvider, &m.data.EmbeddingURL)
+	case StepToolsSearch:
+		return m.syncToolURL(m.data.ToolProviders.Search, &m.lastSearchProvider, &m.data.SearchProvider, &m.data.SearchURL)
+	case StepToolsVision:
+		return m.syncToolURL(m.data.ToolProviders.Vision, &m.lastVisionProvider, &m.data.VisionProvider, &m.data.VisionURL)
+	}
+	return false
+}
+
+func (m *Model) syncToolURL(providers []ToolProvider, lastProv, curProv, curURL *string) bool {
+	if *curProv == *lastProv {
+		return false
+	}
+	lastDefault := ""
+	if *lastProv != "" {
+		lastDefault = defaultToolURL(providers, *lastProv)
+	}
+	shouldRebuild := false
+	if *curURL == "" || *curURL == lastDefault {
+		*curURL = defaultToolURL(providers, *curProv)
+		shouldRebuild = true
+	}
+	*lastProv = *curProv
+	return shouldRebuild
 }
 
 // ---- Form builders ----
@@ -743,10 +781,13 @@ func (m *Model) rebuildCurrentStep() {
 		m.form = nil
 		m.buildToolsList()
 	case StepToolsEmbedding:
+		m.lastEmbeddingProvider = m.data.EmbeddingProvider
 		m.form = buildEmbeddingForm(m.data)
 	case StepToolsSearch:
+		m.lastSearchProvider = m.data.SearchProvider
 		m.form = buildSearchForm(m.data)
 	case StepToolsVision:
+		m.lastVisionProvider = m.data.VisionProvider
 		m.form = buildVisionForm(m.data)
 	case StepToolsBrowser:
 		m.form = buildBrowserForm(m.data)
