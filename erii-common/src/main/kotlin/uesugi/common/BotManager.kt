@@ -19,6 +19,7 @@ interface IBotManage {
     fun getConfigKey(botId: String): String
     fun getAllBots(): Collection<RoledBot>
     fun getAllBotIds(): Set<String>
+    fun refreshBotRole(configKey: String, role: BotRole)
 }
 
 object BotManage : IBotManage {
@@ -56,6 +57,13 @@ object BotManage : IBotManage {
 
     override fun getAllBotIds(): Set<String> {
         return bots.keys
+    }
+
+    override fun refreshBotRole(configKey: String, role: BotRole) {
+        val botId = configKeys[configKey] ?: return
+        bots[botId]?.let {
+            bots[botId] = it.copy(role = role)
+        }
     }
 
 }
