@@ -40,7 +40,7 @@ class ConfigHolderImpl : ConfigProvider {
         val fileConfig = configPath?.let { p ->
             ConfigFactory.parseFile(File(p)).resolve()
         } ?: ConfigFactory.empty()
-        val baseConfig = classpathConfig.withFallback(fileConfig)
+        val baseConfig = fileConfig.withFallback(classpathConfig)
         var cfg = baseConfig
         cfg = overrideWithSystemProperties(cfg)
         log.info { "Config loaded successfully" }
