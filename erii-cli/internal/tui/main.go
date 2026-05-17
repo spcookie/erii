@@ -4,9 +4,9 @@ import (
 	"erii-cli/internal/config/tree"
 	"erii-cli/internal/path"
 	"erii-cli/internal/tui/components"
-	cfgcomp "erii-cli/internal/tui/components/config"
 	"erii-cli/internal/tui/components/md"
 	"erii-cli/internal/tui/components/plugin"
+	"erii-cli/internal/tui/config"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -57,7 +57,7 @@ func Start() error {
 	return err
 }
 
-func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushScreen func(tea.Model), pluginName string) *cfgcomp.BrowserModel {
+func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushScreen func(tea.Model), pluginName string) *config.BrowserModel {
 	rootNode, err := parser.Parse(filePath)
 	if err != nil {
 		rootNode = tree.NewBranch("root", "Configuration")
@@ -68,9 +68,9 @@ func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushS
 		tree.ApplyMetadataWithPlugin(rootNode, "root", pluginName)
 	}
 
-	return cfgcomp.NewBrowserModel(rootNode, title,
+	return config.NewBrowserModel(rootNode, title,
 		func(leaf *tree.LeafNode, onSaveCb func() tea.Cmd) {
-			pushScreen(cfgcomp.NewLeafEditorModel(leaf, onSaveCb))
+			pushScreen(config.NewLeafEditorModel(leaf, onSaveCb))
 		},
 		func(r tree.ConfigNode) error {
 			return parser.Save(filePath, r)
