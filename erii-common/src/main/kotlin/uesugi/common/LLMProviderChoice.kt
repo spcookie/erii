@@ -141,7 +141,7 @@ object LLMProviderChoice {
             "OPENAI" -> openaiModel("lite")
             "ANTHROPIC" -> anthropicModel("lite")
             "OPENROUTER" -> openrouterModel("lite")
-            else -> throw RuntimeException("Unknown choice model: $choice")
+            else -> throw RuntimeException("Unknown choice provider: $choice")
         }
     }
 
@@ -153,7 +153,7 @@ object LLMProviderChoice {
             "OPENAI" -> openaiModel("flash")
             "ANTHROPIC" -> anthropicModel("flash")
             "OPENROUTER" -> openrouterModel("flash")
-            else -> throw RuntimeException("Unknown choice model: $choice")
+            else -> throw RuntimeException("Unknown choice provider: $choice")
         }
     }
 
@@ -165,7 +165,7 @@ object LLMProviderChoice {
             "OPENAI" -> openaiModel("pro")
             "ANTHROPIC" -> anthropicModel("pro")
             "OPENROUTER" -> openrouterModel("pro")
-            else -> throw RuntimeException("Unknown choice model: $choice")
+            else -> throw RuntimeException("Unknown choice provider: $choice")
         }
     }
 
