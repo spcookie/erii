@@ -21,7 +21,7 @@ type FileMergeResult struct {
 // PluginInitResult describes the result for a single plugin.
 type PluginInitResult struct {
 	PluginID     string
-	PluginZip    string
+	Source       string          // zip name or directory name
 	ConfigResult FileMergeResult // plugin.json outcome
 	SchemaResult FileMergeResult // schema.json outcome
 	Error        error           // fatal error (unzip fail, missing plugin.id)
@@ -176,6 +176,7 @@ func mergeJSONFile(src, dst string) FileMergeResult {
 
 // InitializePluginConfigs performs plugin initialization on CLI startup:
 // unzips plugin archives if needed and merges plugin.json/schema.json into config dirs.
+// Also processes plugin directories that are already extracted (e.g., installed via npm postinstall).
 func InitializePluginConfigs(pluginDir, pluginConfigDir, pluginSchemaDir string) (*PluginInitSummary, error) {
 	summary := &PluginInitSummary{}
 
@@ -191,8 +192,10 @@ func InitializePluginConfigs(pluginDir, pluginConfigDir, pluginSchemaDir string)
 		return nil, fmt.Errorf("failed to read plugin dir: %w", err)
 	}
 
+	processed := make(map[string]bool)
+
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if isDirEntry(pluginDir, entry) {
 			continue
 		}
 		name := entry.Name()
@@ -204,41 +207,76 @@ func InitializePluginConfigs(pluginDir, pluginConfigDir, pluginSchemaDir string)
 		baseName := strings.TrimSuffix(name, ".zip")
 		extractDir := filepath.Join(pluginDir, baseName)
 
-		result := PluginInitResult{PluginZip: name}
+		result := PluginInitResult{Source: name}
 
-		// 1. Check if already extracted; if not, unzip
 		if _, err := os.Stat(extractDir); os.IsNotExist(err) {
 			if err := unzip(zipPath, extractDir); err != nil {
 				result.Error = fmt.Errorf("unzip failed: %w", err)
 				summary.Results = append(summary.Results, result)
+				processed[baseName] = true // skip pass 2 even for partial extractions
 				continue
 			}
 		}
 
-		// 2. Read plugin.id from plugin.properties
-		propsPath := filepath.Join(extractDir, "plugin.properties")
-		pluginID, err := readPluginID(propsPath)
-		if err != nil {
-			result.Error = fmt.Errorf("read plugin.id failed: %w", err)
-			summary.Results = append(summary.Results, result)
+		processed[baseName] = true
+		processExtractedPlugin(extractDir, pluginConfigDir, pluginSchemaDir, &result)
+		summary.Results = append(summary.Results, result)
+	}
+
+	for _, entry := range entries {
+		if !isDirEntry(pluginDir, entry) {
 			continue
 		}
-		result.PluginID = pluginID
+		name := entry.Name()
+		if processed[name] {
+			continue
+		}
+		extractDir := filepath.Join(pluginDir, name)
+		propsPath := filepath.Join(extractDir, "plugin.properties")
+		if _, err := os.Stat(propsPath); os.IsNotExist(err) {
+			continue
+		}
 
-		// 3. Merge plugin.json
-		srcPluginJson := filepath.Join(extractDir, "classes", "plugin.json")
-		dstPluginJson := filepath.Join(pluginConfigDir, pluginID+".json")
-		result.ConfigResult = mergeJSONFile(srcPluginJson, dstPluginJson)
-
-		// 4. Merge schema.json
-		srcSchemaJson := filepath.Join(extractDir, "classes", "schema.json")
-		dstSchemaJson := filepath.Join(pluginSchemaDir, pluginID+".json")
-		result.SchemaResult = mergeJSONFile(srcSchemaJson, dstSchemaJson)
-
+		result := PluginInitResult{Source: name}
+		processExtractedPlugin(extractDir, pluginConfigDir, pluginSchemaDir, &result)
 		summary.Results = append(summary.Results, result)
 	}
 
 	return summary, nil
+}
+
+// isDirEntry reports whether entry refers to a directory, following symlinks.
+// os.DirEntry.IsDir() uses Lstat semantics so a symlink to a directory returns false.
+func isDirEntry(parent string, entry os.DirEntry) bool {
+	if entry.IsDir() {
+		return true
+	}
+	info, err := os.Stat(filepath.Join(parent, entry.Name()))
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
+// processExtractedPlugin reads plugin.id from plugin.properties under extractDir,
+// then merges classes/plugin.json and classes/schema.json into the config dirs.
+// It populates the PluginID, ConfigResult, SchemaResult and Error fields of result.
+func processExtractedPlugin(extractDir, pluginConfigDir, pluginSchemaDir string, result *PluginInitResult) {
+	propsPath := filepath.Join(extractDir, "plugin.properties")
+	pluginID, err := readPluginID(propsPath)
+	if err != nil {
+		result.Error = fmt.Errorf("read plugin.id failed: %w", err)
+		return
+	}
+	result.PluginID = pluginID
+
+	srcPluginJson := filepath.Join(extractDir, "classes", "plugin.json")
+	dstPluginJson := filepath.Join(pluginConfigDir, pluginID+".json")
+	result.ConfigResult = mergeJSONFile(srcPluginJson, dstPluginJson)
+
+	srcSchemaJson := filepath.Join(extractDir, "classes", "schema.json")
+	dstSchemaJson := filepath.Join(pluginSchemaDir, pluginID+".json")
+	result.SchemaResult = mergeJSONFile(srcSchemaJson, dstSchemaJson)
 }
 
 // unzip extracts a zip archive to the destination directory with zip-slip protection.
