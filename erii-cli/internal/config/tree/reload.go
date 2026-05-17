@@ -9,12 +9,12 @@ import (
 )
 
 // Reload performs the full reload workflow:
-// 1. Plugin configs, 2. Config directory merge, 3. Metadata schemas.
+// 1. Config directory merge, 2. Plugin configs, 3. Metadata schemas.
 func Reload() error {
-	if err := reloadPlugins(); err != nil {
+	if err := reloadConfigDirs(); err != nil {
 		return err
 	}
-	if err := reloadConfigDirs(); err != nil {
+	if err := reloadPlugins(); err != nil {
 		return err
 	}
 	return reloadMetadata()
@@ -36,6 +36,8 @@ func reloadPlugins() error {
 func reloadConfigDirs() error {
 	updateDir := FindUpdateConfDir()
 	if _, err := os.Stat(updateDir); os.IsNotExist(err) {
+		fmt.Println("\n=== Config Directory Merge ===")
+		fmt.Println("  skipped (.update-conf/ not found)")
 		return nil
 	}
 
@@ -86,7 +88,7 @@ func printPluginSummary(summary *PluginInitSummary) {
 
 	var created, merged, skipped, errors int
 	for _, r := range summary.Results {
-		fmt.Printf("\n[%s] (%s)\n", r.PluginID, r.Source)
+		fmt.Printf("\n[%s]\n", r.PluginID)
 
 		if r.Error != nil {
 			fmt.Printf("  Error: %v\n", r.Error)
