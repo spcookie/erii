@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 
 	"erii-cli/internal/path"
+	"erii-cli/internal/tui/style"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Reload performs the full reload workflow:
@@ -36,12 +39,12 @@ func reloadPlugins() error {
 func reloadConfigDirs() error {
 	updateDir := FindUpdateConfDir()
 	if _, err := os.Stat(updateDir); os.IsNotExist(err) {
-		fmt.Println("\n=== Config Directory Merge ===")
-		fmt.Println("  skipped (.update-conf/ not found)")
+		fmt.Println("\n" + sectionStyle.Render("=== Config Directory Merge ==="))
+		fmt.Println("  " + skippedStyle.Render("skipped") + " (.update-conf/ not found)")
 		return nil
 	}
 
-	fmt.Println("\n=== Config Directory Merge ===")
+	fmt.Println("\n" + sectionStyle.Render("=== Config Directory Merge ==="))
 
 	metaResults, err := ReloadMetaDir(
 		filepath.Join(updateDir, ".conf"),
@@ -66,7 +69,7 @@ func reloadConfigDirs() error {
 		printFileResults("souls/", confResult.SoulsResults)
 	}
 
-	fmt.Println("\nConfig directory merge completed.")
+	fmt.Println("\n" + createdStyle.Render("✓") + " Config directory merge completed.")
 	return nil
 }
 
@@ -74,9 +77,19 @@ func reloadMetadata() error {
 	if err := LoadMetadata(path.ConfMetaDir); err != nil {
 		return fmt.Errorf("metadata reload failed: %w", err)
 	}
-	fmt.Println("\nMetadata schemas reloaded successfully.")
+	fmt.Println("\n" + createdStyle.Render("✓") + " Metadata schemas reloaded successfully.")
 	return nil
 }
+
+var (
+	sectionStyle = lipgloss.NewStyle().Foreground(style.Primary).Bold(true)
+	pluginStyle  = lipgloss.NewStyle().Foreground(style.Secondary).Bold(true)
+	createdStyle = lipgloss.NewStyle().Foreground(style.Success)
+	mergedStyle  = lipgloss.NewStyle().Foreground(style.Info)
+	skippedStyle = lipgloss.NewStyle().Foreground(style.Warning)
+	errorStyle   = lipgloss.NewStyle().Foreground(style.Error).Bold(true)
+	mutedStyle   = lipgloss.NewStyle().Foreground(style.TextMuted)
+)
 
 func printPluginSummary(summary *PluginInitSummary) {
 	if summary == nil || len(summary.Results) == 0 {
@@ -84,14 +97,14 @@ func printPluginSummary(summary *PluginInitSummary) {
 		return
 	}
 
-	fmt.Println("\n=== Plugin Configuration Reload ===")
+	fmt.Println("\n" + sectionStyle.Render("=== Plugin Configuration Reload ==="))
 
 	var created, merged, skipped, errors int
 	for _, r := range summary.Results {
-		fmt.Printf("\n[%s]\n", r.PluginID)
+		fmt.Printf("\n%s\n", pluginStyle.Render("["+r.PluginID+"]"))
 
 		if r.Error != nil {
-			fmt.Printf("  Error: %v\n", r.Error)
+			fmt.Printf("  %s: %v\n", errorStyle.Render("Error"), r.Error)
 			errors++
 			continue
 		}
@@ -105,9 +118,14 @@ func printPluginSummary(summary *PluginInitSummary) {
 		)
 	}
 
-	fmt.Printf("\n=== Summary ===\n")
-	fmt.Printf("Total: %d | Created: %d | Merged: %d | Skipped: %d | Errors: %d\n",
-		len(summary.Results), created, merged, skipped, errors)
+	fmt.Printf("\n%s\n", sectionStyle.Render("=== Summary ==="))
+	fmt.Printf("Total: %d | %s: %d | %s: %d | %s: %d | %s: %d\n",
+		len(summary.Results),
+		createdStyle.Render("Created"), created,
+		mergedStyle.Render("Merged"), merged,
+		skippedStyle.Render("Skipped"), skipped,
+		errorStyle.Render("Errors"), errors,
+	)
 }
 
 func tally(created, merged, skipped, errors int, actions ...string) (int, int, int, int) {
@@ -129,15 +147,15 @@ func tally(created, merged, skipped, errors int, actions ...string) (int, int, i
 func printFileResult(label string, r FileMergeResult) {
 	switch r.Action {
 	case "created":
-		fmt.Printf("  %s: created (keys: %v)\n", label, r.AddedKeys)
+		fmt.Printf("  %s: %s (keys: %v)\n", label, createdStyle.Render("created"), r.AddedKeys)
 	case "merged":
-		fmt.Printf("  %s: merged (new keys: %v)\n", label, r.AddedKeys)
+		fmt.Printf("  %s: %s (new keys: %v)\n", label, mergedStyle.Render("merged"), r.AddedKeys)
 	case "skipped":
-		fmt.Printf("  %s: skipped (up to date)\n", label)
+		fmt.Printf("  %s: %s (up to date)\n", label, skippedStyle.Render("skipped"))
 	case "source_missing":
-		fmt.Printf("  %s: skipped (source not found)\n", label)
+		fmt.Printf("  %s: %s (%s)\n", label, skippedStyle.Render("skipped"), mutedStyle.Render("source not found"))
 	case "error":
-		fmt.Printf("  %s: error - %v\n", label, r.Error)
+		fmt.Printf("  %s: %s - %v\n", label, errorStyle.Render("error"), r.Error)
 	}
 }
 
@@ -150,8 +168,19 @@ func printFileResults(label string, results []FileMergeResult) {
 		created, merged, skipped, errors = tally(created, merged, skipped, errors, r.Action)
 	}
 	if errors > 0 {
-		fmt.Printf("  %s: %d created, %d merged, %d skipped, %d errors\n", label, created, merged, skipped, errors)
+		fmt.Printf("  %s: %s %d, %s %d, %s %d, %s %d\n",
+			label,
+			createdStyle.Render("created"), created,
+			mergedStyle.Render("merged"), merged,
+			skippedStyle.Render("skipped"), skipped,
+			errorStyle.Render("errors"), errors,
+		)
 	} else {
-		fmt.Printf("  %s: %d created, %d merged, %d skipped\n", label, created, merged, skipped)
+		fmt.Printf("  %s: %s %d, %s %d, %s %d\n",
+			label,
+			createdStyle.Render("created"), created,
+			mergedStyle.Render("merged"), merged,
+			skippedStyle.Render("skipped"), skipped,
+		)
 	}
 }
