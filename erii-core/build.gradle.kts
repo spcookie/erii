@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "uesugi"
-version = "0.0.1"
+version = "1.0.0"
 
 application {
     mainClass = "io.ktor.server.netty.EngineMain"
