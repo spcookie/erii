@@ -746,12 +746,12 @@ func (m *Model) buildProviderList() {
 func (m *Model) buildToolsList() {
 	d := m.data
 	items := []list.Item{
+		toolItem{name: "Done →", isDone: true},
 		toolItem{name: "Embedding", desc: d.toolStatus(StepToolsEmbedding), step: StepToolsEmbedding},
 		toolItem{name: "Search", desc: d.toolStatus(StepToolsSearch), step: StepToolsSearch},
 		toolItem{name: "Vision", desc: d.toolStatus(StepToolsVision), step: StepToolsVision},
 		toolItem{name: "Browser", desc: d.toolStatus(StepToolsBrowser), step: StepToolsBrowser},
 		toolItem{name: "Proxy", desc: d.toolStatus(StepToolsProxy), step: StepToolsProxy},
-		toolItem{name: "Done →", isDone: true},
 	}
 
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
