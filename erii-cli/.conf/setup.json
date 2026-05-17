@@ -43,7 +43,8 @@
         "model-mode": "separate",
         "lite-model": "gemini-2.0-flash-lite",
         "flash-model": "gemini-2.0-flash",
-        "pro-model": "gemini-2.5-pro"
+        "pro-model": "gemini-2.5-pro",
+        "all-model": "gemini-2.5-pro"
       },
       "deep-seek": {
         "model-mode": "all",
@@ -53,25 +54,29 @@
         "model-mode": "separate",
         "lite-model": "MiniMax-M2.5",
         "flash-model": "MiniMax-M2.5",
-        "pro-model": "MiniMax-M2.7"
+        "pro-model": "MiniMax-M2.7",
+        "all-model": "MiniMax-M2.7"
       },
       "openai": {
         "model-mode": "separate",
         "lite-model": "gpt-4.1-nano",
         "flash-model": "gpt-4.1-mini",
-        "pro-model": "gpt-4.1"
+        "pro-model": "gpt-4.1",
+        "all-model": "gpt-4.1"
       },
       "anthropic": {
         "model-mode": "separate",
         "lite-model": "claude-haiku-4-5-20251001",
         "flash-model": "claude-sonnet-4-6",
-        "pro-model": "claude-sonnet-4-6"
+        "pro-model": "claude-sonnet-4-6",
+        "all-model": "claude-sonnet-4-6"
       },
       "openrouter": {
         "model-mode": "separate",
         "lite-model": "openai/gpt-4.1-nano",
         "flash-model": "openai/gpt-4.1-mini",
-        "pro-model": "anthropic/claude-sonnet-4-6"
+        "pro-model": "anthropic/claude-sonnet-4-6",
+        "all-model": "anthropic/claude-sonnet-4-6"
       }
     },
     "bot": {

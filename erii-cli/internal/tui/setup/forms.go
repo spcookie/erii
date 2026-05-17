@@ -18,13 +18,25 @@ func buildLLMForm(d *SetupData) *huh.Form {
 				Title("API Key").
 				Value(&d.APIKey).
 				EchoMode(huh.EchoModePassword).
-				Placeholder("Enter API key (leave empty for env var)"),
+				Placeholder("Enter API key (leave empty for env var)").
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("API Key is required")
+					}
+					return nil
+				}),
 		).Title("Authentication").WithShowHelp(false),
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Base URL").
 				Value(&d.BaseURL).
-				Placeholder(placeholderOrValue(d.BaseURL)),
+				Placeholder(placeholderOrValue(d.BaseURL)).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("Base URL is required")
+					}
+					return nil
+				}),
 			huh.NewSelect[string]().
 				Title("Model configuration mode").
 				Options(
@@ -37,20 +49,51 @@ func buildLLMForm(d *SetupData) *huh.Form {
 			huh.NewInput().
 				Title("Model (all tiers)").
 				Value(&d.AllModel).
-				Placeholder(placeholderOrValue(d.AllModel)),
+				Placeholder(placeholderOrValue(d.AllModel)).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("Model is required")
+					}
+					return nil
+				}),
+		).Title("Models").
+			WithShowHelp(false).
+			WithHideFunc(func() bool { return d.ModelMode != "all" }),
+
+		huh.NewGroup(
 			huh.NewInput().
 				Title("Lite Model").
 				Value(&d.LiteModel).
-				Placeholder(placeholderOrValue(d.LiteModel)),
+				Placeholder(placeholderOrValue(d.LiteModel)).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("Lite Model is required")
+					}
+					return nil
+				}),
 			huh.NewInput().
 				Title("Flash Model").
 				Value(&d.FlashModel).
-				Placeholder(placeholderOrValue(d.FlashModel)),
+				Placeholder(placeholderOrValue(d.FlashModel)).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("Flash Model is required")
+					}
+					return nil
+				}),
 			huh.NewInput().
 				Title("Pro Model").
 				Value(&d.ProModel).
-				Placeholder(placeholderOrValue(d.ProModel)),
-		).Title("Models").WithShowHelp(false),
+				Placeholder(placeholderOrValue(d.ProModel)).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("Pro Model is required")
+					}
+					return nil
+				}),
+		).Title("Models").
+			WithShowHelp(false).
+			WithHideFunc(func() bool { return d.ModelMode != "separate" }),
 	)
 }
 
@@ -175,12 +218,24 @@ func buildBotForm(d *SetupData) *huh.Form {
 			huh.NewInput().
 				Title("WebSocket Address").
 				Value(&d.BotWS).
-				Placeholder(placeholderOrValue(d.BotWS)),
+				Placeholder(placeholderOrValue(d.BotWS)).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("WebSocket Address is required")
+					}
+					return nil
+				}),
 			huh.NewInput().
 				Title("Token").
 				Value(&d.BotToken).
 				EchoMode(huh.EchoModePassword).
-				Placeholder("Enter NapCat token"),
+				Placeholder("Enter NapCat token").
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("Token is required")
+					}
+					return nil
+				}),
 		).WithShowHelp(false),
 	)
 }

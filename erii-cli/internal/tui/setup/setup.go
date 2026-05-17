@@ -746,11 +746,11 @@ func (m *Model) buildProviderList() {
 func (m *Model) buildToolsList() {
 	d := m.data
 	items := []list.Item{
-		toolItem{name: "Embedding", desc: d.toolStatus(d.EmbeddingEnabled), step: StepToolsEmbedding},
-		toolItem{name: "Search", desc: d.toolStatus(d.SearchEnabled), step: StepToolsSearch},
-		toolItem{name: "Vision", desc: d.toolStatus(d.VisionEnabled), step: StepToolsVision},
-		toolItem{name: "Browser", desc: d.toolStatus(d.BrowserEnabled), step: StepToolsBrowser},
-		toolItem{name: "Proxy", desc: d.toolStatus(d.ProxyEnabled), step: StepToolsProxy},
+		toolItem{name: "Embedding", desc: d.toolStatus(StepToolsEmbedding), step: StepToolsEmbedding},
+		toolItem{name: "Search", desc: d.toolStatus(StepToolsSearch), step: StepToolsSearch},
+		toolItem{name: "Vision", desc: d.toolStatus(StepToolsVision), step: StepToolsVision},
+		toolItem{name: "Browser", desc: d.toolStatus(StepToolsBrowser), step: StepToolsBrowser},
+		toolItem{name: "Proxy", desc: d.toolStatus(StepToolsProxy), step: StepToolsProxy},
 		toolItem{name: "Done →", isDone: true},
 	}
 
@@ -763,9 +763,28 @@ func (m *Model) buildToolsList() {
 	m.list = l
 }
 
-func (d *SetupData) toolStatus(enabled bool) string {
-	if enabled {
-		return "configured"
+func (d *SetupData) toolStatus(step Step) string {
+	switch step {
+	case StepToolsEmbedding:
+		if d.EmbeddingEnabled && d.EmbeddingAPIKey != "" {
+			return "configured"
+		}
+	case StepToolsSearch:
+		if d.SearchEnabled && d.SearchAPIKey != "" {
+			return "configured"
+		}
+	case StepToolsVision:
+		if d.VisionEnabled && d.VisionAPIKey != "" {
+			return "configured"
+		}
+	case StepToolsBrowser:
+		if d.BrowserEnabled && (d.PlaywrightURL != "" || d.BrowserDownload) {
+			return "configured"
+		}
+	case StepToolsProxy:
+		if d.ProxyEnabled && (d.HTTPProxy != "" || d.SOCKSProxy != "") {
+			return "configured"
+		}
 	}
 	return "not configured"
 }
