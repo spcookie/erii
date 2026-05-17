@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "uesugi"
-version = "0.0.1"
+version = "1.0.0"
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.21")
