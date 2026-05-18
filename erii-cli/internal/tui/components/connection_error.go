@@ -12,14 +12,14 @@ import (
 
 var (
 	errCardStyle = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(style.BorderColor).
-		Padding(1, 3).
-		Width(style.ErrorCardWidth)
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(style.BorderColor).
+			Padding(1, 3).
+			Width(style.ErrorCardWidth)
 
 	errTitleStyle = lipgloss.NewStyle().
-		Foreground(style.Error).
-		Bold(true)
+			Foreground(style.Error).
+			Bold(true)
 )
 
 type connectionErrorKeys struct {
