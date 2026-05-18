@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -194,12 +195,11 @@ func hoconKeyToChoiceModel(key string) string {
 // ---- Key bindings ----
 
 type SetupKeyMap struct {
-	Enter  key.Binding
-	Nav    key.Binding
-	Back   key.Binding
-	Quit   key.Binding
-	Help   key.Binding
-	Scroll key.Binding
+	Enter key.Binding
+	Nav   key.Binding
+	Back  key.Binding
+	Quit  key.Binding
+	Help  key.Binding
 }
 
 func (k SetupKeyMap) ShortHelp() []key.Binding {
@@ -208,7 +208,7 @@ func (k SetupKeyMap) ShortHelp() []key.Binding {
 
 func (k SetupKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Enter, k.Nav, k.Scroll},
+		{k.Enter, k.Nav},
 		{k.Back, k.Quit, k.Help},
 	}
 }
@@ -234,10 +234,6 @@ var DefaultSetupKeys = SetupKeyMap{
 		key.WithKeys("?"),
 		key.WithHelp("?", "toggle help"),
 	),
-	Scroll: key.NewBinding(
-		key.WithKeys("pgup", "pgdown", "ctrl+up", "ctrl+down"),
-		key.WithHelp("pgup/pgdn", "scroll"),
-	),
 }
 
 var FormKeys = SetupKeyMap{
@@ -261,15 +257,37 @@ var FormKeys = SetupKeyMap{
 		key.WithKeys("?"),
 		key.WithHelp("?", "toggle help"),
 	),
-	Scroll: key.NewBinding(
-		key.WithKeys("pgup", "pgdown", "ctrl+up", "ctrl+down"),
-		key.WithHelp("pgup/pgdn", "scroll"),
+}
+
+var DoneKeys = SetupKeyMap{
+	Enter: key.NewBinding(
+		key.WithKeys("y"),
+		key.WithHelp("y", "confirm"),
+	),
+	Nav: key.NewBinding(
+		key.WithKeys("n"),
+		key.WithHelp("n", "cancel"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
 	),
 }
 
 func (m Model) currentKeys() SetupKeyMap {
 	if m.step == StepProviderSelect || m.step == StepToolsMenu {
 		return DefaultSetupKeys
+	}
+	if m.step == StepDone {
+		return DoneKeys
 	}
 	return FormKeys
 }
@@ -327,6 +345,7 @@ type Model struct {
 	lastEmbeddingProvider string
 	lastSearchProvider    string
 	lastVisionProvider    string
+	vp                    viewport.Model
 }
 
 func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolProvidersConfig) Model {
@@ -351,6 +370,7 @@ func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolP
 		data: data,
 		help: help.New(),
 		keys: DefaultSetupKeys,
+		vp:   viewport.New(0, 0),
 	}
 	m.buildProviderList()
 	return m
@@ -392,6 +412,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.syncSizes()
+		footerHeight := lipgloss.Height(m.help.View(m.currentKeys()))
+		vpHeight := msg.Height - footerHeight - 1
+		if vpHeight < 3 {
+			vpHeight = 3
+		}
+		m.vp.Width = msg.Width
+		m.vp.Height = vpHeight
 		return m, nil
 
 	case tea.KeyMsg:
@@ -409,7 +436,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, tea.Quit
 			}
-			return m, nil
+			m.syncViewportContent()
+
+			var cmd tea.Cmd
+			m.vp, cmd = m.vp.Update(msg)
+			return m, cmd
 		}
 
 		if key.Matches(msg, m.keys.Quit) {
@@ -423,12 +454,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if key.Matches(msg, m.keys.Back) {
-			if m.step.isMainStep() && m.step > StepProviderSelect {
-				m.step = m.step.prevMainStep()
-				m.rebuildCurrentStep()
-				return m, m.currentInitCmd()
-			}
-			if !m.step.isMainStep() {
+			if (m.step.isMainStep() && m.step > StepProviderSelect) || !m.step.isMainStep() {
 				m.step = m.step.prevMainStep()
 				m.rebuildCurrentStep()
 				return m, m.currentInitCmd()
@@ -466,21 +492,18 @@ func (m Model) View() string {
 
 	if m.quitting {
 		if m.wrote {
-			return styleSuccess("Configuration saved to " + path.AppFile + "\n\nPress any key to exit...")
+			return style.SuccessText("Configuration saved.\n\nPress any key to exit...")
 		}
 		if m.writeErr != nil {
-			return styleError("Failed to write config: " + m.writeErr.Error() + "\n\nPress any key to exit...")
+			return style.ErrorText("Failed to write config: " + m.writeErr.Error() + "\n\nPress any key to exit...")
 		}
-		return styleText("Setup cancelled.\n\nPress any key to exit...")
+		return lipgloss.NewStyle().Foreground(style.Text).Render("Setup cancelled.\n\nPress any key to exit...")
 	}
 
-	timeline := renderTimeline(m.step.node(), m.data)
-	content := m.renderContent()
 	footer := m.help.View(m.currentKeys())
 
 	return lipgloss.JoinVertical(lipgloss.Left,
-		timeline,
-		content,
+		m.vp.View(),
 		"",
 		footer,
 	)
@@ -585,7 +608,7 @@ func (m Model) renderSummary() string {
 	b.WriteString(fmt.Sprintf("  Message Redirect: %s\n", d.MessageRedirectMap))
 
 	b.WriteString("\n")
-	b.WriteString(style.Title("Write configuration to " + path.AppFile + "? (Y/n)"))
+	b.WriteString(style.Title("Save configuration? (Y/n)"))
 
 	return b.String()
 }
@@ -789,7 +812,16 @@ func (d *SetupData) toolStatus(step Step) string {
 	return "not configured"
 }
 
+func (m *Model) syncViewportContent() {
+	timeline := renderTimeline(m.step.node(), m.data)
+	content := m.renderContent()
+	body := lipgloss.JoinVertical(lipgloss.Left, timeline, content)
+	m.vp.SetContent(body)
+}
+
 func (m *Model) rebuildCurrentStep() {
+	m.vp.GotoTop()
+	m.keys = m.currentKeys()
 	switch m.step {
 	case StepProviderSelect:
 		m.form = nil

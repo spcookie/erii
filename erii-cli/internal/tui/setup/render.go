@@ -207,9 +207,3 @@ func huhTheme() *huh.Theme {
 
 	return t
 }
-
-// ---- Style helpers ----
-
-func styleText(s string) string    { return lipgloss.NewStyle().Foreground(style.Text).Render(s) }
-func styleSuccess(s string) string { return style.SuccessText(s) }
-func styleError(s string) string   { return style.ErrorText(s) }
