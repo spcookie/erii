@@ -29,8 +29,9 @@ type Provider struct {
 }
 
 type ToolProvider struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Name  string `json:"name"`
+	URL   string `json:"url"`
+	Model string `json:"model"`
 }
 
 type LLMDefaults struct {
@@ -101,6 +102,7 @@ type SetupData struct {
 	EmbeddingAPIKey   string
 	EmbeddingURL      string
 	EmbeddingProvider string
+	EmbeddingModel    string
 	SearchEnabled     bool
 	SearchAPIKey      string
 	SearchURL         string
@@ -576,7 +578,7 @@ func (m Model) renderSummary() string {
 	b.WriteString(style.Subtitle("Tools & Features"))
 	b.WriteString("\n")
 	if d.EmbeddingEnabled {
-		b.WriteString(fmt.Sprintf("  Embedding: provider=%s\n", d.EmbeddingProvider))
+		b.WriteString(fmt.Sprintf("  Embedding: provider=%s model=%s\n", d.EmbeddingProvider, d.EmbeddingModel))
 	}
 	if d.SearchEnabled {
 		b.WriteString(fmt.Sprintf("  Search: provider=%s\n", d.SearchProvider))
@@ -724,7 +726,10 @@ func (m *Model) collectFormData() {
 func (m *Model) syncProviderURL() bool {
 	switch m.step {
 	case StepToolsEmbedding:
-		return m.syncToolURL(m.data.ToolProviders.Embedding, &m.lastEmbeddingProvider, &m.data.EmbeddingProvider, &m.data.EmbeddingURL)
+		if m.syncToolURL(m.data.ToolProviders.Embedding, &m.lastEmbeddingProvider, &m.data.EmbeddingProvider, &m.data.EmbeddingURL) {
+			m.data.EmbeddingModel = defaultToolModel(m.data.ToolProviders.Embedding, m.data.EmbeddingProvider)
+			return true
+		}
 	case StepToolsSearch:
 		return m.syncToolURL(m.data.ToolProviders.Search, &m.lastSearchProvider, &m.data.SearchProvider, &m.data.SearchURL)
 	case StepToolsVision:

@@ -26,6 +26,10 @@
     "type": "string",
     "default": ""
   },
+  "embedding.model": {
+    "type": "string",
+    "default": ""
+  },
   "groups.debug-group-id": {
     "type": "string",
     "default": ""

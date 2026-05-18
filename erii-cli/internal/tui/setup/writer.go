@@ -101,6 +101,9 @@ func modifyConfig(d *SetupData, filePath string) error {
 				if isKey(trimmed, "provider") && d.EmbeddingProvider != "" {
 					lines[i] = replaceHoconValue(line, d.EmbeddingProvider)
 				}
+				if isKey(trimmed, "model") && d.EmbeddingModel != "" {
+					lines[i] = replaceHoconValue(line, d.EmbeddingModel)
+				}
 			}
 		}
 

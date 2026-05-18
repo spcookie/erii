@@ -102,7 +102,13 @@
     "embedding": [
       {
         "name": "ByteDance",
-        "url": "https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal"
+        "url": "https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal",
+        "model": "doubao-embedding-vision-250615"
+      },
+      {
+        "name": "SiliconFlow",
+        "url": "https://api.siliconflow.cn/v1/embeddings",
+        "model": "BAAI/bge-m3"
       }
     ],
     "search": [

@@ -65,6 +65,7 @@ interface ConfigProvider {
     fun getEmbeddingApiKey(): String
     fun getEmbeddingProvider(): String
     fun getEmbeddingUrl(): String
+    fun getEmbeddingModel(): String
     fun getSearchApiKey(): String
     fun getSearchProvider(): String
     fun getSearchUrl(): String
@@ -145,6 +146,7 @@ object ConfigHolder {
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()
     fun getEmbeddingProvider(): String = provider.getEmbeddingProvider()
     fun getEmbeddingUrl(): String = provider.getEmbeddingUrl()
+    fun getEmbeddingModel(): String = provider.getEmbeddingModel()
     fun getSearchApiKey(): String = provider.getSearchApiKey()
     fun getSearchProvider(): String = provider.getSearchProvider()
     fun getSearchUrl(): String = provider.getSearchUrl()

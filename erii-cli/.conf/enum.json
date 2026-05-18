@@ -1,4 +1,9 @@
 {
+  "embedding.provider": [
+    "none",
+    "bytedance",
+    "siliconflow"
+  ],
   "llm.choice-provider": [
     "none",
     "google",

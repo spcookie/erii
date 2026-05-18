@@ -12,9 +12,9 @@ import uesugi.config.HttpClientFactory
 import java.io.IOException
 
 @AutoService(IEmbedding::class)
-class ByteDanceEmbedding : IEmbedding {
+class SiliconFlowEmbedding : IEmbedding {
 
-    override val id: String = "bytedance"
+    override val id: String = "siliconflow"
 
     companion object {
         private val client = HttpClientFactory().createClient()
@@ -30,22 +30,21 @@ class ByteDanceEmbedding : IEmbedding {
         return embeddingInternal(texts, images)
     }
 
-    private suspend fun embeddingInternal(input: List<String>, images: List<ByteArray>): List<FloatArray> {
+    private suspend fun embeddingInternal(texts: List<String>, images: List<ByteArray>): List<FloatArray> {
+        val input = buildList<Any> {
+            addAll(texts)
+            images.forEach { image ->
+                add(mapOf("image" to image.toDataUrl()))
+            }
+        }
+
         val node: JsonNode = client.post(ConfigHolder.getEmbeddingUrl()) {
             contentType(ContentType.Application.Json)
             bearerAuth(ConfigHolder.getEmbeddingApiKey())
-            val text = input.map {
-                mapOf("type" to "text", "text" to it)
-            }
-            val image = images.map {
-                val url = it.toDataUrl()
-                mapOf("type" to "image_url", "image_url" to mapOf("url" to url))
-            }
             setBody(
                 mapOf(
-                    "input" to text + image,
-                    "model" to ConfigHolder.getEmbeddingModel(),
-                    "dimensions" to 1024
+                    "input" to input,
+                    "model" to ConfigHolder.getEmbeddingModel()
                 )
             )
         }.body()
@@ -56,7 +55,7 @@ class ByteDanceEmbedding : IEmbedding {
 
         return buildList {
             for (embedding in node.path("data")) {
-                add(embedding.map { it.floatValue() }.toFloatArray())
+                add(embedding.path("embedding").map { it.floatValue() }.toFloatArray())
             }
         }
     }

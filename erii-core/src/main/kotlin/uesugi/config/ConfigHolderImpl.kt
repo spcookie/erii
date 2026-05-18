@@ -118,6 +118,7 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
     override fun getEmbeddingProvider(): String = config.getString("embedding.provider")
     override fun getEmbeddingUrl(): String = config.getString("embedding.url")
+    override fun getEmbeddingModel(): String = config.getString("embedding.model")
 
     override fun getSearchApiKey(): String = config.getString("search.api-key")
     override fun getSearchProvider(): String = config.getString("search.provider")

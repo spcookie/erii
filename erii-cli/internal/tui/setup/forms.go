@@ -105,6 +105,9 @@ func buildEmbeddingForm(d *SetupData) *huh.Form {
 	if d.EmbeddingURL == "" {
 		d.EmbeddingURL = defaultToolURL(d.ToolProviders.Embedding, d.EmbeddingProvider)
 	}
+	if d.EmbeddingModel == "" {
+		d.EmbeddingModel = defaultToolModel(d.ToolProviders.Embedding, d.EmbeddingProvider)
+	}
 	return wrapForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
@@ -120,6 +123,10 @@ func buildEmbeddingForm(d *SetupData) *huh.Form {
 				Title("URL").
 				Value(&d.EmbeddingURL).
 				Placeholder(placeholderOrValue(d.EmbeddingURL)),
+			huh.NewInput().
+				Title("Model").
+				Value(&d.EmbeddingModel).
+				Placeholder(placeholderOrValue(d.EmbeddingModel)),
 		).WithShowHelp(false),
 	)
 }
@@ -344,6 +351,18 @@ func defaultToolURL(providers []ToolProvider, selected string) string {
 	}
 	if len(providers) > 0 {
 		return providers[0].URL
+	}
+	return ""
+}
+
+func defaultToolModel(providers []ToolProvider, selected string) string {
+	for _, tp := range providers {
+		if tp.Name == selected {
+			return tp.Model
+		}
+	}
+	if len(providers) > 0 {
+		return providers[0].Model
 	}
 	return ""
 }

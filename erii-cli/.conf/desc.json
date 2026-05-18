@@ -5,6 +5,7 @@
   "embedding": "Embedding service configuration",
   "embedding.api-key": "Embedding API key",
   "embedding.provider": "Embedding provider",
+  "embedding.model": "Embedding model name",
   "groups": "Group settings",
   "groups.debug-group-id": "Debug group ID",
   "groups.enable-groups": "List of enabled group IDs",
