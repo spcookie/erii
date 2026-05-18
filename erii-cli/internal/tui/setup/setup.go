@@ -119,8 +119,9 @@ type SetupData struct {
 	HTTPProxy         string
 	SOCKSProxy        string
 
-	BotWS    string
-	BotToken string
+	BotWS     string
+	BotToken  string
+	BotAdmins string
 
 	DebugGroupID       string
 	EnableGroups       string
@@ -415,12 +416,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.syncSizes()
 		footerHeight := lipgloss.Height(m.help.View(m.currentKeys()))
-		vpHeight := msg.Height - footerHeight - 1
+		vpHeight := msg.Height - footerHeight
 		if vpHeight < 3 {
 			vpHeight = 3
 		}
 		m.vp.Width = msg.Width
 		m.vp.Height = vpHeight
+		m.syncViewportContent()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -601,6 +603,9 @@ func (m Model) renderSummary() string {
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("  WS: %s\n", d.BotWS))
 	b.WriteString(fmt.Sprintf("  Token: %s\n", maskString(d.BotToken)))
+	if d.BotAdmins != "" {
+		b.WriteString(fmt.Sprintf("  Admins: %s\n", d.BotAdmins))
+	}
 	b.WriteString("\n")
 
 	b.WriteString(style.Subtitle("Groups"))
@@ -644,6 +649,7 @@ func (m *Model) updateProviderSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+	m.syncViewportContent()
 	return m, cmd
 }
 
@@ -668,6 +674,7 @@ func (m *Model) updateToolsMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+	m.syncViewportContent()
 	return m, cmd
 }
 
@@ -716,6 +723,7 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 		return m, m.currentInitCmd()
 	}
 
+	m.syncViewportContent()
 	return m, cmd
 }
 
@@ -857,6 +865,7 @@ func (m *Model) rebuildCurrentStep() {
 		m.form = nil
 	}
 	m.syncSizes()
+	m.syncViewportContent()
 }
 
 func (m *Model) syncSizes() {

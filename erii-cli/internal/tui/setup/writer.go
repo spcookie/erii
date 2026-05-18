@@ -174,7 +174,7 @@ func modifyConfig(d *SetupData, filePath string) error {
 			}
 		}
 
-		// groups
+		// groups (global)
 		if ctx.match("groups") {
 			if isKey(trimmed, "debug-group-id") {
 				if d.DebugGroupID != "" {
@@ -196,6 +196,11 @@ func modifyConfig(d *SetupData, filePath string) error {
 		}
 	}
 
+	// Replace onebot.bots.erii.groups placeholder with actual groups from enable-groups
+	if d.EnableGroups != "" {
+		lines = replaceEririGroups(lines, d.EnableGroups, d.BotAdmins)
+	}
+
 	out, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("cannot write config: %w", err)
@@ -206,6 +211,94 @@ func modifyConfig(d *SetupData, filePath string) error {
 		fmt.Fprintln(out, line)
 	}
 	return nil
+}
+
+// replaceEririGroups replaces the placeholder group entries inside
+// onebot.bots.erii.groups { ... } with groups derived from enableGroups.
+func replaceEririGroups(lines []string, enableGroups string, admins string) []string {
+	ctx := pathStack{}
+	groupStart := -1
+	groupEnd := -1
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if isBlockStart(trimmed) && !strings.ContainsRune(trimmed, '}') {
+			blockName := extractBlockName(trimmed)
+			ctx.push(blockName)
+		}
+
+		if isBlockEnd(trimmed) && len(ctx) > 0 {
+			ctx.pop()
+		}
+
+		if groupStart < 0 && ctx.match("onebot", "bots", "erii") && isBlockStart(trimmed) && extractBlockName(trimmed) == "groups" {
+			groupStart = i
+		}
+	}
+
+	// Find closing brace
+	if groupStart >= 0 {
+		depth := 1
+		for i := groupStart + 1; i < len(lines); i++ {
+			trimmed := strings.TrimSpace(lines[i])
+			depth += strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
+			if depth <= 0 {
+				groupEnd = i
+				break
+			}
+		}
+	}
+
+	if groupStart < 0 || groupEnd < 0 {
+		return lines
+	}
+
+	indent := detectIndent(lines[groupStart])
+	innerIndent := indent + "    "
+	groupIDs := splitCSV(enableGroups)
+	adminList := splitCSV(admins)
+	adminStr := strings.Join(adminList, ", ")
+
+	var result []string
+	result = append(result, lines[:groupStart+1]...)
+	for _, gid := range groupIDs {
+		result = append(result, fmt.Sprintf("%s%s = {", innerIndent, gid))
+		result = append(result, fmt.Sprintf("%s    admins = [%s]", innerIndent, adminStr))
+		result = append(result, fmt.Sprintf("%s    desire = 15", innerIndent))
+		result = append(result, fmt.Sprintf("%s}", innerIndent))
+	}
+	result = append(result, lines[groupEnd:]...)
+	return result
+}
+
+func extractBlockName(line string) string {
+	s := strings.TrimSpace(line)
+	s = strings.TrimSuffix(s, " = {")
+	s = strings.TrimSuffix(s, " ={")
+	s = strings.TrimSuffix(s, " {")
+	return strings.TrimSpace(s)
+}
+
+func detectIndent(line string) string {
+	for i, r := range line {
+		if r != ' ' && r != '\t' {
+			return line[:i]
+		}
+	}
+	return ""
+}
+
+func splitCSV(s string) []string {
+	parts := splitByCommas(s)
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }
 
 // ---- Lightweight HOCON path tracking ----
@@ -274,7 +367,7 @@ func replaceHoconArray(line string, csv string) string {
 	if matches == nil {
 		return line
 	}
-	parts := strings.Split(csv, ",")
+	parts := splitByCommas(csv)
 	elems := make([]string, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)

@@ -244,6 +244,10 @@ func buildBotForm(d *SetupData) *huh.Form {
 					}
 					return nil
 				}),
+			huh.NewInput().
+				Title("Admins (comma-separated, optional)").
+				Value(&d.BotAdmins).
+				Placeholder(placeholderOrValue(d.BotAdmins)),
 		).WithShowHelp(false),
 	)
 }
@@ -252,12 +256,12 @@ func buildGroupsForm(d *SetupData) *huh.Form {
 	return wrapForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("Enabled Groups (comma-separated)").
+				Title("Enabled Groups (comma-separated, optional)").
 				Value(&d.EnableGroups).
 				Placeholder(placeholderOrValue(d.EnableGroups)).
 				Validate(validateCommaSeparatedNumbers("group ID")),
 			huh.NewInput().
-				Title("Message Redirect Map (comma-separated)").
+				Title("Message Redirect Map (comma-separated, optional)").
 				Value(&d.MessageRedirectMap).
 				Placeholder(placeholderOrValue(d.MessageRedirectMap)).
 				Validate(validateMessageRedirectMap()),
@@ -270,12 +274,17 @@ func buildGroupsForm(d *SetupData) *huh.Form {
 	)
 }
 
+// splitByCommas splits a string by both English (,) and Chinese (，) commas.
+func splitByCommas(s string) []string {
+	return strings.Split(strings.ReplaceAll(s, "，", ","), ",")
+}
+
 func validateCommaSeparatedNumbers(label string) func(string) error {
 	return func(s string) error {
 		if s == "" {
 			return nil
 		}
-		parts := strings.Split(s, ",")
+		parts := splitByCommas(s)
 		for _, p := range parts {
 			p = strings.TrimSpace(p)
 			if p == "" {
@@ -296,7 +305,7 @@ func validateMessageRedirectMap() func(string) error {
 		if s == "" {
 			return nil
 		}
-		parts := strings.Split(s, ",")
+		parts := splitByCommas(s)
 		for _, p := range parts {
 			p = strings.TrimSpace(p)
 			if p == "" {
