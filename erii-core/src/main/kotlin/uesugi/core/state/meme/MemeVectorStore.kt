@@ -33,8 +33,11 @@ class MemoVectorStore {
      */
     suspend fun encode(text: String, image: ByteArray? = null): FloatArray {
         val images = if (image != null) listOf(image) else emptyList()
-        val vector = EmbeddingManager.get().embeddingMultiModal(listOf(EmbeddingInput(text, images))).first()
-        return vector
+        return try {
+            EmbeddingManager.get().embeddingMultiModal(listOf(EmbeddingInput(text, images))).first()
+        } catch (_: Exception) {
+            EmbeddingManager.get().embedding(listOf(text)).first()
+        }
     }
 
     /**
