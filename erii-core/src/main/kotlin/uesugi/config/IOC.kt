@@ -9,19 +9,14 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
-import uesugi.core.component.llm.AnthropicClientProvider
-import uesugi.core.component.llm.DeepSeekClientProvider
-import uesugi.core.component.llm.GoogleClientProvider
-import uesugi.core.component.llm.MiniMaxClientProvider
-import uesugi.core.component.llm.OpenAIClientProvider
-import uesugi.core.component.llm.OpenRouterClientProvider
+import uesugi.core.component.llm.*
 import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.component.storage.VectorStore
+import uesugi.core.cron.CronService
+import uesugi.core.cron.cronModule
 import uesugi.core.message.messageModule
-import uesugi.core.reminder.ReminderService
-import uesugi.core.reminder.reminderModule
 import uesugi.core.state.emotion.EmotionJob
 import uesugi.core.state.emotion.emotionModule
 import uesugi.core.state.evolution.EvolutionJob
@@ -47,7 +42,7 @@ fun Application.warmUp() {
         it.get<EvolutionJob>().openTimingTriggerSignal()
         it.get<FlowJob>().openTimingTriggerSignal()
         it.get<MemeJob>().openTimingTriggerSignal()
-        it.get<ReminderService>().start()
+        it.get<CronService>().start()
     }
 }
 
@@ -112,5 +107,5 @@ val appModule = module {
     includes(memoryModule)
     includes(summaryModule)
     includes(volitionModule)
-    includes(reminderModule)
+    includes(cronModule)
 }

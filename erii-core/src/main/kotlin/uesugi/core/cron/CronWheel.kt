@@ -1,11 +1,11 @@
-package uesugi.core.reminder
+package uesugi.core.cron
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class ReminderWheel(private val store: ReminderStore) {
+class CronWheel(private val store: CronStore) {
 
-    private val wheel = ConcurrentHashMap<BotGroupKey, ConcurrentLinkedQueue<ReminderTask>>()
+    private val wheel = ConcurrentHashMap<BotGroupKey, ConcurrentLinkedQueue<CronTask>>()
     private val registeredKeys = ConcurrentHashMap.newKeySet<BotGroupKey>()
 
     suspend fun init() {
@@ -23,23 +23,23 @@ class ReminderWheel(private val store: ReminderStore) {
         wheel.getOrPut(key) { ConcurrentLinkedQueue() }
     }
 
-    suspend fun pushTask(task: ReminderTask) {
+    suspend fun pushTask(task: CronTask) {
         val key = BotGroupKey(task.botId, task.groupId)
         registeredKeys.add(key)
         wheel.getOrPut(key) { ConcurrentLinkedQueue() }.add(task)
         store.saveTask(task)
     }
 
-    private fun enqueue(task: ReminderTask) {
+    private fun enqueue(task: CronTask) {
         val key = BotGroupKey(task.botId, task.groupId)
         wheel.getOrPut(key) { ConcurrentLinkedQueue() }.add(task)
     }
 
-    fun getAndClearDueTasks(botId: String, groupId: String, now: Long): List<ReminderTask> {
+    fun getAndClearDueTasks(botId: String, groupId: String, now: Long): List<CronTask> {
         val key = BotGroupKey(botId, groupId)
         val queue = wheel[key] ?: return emptyList()
 
-        val dueTasks = mutableListOf<ReminderTask>()
+        val dueTasks = mutableListOf<CronTask>()
         val iterator = queue.iterator()
         while (iterator.hasNext()) {
             val task = iterator.next()
@@ -53,9 +53,9 @@ class ReminderWheel(private val store: ReminderStore) {
 
     fun getRegisteredKeys(): Set<BotGroupKey> = registeredKeys.toSet()
 
-    suspend fun removeTask(task: ReminderTask) {
+    suspend fun removeTask(task: CronTask) {
         val key = BotGroupKey(task.botId, task.groupId)
         wheel[key]?.remove(task)
-        store.deleteTask(task.botId, task.groupId, task.reminderId)
+        store.deleteTask(task.botId, task.groupId, task.taskId)
     }
 }

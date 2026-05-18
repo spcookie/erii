@@ -1,4 +1,4 @@
-package uesugi.core.reminder
+package uesugi.core.cron
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,21 +9,21 @@ import org.mapdb.Serializer
 import uesugi.core.component.storage.MapDB
 
 @Serializable
-private data class ReminderIds(val ids: Set<String> = emptySet())
+private data class CronTaskIds(val ids: Set<String> = emptySet())
 
 @Serializable
 private data class BotGroupKeys(val keys: Set<String> = emptySet())
 
-class ReminderStore {
+class CronStore {
 
     companion object {
-        private const val KEY_PREFIX = "reminder"
+        private const val KEY_PREFIX = "cron"
         private const val IDS_SUFFIX = "ids"
-        private const val BOT_GROUPS_KEY = "reminder:bot_groups"
+        private const val BOT_GROUPS_KEY = "cron:bot_groups"
     }
 
     private val db: HTreeMap<String, String> by lazy {
-        MapDB.Cache.hashMap("core_reminder")
+        MapDB.Cache.hashMap("core_cron")
             .keySerializer(Serializer.STRING)
             .valueSerializer(Serializer.STRING)
             .createOrOpen()
@@ -31,60 +31,60 @@ class ReminderStore {
 
     private val json = Json
 
-    private fun taskKey(botId: String, groupId: String, reminderId: String) =
-        "$KEY_PREFIX:$botId:$groupId:$reminderId"
+    private fun taskKey(botId: String, groupId: String, taskId: String) =
+        "$KEY_PREFIX:$botId:$groupId:$taskId"
 
     private fun idsKey(botId: String, groupId: String) =
         "$KEY_PREFIX:$botId:$groupId:$IDS_SUFFIX"
 
-    suspend fun saveTask(task: ReminderTask) = withContext(Dispatchers.IO) {
-        db[taskKey(task.botId, task.groupId, task.reminderId)] =
-            json.encodeToString(ReminderTask.serializer(), task)
+    suspend fun saveTask(task: CronTask) = withContext(Dispatchers.IO) {
+        db[taskKey(task.botId, task.groupId, task.taskId)] =
+            json.encodeToString(CronTask.serializer(), task)
 
         val idsJson = db[idsKey(task.botId, task.groupId)]
         val ids = if (idsJson != null) {
-            json.decodeFromString<ReminderIds>(idsJson).ids.toMutableSet()
+            json.decodeFromString<CronTaskIds>(idsJson).ids.toMutableSet()
         } else {
             mutableSetOf()
         }
-        ids.add(task.reminderId)
+        ids.add(task.taskId)
         db[idsKey(task.botId, task.groupId)] =
-            json.encodeToString(ReminderIds.serializer(), ReminderIds(ids))
+            json.encodeToString(CronTaskIds.serializer(), CronTaskIds(ids))
 
         registerBotGroup(task.botId, task.groupId)
     }
 
-    suspend fun getTask(botId: String, groupId: String, reminderId: String): ReminderTask? =
+    suspend fun getTask(botId: String, groupId: String, taskId: String): CronTask? =
         withContext(Dispatchers.IO) {
-            db[taskKey(botId, groupId, reminderId)]?.let {
-                json.decodeFromString(ReminderTask.serializer(), it)
+            db[taskKey(botId, groupId, taskId)]?.let {
+                json.decodeFromString(CronTask.serializer(), it)
             }
         }
 
-    suspend fun deleteTask(botId: String, groupId: String, reminderId: String) =
+    suspend fun deleteTask(botId: String, groupId: String, taskId: String) =
         withContext(Dispatchers.IO) {
-            db.remove(taskKey(botId, groupId, reminderId))
+            db.remove(taskKey(botId, groupId, taskId))
 
             val idsJson = db[idsKey(botId, groupId)]
             if (idsJson != null) {
-                val ids = json.decodeFromString<ReminderIds>(idsJson).ids.toMutableSet()
-                ids.remove(reminderId)
+                val ids = json.decodeFromString<CronTaskIds>(idsJson).ids.toMutableSet()
+                ids.remove(taskId)
                 db[idsKey(botId, groupId)] =
-                    json.encodeToString(ReminderIds.serializer(), ReminderIds(ids))
+                    json.encodeToString(CronTaskIds.serializer(), CronTaskIds(ids))
             }
         }
 
     suspend fun getAllTaskIds(botId: String, groupId: String): Set<String> =
         withContext(Dispatchers.IO) {
             db[idsKey(botId, groupId)]?.let {
-                json.decodeFromString<ReminderIds>(it).ids
+                json.decodeFromString<CronTaskIds>(it).ids
             } ?: emptySet()
         }
 
-    suspend fun getAllActiveTasks(botId: String, groupId: String): List<ReminderTask> {
+    suspend fun getAllActiveTasks(botId: String, groupId: String): List<CronTask> {
         val ids = getAllTaskIds(botId, groupId)
         return ids.mapNotNull { id ->
-            getTask(botId, groupId, id)?.takeIf { it.status == ReminderStatus.ACTIVE }
+            getTask(botId, groupId, id)?.takeIf { it.status == CronTaskStatus.ACTIVE }
         }
     }
 

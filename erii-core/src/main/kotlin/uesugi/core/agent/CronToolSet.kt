@@ -3,17 +3,17 @@ package uesugi.core.agent
 import ai.koog.agents.core.tools.annotations.LLMDescription
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
-import uesugi.core.reminder.*
+import uesugi.core.cron.*
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
-class ReminderToolSet(
+class CronToolSet(
     private val botId: String,
     private val groupId: String,
     private val senderId: String?,
-    private val store: ReminderStore,
-    private val wheel: ReminderWheel
+    private val store: CronStore,
+    private val wheel: CronWheel
 ) : ToolSet {
 
     @Tool
@@ -37,17 +37,18 @@ class ReminderToolSet(
             else -> RepeatType.NONE
         }
 
-        val task = ReminderTask(
-            reminderId = Uuid.random().toHexString(),
+        val task = CronTask(
+            taskId = Uuid.random().toHexString(),
             botId = botId,
             groupId = groupId,
             senderId = senderId,
             content = content,
             triggerTime = timestamp,
             repeatType = repeat,
-            status = ReminderStatus.ACTIVE,
+            status = CronTaskStatus.ACTIVE,
             createdAt = System.currentTimeMillis(),
-            targetUserId = targetUserId
+            targetUserId = targetUserId,
+            taskType = CronTaskType.REMINDER
         )
 
         wheel.pushTask(task)
@@ -57,50 +58,122 @@ class ReminderToolSet(
             "，每${if (repeat == RepeatType.DAILY) "天" else "周"}重复"
         } else ""
 
-        return "提醒已设置：$content 将在 $timeStr 触发$repeatStr\n提醒 ID: ${task.reminderId}"
+        return "提醒已设置：$content 将在 $timeStr 触发$repeatStr\n提醒 ID: ${task.taskId}"
     }
 
     @Tool
-    @LLMDescription("列出当前群组所有活跃的定时提醒")
-    suspend fun listReminders(): String {
+    @LLMDescription("添加一个定时任务触发器，在指定时间自动执行路由或命令。content 是触发内容（routing 类型传入自由文本如'跟群友打招呼'；command 类型传入命令如'/music 周杰伦'），triggerTime 是触发时间，triggerType 是触发类型（routing/command），repeatType 是重复类型（none/daily/weekly）")
+    suspend fun addTaskTrigger(
+        @LLMDescription("触发内容：routing 时为自由文本，command 时为命令（如'/music 周杰伦'）")
+        content: String,
+        @LLMDescription("触发时间，自然语言描述，如'明天上午9点'、'5分钟后'")
+        triggerTime: String,
+        @LLMDescription("触发类型：routing（LLM路由触发）或 command（命令触发）")
+        triggerType: String,
+        @LLMDescription("重复类型：none（不重复）、daily（每天）、weekly（每周），默认 none")
+        repeatType: String? = null
+    ): String {
+        val timestamp = parseTimeString(triggerTime)
+            ?: return "无法解析时间：$triggerTime"
+
+        val type = when (triggerType.lowercase()) {
+            "routing" -> TriggerType.ROUTING
+            "command" -> TriggerType.COMMAND
+            else -> return "不支持的触发类型：$triggerType，可选值为 routing 或 command"
+        }
+
+        val repeat = when (repeatType?.lowercase()) {
+            "daily" -> RepeatType.DAILY
+            "weekly" -> RepeatType.WEEKLY
+            else -> RepeatType.NONE
+        }
+
+        val task = CronTask(
+            taskId = Uuid.random().toHexString(),
+            botId = botId,
+            groupId = groupId,
+            senderId = senderId,
+            content = content,
+            triggerTime = timestamp,
+            repeatType = repeat,
+            status = CronTaskStatus.ACTIVE,
+            createdAt = System.currentTimeMillis(),
+            taskType = CronTaskType.TASK_TRIGGER,
+            triggerType = type
+        )
+
+        wheel.pushTask(task)
+
+        val timeStr = formatTime(timestamp)
+        val typeLabel = if (type == TriggerType.ROUTING) "路由" else "命令"
+        val repeatStr = if (repeat != RepeatType.NONE) {
+            "，每${if (repeat == RepeatType.DAILY) "天" else "周"}重复"
+        } else ""
+
+        return "任务触发器已设置：[$typeLabel] $content 将在 $timeStr 触发$repeatStr\n任务 ID: ${task.taskId}"
+    }
+
+    @Tool
+    @LLMDescription("列出当前群组所有活跃的定时任务（包含提醒和任务触发器）")
+    suspend fun listCronTasks(): String {
         val tasks = store.getAllActiveTasks(botId, groupId)
 
-        if (tasks.isEmpty()) return "当前群组没有活跃的提醒"
+        if (tasks.isEmpty()) return "当前群组没有活跃的定时任务"
+
+        val reminders = tasks.filter { it.taskType == CronTaskType.REMINDER }
+        val triggers = tasks.filter { it.taskType == CronTaskType.TASK_TRIGGER }
 
         return buildString {
-            appendLine("当前群组的活跃提醒：")
-            for ((index, task) in tasks.withIndex()) {
-                val targetStr = task.targetUserId?.let { " -> @$it" } ?: ""
-                val repeatStr = if (task.repeatType != RepeatType.NONE) {
-                    " [每${if (task.repeatType == RepeatType.DAILY) "天" else "周"}重复]"
-                } else ""
-                appendLine("${index + 1}. ${task.content}$targetStr - ${formatTime(task.triggerTime)}$repeatStr")
-                appendLine("   ID: ${task.reminderId}")
+            if (reminders.isNotEmpty()) {
+                appendLine("【提醒】")
+                for ((index, task) in reminders.withIndex()) {
+                    appendTaskInfo(index, task)
+                }
+            }
+            if (triggers.isNotEmpty()) {
+                if (reminders.isNotEmpty()) appendLine()
+                appendLine("【任务触发器】")
+                for ((index, task) in triggers.withIndex()) {
+                    appendTaskInfo(index, task)
+                }
             }
         }.trim()
     }
 
+    private fun StringBuilder.appendTaskInfo(index: Int, task: CronTask) {
+        val targetStr = task.targetUserId?.let { " -> @$it" } ?: ""
+        val repeatStr = if (task.repeatType != RepeatType.NONE) {
+            " [每${if (task.repeatType == RepeatType.DAILY) "天" else "周"}重复]"
+        } else ""
+        val typeStr = if (task.taskType == CronTaskType.TASK_TRIGGER) {
+            " [${if (task.triggerType == TriggerType.ROUTING) "路由" else "命令"}]"
+        } else ""
+
+        appendLine("${index + 1}. ${task.content}$targetStr - ${formatTime(task.triggerTime)}$repeatStr$typeStr")
+        appendLine("   ID: ${task.taskId}")
+    }
+
     @Tool
-    @LLMDescription("修改一个已有的提醒。可修改内容、触发时间或目标用户")
-    suspend fun modifyReminder(
-        @LLMDescription("要修改的提醒 ID")
-        reminderId: String,
-        @LLMDescription("新的提醒内容，可选")
+    @LLMDescription("修改一个已有的定时任务（提醒或任务触发器）。可修改内容、触发时间或目标用户")
+    suspend fun modifyCronTask(
+        @LLMDescription("要修改的任务 ID")
+        taskId: String,
+        @LLMDescription("新的内容，可选")
         content: String? = null,
         @LLMDescription("新的触发时间，可选")
         triggerTime: String? = null,
         @LLMDescription("新的目标用户 ID，可选")
         targetUserId: String? = null
     ): String {
-        val existingTask = store.getTask(botId, groupId, reminderId)
-            ?: return "未找到提醒 ID: $reminderId"
+        val existingTask = store.getTask(botId, groupId, taskId)
+            ?: return "未找到任务 ID: $taskId"
 
         if (existingTask.senderId != null && existingTask.senderId != senderId) {
-            return "无权限修改该提醒，只有创建者才能修改"
+            return "无权限修改该任务，只有创建者才能修改"
         }
 
-        if (existingTask.status != ReminderStatus.ACTIVE) {
-            return "该提醒已无法修改（状态：${existingTask.status}）"
+        if (existingTask.status != CronTaskStatus.ACTIVE) {
+            return "该任务已无法修改（状态：${existingTask.status}）"
         }
 
         val newTriggerTime = triggerTime?.let { parseTimeString(it) } ?: existingTask.triggerTime
@@ -120,25 +193,31 @@ class ReminderToolSet(
             if (targetUserId != null) add("目标用户")
         }
 
-        return "提醒已修改（${changes.joinToString("、")}）：${updatedTask.content}\n触发时间：${formatTime(updatedTask.triggerTime)}"
+        val typeLabel = if (existingTask.taskType == CronTaskType.TASK_TRIGGER) "任务触发器" else "提醒"
+        return "$typeLabel 已修改（${changes.joinToString("、")}）：${updatedTask.content}\n触发时间：${
+            formatTime(
+                updatedTask.triggerTime
+            )
+        }"
     }
 
     @Tool
-    @LLMDescription("删除一个定时提醒")
-    suspend fun deleteReminder(
-        @LLMDescription("要删除的提醒 ID")
-        reminderId: String
+    @LLMDescription("删除一个定时任务（提醒或任务触发器）")
+    suspend fun deleteCronTask(
+        @LLMDescription("要删除的任务 ID")
+        taskId: String
     ): String {
-        val existingTask = store.getTask(botId, groupId, reminderId)
-            ?: return "未找到提醒 ID: $reminderId"
+        val existingTask = store.getTask(botId, groupId, taskId)
+            ?: return "未找到任务 ID: $taskId"
 
         if (existingTask.senderId != null && existingTask.senderId != senderId) {
-            return "无权限删除该提醒，只有创建者才能删除"
+            return "无权限删除该任务，只有创建者才能删除"
         }
 
         wheel.removeTask(existingTask)
 
-        return "提醒已删除：${existingTask.content}"
+        val typeLabel = if (existingTask.taskType == CronTaskType.TASK_TRIGGER) "任务触发器" else "提醒"
+        return "$typeLabel 已删除：${existingTask.content}"
     }
 
     private fun parseTimeString(timeStr: String): Long? {
@@ -150,10 +229,12 @@ class ReminderToolSet(
                 val minutes = Regex("(\\d+)").find(lower)?.groupValues?.get(1)?.toLongOrNull() ?: return null
                 now + minutes * 60 * 1000
             }
+
             lower.contains("小时") || lower.contains("hour") -> {
                 val hours = Regex("(\\d+)").find(lower)?.groupValues?.get(1)?.toLongOrNull() ?: return null
                 now + hours * 60 * 60 * 1000
             }
+
             lower.contains("明天") -> {
                 val timeMatch = Regex("(\\d{1,2})[:点时](\\d{0,2})").find(lower)
                 if (timeMatch != null) {
@@ -164,6 +245,7 @@ class ReminderToolSet(
                     resetToMidnight(now + 24 * 60 * 60 * 1000) + 9 * 60 * 60 * 1000
                 }
             }
+
             lower.contains("今天") -> {
                 val timeMatch = Regex("(\\d{1,2})[:点时](\\d{0,2})").find(lower)
                 if (timeMatch != null) {
@@ -172,14 +254,17 @@ class ReminderToolSet(
                     resetToMidnight(now) + hour * 60 * 60 * 1000 + minute * 60 * 1000
                 } else null
             }
+
             lower.contains("下周一") || lower.contains("下星期一") -> {
                 val daysUntil = ((8 - java.time.LocalDate.now().dayOfWeek.value) % 7).coerceAtLeast(7)
                 resetToMidnight(now + daysUntil * 24 * 60 * 60 * 1000) + 9 * 60 * 60 * 1000
             }
+
             lower.contains("周一") || lower.contains("星期一") -> {
                 val daysUntil = ((8 - java.time.LocalDate.now().dayOfWeek.value) % 7).coerceAtLeast(0)
                 resetToMidnight(now + daysUntil * 24 * 60 * 60 * 1000) + 9 * 60 * 60 * 1000
             }
+
             else -> {
                 val timeMatch = Regex("(\\d{1,2})[:点时](\\d{0,2})").find(lower)
                 if (timeMatch != null) {

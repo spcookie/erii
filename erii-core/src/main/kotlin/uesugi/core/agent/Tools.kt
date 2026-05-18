@@ -8,7 +8,7 @@ import uesugi.common.event.ProactiveSpeakEvent
 import uesugi.common.toolkit.ref
 import uesugi.core.component.search.WebSearchTool
 import uesugi.core.component.vision.ChatVisionTool
-import uesugi.core.reminder.ReminderService
+import uesugi.core.cron.CronService
 
 data class ToolEnv(
     val chatToolSet: ChatToolSet,
@@ -16,7 +16,7 @@ data class ToolEnv(
     val chatVision: Boolean,
     val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)?,
     val ruleToolSet: RuleToolSet?,
-    val reminderToolSet: ReminderToolSet?
+    val cronToolSet: CronToolSet?
 )
 
 context(env: ToolEnv)
@@ -45,15 +45,15 @@ fun ruleTools() =
     env.ruleToolSet?.asTools() ?: emptyList()
 
 context(env: ToolEnv)
-fun reminderTools() =
-    env.reminderToolSet?.asTools() ?: emptyList()
+fun cronTools() =
+    env.cronToolSet?.asTools() ?: emptyList()
 
 context(env: ToolEnv)
 fun buildToolRegistry(): ToolRegistry =
     ToolRegistry {
         tools(baseTools())
         tools(ruleTools())
-        tools(reminderTools())
+        tools(cronTools())
         tools(webTools())
         tools(chatVision())
         tools(extraTools())
@@ -82,14 +82,14 @@ fun buildRuleToolSet(event: ProactiveSpeakEvent, context: Context): RuleToolSet?
     }
 }
 
-fun buildReminderToolSet(event: ProactiveSpeakEvent): ReminderToolSet {
-    val reminderService: ReminderService by ref()
-    return ReminderToolSet(
+fun buildCronToolSet(event: ProactiveSpeakEvent): CronToolSet {
+    val cronService: CronService by ref()
+    return CronToolSet(
         botId = event.botId,
         groupId = event.groupId,
         senderId = event.senderId,
-        store = reminderService.store,
-        wheel = reminderService.wheel
+        store = cronService.store,
+        wheel = cronService.wheel
     )
 }
 
@@ -100,6 +100,6 @@ fun buildToolEnv(event: ProactiveSpeakEvent, context: Context): ToolEnv {
         event.webSearch,
         event.toolSetBuilder,
         buildRuleToolSet(event, context),
-        buildReminderToolSet(event)
+        buildCronToolSet(event)
     )
 }
