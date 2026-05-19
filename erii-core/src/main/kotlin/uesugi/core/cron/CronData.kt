@@ -1,13 +1,10 @@
 package uesugi.core.cron
 
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
-
-@Serializable
-enum class RepeatType {
-    NONE,
-    DAILY,
-    WEEKLY
-}
+import org.jobrunr.scheduling.cron.CronExpression
+import java.time.Instant
+import java.time.ZoneId
 
 @Serializable
 enum class CronTaskStatus {
@@ -36,29 +33,26 @@ data class CronTask(
     val senderId: String?,
     val content: String,
     val triggerTime: Long,
-    val repeatType: RepeatType = RepeatType.NONE,
-    val status: CronTaskStatus = CronTaskStatus.ACTIVE,
+    val cronExpression: String? = null,
+    @EncodeDefault val status: CronTaskStatus = CronTaskStatus.ACTIVE,
     val createdAt: Long,
     val firedAt: Long? = null,
     val targetUserId: String? = null,
-    val taskType: CronTaskType = CronTaskType.REMINDER,
+    @EncodeDefault val taskType: CronTaskType = CronTaskType.REMINDER,
     val triggerType: TriggerType? = null
 ) {
     companion object {
-        fun nextTriggerTime(task: CronTask, currentTime: Long): Long {
-            return when (task.repeatType) {
-                RepeatType.NONE -> task.triggerTime
-                RepeatType.DAILY -> {
-                    var next = task.triggerTime
-                    while (next <= currentTime) next += 24 * 60 * 60 * 1000L
-                    next
-                }
+        internal const val MAX_LOOKAHEAD_MS = 2L * 365 * 24 * 60 * 60 * 1000 // 2 years
 
-                RepeatType.WEEKLY -> {
-                    var next = task.triggerTime
-                    while (next <= currentTime) next += 7 * 24 * 60 * 60 * 1000L
-                    next
-                }
+        fun nextTriggerTime(task: CronTask, currentTime: Long): Long {
+            val cron = task.cronExpression ?: return task.triggerTime
+            return try {
+                val expr = CronExpression(cron)
+                val now = Instant.ofEpochMilli(currentTime)
+                val next = expr.next(now, now, ZoneId.systemDefault())
+                next?.toEpochMilli() ?: (currentTime + MAX_LOOKAHEAD_MS)
+            } catch (_: Exception) {
+                currentTime + MAX_LOOKAHEAD_MS
             }
         }
     }

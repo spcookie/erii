@@ -17,7 +17,7 @@ class CronToolSet(
 ) : ToolSet {
 
     @Tool
-    @LLMDescription("添加一个新的定时提醒。参数 content 是提醒内容，triggerTime 是触发时间（如'明天下午3点'、'5分钟后'等自然语言描述），targetUserId 是被提醒的用户 ID，可选，不填则是全体成员，repeatType 是重复类型（none/daily/weekly）")
+    @LLMDescription("添加一个新的定时提醒。content 是提醒内容，triggerTime 是触发时间（如'明天下午3点'、'5分钟后'等自然语言描述），targetUserId 是被提醒的用户 ID（可选，不填则@全体），cronExpression 是重复规则（如'0 9 * * *'=每天9点，'0 9 * * 1'=每周一9点，不填则仅触发一次）")
     suspend fun addReminder(
         @LLMDescription("提醒内容")
         content: String,
@@ -25,17 +25,11 @@ class CronToolSet(
         triggerTime: String,
         @LLMDescription("被提醒的用户 ID，可选，不填则是全体成员")
         targetUserId: String? = null,
-        @LLMDescription("重复类型：none（不重复）、daily（每天）、weekly（每周），默认 none")
-        repeatType: String? = null
+        @LLMDescription("cron 表达式（5字段：分 时 日 月 周），如'0 9 * * *'=每天9点，不填则仅触发一次")
+        cronExpression: String? = null
     ): String {
         val timestamp = parseTimeString(triggerTime)
             ?: return "无法解析时间：$triggerTime，请使用明确的时间描述，如'明天下午3点'、'5分钟后'等"
-
-        val repeat = when (repeatType?.lowercase()) {
-            "daily" -> RepeatType.DAILY
-            "weekly" -> RepeatType.WEEKLY
-            else -> RepeatType.NONE
-        }
 
         val task = CronTask(
             taskId = Uuid.random().toHexString(),
@@ -44,7 +38,7 @@ class CronToolSet(
             senderId = senderId,
             content = content,
             triggerTime = timestamp,
-            repeatType = repeat,
+            cronExpression = cronExpression?.trim()?.takeIf { it.isNotEmpty() },
             status = CronTaskStatus.ACTIVE,
             createdAt = System.currentTimeMillis(),
             targetUserId = targetUserId,
@@ -54,15 +48,13 @@ class CronToolSet(
         wheel.pushTask(task)
 
         val timeStr = formatTime(timestamp)
-        val repeatStr = if (repeat != RepeatType.NONE) {
-            "，每${if (repeat == RepeatType.DAILY) "天" else "周"}重复"
-        } else ""
+        val cronStr = task.cronExpression?.let { "，重复规则：$it" } ?: ""
 
-        return "提醒已设置：$content 将在 $timeStr 触发$repeatStr\n提醒 ID: ${task.taskId}"
+        return "提醒已设置：$content 将在 $timeStr 触发$cronStr\n提醒 ID: ${task.taskId}"
     }
 
     @Tool
-    @LLMDescription("添加一个定时任务触发器，在指定时间自动执行路由或命令。content 是触发内容（routing 类型传入自由文本如'跟群友打招呼'；command 类型传入命令如'/music 周杰伦'），triggerTime 是触发时间，triggerType 是触发类型（routing/command），repeatType 是重复类型（none/daily/weekly）")
+    @LLMDescription("添加一个定时任务触发器，在指定时间自动执行路由或命令。content 是触发内容（routing 类型传入自由文本如'跟群友打招呼'；command 类型传入命令如'/music 周杰伦'），triggerTime 是触发时间，triggerType 是触发类型（routing/command），cronExpression 是重复规则（如'0 9 * * *'=每天9点，不填则仅触发一次）")
     suspend fun addTaskTrigger(
         @LLMDescription("触发内容：routing 时为自由文本，command 时为命令（如'/music 周杰伦'）")
         content: String,
@@ -70,8 +62,8 @@ class CronToolSet(
         triggerTime: String,
         @LLMDescription("触发类型：routing（LLM路由触发）或 command（命令触发）")
         triggerType: String,
-        @LLMDescription("重复类型：none（不重复）、daily（每天）、weekly（每周），默认 none")
-        repeatType: String? = null
+        @LLMDescription("cron 表达式（5字段：分 时 日 月 周），如'0 9 * * *'=每天9点，不填则仅触发一次")
+        cronExpression: String? = null
     ): String {
         val timestamp = parseTimeString(triggerTime)
             ?: return "无法解析时间：$triggerTime"
@@ -82,12 +74,6 @@ class CronToolSet(
             else -> return "不支持的触发类型：$triggerType，可选值为 routing 或 command"
         }
 
-        val repeat = when (repeatType?.lowercase()) {
-            "daily" -> RepeatType.DAILY
-            "weekly" -> RepeatType.WEEKLY
-            else -> RepeatType.NONE
-        }
-
         val task = CronTask(
             taskId = Uuid.random().toHexString(),
             botId = botId,
@@ -95,7 +81,7 @@ class CronToolSet(
             senderId = senderId,
             content = content,
             triggerTime = timestamp,
-            repeatType = repeat,
+            cronExpression = cronExpression?.trim()?.takeIf { it.isNotEmpty() },
             status = CronTaskStatus.ACTIVE,
             createdAt = System.currentTimeMillis(),
             taskType = CronTaskType.TASK_TRIGGER,
@@ -106,11 +92,9 @@ class CronToolSet(
 
         val timeStr = formatTime(timestamp)
         val typeLabel = if (type == TriggerType.ROUTING) "路由" else "命令"
-        val repeatStr = if (repeat != RepeatType.NONE) {
-            "，每${if (repeat == RepeatType.DAILY) "天" else "周"}重复"
-        } else ""
+        val cronStr = task.cronExpression?.let { "，重复规则：$it" } ?: ""
 
-        return "任务触发器已设置：[$typeLabel] $content 将在 $timeStr 触发$repeatStr\n任务 ID: ${task.taskId}"
+        return "任务触发器已设置：[$typeLabel] $content 将在 $timeStr 触发$cronStr\n任务 ID: ${task.taskId}"
     }
 
     @Tool
@@ -142,19 +126,17 @@ class CronToolSet(
 
     private fun StringBuilder.appendTaskInfo(index: Int, task: CronTask) {
         val targetStr = task.targetUserId?.let { " -> @$it" } ?: ""
-        val repeatStr = if (task.repeatType != RepeatType.NONE) {
-            " [每${if (task.repeatType == RepeatType.DAILY) "天" else "周"}重复]"
-        } else ""
+        val cronStr = task.cronExpression?.let { " [cron: $it]" } ?: ""
         val typeStr = if (task.taskType == CronTaskType.TASK_TRIGGER) {
             " [${if (task.triggerType == TriggerType.ROUTING) "路由" else "命令"}]"
         } else ""
 
-        appendLine("${index + 1}. ${task.content}$targetStr - ${formatTime(task.triggerTime)}$repeatStr$typeStr")
+        appendLine("${index + 1}. ${task.content}$targetStr - ${formatTime(task.triggerTime)}$cronStr$typeStr")
         appendLine("   ID: ${task.taskId}")
     }
 
     @Tool
-    @LLMDescription("修改一个已有的定时任务（提醒或任务触发器）。可修改内容、触发时间或目标用户")
+    @LLMDescription("修改一个已有的定时任务（提醒或任务触发器）。可修改内容、触发时间、目标用户或 cron 表达式")
     suspend fun modifyCronTask(
         @LLMDescription("要修改的任务 ID")
         taskId: String,
@@ -163,7 +145,9 @@ class CronToolSet(
         @LLMDescription("新的触发时间，可选")
         triggerTime: String? = null,
         @LLMDescription("新的目标用户 ID，可选")
-        targetUserId: String? = null
+        targetUserId: String? = null,
+        @LLMDescription("新的 cron 表达式，可选")
+        cronExpression: String? = null
     ): String {
         val existingTask = store.getTask(botId, groupId, taskId)
             ?: return "未找到任务 ID: $taskId"
@@ -181,7 +165,8 @@ class CronToolSet(
         val updatedTask = existingTask.copy(
             content = content ?: existingTask.content,
             triggerTime = newTriggerTime,
-            targetUserId = targetUserId ?: existingTask.targetUserId
+            targetUserId = targetUserId ?: existingTask.targetUserId,
+            cronExpression = cronExpression?.trim()?.takeIf { it.isNotEmpty() } ?: existingTask.cronExpression
         )
 
         wheel.removeTask(existingTask)
@@ -191,6 +176,7 @@ class CronToolSet(
             if (content != null) add("内容")
             if (triggerTime != null) add("时间")
             if (targetUserId != null) add("目标用户")
+            if (cronExpression != null) add("cron表达式")
         }
 
         val typeLabel = if (existingTask.taskType == CronTaskType.TASK_TRIGGER) "任务触发器" else "提醒"

@@ -283,6 +283,32 @@ type PluginStats struct {
 	PassiveExtensions int `json:"passiveExtensions"`
 }
 
+// ── Cron Tasks ──
+
+type CronTaskRecord struct {
+	TaskID         string `json:"taskId"`
+	BotID          string `json:"botId"`
+	GroupID        string `json:"groupId"`
+	SenderID       string `json:"senderId"`
+	Content        string `json:"content"`
+	TriggerTime    int64  `json:"triggerTime"`
+	CronExpression string `json:"cronExpression"`
+	Status         string `json:"status"`
+	CreatedAt      int64  `json:"createdAt"`
+	FiredAt        *int64 `json:"firedAt"`
+	TargetUserID   string `json:"targetUserId"`
+	TaskType       string `json:"taskType"`
+	TriggerType    string `json:"triggerType"`
+}
+
+type UpdateCronTaskRequest struct {
+	Content        *string `json:"content,omitempty"`
+	TriggerTime    *int64  `json:"triggerTime,omitempty"`
+	TargetUserID   *string `json:"targetUserId,omitempty"`
+	CronExpression *string `json:"cronExpression,omitempty"`
+	Status         *string `json:"status,omitempty"`
+}
+
 type GroupStatus struct {
 	BotID            string           `json:"botId"`
 	BotName          string           `json:"botName"`

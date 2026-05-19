@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"erii-cli/internal/tui/style"
 
@@ -678,6 +679,8 @@ func (m *DataTableModel) doDelete(key string) tea.Cmd {
 		case ResourceHistory:
 			id, _ := strconv.Atoi(key)
 			err = client.DeleteHistory(botID, groupID, id)
+		case ResourceCronTasks:
+			err = client.DeleteCronTask(botID, groupID, key)
 		}
 		return deleteDoneMsg{Error: err}
 	}
@@ -715,6 +718,8 @@ func (m *DataTableModel) doBatchDelete() tea.Cmd {
 			case ResourceHistory:
 				id, _ := strconv.Atoi(key)
 				err = client.DeleteHistory(botID, groupID, id)
+			case ResourceCronTasks:
+				err = client.DeleteCronTask(botID, groupID, key)
 			}
 			if err != nil {
 				lastErr = err
@@ -981,6 +986,33 @@ func (m *DataTableModel) buildPreviewContent() string {
 			wrap("Size", fmt.Sprintf("%d", r.Size)),
 			wrap("MD5", r.Md5),
 			wrap("Created", r.CreatedAt),
+		}
+	case api.CronTaskRecord:
+		title = fmt.Sprintf("Cron Task %s", TruncateEnd(r.TaskID, 12))
+		typeLabel := r.TaskType
+		if r.TaskType == "TASK_TRIGGER" && r.TriggerType != "" {
+			typeLabel = fmt.Sprintf("%s (%s)", r.TaskType, r.TriggerType)
+		}
+		targetStr := r.TargetUserID
+		if targetStr == "" {
+			targetStr = "(all)"
+		}
+		triggerTime := formatUnixTime(r.TriggerTime)
+		createdTime := formatUnixTime(r.CreatedAt)
+		firedStr := ""
+		if r.FiredAt != nil {
+			firedStr = formatUnixTime(*r.FiredAt)
+		}
+		contentLines = []string{
+			wrap("TaskID", r.TaskID),
+			wrap("Type", typeLabel),
+			wrap("Content", r.Content),
+			wrap("Trigger", triggerTime),
+			wrap("Cron", r.CronExpression),
+			wrap("TargetUser", targetStr),
+			wrap("Status", r.Status),
+			wrap("Fired", firedStr),
+			wrap("Created", createdTime),
 		}
 	default:
 		return ""
@@ -1438,6 +1470,88 @@ func getFormatter(rt ResourceType) tableFormatter {
 			},
 		}
 
+	case ResourceCronTasks:
+		return tableFormatter{
+			title:     "Cron Tasks",
+			minWidths: []int{14, 10, 25, 20, 8, 8, 16},
+			columns: func(widths []int) []table.Column {
+				return []table.Column{
+					{Title: "", Width: widths[0]},
+					{Title: "TaskID", Width: widths[1]},
+					{Title: "Type", Width: widths[2]},
+					{Title: "Content", Width: widths[3]},
+					{Title: "Trigger", Width: widths[4]},
+					{Title: "Cron", Width: widths[5]},
+					{Title: "Status", Width: widths[6]},
+					{Title: "Fired", Width: widths[7]},
+				}
+			},
+			getRow: func(a any, selected bool) table.Row {
+				r := a.(api.CronTaskRecord)
+				cb := "[ ]"
+				if selected {
+					cb = "[x]"
+				}
+				triggerTime := formatUnixTime(r.TriggerTime)
+				firedStr := ""
+				if r.FiredAt != nil {
+					firedStr = formatUnixTime(*r.FiredAt)
+				}
+				return table.Row{
+					cb,
+					TruncateEnd(r.TaskID, 12),
+					cronTypeLabel(r),
+					TruncateEnd(r.Content, 30),
+					triggerTime,
+					r.CronExpression,
+					r.Status,
+					firedStr,
+				}
+			},
+			getID:  func(a any) int { return 0 },
+			getKey: func(a any) string { return a.(api.CronTaskRecord).TaskID },
+			searchMatch: func(a any, kw string) bool {
+				r := a.(api.CronTaskRecord)
+				return strings.Contains(strings.ToLower(r.TaskID), kw) ||
+					strings.Contains(strings.ToLower(r.Content), kw) ||
+					strings.Contains(strings.ToLower(r.TargetUserID), kw) ||
+					strings.Contains(strings.ToLower(r.TaskType), kw) ||
+					strings.Contains(strings.ToLower(r.TriggerType), kw) ||
+					strings.Contains(strings.ToLower(r.Status), kw)
+			},
+			canCreate: false,
+			canEdit:   true,
+			canDelete: true,
+			sortColumns: []sortColumn{
+				{name: "TaskID", less: func(a, b any) bool {
+					return strings.Compare(a.(api.CronTaskRecord).TaskID, b.(api.CronTaskRecord).TaskID) < 0
+				}},
+				{name: "Type", less: func(a, b any) bool {
+					return strings.Compare(a.(api.CronTaskRecord).TaskType, b.(api.CronTaskRecord).TaskType) < 0
+				}},
+				{name: "Trigger", less: func(a, b any) bool {
+					return a.(api.CronTaskRecord).TriggerTime < b.(api.CronTaskRecord).TriggerTime
+				}},
+				{name: "Status", less: func(a, b any) bool {
+					return strings.Compare(a.(api.CronTaskRecord).Status, b.(api.CronTaskRecord).Status) < 0
+				}},
+				{name: "Fired", less: func(a, b any) bool {
+					fa := a.(api.CronTaskRecord).FiredAt
+					fb := b.(api.CronTaskRecord).FiredAt
+					if fa == nil && fb == nil {
+						return false
+					}
+					if fa == nil {
+						return true
+					}
+					if fb == nil {
+						return false
+					}
+					return *fa < *fb
+				}},
+			},
+		}
+
 	case ResourceResource:
 		return tableFormatter{
 			title:     "Resources",
@@ -1566,6 +1680,31 @@ func loadResourceData(rt ResourceType, api *api.Client, botID, groupID string) (
 			items[i] = r
 		}
 		return items, nil
+	case ResourceCronTasks:
+		records, err := api.GetCronTasks(botID, groupID)
+		if err != nil {
+			return nil, err
+		}
+		items := make([]any, len(records))
+		for i, r := range records {
+			items[i] = r
+		}
+		return items, nil
 	}
 	return nil, fmt.Errorf("unknown resource type: %d", rt)
+}
+
+func cronTypeLabel(r api.CronTaskRecord) string {
+	if r.TaskType == "TASK_TRIGGER" && r.TriggerType != "" {
+		return r.TriggerType
+	}
+	return r.TaskType
+}
+
+func formatUnixTime(ts int64) string {
+	if ts == 0 {
+		return ""
+	}
+	t := time.UnixMilli(ts)
+	return t.Format("2006-01-02 15:04")
 }

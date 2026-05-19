@@ -156,6 +156,24 @@ func (c *Client) UpdateVolition(botID, groupID string, req UpdateVolitionRequest
 	return doJSONRequest[*VolitionRecord](c, "PUT", fmt.Sprintf("/api/bot/%s/group/%s/volition", botID, groupID), req)
 }
 
+func (c *Client) GetCronTasks(botID, groupID string) ([]CronTaskRecord, error) {
+	return doJSONRequest[[]CronTaskRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/cron-tasks", botID, groupID), nil)
+}
+
+func (c *Client) GetCronTask(botID, groupID, taskID string) (*CronTaskRecord, error) {
+	return doJSONRequest[*CronTaskRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/cron-tasks/%s", botID, groupID, taskID), nil)
+}
+
+func (c *Client) UpdateCronTask(botID, groupID, taskID string, req UpdateCronTaskRequest) error {
+	_, err := c.doRequest("PUT", fmt.Sprintf("/api/bot/%s/group/%s/cron-tasks/%s", botID, groupID, taskID), req)
+	return err
+}
+
+func (c *Client) DeleteCronTask(botID, groupID, taskID string) error {
+	_, err := c.doRequest("DELETE", fmt.Sprintf("/api/bot/%s/group/%s/cron-tasks/%s", botID, groupID, taskID), nil)
+	return err
+}
+
 func (c *Client) RefreshConfig() error {
 	_, err := c.doRequest("POST", "/api/config/refresh", nil)
 	return err

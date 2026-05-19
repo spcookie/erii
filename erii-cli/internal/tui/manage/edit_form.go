@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"erii-cli/internal/tui/style"
 
@@ -41,6 +42,11 @@ type EditFormModel struct {
 	summaryTone    string
 	historyContent string
 	historyNick    string
+	cronContent    string
+	cronTrigger    string
+	cronTarget     string
+	cronExpr       string
+	cronStatus     string
 }
 
 func NewEditFormModel(api *api.Client, rt ResourceType, bot api.BotInfo, group api.GroupInfo, data any, isCreate bool) *EditFormModel {
@@ -73,6 +79,8 @@ func NewEditFormModel(api *api.Client, rt ResourceType, bot api.BotInfo, group a
 		m.form = m.buildSummaryForm(data, isCreate, w)
 	case ResourceHistory:
 		m.form = m.buildHistoryForm(data, isCreate, w)
+	case ResourceCronTasks:
+		m.form = m.buildCronTaskForm(data, isCreate, w)
 	default:
 		panic("unhandled default case")
 	}
@@ -236,6 +244,40 @@ func (m *EditFormModel) buildHistoryForm(data any, isCreate bool, width int) *hu
 	).WithWidth(width).WithShowHelp(false)
 }
 
+func (m *EditFormModel) buildCronTaskForm(data any, isCreate bool, width int) *huh.Form {
+	if !isCreate && data != nil {
+		r := data.(api.CronTaskRecord)
+		m.cronContent = r.Content
+		m.cronTrigger = formatUnixTime(r.TriggerTime)
+		m.cronTarget = r.TargetUserID
+		m.cronExpr = r.CronExpression
+		m.cronStatus = r.Status
+	}
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewText().Key("content").Title("Content (multi-line)").
+				Value(&m.cronContent).
+				WithHeight(3),
+			huh.NewInput().Key("trigger").Title("Trigger Time (YYYY-MM-DD HH:MM)").
+				Placeholder("2026-05-20 15:30").
+				Value(&m.cronTrigger).
+				Validate(validateDateTime),
+			huh.NewInput().Key("target").Title("Target User ID (empty=all)").
+				Value(&m.cronTarget),
+			huh.NewInput().Key("cron").Title("Cron Expression (empty=once)").
+				Placeholder("0 9 * * *").
+				Value(&m.cronExpr).
+				Validate(validateCronExpr),
+			huh.NewSelect[string]().Key("status").Title("Status").
+				Options(
+					huh.NewOption("Active", "ACTIVE"),
+					huh.NewOption("Deleted", "DELETED"),
+				).
+				Value(&m.cronStatus),
+		),
+	).WithWidth(width).WithShowHelp(false)
+}
+
 var timeRangeRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2} ~ \d{4}-\d{2}-\d{2} \d{2}:\d{2}$`)
 
 func validateTimeRange(s string) error {
@@ -277,12 +319,29 @@ func validateCommaSeparated(s string) error {
 	return nil
 }
 
-func validateNumber(s string) error {
+var dateTimeRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$`)
+
+func validateDateTime(s string) error {
 	if s == "" {
 		return nil
 	}
-	if _, err := strconv.Atoi(s); err != nil {
-		return fmt.Errorf("必须是数字")
+	if !dateTimeRegex.MatchString(s) {
+		return fmt.Errorf("格式错误，示例：2026-05-20 15:30")
+	}
+	if _, err := time.Parse("2006-01-02 15:04", s); err != nil {
+		return fmt.Errorf("无效的日期时间：%s", s)
+	}
+	return nil
+}
+
+var cronExprRegex = regexp.MustCompile(`^(\*|\d+([-,/]\d+)*)(\s+(\*|\d+([-,/]\d+)*)){4}$`)
+
+func validateCronExpr(s string) error {
+	if s == "" {
+		return nil
+	}
+	if !cronExprRegex.MatchString(s) {
+		return fmt.Errorf("无效的 cron 表达式，需为 5 字段格式，示例：0 9 * * *")
 	}
 	return nil
 }
@@ -345,6 +404,7 @@ func (m *EditFormModel) submit() tea.Cmd {
 	isCreate := m.isCreate
 
 	var factID, memeID, vocabID, summaryID, historyID int
+	var cronTaskID string
 	var userID string
 
 	if !isCreate && m.data != nil {
@@ -361,6 +421,8 @@ func (m *EditFormModel) submit() tea.Cmd {
 			summaryID = d.ID
 		case api.HistoryRecord:
 			historyID = d.ID
+		case api.CronTaskRecord:
+			cronTaskID = d.TaskID
 		}
 	}
 
@@ -423,6 +485,36 @@ func (m *EditFormModel) submit() tea.Cmd {
 				Nick:    m.historyNick,
 			}
 			err = client.UpdateHistory(botID, groupID, historyID, req)
+		case ResourceCronTasks:
+			var contentPtr, targetPtr, cronPtr, statusPtr *string
+			var triggerPtr *int64
+			if m.cronContent != "" {
+				contentPtr = &m.cronContent
+			}
+			if m.cronTrigger != "" {
+				t, parseErr := time.Parse("2006-01-02 15:04", m.cronTrigger)
+				if parseErr == nil {
+					ms := t.UnixMilli()
+					triggerPtr = &ms
+				}
+			}
+			if m.cronTarget != "" {
+				targetPtr = &m.cronTarget
+			}
+			if m.cronExpr != "" {
+				cronPtr = &m.cronExpr
+			}
+			if m.cronStatus != "" {
+				statusPtr = &m.cronStatus
+			}
+			req := api.UpdateCronTaskRequest{
+				Content:        contentPtr,
+				TriggerTime:    triggerPtr,
+				TargetUserID:   targetPtr,
+				CronExpression: cronPtr,
+				Status:         statusPtr,
+			}
+			err = client.UpdateCronTask(botID, groupID, cronTaskID, req)
 		default:
 			panic("unhandled default case")
 		}

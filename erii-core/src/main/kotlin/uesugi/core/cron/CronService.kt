@@ -77,11 +77,11 @@ class CronService(private val jobScheduler: JobScheduler) {
         try {
             log.info { "Firing cron task ${task.taskId}, type=${task.taskType}" }
 
-            if (task.repeatType == RepeatType.NONE) {
+            if (task.cronExpression == null) {
                 store.deleteTask(task.botId, task.groupId, task.taskId)
             } else {
                 val nextTrigger = CronTask.nextTriggerTime(task, System.currentTimeMillis())
-                wheel.pushTask(task.copy(triggerTime = nextTrigger))
+                wheel.pushTask(task.copy(triggerTime = nextTrigger, firedAt = System.currentTimeMillis()))
             }
 
             when (task.taskType) {

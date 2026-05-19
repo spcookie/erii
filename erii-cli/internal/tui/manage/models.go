@@ -12,6 +12,7 @@ const (
 	ResourceSummaries
 	ResourceHistory
 	ResourceResource
+	ResourceCronTasks
 )
 
 func (r ResourceType) String() string {
@@ -30,6 +31,8 @@ func (r ResourceType) String() string {
 		return "history"
 	case ResourceResource:
 		return "resources"
+	case ResourceCronTasks:
+		return "cron-tasks"
 	default:
 		return "unknown"
 	}
@@ -51,6 +54,8 @@ func (r ResourceType) Title() string {
 		return "History"
 	case ResourceResource:
 		return "Resources"
+	case ResourceCronTasks:
+		return "Cron Tasks"
 	default:
 		return "Unknown"
 	}
@@ -72,6 +77,8 @@ func (r ResourceType) Icon() string {
 		return "\xf0\x9f\x93\x9c"
 	case ResourceResource:
 		return "\xf0\x9f\x93\x8e"
+	case ResourceCronTasks:
+		return "\xe2\x8f\xb0"
 	default:
 		return "?"
 	}

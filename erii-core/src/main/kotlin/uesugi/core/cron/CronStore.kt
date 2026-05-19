@@ -88,6 +88,11 @@ class CronStore {
         }
     }
 
+    suspend fun getAllTasks(botId: String, groupId: String): List<CronTask> {
+        val ids = getAllTaskIds(botId, groupId)
+        return ids.mapNotNull { id -> getTask(botId, groupId, id) }
+    }
+
     suspend fun getAllBotGroupKeys(): List<BotGroupKey> = withContext(Dispatchers.IO) {
         val json2 = db[BOT_GROUPS_KEY] ?: return@withContext emptyList()
         json.decodeFromString<BotGroupKeys>(json2).keys.map { key ->

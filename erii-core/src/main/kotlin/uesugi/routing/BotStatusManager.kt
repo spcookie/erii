@@ -9,6 +9,8 @@ import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.PAD
+import uesugi.core.cron.CronService
+import uesugi.core.cron.CronTaskStatus
 import uesugi.core.message.history.HistoryService
 import uesugi.core.message.resource.ResourceService
 import uesugi.core.state.emotion.BehaviorProfile
@@ -97,6 +99,15 @@ data class UpdateVolitionRequest(
     val stimulus: Double
 )
 
+@Serializable
+data class UpdateCronTaskRequest(
+    val content: String? = null,
+    val triggerTime: Long? = null,
+    val targetUserId: String? = null,
+    val cronExpression: String? = null,
+    val status: String? = null
+)
+
 private fun ApplicationCall.botId(): String = parameters["bot-id"]!!
 private fun ApplicationCall.groupId(): String = parameters["group-id"]!!
 private fun ApplicationCall.userId(): String = parameters["user-id"]!!
@@ -140,6 +151,7 @@ fun Routing.configureBotStatusManager() {
         val flowGaugeManager by inject<FlowGaugeManager>()
         val volitionRepository by inject<VolitionRepository>()
         val volitionGaugeManager by inject<VolitionGaugeManager>()
+        val cronService by inject<CronService>()
 
         get("/api/bot/{bot-id}/group/{group-id}/facts") {
             call.respond(memoryService.getAllFactsByGroup(call.botId(), call.groupId()).map { it.toRecord() })
@@ -545,6 +557,83 @@ fun Routing.configureBotStatusManager() {
             } else {
                 call.respond(entity.toRecord())
             }
+        }
+
+        // ── Cron Tasks ──
+
+        get("/api/bot/{bot-id}/group/{group-id}/cron-tasks") {
+            val tasks = cronService.store.getAllTasks(call.botId(), call.groupId())
+            call.respond(tasks)
+        }
+
+        get("/api/bot/{bot-id}/group/{group-id}/cron-tasks/{task-id}") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val taskId = call.parameters["task-id"]
+            if (taskId == null) {
+                call.respond(mapOf("error" to "invalid task-id"))
+                return@get
+            }
+            val task = cronService.store.getTask(botId, groupId, taskId)
+            if (task == null) {
+                call.respond(mapOf("error" to "cron task not found"))
+            } else {
+                call.respond(task)
+            }
+        }
+
+        put("/api/bot/{bot-id}/group/{group-id}/cron-tasks/{task-id}") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val taskId = call.parameters["task-id"]
+            if (taskId == null) {
+                call.respond(mapOf("error" to "invalid task-id"))
+                return@put
+            }
+            val request = call.receiveOrError<UpdateCronTaskRequest>() ?: return@put
+            val existing = cronService.store.getTask(botId, groupId, taskId)
+            if (existing == null || existing.botId != botId || existing.groupId != groupId) {
+                call.respond(mapOf("error" to "cron task not found"))
+                return@put
+            }
+            val cronExpr = request.cronExpression?.trim()?.takeIf { it.isNotEmpty() }
+            val status = when (request.status?.lowercase()) {
+                "active" -> CronTaskStatus.ACTIVE
+                "deleted" -> CronTaskStatus.DELETED
+                "fired" -> CronTaskStatus.FIRED
+                null -> existing.status
+                else -> {
+                    call.respond(mapOf("error" to "invalid status, valid: active/fired/deleted"))
+                    return@put
+                }
+            }
+            val updated = existing.copy(
+                content = request.content ?: existing.content,
+                triggerTime = request.triggerTime ?: existing.triggerTime,
+                targetUserId = request.targetUserId ?: existing.targetUserId,
+                cronExpression = if (request.cronExpression != null) cronExpr else existing.cronExpression,
+                status = status
+            )
+            cronService.wheel.removeTask(existing)
+            cronService.wheel.pushTask(updated)
+            call.respond(updated)
+        }
+
+        delete("/api/bot/{bot-id}/group/{group-id}/cron-tasks/{task-id}") {
+            val botId = call.botId()
+            val groupId = call.groupId()
+            val taskId = call.parameters["task-id"]
+            if (taskId == null) {
+                call.respond(mapOf("error" to "invalid task-id"))
+                return@delete
+            }
+            val existing = cronService.store.getTask(botId, groupId, taskId)
+            if (existing == null || existing.botId != botId || existing.groupId != groupId) {
+                call.respond(mapOf("error" to "cron task not found"))
+                return@delete
+            }
+            cronService.wheel.removeTask(existing)
+            call.respond(mapOf("success" to true))
         }
     }
 }

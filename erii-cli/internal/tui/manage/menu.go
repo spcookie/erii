@@ -91,6 +91,7 @@ func NewManageMenuModel(bot api.BotInfo, group api.GroupInfo) *ManageMenuModel {
 		menuItem{resourceType: ResourceVocabularies, action: "pushTable", title: "📖  Vocabulary", desc: "Manage learned vocabulary"},
 		menuItem{action: "pushMessageMenu", title: "💬  Messages", desc: "Manage message history and resources"},
 		menuItem{action: "pushStateMenu", title: "📊  State", desc: "View and edit emotion, flow, volition"},
+		menuItem{resourceType: ResourceCronTasks, action: "pushTable", title: "⏰  Cron Tasks", desc: "Manage scheduled tasks and reminders"},
 	}
 	l.SetItems(items)
 
