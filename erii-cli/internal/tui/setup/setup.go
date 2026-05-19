@@ -416,7 +416,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.syncSizes()
 		footerHeight := lipgloss.Height(m.help.View(m.currentKeys()))
-		vpHeight := msg.Height - footerHeight
+		vpHeight := msg.Height - footerHeight - 1
 		if vpHeight < 3 {
 			vpHeight = 3
 		}
@@ -440,7 +440,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, tea.Quit
 			}
-			m.syncViewportContent()
+			if key.Matches(msg, m.keys.Back) {
+				m.step = StepGroups
+				m.rebuildCurrentStep()
+				return m, m.currentInitCmd()
+			}
 
 			var cmd tea.Cmd
 			m.vp, cmd = m.vp.Update(msg)
@@ -508,7 +512,6 @@ func (m Model) View() string {
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.vp.View(),
-		"",
 		footer,
 	)
 }
@@ -830,6 +833,7 @@ func (m *Model) syncViewportContent() {
 	content := m.renderContent()
 	body := lipgloss.JoinVertical(lipgloss.Left, timeline, content)
 	m.vp.SetContent(body)
+	m.vp.GotoTop()
 }
 
 func (m *Model) rebuildCurrentStep() {
