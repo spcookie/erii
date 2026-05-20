@@ -281,7 +281,7 @@ interface PluginConfig {
         get() = Regex("""\$\{\??([A-Za-z_][A-Za-z0-9_]*)}""")
 
     fun findEnv(key: String): String? {
-        val match = envRegex.findAll(key).firstOrNull()?.groupValues[1] ?: return null
+        val match = envRegex.findAll(key).firstOrNull()?.groupValues[1] ?: return key
         return System.getenv(match)
     }
 
