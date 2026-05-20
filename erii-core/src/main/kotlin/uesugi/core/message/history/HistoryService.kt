@@ -55,15 +55,23 @@ class HistoryService {
         }
     }
 
-    fun getAllHistoryByGroup(botMark: String, groupId: String, limit: Int = 500): List<HistoryRecord> {
+    fun getAllHistoryByGroup(
+        botMark: String,
+        groupId: String,
+        offset: Int = 0,
+        limit: Int = 500
+    ): Pair<List<HistoryRecord>, Int> {
         return transaction {
-            HistoryEntity.find {
+            val baseQuery = HistoryEntity.find {
                 (HistoryTable.botMark eq botMark) and (HistoryTable.groupId eq groupId)
             }
+            val total = baseQuery.count().toInt()
+            val items = baseQuery
                 .orderBy(HistoryTable.createdAt to SortOrder.DESC)
                 .limit(limit)
                 .toList()
                 .map { it.toRecord() }
+            items to total
         }
     }
 

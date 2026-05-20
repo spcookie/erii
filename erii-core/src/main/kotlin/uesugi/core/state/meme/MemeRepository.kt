@@ -202,11 +202,18 @@ class MemeRepository {
      * @param groupId 群组ID
      * @return 表情包记录列表
      */
-    fun getAllMemos(botId: String, groupId: String): List<MemeRecord> {
+    fun getAllMemos(botId: String, groupId: String, offset: Int = 0, limit: Int = 0): Pair<List<MemeRecord>, Int> {
         return transaction {
-            MemeEntity.find {
+            val baseQuery = MemeEntity.find {
                 (MemeTable.botMark eq botId) and (MemeTable.groupId eq groupId)
-            }.map { it.toRecord() }
+            }
+            val total = baseQuery.count().toInt()
+            val items = if (limit > 0) {
+                baseQuery.limit(limit).map { it.toRecord() }.drop(offset)
+            } else {
+                baseQuery.map { it.toRecord() }
+            }
+            items to total
         }
     }
 

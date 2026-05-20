@@ -96,8 +96,8 @@ private fun buildGroupStatus(
     val summary = memoryService.getSummary(botId, groupId)?.content
     val factSize = memoryService.getFactSize(botId, groupId)
     val userProfileSize = memoryService.getUserProfileSize(botId, groupId)
-    val allFactsByGroup = memoryService.getAllFactsByGroup(botId, groupId)
-    val allUserProfilesByGroup = memoryService.getAllUserProfilesByGroup(botId, groupId)
+    val allFactsByGroup = memoryService.getAllFactsByGroup(botId, groupId).first
+    val allUserProfilesByGroup = memoryService.getAllUserProfilesByGroup(botId, groupId).first
 
     val scopeByFacts = allFactsByGroup.groupBy(
         { it.scopeType },
@@ -124,7 +124,7 @@ private fun buildGroupStatus(
         )
     }
 
-    val allMemes = memoService.getAllMemos(botId, groupId)
+    val allMemes = memoService.getAllMemos(botId, groupId).first
     val analyzedMemes = allMemes.filter { it.description != null }
     val memeSize = allMemes.size.toLong()
     val analyzedMemeSize = analyzedMemes.size.toLong()

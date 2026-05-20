@@ -420,7 +420,7 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
                 }
             },
             memes = {
-                val allMemes = memoService.getAllMemos(event.botId, groupId)
+                val allMemes = memoService.getAllMemos(event.botId, groupId).first
                 val analyzedMemes = allMemes.filter { it.description != null }
                 analyzedMemes.size
             },

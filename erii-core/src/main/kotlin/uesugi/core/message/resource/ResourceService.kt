@@ -28,15 +28,23 @@ class ResourceService {
         }
     }
 
-    fun getAllResourcesByGroup(botMark: String, groupId: String, limit: Int = 500): List<ResourceRecord> {
+    fun getAllResourcesByGroup(
+        botMark: String,
+        groupId: String,
+        offset: Int = 0,
+        limit: Int = 500
+    ): Pair<List<ResourceRecord>, Int> {
         return transaction {
-            ResourceEntity.find {
+            val baseQuery = ResourceEntity.find {
                 (ResourceTable.botMark eq botMark) and (ResourceTable.groupId eq groupId)
             }
+            val total = baseQuery.count().toInt()
+            val items = baseQuery
                 .orderBy(ResourceTable.createdAt to SortOrder.DESC)
                 .limit(limit)
                 .toList()
                 .map { it.toRecord() }
+            items to total
         }
     }
 

@@ -39,10 +39,22 @@ class SummaryRepository {
         }
     }
 
-    fun getSummariesByGroup(botMark: String, groupId: String): List<SummaryRecord> = transaction {
-        SummaryEntity.find {
+    fun getSummariesByGroup(
+        botMark: String,
+        groupId: String,
+        offset: Int = 0,
+        limit: Int = 0
+    ): Pair<List<SummaryRecord>, Int> = transaction {
+        val baseQuery = SummaryEntity.find {
             (SummaryTable.botMark eq botMark) and (SummaryTable.groupId eq groupId)
-        }.orderBy(SummaryTable.createdAt to SortOrder.DESC).map { it.toRecord() }
+        }
+        val total = baseQuery.count().toInt()
+        val items = if (limit > 0) {
+            baseQuery.orderBy(SummaryTable.createdAt to SortOrder.DESC).limit(limit)
+        } else {
+            baseQuery.orderBy(SummaryTable.createdAt to SortOrder.DESC)
+        }.map { it.toRecord() }
+        items to total
     }
 
     /**

@@ -2,6 +2,12 @@ package api
 
 import "fmt"
 
+const defaultFetchLimit = 10000
+
+func paginatedURL(path string) string {
+	return fmt.Sprintf("%s?offset=0&limit=%d", path, defaultFetchLimit)
+}
+
 func (c *Client) GetBots() ([]BotInfo, error) {
 	return doJSONRequest[[]BotInfo](c, "GET", "/api/bots", nil)
 }
@@ -10,8 +16,8 @@ func (c *Client) GetGroups(botID string) ([]GroupInfo, error) {
 	return doJSONRequest[[]GroupInfo](c, "GET", fmt.Sprintf("/api/bot/%s/groups", botID), nil)
 }
 
-func (c *Client) GetFacts(botID, groupID string) ([]FactRecord, error) {
-	return doJSONRequest[[]FactRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/facts", botID, groupID), nil)
+func (c *Client) GetFacts(botID, groupID string) (PaginatedResponse[FactRecord], error) {
+	return doJSONRequest[PaginatedResponse[FactRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/facts", botID, groupID)), nil)
 }
 
 func (c *Client) GetFact(botID, groupID string, id int) (*FactRecord, error) {
@@ -33,8 +39,8 @@ func (c *Client) DeleteFact(botID, groupID string, id int) error {
 	return err
 }
 
-func (c *Client) GetUserProfiles(botID, groupID string) ([]UserProfileRecord, error) {
-	return doJSONRequest[[]UserProfileRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/user-profiles", botID, groupID), nil)
+func (c *Client) GetUserProfiles(botID, groupID string) (PaginatedResponse[UserProfileRecord], error) {
+	return doJSONRequest[PaginatedResponse[UserProfileRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/user-profiles", botID, groupID)), nil)
 }
 
 func (c *Client) GetUserProfile(botID, groupID, userID string) (*UserProfileRecord, error) {
@@ -51,8 +57,8 @@ func (c *Client) DeleteUserProfile(botID, groupID, userID string) error {
 	return err
 }
 
-func (c *Client) GetMemes(botID, groupID string) ([]MemeRecord, error) {
-	return doJSONRequest[[]MemeRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/memes", botID, groupID), nil)
+func (c *Client) GetMemes(botID, groupID string) (PaginatedResponse[MemeRecord], error) {
+	return doJSONRequest[PaginatedResponse[MemeRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/memes", botID, groupID)), nil)
 }
 
 func (c *Client) GetMeme(botID, groupID string, id int) (*MemeRecord, error) {
@@ -69,8 +75,8 @@ func (c *Client) DeleteMeme(botID, groupID string, id int) error {
 	return err
 }
 
-func (c *Client) GetVocabularies(botID, groupID string) ([]VocabRecord, error) {
-	return doJSONRequest[[]VocabRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/vocabulary", botID, groupID), nil)
+func (c *Client) GetVocabularies(botID, groupID string) (PaginatedResponse[VocabRecord], error) {
+	return doJSONRequest[PaginatedResponse[VocabRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/vocabulary", botID, groupID)), nil)
 }
 
 func (c *Client) GetVocabulary(botID, groupID string, id int) (*VocabRecord, error) {
@@ -92,8 +98,8 @@ func (c *Client) DeleteVocabulary(botID, groupID string, id int) error {
 	return err
 }
 
-func (c *Client) GetSummaries(botID, groupID string) ([]SummaryRecord, error) {
-	return doJSONRequest[[]SummaryRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/summaries", botID, groupID), nil)
+func (c *Client) GetSummaries(botID, groupID string) (PaginatedResponse[SummaryRecord], error) {
+	return doJSONRequest[PaginatedResponse[SummaryRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/summaries", botID, groupID)), nil)
 }
 
 func (c *Client) GetSummary(botID, groupID string, id int) (*SummaryRecord, error) {
@@ -110,8 +116,8 @@ func (c *Client) DeleteSummary(botID, groupID string, id int) error {
 	return err
 }
 
-func (c *Client) GetHistory(botID, groupID string) ([]HistoryRecord, error) {
-	return doJSONRequest[[]HistoryRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/history", botID, groupID), nil)
+func (c *Client) GetHistory(botID, groupID string) (PaginatedResponse[HistoryRecord], error) {
+	return doJSONRequest[PaginatedResponse[HistoryRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/history", botID, groupID)), nil)
 }
 
 func (c *Client) GetHistoryByID(botID, groupID string, id int) (*HistoryRecord, error) {
@@ -128,8 +134,8 @@ func (c *Client) DeleteHistory(botID, groupID string, id int) error {
 	return err
 }
 
-func (c *Client) GetResources(botID, groupID string) ([]ResourceRecord, error) {
-	return doJSONRequest[[]ResourceRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/resources", botID, groupID), nil)
+func (c *Client) GetResources(botID, groupID string) (PaginatedResponse[ResourceRecord], error) {
+	return doJSONRequest[PaginatedResponse[ResourceRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/resources", botID, groupID)), nil)
 }
 
 func (c *Client) GetEmotion(botID, groupID string) (*EmotionRecord, error) {
@@ -156,8 +162,8 @@ func (c *Client) UpdateVolition(botID, groupID string, req UpdateVolitionRequest
 	return doJSONRequest[*VolitionRecord](c, "PUT", fmt.Sprintf("/api/bot/%s/group/%s/volition", botID, groupID), req)
 }
 
-func (c *Client) GetCronTasks(botID, groupID string) ([]CronTaskRecord, error) {
-	return doJSONRequest[[]CronTaskRecord](c, "GET", fmt.Sprintf("/api/bot/%s/group/%s/cron-tasks", botID, groupID), nil)
+func (c *Client) GetCronTasks(botID, groupID string) (PaginatedResponse[CronTaskRecord], error) {
+	return doJSONRequest[PaginatedResponse[CronTaskRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/cron-tasks", botID, groupID)), nil)
 }
 
 func (c *Client) GetCronTask(botID, groupID, taskID string) (*CronTaskRecord, error) {

@@ -112,8 +112,13 @@ class SummaryService(
         }
     }.trimEnd()
 
-    fun getAllSummariesByGroup(botMark: String, groupId: String): List<SummaryRecord> {
-        return summaryRepository.getSummariesByGroup(botMark, groupId)
+    fun getAllSummariesByGroup(
+        botMark: String,
+        groupId: String,
+        offset: Int = 0,
+        limit: Int = 0
+    ): Pair<List<SummaryRecord>, Int> {
+        return summaryRepository.getSummariesByGroup(botMark, groupId, offset, limit)
     }
 
     fun getSummaryById(id: Int): SummaryRecord? {

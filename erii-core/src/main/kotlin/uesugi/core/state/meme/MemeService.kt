@@ -134,8 +134,8 @@ class MemeService(
      * @param groupId 群组ID
      * @return 表情包记录列表
      */
-    fun getAllMemos(botId: String, groupId: String): List<MemeRecord> {
-        return repository.getAllMemos(botId, groupId)
+    fun getAllMemos(botId: String, groupId: String, offset: Int = 0, limit: Int = 0): Pair<List<MemeRecord>, Int> {
+        return repository.getAllMemos(botId, groupId, offset, limit)
     }
 
     /**

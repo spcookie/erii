@@ -48,6 +48,7 @@ var previewHelpKeys = previewHelpKeyMap{}
 
 type dataLoadedMsg struct {
 	Items []any
+	Total int
 	Error error
 }
 
@@ -97,6 +98,7 @@ type DataTableModel struct {
 
 	pageSize    int
 	currentPage int
+	totalCount  int
 	sortCol     int
 	sortAsc     bool
 }
@@ -174,8 +176,8 @@ func newConfirmForm(title, description string, value *bool, width int) *huh.Form
 
 func (m *DataTableModel) Init() tea.Cmd {
 	return func() tea.Msg {
-		items, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
-		return dataLoadedMsg{Items: items, Error: err}
+		items, total, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
+		return dataLoadedMsg{Items: items, Total: total, Error: err}
 	}
 }
 
@@ -260,6 +262,7 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.items = msg.Items
+		m.totalCount = msg.Total
 		m.applyFilter()
 		return m, nil
 
@@ -270,8 +273,8 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, func() tea.Msg {
-			items, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
-			return dataLoadedMsg{Items: items, Error: err}
+			items, total, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
+			return dataLoadedMsg{Items: items, Total: total, Error: err}
 		}
 
 	case batchDeleteDoneMsg:
@@ -281,16 +284,16 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.selected = make(map[string]bool)
 		return m, func() tea.Msg {
-			items, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
-			return dataLoadedMsg{Items: items, Error: err}
+			items, total, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
+			return dataLoadedMsg{Items: items, Total: total, Error: err}
 		}
 
 	case RefreshMsg:
 		m.loading = true
 		m.err = nil
 		return m, func() tea.Msg {
-			items, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
-			return dataLoadedMsg{Items: items, Error: err}
+			items, total, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
+			return dataLoadedMsg{Items: items, Total: total, Error: err}
 		}
 
 	case tea.KeyMsg:
@@ -357,8 +360,8 @@ func (m *DataTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loading = true
 			m.err = nil
 			return m, func() tea.Msg {
-				items, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
-				return dataLoadedMsg{Items: items, Error: err}
+				items, total, err := loadResourceData(m.resourceType, m.api, m.botID, m.groupID)
+				return dataLoadedMsg{Items: items, Total: total, Error: err}
 			}
 		}
 		if key.Matches(msg, m.keys.New) && m.formatter.canCreate {
@@ -544,6 +547,18 @@ func (m *DataTableModel) updateTableSize() {
 	}
 	m.table.SetHeight(h)
 	m.table.SetWidth(m.width - 2)
+
+	newPageSize := h - 1 // -1 for header row
+	if newPageSize < 5 {
+		newPageSize = 5
+	}
+	if newPageSize != m.pageSize {
+		m.pageSize = newPageSize
+		if m.currentPage >= m.pageCount() {
+			m.currentPage = m.pageCount() - 1
+		}
+		m.updateTableRows()
+	}
 }
 
 func (m *DataTableModel) cursorItemIndex() int {
@@ -825,7 +840,11 @@ func (m *DataTableModel) renderStatusBar() string {
 	var parts []string
 	cursorIdx := m.cursorItemIndex()
 	if cursorIdx >= 0 {
-		parts = append(parts, fmt.Sprintf("%d/%d item", cursorIdx+1, total))
+		itemLabel := fmt.Sprintf("%d/%d", cursorIdx+1, total)
+		if m.totalCount > 0 && total != m.totalCount {
+			itemLabel += fmt.Sprintf(" of %d", m.totalCount)
+		}
+		parts = append(parts, itemLabel+" item")
 	} else {
 		parts = append(parts, "0/0 item")
 	}
@@ -1608,90 +1627,66 @@ func getFormatter(rt ResourceType) tableFormatter {
 
 // ── Data loading ──
 
-func loadResourceData(rt ResourceType, api *api.Client, botID, groupID string) ([]any, error) {
+func toAnySlice[T any](items []T) []any {
+	out := make([]any, len(items))
+	for i, item := range items {
+		out[i] = item
+	}
+	return out
+}
+
+func loadResourceData(rt ResourceType, api *api.Client, botID, groupID string) ([]any, int, error) {
 	switch rt {
 	case ResourceFacts:
-		records, err := api.GetFacts(botID, groupID)
+		resp, err := api.GetFacts(botID, groupID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		items := make([]any, len(records))
-		for i, r := range records {
-			items[i] = r
-		}
-		return items, nil
+		return toAnySlice(resp.Items), resp.Total, nil
 	case ResourceProfiles:
-		records, err := api.GetUserProfiles(botID, groupID)
+		resp, err := api.GetUserProfiles(botID, groupID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		items := make([]any, len(records))
-		for i, r := range records {
-			items[i] = r
-		}
-		return items, nil
+		return toAnySlice(resp.Items), resp.Total, nil
 	case ResourceMemes:
-		records, err := api.GetMemes(botID, groupID)
+		resp, err := api.GetMemes(botID, groupID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		items := make([]any, len(records))
-		for i, r := range records {
-			items[i] = r
-		}
-		return items, nil
+		return toAnySlice(resp.Items), resp.Total, nil
 	case ResourceVocabularies:
-		records, err := api.GetVocabularies(botID, groupID)
+		resp, err := api.GetVocabularies(botID, groupID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		items := make([]any, len(records))
-		for i, r := range records {
-			items[i] = r
-		}
-		return items, nil
+		return toAnySlice(resp.Items), resp.Total, nil
 	case ResourceSummaries:
-		records, err := api.GetSummaries(botID, groupID)
+		resp, err := api.GetSummaries(botID, groupID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		items := make([]any, len(records))
-		for i, r := range records {
-			items[i] = r
-		}
-		return items, nil
+		return toAnySlice(resp.Items), resp.Total, nil
 	case ResourceHistory:
-		records, err := api.GetHistory(botID, groupID)
+		resp, err := api.GetHistory(botID, groupID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		items := make([]any, len(records))
-		for i, r := range records {
-			items[i] = r
-		}
-		return items, nil
+		return toAnySlice(resp.Items), resp.Total, nil
 	case ResourceResource:
-		records, err := api.GetResources(botID, groupID)
+		resp, err := api.GetResources(botID, groupID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		items := make([]any, len(records))
-		for i, r := range records {
-			items[i] = r
-		}
-		return items, nil
+		return toAnySlice(resp.Items), resp.Total, nil
 	case ResourceCronTasks:
-		records, err := api.GetCronTasks(botID, groupID)
+		resp, err := api.GetCronTasks(botID, groupID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		items := make([]any, len(records))
-		for i, r := range records {
-			items[i] = r
-		}
-		return items, nil
+		return toAnySlice(resp.Items), resp.Total, nil
 	}
-	return nil, fmt.Errorf("unknown resource type: %d", rt)
+	return nil, 0, fmt.Errorf("unknown resource type: %d", rt)
 }
 
 func cronTypeLabel(r api.CronTaskRecord) string {

@@ -88,9 +88,18 @@ class CronStore {
         }
     }
 
-    suspend fun getAllTasks(botId: String, groupId: String): List<CronTask> {
+    suspend fun getAllTasks(
+        botId: String,
+        groupId: String,
+        offset: Int = 0,
+        limit: Int = 0
+    ): Pair<List<CronTask>, Int> {
         val ids = getAllTaskIds(botId, groupId)
-        return ids.mapNotNull { id -> getTask(botId, groupId, id) }
+        val sortedIds = ids.sorted()
+        val total = sortedIds.size
+        val pageIds = if (limit > 0) sortedIds.drop(offset).take(limit) else sortedIds
+        val items = pageIds.mapNotNull { id -> getTask(botId, groupId, id) }
+        return items to total
     }
 
     suspend fun getAllBotGroupKeys(): List<BotGroupKey> = withContext(Dispatchers.IO) {

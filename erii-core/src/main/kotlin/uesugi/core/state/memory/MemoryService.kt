@@ -221,17 +221,29 @@ class MemoryService(
 
     fun getAllFactsByGroup(
         botMark: String,
-        groupId: String
-    ): List<FactsEntity> {
+        groupId: String,
+        offset: Int = 0,
+        limit: Int = 0
+    ): Pair<List<FactsEntity>, Int> {
         return transaction {
-            FactsEntity.find {
+            val baseQuery = FactsEntity.find {
                 (FactsTable.botMark eq botMark) and
                         (FactsTable.groupId eq groupId) and
                         (FactsTable.validFrom lessEq CurrentDateTime) and
                         (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-            }.orderBy(FactsTable.createdAt to SortOrder.DESC)
-                .reversed()
-                .toList()
+            }
+            val total = baseQuery.count().toInt()
+            val items = if (limit > 0) {
+                baseQuery.orderBy(FactsTable.createdAt to SortOrder.DESC)
+                    .limit(limit)
+                    .reversed()
+                    .toList()
+            } else {
+                baseQuery.orderBy(FactsTable.createdAt to SortOrder.DESC)
+                    .reversed()
+                    .toList()
+            }
+            items to total
         }
     }
 
@@ -263,15 +275,27 @@ class MemoryService(
 
     fun getAllUserProfilesByGroup(
         botMark: String,
-        groupId: String
-    ): List<UserProfileEntity> {
+        groupId: String,
+        offset: Int = 0,
+        limit: Int = 0
+    ): Pair<List<UserProfileEntity>, Int> {
         return transaction {
-            UserProfileEntity.find {
+            val baseQuery = UserProfileEntity.find {
                 (UserProfileTable.botMark eq botMark) and
                         (UserProfileTable.groupId eq groupId)
-            }.orderBy(UserProfileTable.createdAt to SortOrder.DESC)
-                .reversed()
-                .toList()
+            }
+            val total = baseQuery.count().toInt()
+            val items = if (limit > 0) {
+                baseQuery.orderBy(UserProfileTable.createdAt to SortOrder.DESC)
+                    .limit(limit)
+                    .reversed()
+                    .toList()
+            } else {
+                baseQuery.orderBy(UserProfileTable.createdAt to SortOrder.DESC)
+                    .reversed()
+                    .toList()
+            }
+            items to total
         }
     }
 

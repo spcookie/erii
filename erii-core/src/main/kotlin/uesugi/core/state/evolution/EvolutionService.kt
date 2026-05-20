@@ -185,15 +185,23 @@ class EvolutionService {
      */
     fun getAllVocabulary(
         botMark: String,
-        groupId: String
-    ): List<LearnedVocabEntity> = transaction {
-        val vocabs = LearnedVocabEntity.find {
+        groupId: String,
+        offset: Int = 0,
+        limit: Int = 0
+    ): Pair<List<LearnedVocabEntity>, Int> = transaction {
+        val baseQuery = LearnedVocabEntity.find {
             (LearnedVocabTable.botMark eq botMark) and
                     (LearnedVocabTable.groupId eq groupId)
+        }
+        val total = baseQuery.count().toInt()
+        val items = if (limit > 0) {
+            baseQuery.limit(limit)
+        } else {
+            baseQuery
         }.toList()
 
-        log.debug("获取所有词汇, groupId=$groupId, 数量=${vocabs.size}")
-        vocabs
+        log.debug("获取所有词汇, groupId=$groupId, 数量=${items.size}")
+        items to total
     }
 
     /**

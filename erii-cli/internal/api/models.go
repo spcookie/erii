@@ -1,5 +1,14 @@
 package api
 
+// ── Paginated Response ──
+
+type PaginatedResponse[T any] struct {
+	Items  []T `json:"items"`
+	Total  int `json:"total"`
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
+}
+
 // ── Bot / Group (shared) ──
 
 type BotInfo struct {
