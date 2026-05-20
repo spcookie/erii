@@ -816,8 +816,9 @@ type FieldItem struct {
 
 func (i FieldItem) Title() string { return i.key }
 func (i FieldItem) Description() string {
-	if len(i.value) > 60 {
-		return i.value[:60] + "..."
+	runes := []rune(i.value)
+	if len(runes) > 60 {
+		return string(runes[:60]) + "..."
 	}
 	return i.value
 }

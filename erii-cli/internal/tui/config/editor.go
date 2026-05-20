@@ -343,12 +343,12 @@ func (m *LeafEditorModel) buildForm() {
 	}
 }
 
-func (m *LeafEditorModel) loadEnvValues() map[string]string {
+func (m *LeafEditorModel) loadEnvValues() []envItem {
 	data, err := os.ReadFile(path.EnvFile)
 	if err != nil {
 		return nil
 	}
-	result := make(map[string]string)
+	var result []envItem
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -362,7 +362,7 @@ func (m *LeafEditorModel) loadEnvValues() map[string]string {
 		space := strings.TrimSpace(line[:idx])
 		val := strings.TrimSpace(line[idx+1:])
 		if space != "" {
-			result[space] = val
+			result = append(result, envItem{key: space, value: val})
 		}
 	}
 	return result
@@ -372,10 +372,10 @@ func (m *LeafEditorModel) initEnvList() {
 	if m.envList.Items() != nil {
 		return
 	}
-	envMap := m.loadEnvValues()
-	items := make([]list.Item, 0, len(envMap))
-	for k, v := range envMap {
-		items = append(items, envItem{key: k, value: v})
+	envItems := m.loadEnvValues()
+	items := make([]list.Item, 0, len(envItems))
+	for _, it := range envItems {
+		items = append(items, it)
 	}
 
 	delegate := list.NewDefaultDelegate()

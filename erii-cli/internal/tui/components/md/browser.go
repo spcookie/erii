@@ -371,7 +371,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			isSouls := strings.Contains(strings.ToLower(m.dir), "souls")
 			var defaultFM string
 			if isSouls {
-				defaultFM = "---\ncharacter: |\n  \nemoticon: RESENTMENT\nid: ciallo\nname: Ciallo\n---\n\n"
+				defaultFM = "---\ncharacter: |\n  \nemoticon: RESENTMENT\nid: xxx\nname: xxx\n---\n\n"
 			} else {
 				defaultFM = "---\nglobal: false\ngroupId: \"\"\nbotId: \"\"\n---\n\n"
 			}
@@ -537,8 +537,9 @@ func extractMdDescription(path string) string {
 		if line == "" {
 			continue
 		}
-		if len(line) > 80 {
-			line = line[:80] + "..."
+		runes := []rune(line)
+		if len(runes) > 80 {
+			line = string(runes[:80]) + "..."
 		}
 		return line
 	}
