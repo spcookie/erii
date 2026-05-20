@@ -114,3 +114,26 @@ func (l *LeafNode) IsNull() bool                  { return l.isNull }
 func (l *LeafNode) SetNull(b bool)                { l.isNull = b }
 func (l *LeafNode) ValueConfig() *ValueConfig     { return l.valueConfig }
 func (l *LeafNode) SetValueConfig(c *ValueConfig) { l.valueConfig = c }
+
+// fixValueForType converts the leaf value to match its valueType after a type override.
+// This fixes the mismatch when e.g. a null value (initially TypeString with "")
+// is overridden to TypeArray by value.json metadata.
+// Null values are intentionally left untouched — null ≠ empty array.
+func (l *LeafNode) fixValueForType() {
+	if l.isNull {
+		return
+	}
+	switch l.valueType {
+	case TypeArray:
+		switch l.value.(type) {
+		case []string, []any:
+			return // already correct
+		}
+		l.value = []string{}
+	case TypeObject:
+		if _, ok := l.value.(map[string]any); ok {
+			return
+		}
+		l.value = map[string]any{}
+	}
+}

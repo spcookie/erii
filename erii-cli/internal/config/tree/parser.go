@@ -478,8 +478,10 @@ func ApplyMetadataWithPlugin(node ConfigNode, path string, pluginName string) {
 							leaf.valueType = TypeBool
 						case "array":
 							leaf.valueType = TypeArray
+							leaf.fixValueForType()
 						case "object":
 							leaf.valueType = TypeObject
+							leaf.fixValueForType()
 						}
 					}
 				}

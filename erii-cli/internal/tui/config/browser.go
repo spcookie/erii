@@ -588,10 +588,19 @@ func cloneStructure(node tree.ConfigNode) tree.ConfigNode {
 			emptyVal = false
 		case tree.TypeArray:
 			emptyVal = []string{}
+		case tree.TypeObject:
+			emptyVal = map[string]any{}
 		default:
 			panic("unhandled default case")
 		}
-		newLeaf := tree.NewLeaf(leaf.Title(), leaf.Description(), leaf.ValueType(), emptyVal)
+		// Copy original value if not null, otherwise use empty default
+		val := emptyVal
+		if !leaf.IsNull() && leaf.Value() != nil {
+			val = leaf.Value()
+		}
+		newLeaf := tree.NewLeaf(leaf.Title(), leaf.Description(), leaf.ValueType(), val)
+		newLeaf.SetNull(leaf.IsNull())
+		newLeaf.SetValueConfig(leaf.ValueConfig())
 		if leaf.ValueType() == tree.TypeEnum {
 			newLeaf.SetOptions(leaf.Options())
 		}

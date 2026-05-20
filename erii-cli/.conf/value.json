@@ -186,11 +186,11 @@
   },
   "onebot.bots.*.groups-override.enable-groups": {
     "type": "array",
-    "default": []
+    "nullable": true
   },
   "onebot.bots.*.groups-override.message-redirect-map": {
-    "type": "array",
-    "default": []
+    "type": "object",
+    "default": {}
   },
   "onebot.bots.*.groups.*.admins": {
     "type": "array",

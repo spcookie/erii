@@ -578,28 +578,38 @@ func (m *LeafEditorModel) saveValue() {
 		m.leaf.SetValue(m.formValue)
 
 	case tree.TypeArray:
-		// If value is empty and has a default, use the default
-		if m.formValue == "" && m.shouldApplyDefault() {
-			if arr, ok := m.leaf.ValueConfig().Default.([]any); ok {
+		if m.isNullMark && m.formValue != "" {
+			m.isNullMark = false
+		}
+		if !m.isNullMark {
+			// If value is empty and has a default, use the default
+			if m.formValue == "" && m.shouldApplyDefault() {
+				if arr, ok := m.leaf.ValueConfig().Default.([]any); ok {
+					var items []string
+					for _, a := range arr {
+						items = append(items, fmt.Sprintf("%v", a))
+					}
+					m.leaf.SetValue(items)
+				} else {
+					m.leaf.SetValue([]string{})
+				}
+				m.leaf.SetNull(false)
+			} else {
+				lines := strings.Split(m.formValue, "\n")
 				var items []string
-				for _, a := range arr {
-					items = append(items, fmt.Sprintf("%v", a))
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if line != "" {
+						items = append(items, line)
+					}
 				}
 				m.leaf.SetValue(items)
-			} else {
-				m.leaf.SetValue([]string{})
+				m.leaf.SetNull(false)
 			}
-			break
+		} else {
+			m.leaf.SetValue(nil)
+			m.leaf.SetNull(true)
 		}
-		lines := strings.Split(m.formValue, "\n")
-		var items []string
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line != "" {
-				items = append(items, line)
-			}
-		}
-		m.leaf.SetValue(items)
 	}
 }
 
