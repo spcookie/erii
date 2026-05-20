@@ -6,6 +6,7 @@ import ai.koog.agents.core.agent.GraphAIAgentService
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
+import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.serialization.kotlinx.toKotlinxJsonElement
@@ -16,11 +17,14 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonNull
+import uesugi.common.ChatToolSet
 import uesugi.common.EventBus
 import uesugi.common.LLMProviderChoice
 import uesugi.common.event.*
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
+import kotlin.reflect.full.functions
+import kotlin.reflect.full.hasAnnotation
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
@@ -47,6 +51,12 @@ object BotAgent {
     private val states = mutableMapOf<BotGroupKey, BotGroupState>()
     private val channelsLock = Mutex()
     private val statesLock = Mutex()
+
+    private val chatToolNames by lazy {
+        ChatToolSet::class.functions
+            .filter { it.hasAnnotation<Tool>() }
+            .map { it.name }
+    }
 
     private suspend fun getChannel(botId: String, groupId: String): Channel<ProactiveSpeakEvent?> {
         val key = BotGroupKey(botId, groupId)
@@ -140,7 +150,7 @@ object BotAgent {
                             states[key] = BotGroupState(event.feature, null)
                         }
 
-                        var noCallTool = false
+                        var noCallTool = true
 
                         val strategy = strategy("chat") {
                             val nodeSendInput by nodeLLMRequest()
@@ -148,11 +158,13 @@ object BotAgent {
                             val nodeSendToolResult by nodeLLMSendToolResult()
 
                             edge(nodeStart forwardTo nodeSendInput)
-                            edge(nodeSendInput forwardTo nodeFinish onAssistantMessage {
-                                noCallTool = true
+                            edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
+                            edge(nodeSendInput forwardTo nodeExecuteTool onToolCall {
+                                if (it.tool in chatToolNames) {
+                                    noCallTool = false
+                                }
                                 true
                             })
-                            edge(nodeSendInput forwardTo nodeExecuteTool onToolCall { true })
                             edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
                                 val result = it.result ?: return@onCondition false
                                 result.toKotlinxJsonElement() !is JsonNull
@@ -194,7 +206,6 @@ object BotAgent {
                                     "(⊙_⊙;)",
                                     "(>_<)",
                                     "(￣□￣;)",
-                                    "(╯°□°）╯︵ ┻━┻",
                                     "(⊙＿⊙')",
                                     "(；・∀・)",
                                     "(._.)"
