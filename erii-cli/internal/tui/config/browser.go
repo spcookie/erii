@@ -600,6 +600,7 @@ func cloneStructure(node tree.ConfigNode) tree.ConfigNode {
 		}
 		newLeaf := tree.NewLeaf(leaf.Title(), leaf.Description(), leaf.ValueType(), val)
 		newLeaf.SetNull(leaf.IsNull())
+		newLeaf.SetEnvRef(leaf.IsEnvRef())
 		newLeaf.SetValueConfig(leaf.ValueConfig())
 		if leaf.ValueType() == tree.TypeEnum {
 			newLeaf.SetOptions(leaf.Options())
