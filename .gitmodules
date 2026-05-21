@@ -4,3 +4,6 @@
 [submodule "erii-distribution"]
 	path = erii-distribution
 	url = https://github.com/spcookie/erii-distribution.git
+[submodule "erii-onebot11"]
+	path = erii-onebot11
+	url = https://github.com/spcookie/erii-onebot11.git
