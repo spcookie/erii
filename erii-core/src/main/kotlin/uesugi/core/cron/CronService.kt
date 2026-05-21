@@ -8,6 +8,7 @@ import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.EventBus
 import uesugi.common.event.PSFeature
+import uesugi.common.message.CommandUtil
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.core.route.RoutingAgent
@@ -25,10 +26,6 @@ class CronService(private val jobScheduler: JobScheduler) {
     companion object {
         private const val SCAN_JOB_ID = "core.cron-scan"
         private const val SCAN_INTERVAL_SECONDS = 30
-        private val COMMAND_REGEX = Regex("^\\s*/(\\S+)(?:\\s+.*)?$")
-
-        fun parseCommand(text: String): String? =
-            COMMAND_REGEX.matchEntire(text)?.destructured?.component1()
     }
 
     fun start() {
@@ -110,7 +107,7 @@ class CronService(private val jobScheduler: JobScheduler) {
             }
 
             TriggerType.COMMAND -> {
-                val commandName = parseCommand(task.content)
+                val commandName = CommandUtil.parseCommand(task.content)
                 if (commandName != null) {
                     val cmd = CmdRuleRegister.getRuleForBot(commandName, task.botId)
                     if (cmd != null) {
