@@ -1,4 +1,4 @@
-package uesugi.core.plugin.builtin.status
+package uesugi.plugin.builtin.status
 
 import io.ktor.server.config.*
 import net.mamoe.mirai.contact.Contact.Companion.sendImage
@@ -6,8 +6,8 @@ import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
 import uesugi.common.toolkit.BrowserScraper
 import uesugi.common.toolkit.BrowserScraperHolder
-import uesugi.core.plugin.builtin.Builtin
-import uesugi.core.plugin.builtin.BuiltinExtension
+import uesugi.plugin.builtin.Builtin
+import uesugi.plugin.builtin.BuiltinExtension
 import uesugi.server.SystemConfigHolder
 import uesugi.spi.AgentExtension
 import uesugi.spi.ArgParserHolder

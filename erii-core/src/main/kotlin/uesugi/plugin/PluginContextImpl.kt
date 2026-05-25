@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import ai.koog.prompt.executor.model.PromptExecutor
 import io.ktor.client.*

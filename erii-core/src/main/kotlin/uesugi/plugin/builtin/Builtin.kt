@@ -1,4 +1,4 @@
-package uesugi.core.plugin.builtin
+package uesugi.plugin.builtin
 
 import uesugi.spi.AgentExtension
 import uesugi.spi.AgentPlugin

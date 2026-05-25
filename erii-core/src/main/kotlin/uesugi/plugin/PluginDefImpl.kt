@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import uesugi.spi.PluginDef
 import uesugi.spi.RouteKey

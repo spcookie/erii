@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import okio.Path.Companion.toPath
 import uesugi.common.extend.EmbeddingInput

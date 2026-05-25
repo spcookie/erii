@@ -15,12 +15,12 @@ import uesugi.common.event.PSFeature.IGNORE_INTERRUPT
 import uesugi.common.event.ProactiveSpeakEvent
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
-import uesugi.core.plugin.MetaImpl
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.state.emotion.EmotionChangeEvent
 import uesugi.core.state.flow.FlowChangeEvent
 import uesugi.spi.MetaToolSet.Companion.meta
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.map
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -279,7 +279,7 @@ fun speakV(
     val metaToolSets = MetaToolSetRegister.getToolSetsForBot(botId)
         .map { toolSetApply ->
             toolSetApply().apply {
-                meta = MetaImpl(
+                meta = _root_ide_package_.uesugi.plugin.MetaImpl(
                     botId = botId,
                     groupId = groupId,
                     senderId = senderId,

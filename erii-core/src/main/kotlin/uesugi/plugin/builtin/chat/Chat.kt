@@ -1,9 +1,9 @@
-package uesugi.core.plugin.builtin.chat
+package uesugi.plugin.builtin.chat
 
 import org.pf4j.Extension
-import uesugi.core.plugin.builtin.Builtin
-import uesugi.core.plugin.builtin.BuiltinExtension
 import uesugi.core.state.volition.speakV
+import uesugi.plugin.builtin.Builtin
+import uesugi.plugin.builtin.BuiltinExtension
 import uesugi.spi.AgentExtension
 import uesugi.spi.PluginContext
 import uesugi.spi.RouteExtension

@@ -17,9 +17,9 @@ import uesugi.common.event.InterruptionMode
 import uesugi.common.event.ProactiveSpeakEvent
 import uesugi.common.toolkit.ref
 import uesugi.core.message.history.HistorySavedEvent
-import uesugi.core.plugin.MetaImpl
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.spi.MetaToolSet.Companion.meta
+import kotlin.collections.map
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -102,7 +102,7 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
         val metaToolSets = MetaToolSetRegister.getToolSetsForBot(botId)
             .map { toolSetApply ->
                 toolSetApply().apply {
-                    meta = MetaImpl(
+                    meta = _root_ide_package_.uesugi.plugin.MetaImpl(
                         botId = botId,
                         groupId = groupId,
                         senderId = senderId,

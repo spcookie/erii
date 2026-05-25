@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import io.ktor.serialization.jackson.*
 import io.ktor.server.application.*

@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.spi.Scheduler

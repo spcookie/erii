@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
@@ -7,9 +7,9 @@ import org.koin.dsl.onClose
 import org.pf4j.*
 import uesugi.LOG
 import uesugi.config.HttpClientFactory
-import uesugi.core.plugin.builtin.BuiltinExtension
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteRuleRegister
+import uesugi.plugin.builtin.BuiltinExtension
 import uesugi.spi.*
 
 

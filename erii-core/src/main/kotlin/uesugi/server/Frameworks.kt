@@ -13,7 +13,7 @@ import uesugi.config.appModule
 import uesugi.config.configBaseModule
 import uesugi.config.migrationIf
 import uesugi.config.warmUp
-import uesugi.core.plugin.pluginModule
+import uesugi.plugin.pluginModule
 
 fun Application.configureFrameworks() {
     install(Koin) {

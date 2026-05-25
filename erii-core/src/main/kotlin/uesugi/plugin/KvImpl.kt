@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

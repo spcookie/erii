@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import java.util.concurrent.ConcurrentHashMap
 

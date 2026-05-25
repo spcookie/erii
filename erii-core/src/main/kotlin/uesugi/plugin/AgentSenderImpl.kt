@@ -1,4 +1,4 @@
-package uesugi.core.plugin
+package uesugi.plugin
 
 import ai.koog.serialization.JSONElement
 import com.google.auto.service.AutoService
