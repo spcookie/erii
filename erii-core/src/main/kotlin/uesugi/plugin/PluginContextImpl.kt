@@ -9,6 +9,7 @@ import uesugi.common.toolkit.logger
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.spi.*
+import uesugi.spi.asContextElement
 
 class PluginContextImpl(
     override val defined: PluginDef,
@@ -64,7 +65,9 @@ class PluginContextImpl(
                             echo = event.echo
                         )
                         for (handler in handlers) {
-                            handler(meta)
+                            withContext(meta.asContextElement()) {
+                                handler(meta)
+                            }
                         }
                         break
                     }
