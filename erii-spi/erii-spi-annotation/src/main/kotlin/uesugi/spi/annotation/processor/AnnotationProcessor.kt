@@ -132,7 +132,41 @@ class AnnotationProcessor : AbstractProcessor() {
     }
 
     private fun generateToolSets(toolFunctions: List<ExecutableElement>, pluginClass: TypeElement) {
-        // 后续 Task 实现
+        val packageName = processingEnv.elementUtils.getPackageOf(pluginClass).toString()
+        val grouped = toolFunctions.groupBy {
+            it.getAnnotation(Tool::class.java)?.set ?: "default"
+        }
+
+        for ((setName, functions) in grouped) {
+            val className = "GeneratedToolSet_${setName.replace("-", "_")}"
+            val fileContent = buildString {
+                appendLine("package $packageName")
+                appendLine()
+                appendLine("import uesugi.spi.MetaToolSet")
+                appendLine("import ai.koog.agents.core.tools.reflect.Tool as KoogTool")
+                appendLine("import ai.koog.agents.core.tools.reflect.LLMDescription as KoogLLMDescription")
+                appendLine()
+                appendLine("class $className : MetaToolSet {")
+
+                for (func in functions) {
+                    val toolAnno = func.getAnnotation(Tool::class.java)!!
+                    val descAnno = func.getAnnotation(LLMDescription::class.java)
+                    val funcName = func.simpleName.toString()
+                    val enclosingClass = func.enclosingElement as TypeElement
+                    val ktFileName = enclosingClass.simpleName.toString()
+                    val toolName = toolAnno.name.ifEmpty { funcName }
+
+                    descAnno?.let { appendLine("    @KoogLLMDescription(\"${it.description.replace("\"", "\\")}\")") }
+                    appendLine("    @KoogTool(name = \"$toolName\")")
+                    appendLine("    suspend fun $funcName(): String? = $ktFileName.$funcName()")
+                    appendLine()
+                }
+
+                appendLine("}")
+            }
+
+            writeSourceFile("$packageName.$className", fileContent)
+        }
     }
 
     private fun generateRouteExtensions(routeFunctions: List<ExecutableElement>, pluginClass: TypeElement) {
