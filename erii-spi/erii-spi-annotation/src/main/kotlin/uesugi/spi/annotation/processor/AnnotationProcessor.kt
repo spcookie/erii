@@ -27,7 +27,7 @@ class AnnotationProcessor : AbstractProcessor() {
 
         // 1. 收集 @file:Definition
         val pluginDefElements = roundEnv.getElementsAnnotatedWith(Definition::class.java)
-            .filterIsInstance<PackageElement>()
+            .filter { it is PackageElement || (it is TypeElement && it.simpleName.toString().endsWith("Kt")) }
 
         if (pluginDefElements.size > 1) {
             processingEnv.messager.printMessage(
@@ -53,8 +53,7 @@ class AnnotationProcessor : AbstractProcessor() {
         val pluginClass = pluginClasses.firstOrNull()
 
         // 3. 收集顶层函数（在 *Kt 类中）
-        val allKtClasses = processingEnv.elementUtils.getAllPackageElements("")
-            .flatMap { it.enclosedElements }
+        val allKtClasses = roundEnv.rootElements
             .filterIsInstance<TypeElement>()
             .filter { it.simpleName.toString().endsWith("Kt") }
 
