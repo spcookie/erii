@@ -8,6 +8,8 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.core.terminal
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.mordant.rendering.AnsiLevel
 import com.github.ajalt.mordant.terminal.PrintRequest
 import com.github.ajalt.mordant.terminal.Terminal
@@ -108,6 +110,33 @@ interface CmdExtension<Context, Arg : ArgParserHolder<Context>, Plugin : AgentPl
         return holder as Arg
     }
 }
+
+class SlashHolder : ArgParserHolder<Unit>() {
+    val args: List<String> by argument().multiple()
+    override fun run() {
+    }
+}
+
+interface SlashCmdExtension<T : AgentPlugin> : CmdExtension<Unit, SlashHolder, T> {
+    override fun Meta.parser(context: Unit): SlashHolder {
+        val holder = SlashHolder()
+        holder.init(this@parser, context)
+        val withoutSlash = input!!.removePrefix("/")
+        val matched = (listOf(cmd) + alias).firstOrNull { withoutSlash.startsWith(it) } ?: cmd
+        val args = buildList {
+            add("--")
+            addAll(
+                withoutSlash.removePrefix(matched)
+                    .split(" ")
+                    .filter { it.isNotBlank() }
+                    .map { it.trim() }
+            )
+        }
+        holder.main(args)
+        return holder
+    }
+}
+
 
 object LoggerTerminalInterface : TerminalInterface {
 
