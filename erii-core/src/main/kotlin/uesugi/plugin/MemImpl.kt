@@ -2,9 +2,9 @@ package uesugi.plugin
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
-import net.mamoe.mirai.utils.ConcurrentHashMap
 import uesugi.spi.ExpireStrategy
 import uesugi.spi.Mem
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 

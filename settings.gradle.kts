@@ -2,6 +2,7 @@ rootProject.name = "erii"
 
 dependencyResolutionManagement {
     repositories {
+        mavenLocal()
         mavenCentral()
     }
 }

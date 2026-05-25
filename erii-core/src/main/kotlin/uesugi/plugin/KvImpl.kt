@@ -2,13 +2,13 @@ package uesugi.plugin
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import net.mamoe.mirai.utils.ConcurrentHashMap
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import uesugi.core.component.storage.MapDB
 import uesugi.spi.ExpireStrategy
 import uesugi.spi.Kv
 import uesugi.spi.PluginDef
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 
 internal class KvImpl(val defined: PluginDef) : Kv {

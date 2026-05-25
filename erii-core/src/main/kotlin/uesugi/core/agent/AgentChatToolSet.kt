@@ -5,18 +5,15 @@ import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import net.mamoe.mirai.Bot
-import net.mamoe.mirai.contact.Contact.Companion.sendImage
-import net.mamoe.mirai.message.data.At
-import net.mamoe.mirai.message.data.AtAll
-import net.mamoe.mirai.message.data.PlainText
-import net.mamoe.mirai.message.data.buildMessageChain
-import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import uesugi.common.ChatToolSet
+import uesugi.onebot.sdk.client.OneBotClient
+import uesugi.onebot.sdk.client.api.sendGroupMsg
+import uesugi.onebot.sdk.message.buildMessage
 import java.net.URL
+import java.util.*
 
 class AgentChatToolSet(
-    val bot: Bot,
+    val client: OneBotClient,
     val groupId: Long,
     val context: Context
 ) : ChatToolSet {
@@ -28,36 +25,29 @@ class AgentChatToolSet(
     override suspend fun sendText(texts: List<String>): String {
         try {
             for (text in texts) {
-                val group = bot.getGroupOrFail(groupId)
-                val memberIds = group.members.map { it.id }.toSet()
-
                 val matches = NUMBER_PATTERN.findAll(text).toList()
 
                 if (matches.isEmpty()) {
-                    group.sendMessage(text)
+                    client.sendGroupMsg(groupId, buildMessage { text(text) })
                 } else {
-                    val messageChain = buildMessageChain {
+                    val msg = buildMessage {
                         var lastEnd = 0
                         for (match in matches) {
                             val precededByAt = match.range.first > 0 && text[match.range.first - 1] == '@'
                             val start = if (precededByAt) match.range.first - 1 else match.range.first
 
                             if (start > lastEnd) {
-                                +PlainText(text.substring(lastEnd, start))
+                                text(text.substring(lastEnd, start))
                             }
                             val userId = match.groupValues[1].toLong()
-                            if (userId in memberIds) {
-                                +At(userId)
-                            } else {
-                                +PlainText(userId.toString())
-                            }
+                            at(userId)
                             lastEnd = match.range.last + 1
                         }
                         if (lastEnd < text.length) {
-                            +PlainText(text.substring(lastEnd))
+                            text(text.substring(lastEnd))
                         }
                     }
-                    group.sendMessage(messageChain)
+                    client.sendGroupMsg(groupId, msg)
                 }
             }
         } catch (e: Exception) {
@@ -71,10 +61,10 @@ class AgentChatToolSet(
         try {
             val memo = context.meme(tag)
             if (memo != null) {
-                memo.bytes.inputStream()
-                    .use { image ->
-                        bot.getGroupOrFail(groupId).sendImage(image)
-                    }
+                val base64 = Base64.getEncoder().encodeToString(memo.bytes)
+                client.sendGroupMsg(groupId, buildMessage {
+                    image("base64://$base64")
+                })
             } else {
                 sendText(listOf(alt))
             }
@@ -92,16 +82,9 @@ class AgentChatToolSet(
         }
 
         try {
-            val resource = withContext(Dispatchers.IO) {
-                val conn = URL(url).openConnection()
-                conn.connectTimeout = 10000
-                conn.readTimeout = 30000
-
-                conn.getInputStream()
-            }.use {
-                it.toExternalResource()
-            }
-            bot.getGroupOrFail(groupId).sendImage(resource)
+            client.sendGroupMsg(groupId, buildMessage {
+                image(file = url)
+            })
         } catch (e: Exception) {
             return "发送图片失败，原因：" + e.message
         }
@@ -128,15 +111,13 @@ class AgentChatToolSet(
         text: String?
     ): String {
         try {
-            val chain = buildMessageChain {
+            val msg = buildMessage {
                 for (userId in userIds) {
-                    +At(userId)
-                    if (text != null) {
-                        +PlainText(text)
-                    }
+                    at(userId)
                 }
+                text?.let { text(it) }
             }
-            bot.getGroupOrFail(groupId).sendMessage(chain)
+            client.sendGroupMsg(groupId, msg)
         } catch (e: Exception) {
             return "发送消息失败，原因：" + e.message
         }
@@ -146,7 +127,7 @@ class AgentChatToolSet(
 
     override suspend fun sendAtAll(): String {
         try {
-            bot.getGroupOrFail(groupId).sendMessage(AtAll)
+            client.sendGroupMsg(groupId, buildMessage { atAll() })
         } catch (e: Exception) {
             return "发送 At 全体成员消息失败， 原因：" + e.message
         }

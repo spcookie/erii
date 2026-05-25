@@ -62,10 +62,10 @@ fun buildToolRegistry(): ToolRegistry =
 fun buildChatToolSet(event: ProactiveSpeakEvent, context: Context): ChatToolSet {
     val currentBot = BotManage.getBot(event.botId)
     val groupId = event.groupId
-    val bot = currentBot.refBot
+    val client = currentBot.refBot
 
     return AgentChatToolSet(
-        bot = bot,
+        client = client,
         groupId = groupId.toLong(),
         context = context
     )

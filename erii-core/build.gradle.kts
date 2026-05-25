@@ -16,9 +16,9 @@ application {
 dependencies {
     kapt(libs.autoservice.processor)
     implementation(project(":erii-common"))
-    implementation(project(":erii-spi"))
+    implementation(project(":erii-spi:erii-spi-core"))
     // 聊天机器人
-    implementation(libs.mirai.overflow)
+    implementation("uesugi:onebot-sdk:1.0.0")
     // 定时任务
     implementation(libs.jobrunr)
     // AI框架

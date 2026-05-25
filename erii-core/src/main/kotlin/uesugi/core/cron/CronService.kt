@@ -2,8 +2,6 @@ package uesugi.core.cron
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
-import net.mamoe.mirai.message.data.At
-import net.mamoe.mirai.message.data.buildMessageChain
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.EventBus
@@ -12,6 +10,8 @@ import uesugi.common.message.CommandUtil
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.core.route.RoutingAgent
+import uesugi.onebot.sdk.client.api.sendGroupMsg
+import uesugi.onebot.sdk.message.buildMessage
 import uesugi.spi.Feature
 import uesugi.spi.sendAgent
 import kotlin.time.Duration.Companion.seconds
@@ -154,14 +154,13 @@ class CronService(private val jobScheduler: JobScheduler) {
             Feature(PSFeature.CHAT_URGENT or PSFeature.GRAB or PSFeature.FALLBACK)
         ) {
             callFallback {
-                val messages = buildMessageChain {
-                    task.targetUserId?.let { +At(it.toLong()) }
-                    +task.content
+                val msg = buildMessage {
+                    task.targetUserId?.let { at(it.toLong()) }
+                    text(task.content)
                 }
                 BotManage.getBot(task.botId)
                     .refBot
-                    .getGroupOrFail(task.groupId.toLong())
-                    .sendMessage(messages)
+                    .sendGroupMsg(task.groupId.toLong(), msg)
             }
             CoroutineScope(Job())
         }

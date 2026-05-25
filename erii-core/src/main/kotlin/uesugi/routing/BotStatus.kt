@@ -10,7 +10,6 @@ import uesugi.common.BotManage
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.PAD
 import uesugi.common.toolkit.ConfigHolder
-import uesugi.core.plugin.ExtensionRegister
 import uesugi.core.state.emotion.BehaviorProfile
 import uesugi.core.state.emotion.EmotionService
 import uesugi.core.state.evolution.EvolutionService
@@ -20,6 +19,8 @@ import uesugi.core.state.meme.MemeService
 import uesugi.core.state.memory.MemoryService
 import uesugi.core.state.memory.Scopes
 import uesugi.core.state.volition.VolitionGaugeManager
+import uesugi.onebot.sdk.client.api.getGroupList
+import uesugi.plugin.ExtensionRegister
 import uesugi.spi.CmdExtension
 import uesugi.spi.PassiveExtension
 import uesugi.spi.RouteExtension
@@ -185,15 +186,16 @@ fun Routing.configureBotStatus() {
             } else {
                 val roledBot = BotManage.getBot(id)
                 val refBot = roledBot.refBot
-                val groups = refBot.groups.map { it.id.toString() }
+                val groupList = refBot.getGroupList()
+                val groups = groupList.map { it.groupId.toString() }
                     .filter { ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(id)).contains(it) }.toList()
 
                 val pluginStats = buildPluginStats()
                 val emoticon = roledBot.role.emoticon
-                val botStatusByGroups = groups.map { groupId ->
+                val botStatusByGroups = groups.map { gId ->
                     buildGroupStatus(
                         botId = id,
-                        groupId = groupId,
+                        groupId = gId,
                         emoticon = emoticon,
                         emotionService = emotionService,
                         flowGaugeManager = flowGaugeManager,
@@ -213,7 +215,7 @@ fun Routing.configureBotStatus() {
         get("/api/bots") {
             val bots = BotManage.getAllBots().map { roledBot ->
                 BotInfo(
-                    botId = roledBot.refBot.id.toString(),
+                    botId = roledBot.selfId,
                     botName = roledBot.role.name
                 )
             }
@@ -229,9 +231,10 @@ fun Routing.configureBotStatus() {
                 val roledBot = BotManage.getBot(botId)
                 val refBot = roledBot.refBot
                 val enabledGroups = ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(botId))
-                val groups = refBot.groups
-                    .filter { enabledGroups.contains(it.id.toString()) }
-                    .map { GroupInfo(groupId = it.id.toString(), groupName = it.name) }
+                val groupList = refBot.getGroupList()
+                val groups = groupList
+                    .filter { enabledGroups.contains(it.groupId.toString()) }
+                    .map { GroupInfo(groupId = it.groupId.toString(), groupName = it.groupName) }
                 call.respond(groups)
             }
         }
@@ -248,6 +251,7 @@ fun Routing.configureBotStatus() {
 
             val roledBot = BotManage.getBot(botId)
             val refBot = roledBot.refBot
+            val groupList = refBot.getGroupList()
             val enabledGroups = ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(botId))
 
             if (!enabledGroups.contains(groupId)) {
@@ -255,7 +259,7 @@ fun Routing.configureBotStatus() {
                 return@get
             }
 
-            val groupName = refBot.groups.find { it.id.toString() == groupId }?.name ?: groupId
+            val groupName = groupList.find { it.groupId.toString() == groupId }?.groupName ?: groupId
             val pluginStats = buildPluginStats(botId)
             val groupStatus = buildGroupStatus(
                 botId = botId,
@@ -305,7 +309,8 @@ fun Routing.configureBotStatus() {
 
             val roledBot = BotManage.getBot(botId)
             val refBot = roledBot.refBot
-            val groups = refBot.groups.map { it.id.toString() }
+            val groupList = refBot.getGroupList()
+            val groups = groupList.map { it.groupId.toString() }
                 .filter { ConfigHolder.getEffectiveEnableGroups(BotManage.getConfigKey(botId)).contains(it) }.toList()
 
             if (!groups.contains(groupId)) {
@@ -313,7 +318,7 @@ fun Routing.configureBotStatus() {
                 return@get
             }
 
-            val groupName = refBot.groups.find { it.id.toString() == groupId }?.name ?: groupId
+            val groupName = groupList.find { it.groupId.toString() == groupId }?.groupName ?: groupId
 
             val pluginStats = buildPluginStats(botId)
             val groupStatus = buildGroupStatus(

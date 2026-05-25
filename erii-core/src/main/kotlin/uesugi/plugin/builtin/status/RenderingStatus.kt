@@ -1,11 +1,11 @@
 package uesugi.plugin.builtin.status
 
 import io.ktor.server.config.*
-import net.mamoe.mirai.contact.Contact.Companion.sendImage
-import net.mamoe.mirai.utils.ExternalResource.Companion.toExternalResource
 import org.pf4j.Extension
 import uesugi.common.toolkit.BrowserScraper
 import uesugi.common.toolkit.BrowserScraperHolder
+import uesugi.onebot.sdk.client.api.sendGroupMsg
+import uesugi.onebot.sdk.message.buildMessage
 import uesugi.plugin.builtin.Builtin
 import uesugi.plugin.builtin.BuiltinExtension
 import uesugi.server.SystemConfigHolder
@@ -13,6 +13,7 @@ import uesugi.spi.AgentExtension
 import uesugi.spi.ArgParserHolder
 import uesugi.spi.CmdExtension
 import uesugi.spi.PluginContext
+import java.util.*
 
 @Extension(points = [AgentExtension::class])
 class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, BuiltinExtension {
@@ -43,13 +44,11 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
                 username = username,
                 password = password
             )
-            val image = bytes.inputStream().use {
-                it.toExternalResource()
-            }
-            val group = meta.roledBot.refBot.getGroupOrFail(meta.groupId.toLong())
-            image.use {
-                group.sendImage(it)
-            }
+            val base64 = Base64.getEncoder().encodeToString(bytes)
+            meta.roledBot.refBot.sendGroupMsg(
+                meta.groupId.toLong(),
+                buildMessage { image("base64://$base64") }
+            )
         }
     }
 

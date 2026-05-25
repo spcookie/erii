@@ -1,19 +1,20 @@
 package uesugi.common
 
-import net.mamoe.mirai.Bot
 import uesugi.common.IBotManage.RoledBot
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.toolkit.logger
+import uesugi.onebot.sdk.client.OneBotClient
 import java.util.concurrent.ConcurrentHashMap
 
 interface IBotManage {
 
     data class RoledBot(
-        val refBot: Bot,
+        val refBot: OneBotClient,
+        val selfId: String,
         val role: BotRole,
     )
 
-    fun registerBot(configKey: String, bot: Bot, role: BotRole)
+    fun registerBot(configKey: String, client: OneBotClient, selfId: String, role: BotRole)
     fun getBot(botId: String): RoledBot
     fun getBotByConfigKey(configKey: String): RoledBot
     fun getConfigKey(botId: String): String
@@ -30,12 +31,11 @@ object BotManage : IBotManage {
 
     private val log = logger()
 
-    override fun registerBot(configKey: String, bot: Bot, role: BotRole) {
-        val botId = bot.id.toString()
-        bots[botId] = RoledBot(bot, role)
-        configKeys[configKey] = botId
-        botKeys[botId] = configKey
-        log.info("Robot registered: botId=$botId")
+    override fun registerBot(configKey: String, client: OneBotClient, selfId: String, role: BotRole) {
+        bots[selfId] = RoledBot(client, selfId, role)
+        configKeys[configKey] = selfId
+        botKeys[selfId] = configKey
+        log.info("Robot registered: botId=$selfId")
     }
 
     override fun getBot(botId: String): RoledBot {

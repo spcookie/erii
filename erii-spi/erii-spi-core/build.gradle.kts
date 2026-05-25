@@ -17,7 +17,7 @@ publishing {
 dependencies {
     compileOnly(project(":erii-common"))
     compileOnly(libs.pf4j)
-    compileOnly(libs.mirai.overflow)
+    compileOnly("uesugi:onebot-sdk:1.0.0")
     compileOnly(libs.clikt)
     compileOnly(libs.okio)
     compileOnly(libs.koog.agents)

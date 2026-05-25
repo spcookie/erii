@@ -14,8 +14,6 @@ import kotlin.time.ExperimentalTime
 
 fun Meta.getRefBot() = roledBot.refBot
 
-fun Meta.getGroup() = getRefBot().getGroupOrFail(groupId.toLong())
-
 fun Meta.getAdmins() = ConfigHolder.getAdmins(BotManage.getConfigKey(botId), groupId)
 
 fun Meta.isAdmin() = senderId in getAdmins()
