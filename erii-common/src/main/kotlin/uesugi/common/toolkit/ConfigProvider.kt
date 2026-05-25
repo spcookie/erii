@@ -27,6 +27,7 @@ data class BotConfig(
     val ws: String,
     val token: String,
     val roleId: String,
+    val selfId: String? = null,
     val groups: Map<String, GroupConfig> = emptyMap(),
     val groupsOverride: BotGroupsOverride? = null,
     val enabledPlugins: List<String>? = null,

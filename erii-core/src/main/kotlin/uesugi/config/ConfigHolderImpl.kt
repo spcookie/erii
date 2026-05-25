@@ -150,6 +150,7 @@ class ConfigHolderImpl : ConfigProvider {
                     ws = botConfig.getString("ws"),
                     token = botConfig.getString("token"),
                     roleId = botConfig.getString("role-id"),
+                    selfId = botConfig.tryGetString("self-id"),
                     groups = groups,
                     groupsOverride = if (botConfig.hasPath("groups-override")) {
                         parseBotGroupsOverride(botConfig.getConfig("groups-override"))
