@@ -108,7 +108,27 @@ class AnnotationProcessor : AbstractProcessor() {
         pluginDef: Definition?, pluginClass: TypeElement,
         pluginId: String, version: String
     ) {
-        // 后续 Task 实现
+        val fullName = pluginClass.qualifiedName.toString()
+
+        val properties = buildString {
+            appendLine("plugin.class=$fullName")
+            appendLine("plugin.id=$pluginId")
+            appendLine("plugin.version=$version")
+            pluginDef?.requires?.takeIf { it.isNotEmpty() }?.let { appendLine("plugin.requires=$it") }
+            pluginDef?.dependencies?.takeIf { it.isNotEmpty() }?.let { appendLine("plugin.dependencies=$it") }
+            pluginDef?.description?.takeIf { it.isNotEmpty() }?.let { appendLine("plugin.description=$it") }
+            pluginDef?.provider?.takeIf { it.isNotEmpty() }?.let { appendLine("plugin.provider=$it") }
+            pluginDef?.license?.takeIf { it.isNotEmpty() }?.let { appendLine("plugin.license=$it") }
+        }
+
+        val filer = processingEnv.filer
+        val resource = filer.createResource(StandardLocation.CLASS_OUTPUT, "", "plugin.properties")
+        resource.openWriter().use { it.write(properties) }
+
+        processingEnv.messager.printMessage(
+            Diagnostic.Kind.NOTE,
+            "AnnotationProcessor: Generated plugin.properties for $pluginId"
+        )
     }
 
     private fun generateToolSets(toolFunctions: List<ExecutableElement>, pluginClass: TypeElement) {
