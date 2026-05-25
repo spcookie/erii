@@ -170,15 +170,147 @@ class AnnotationProcessor : AbstractProcessor() {
     }
 
     private fun generateRouteExtensions(routeFunctions: List<ExecutableElement>, pluginClass: TypeElement) {
-        // 后续 Task 实现
+        val packageName = processingEnv.elementUtils.getPackageOf(pluginClass).toString()
+        val pluginClassName = pluginClass.simpleName.toString()
+
+        for (func in routeFunctions) {
+            val routeAnno = func.getAnnotation(Route::class.java)!!
+            val funcName = func.simpleName.toString()
+            val enclosingClass = func.enclosingElement as TypeElement
+            val ktFileName = enclosingClass.simpleName.toString()
+            val className = "GeneratedRoute_${funcName}"
+            val toolSets = routeAnno.toolSets.joinToString(", ") { "\"$it\"" }
+
+            val fileContent = buildString {
+                appendLine("package $packageName")
+                appendLine()
+                appendLine("import org.pf4j.Extension")
+                appendLine("import uesugi.spi.*")
+                appendLine("import uesugi.spi.annotation.ContextHolder")
+                appendLine()
+                appendLine("@Extension")
+                appendLine("class $className : RouteExtension<$pluginClassName> {")
+                appendLine("    override val matcher: Pair<String, String>")
+                appendLine("        get() = \"${routeAnno.path}\" to \"${routeAnno.method}\"")
+                appendLine()
+                appendLine("    override fun onLoad(context: PluginContext) {")
+                appendLine("        ContextHolder.set(context)")
+                appendLine("        context.chain { meta ->")
+                appendLine("            $ktFileName.$funcName(meta)")
+                appendLine("        }")
+                if (routeAnno.toolSets.isNotEmpty() && routeAnno.toolSets[0] != "default") {
+                    appendLine("        val toolSetNames = arrayOf($toolSets)")
+                    appendLine("        for (name in toolSetNames) {")
+                    appendLine("            context.tool { { ${packageName}.GeneratedToolSet_\${name.replace(\"-\", \"_\")}() } }")
+                    appendLine("        }")
+                }
+                appendLine("    }")
+                appendLine()
+                appendLine("    override fun onUnload() {")
+                appendLine("        ContextHolder.clear()")
+                appendLine("    }")
+                appendLine("}")
+            }
+
+            writeSourceFile("$packageName.$className", fileContent)
+        }
     }
 
     private fun generateCmdExtensions(cmdFunctions: List<ExecutableElement>, pluginClass: TypeElement) {
-        // 后续 Task 实现
+        val packageName = processingEnv.elementUtils.getPackageOf(pluginClass).toString()
+        val pluginClassName = pluginClass.simpleName.toString()
+
+        for (func in cmdFunctions) {
+            val cmdAnno = func.getAnnotation(Cmd::class.java)!!
+            val funcName = func.simpleName.toString()
+            val enclosingClass = func.enclosingElement as TypeElement
+            val ktFileName = enclosingClass.simpleName.toString()
+            val className = "GeneratedCmd_${cmdAnno.name.replace("-", "_")}"
+            val aliasList = cmdAnno.alias.joinToString(", ") { "\"$it\"" }
+            val toolSets = cmdAnno.toolSets.joinToString(", ") { "\"$it\"" }
+
+            val fileContent = buildString {
+                appendLine("package $packageName")
+                appendLine()
+                appendLine("import org.pf4j.Extension")
+                appendLine("import uesugi.spi.*")
+                appendLine("import uesugi.spi.annotation.ContextHolder")
+                appendLine()
+                appendLine("@Extension")
+                appendLine("class $className : SlashCmdExtension<$pluginClassName> {")
+                appendLine("    override val cmd: String")
+                appendLine("        get() = \"${cmdAnno.name}\"")
+                if (cmdAnno.alias.isNotEmpty()) {
+                    appendLine("    override val alias: List<String>")
+                    appendLine("        get() = listOf($aliasList)")
+                }
+                appendLine()
+                appendLine("    override fun onLoad(context: PluginContext) {")
+                appendLine("        ContextHolder.set(context)")
+                appendLine("        context.chain { meta ->")
+                appendLine("            val holder = meta.parser(Unit)")
+                appendLine("            $ktFileName.$funcName(holder.args, meta)")
+                appendLine("        }")
+                if (cmdAnno.toolSets.isNotEmpty() && cmdAnno.toolSets[0] != "default") {
+                    appendLine("        val toolSetNames = arrayOf($toolSets)")
+                    appendLine("        for (name in toolSetNames) {")
+                    appendLine("            context.tool { { ${packageName}.GeneratedToolSet_\${name.replace(\"-\", \"_\")}() } }")
+                    appendLine("        }")
+                }
+                appendLine("    }")
+                appendLine()
+                appendLine("    override fun onUnload() {")
+                appendLine("        ContextHolder.clear()")
+                appendLine("    }")
+                appendLine("}")
+            }
+
+            writeSourceFile("$packageName.$className", fileContent)
+        }
     }
 
     private fun generatePassiveExtensions(passiveFunctions: List<ExecutableElement>, pluginClass: TypeElement) {
-        // 后续 Task 实现
+        val packageName = processingEnv.elementUtils.getPackageOf(pluginClass).toString()
+        val pluginClassName = pluginClass.simpleName.toString()
+
+        for (func in passiveFunctions) {
+            val passiveAnno = func.getAnnotation(Passive::class.java)!!
+            val funcName = func.simpleName.toString()
+            val enclosingClass = func.enclosingElement as TypeElement
+            val ktFileName = enclosingClass.simpleName.toString()
+            val className = "GeneratedPassive_${funcName}"
+            val toolSets = passiveAnno.toolSets.joinToString(", ") { "\"$it\"" }
+
+            val fileContent = buildString {
+                appendLine("package $packageName")
+                appendLine()
+                appendLine("import org.pf4j.Extension")
+                appendLine("import uesugi.spi.*")
+                appendLine("import uesugi.spi.annotation.ContextHolder")
+                appendLine()
+                appendLine("@Extension")
+                appendLine("class $className : PassiveExtension<$pluginClassName> {")
+                appendLine("    override fun onLoad(context: PluginContext) {")
+                appendLine("        ContextHolder.set(context)")
+                appendLine("        context.chain { meta ->")
+                appendLine("            $ktFileName.$funcName(meta)")
+                appendLine("        }")
+                if (passiveAnno.toolSets.isNotEmpty() && passiveAnno.toolSets[0] != "default") {
+                    appendLine("        val toolSetNames = arrayOf($toolSets)")
+                    appendLine("        for (name in toolSetNames) {")
+                    appendLine("            context.tool { { ${packageName}.GeneratedToolSet_\${name.replace(\"-\", \"_\")}() } }")
+                    appendLine("        }")
+                }
+                appendLine("    }")
+                appendLine()
+                appendLine("    override fun onUnload() {")
+                appendLine("        ContextHolder.clear()")
+                appendLine("    }")
+                appendLine("}")
+            }
+
+            writeSourceFile("$packageName.$className", fileContent)
+        }
     }
 
     private fun generatePf4jExtensionsFile(
@@ -187,7 +319,31 @@ class AnnotationProcessor : AbstractProcessor() {
         passiveFunctions: List<ExecutableElement>,
         pluginClass: TypeElement
     ) {
-        // 后续 Task 实现
+        val packageName = processingEnv.elementUtils.getPackageOf(pluginClass).toString()
+
+        val extensionClasses = buildList {
+            for (func in routeFunctions) {
+                add("${packageName}.GeneratedRoute_${func.simpleName}")
+            }
+            for (func in cmdFunctions) {
+                val cmdName = func.getAnnotation(Cmd::class.java)!!.name.replace("-", "_")
+                add("${packageName}.GeneratedCmd_$cmdName")
+            }
+            for (func in passiveFunctions) {
+                add("${packageName}.GeneratedPassive_${func.simpleName}")
+            }
+        }
+
+        if (extensionClasses.isEmpty()) return
+
+        val content = extensionClasses.joinToString("\n") { it }
+        val filer = processingEnv.filer
+        val resource = filer.createResource(
+            StandardLocation.CLASS_OUTPUT,
+            "",
+            "META-INF/services/org.pf4j.Extension"
+        )
+        resource.openWriter().use { it.write(content) }
     }
 
     private fun writeSourceFile(qualifiedName: String, content: String) {
