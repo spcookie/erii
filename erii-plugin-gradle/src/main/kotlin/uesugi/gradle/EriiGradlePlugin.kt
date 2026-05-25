@@ -120,9 +120,9 @@ class EriiGradlePlugin : Plugin<Project> {
         private val KOTLIN_GROUPS = setOf("org.jetbrains.kotlin", "org.jetbrains.kotlinx", "org.jetbrains")
 
         private val COMPILE_ONLY_DEPS = listOf(
-            "uesugi:erii-common:0.0.1",
-            "uesugi:erii-spi:0.0.1",
-            "top.mrxiaom.mirai:overflow-core:1.0.8",
+            "uesugi:erii-common:1.0.0",
+            "uesugi:erii-spi:1.0.0",
+            "uesugi:onebot-sdk:1.0.0",
             "org.jobrunr:jobrunr:8.3.1",
             "com.github.ajalt.clikt:clikt:5.1.0",
             "ai.koog:koog-agents:0.7.2",
@@ -140,7 +140,7 @@ class EriiGradlePlugin : Plugin<Project> {
         )
 
         private val KAPT_DEPS = listOf(
-            "uesugi:erii-spi:0.0.1",
+            "uesugi:erii-spi:1.0.0",
             "org.pf4j:pf4j:3.15.0",
         )
     }
