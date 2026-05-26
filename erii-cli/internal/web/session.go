@@ -34,29 +34,32 @@ func (s *Session) Start(eriiBin string, subcmd string, args []string) error {
 // Write sends data to PTY stdin.
 func (s *Session) Write(data []byte) (int, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.pty == nil {
+	p := s.pty
+	s.mu.Unlock()
+	if p == nil {
 		return 0, nil
 	}
-	return s.pty.Write(data)
+	return p.Write(data)
 }
 
 // Read reads from PTY stdout. Returns 0, nil if no active PTY.
 func (s *Session) Read(buf []byte) (int, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.pty == nil {
+	p := s.pty
+	s.mu.Unlock()
+	if p == nil {
 		return 0, nil
 	}
-	return s.pty.Read(buf)
+	return p.Read(buf)
 }
 
 // Resize changes the PTY window size.
 func (s *Session) Resize(rows, cols int) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.pty != nil {
-		if err := s.pty.Resize(rows, cols); err != nil {
+	p := s.pty
+	s.mu.Unlock()
+	if p != nil {
+		if err := p.Resize(rows, cols); err != nil {
 			log.Printf("pty resize error: %v", err)
 		}
 	}

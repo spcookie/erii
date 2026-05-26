@@ -25,6 +25,9 @@
     function setStatus(state) {
         statusDot.className = 'status-dot';
         switch (state) {
+            case 'connecting':
+                statusText.textContent = '连接中...';
+                break;
             case 'connected':
                 statusDot.classList.add('connected');
                 statusText.textContent = '已连接';

@@ -38,7 +38,10 @@ func Start(cfg Config) error {
 		ConfDir: cfg.ConfDir,
 	}
 
-	staticFS, _ := fs.Sub(staticFiles, "static")
+	staticFS, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		return fmt.Errorf("embedded static files not found: %w", err)
+	}
 	fileServer := http.FileServer(http.FS(staticFS))
 
 	mux := http.NewServeMux()

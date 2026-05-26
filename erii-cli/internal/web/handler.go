@@ -4,12 +4,20 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true // no Origin header = same-origin or non-browser client
+		}
+		// Allow localhost origins
+		return strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1")
+	},
 }
 
 // wsMessage is the JSON protocol message from the frontend.
