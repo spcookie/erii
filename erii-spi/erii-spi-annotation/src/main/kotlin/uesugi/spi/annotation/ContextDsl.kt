@@ -45,8 +45,8 @@ suspend fun useServer(): Server =
     currentCoroutineContext()[PluginContextElement]?.context?.server
         ?: error(NO_CONTEXT_ERROR)
 
-internal suspend fun withPluginContext(context: PluginContext, block: suspend () -> Unit) {
-    withContext(PluginContextElement(context)) {
+suspend fun <T> withPluginContext(context: PluginContext, block: suspend () -> T): T {
+    return withContext(PluginContextElement(context)) {
         block()
     }
 }

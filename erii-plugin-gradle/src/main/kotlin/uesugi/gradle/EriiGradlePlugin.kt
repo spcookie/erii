@@ -39,6 +39,13 @@ class EriiGradlePlugin : Plugin<Project> {
             } catch (_: Exception) {
             }
         }
+
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val kspClass = Class.forName(KSP_PLUGIN_CLASS) as Class<Plugin<Project>>
+            project.pluginManager.apply(kspClass)
+        } catch (_: Exception) {
+        }
     }
 
     private fun configureKotlin(project: Project) {
@@ -67,6 +74,9 @@ class EriiGradlePlugin : Plugin<Project> {
             }
             for (dep in KAPT_DEPS) {
                 add("kapt", dep)
+            }
+            for (dep in KSP_DEPS) {
+                add("ksp", dep)
             }
         }
     }
@@ -121,6 +131,8 @@ class EriiGradlePlugin : Plugin<Project> {
             "org.jetbrains.kotlinx.serialization.gradle.SerializationGradleSubplugin",
         )
 
+        private const val KSP_PLUGIN_CLASS = "com.google.devtools.ksp.gradle.KspGradleSubplugin"
+
         private val KOTLIN_GROUPS = setOf("org.jetbrains.kotlin", "org.jetbrains.kotlinx", "org.jetbrains")
 
         private val COMPILE_ONLY_DEPS = listOf(
@@ -146,8 +158,11 @@ class EriiGradlePlugin : Plugin<Project> {
 
         private val KAPT_DEPS = listOf(
             "uesugi:erii-spi-core:1.0.0",
-            "uesugi:erii-spi-annotation:1.0.0",
             "org.pf4j:pf4j:3.15.0",
+        )
+
+        private val KSP_DEPS = listOf(
+            "uesugi:erii-spi-annotation:1.0.0",
         )
     }
 }

@@ -3,7 +3,7 @@ exposed = "1.1.1"
 hikari = '4.0.3'
 h2 = "2.3.232"
 koin = "4.1.2-Beta1"
-kotlin = "2.2.21"
+kotlin = "2.3.20"
 kotlinx-coroutines = "1.9.0"
 ktor = "3.3.2"
 koog = "0.7.2"
@@ -27,6 +27,7 @@ typesafe = "1.4.0"
 snakeyaml = "2.2"
 pf4j = "3.15.0"
 kotlin-logging = "8.0.02"
+ksp = "2.3.8"
 kotlinx-serialization-msgpack = "0.5.5"
 
 [libraries]
@@ -93,10 +94,12 @@ kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version
 typesafe-config = { module = "com.typesafe:config", version.ref = "typesafe" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 kotlinx-serialization-msgpack = { module = "com.ensarsarajcic.kotlinx:serialization-msgpack", version.ref = "kotlinx-serialization-msgpack" }
+ksp-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 kotlin-plugin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 jte = { id = "gg.jte.gradle", version.ref = "jte" }

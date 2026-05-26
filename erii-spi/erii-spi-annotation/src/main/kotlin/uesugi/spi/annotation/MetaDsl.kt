@@ -17,8 +17,7 @@ suspend fun withMeta(meta: Meta, block: suspend () -> Unit) {
     }
 }
 
-
-internal suspend fun withMetaIO(meta: Meta, block: suspend () -> Unit) {
+suspend fun withMetaIO(meta: Meta, block: suspend () -> Unit) {
     withContext(Dispatchers.IO + MetaElement(meta)) {
         block()
     }
