@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 )
@@ -42,7 +44,7 @@ func Start(cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("embedded static files not found: %w", err)
 	}
-	fileServer := http.FileServer(http.FS(staticFS))
+	fileServer := contentTypeHandler{http.FileServer(http.FS(staticFS))}
 
 	mux := http.NewServeMux()
 	mux.Handle("/ws", wsHandler)
@@ -50,7 +52,7 @@ func Start(cfg Config) error {
 
 	server := &http.Server{
 		Addr:    addr,
-		Handler: TokenAuth(cfg.Token)(mux),
+		Handler: mux,
 	}
 
 	// Print startup info.
@@ -74,4 +76,18 @@ func Start(cfg Config) error {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
+}
+
+// contentTypeHandler sets Content-Type based on file extension to avoid
+// MIME type detection issues with embedded filesystems.
+type contentTypeHandler struct {
+	h http.Handler
+}
+
+func (c contentTypeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ext := filepath.Ext(r.URL.Path)
+	if ct := mime.TypeByExtension(ext); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	c.h.ServeHTTP(w, r)
 }
