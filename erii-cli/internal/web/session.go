@@ -9,9 +9,19 @@ import (
 // Session manages the lifecycle of a single PTY-backed process.
 // Only one process runs at a time. Starting a new process terminates the old one.
 type Session struct {
-	mu  sync.Mutex
-	cmd *exec.Cmd
-	pty *Pty
+	mu           sync.Mutex
+	cmd          *exec.Cmd
+	pty          *Pty
+	generation   int
+	lastExitCode int
+}
+
+// Generation returns the current PTY generation number.
+// Used by bridge goroutines to detect if they've been replaced.
+func (s *Session) Generation() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.generation
 }
 
 // Start launches an erii subcommand in a PTY. Kills any existing process first.
@@ -20,6 +30,7 @@ func (s *Session) Start(eriiBin string, subcmd string, args []string) error {
 	defer s.mu.Unlock()
 
 	s.cleanup()
+	s.generation++
 
 	cmdArgs := append([]string{subcmd}, args...)
 	cmd, pt, err := StartPty(eriiBin, cmdArgs)
@@ -65,6 +76,13 @@ func (s *Session) Resize(rows, cols int) {
 	}
 }
 
+// ExitCode returns the exit code of the last terminated process.
+func (s *Session) ExitCode() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastExitCode
+}
+
 // Active returns whether a PTY process is currently running.
 func (s *Session) Active() bool {
 	s.mu.Lock()
@@ -87,6 +105,7 @@ func (s *Session) cleanup() {
 	if s.cmd != nil && s.cmd.Process != nil {
 		s.cmd.Process.Kill()
 		s.cmd.Wait()
+		s.lastExitCode = s.cmd.ProcessState.ExitCode()
 		s.cmd = nil
 	}
 }

@@ -93,7 +93,7 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			go h.bridgePtyToWS(conn)
+			go h.bridgePtyToWS(conn, h.Session.Generation())
 
 		case "input":
 			if !authenticated {
@@ -113,7 +113,8 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // bridgePtyToWS reads from PTY and writes to WebSocket until PTY closes.
-func (h *WSHandler) bridgePtyToWS(conn *websocket.Conn) {
+// Only sends exit message if this generation is still the active one.
+func (h *WSHandler) bridgePtyToWS(conn *websocket.Conn, gen int) {
 	buf := make([]byte, 4096)
 	for {
 		n, err := h.Session.Read(buf)
@@ -124,5 +125,7 @@ func (h *WSHandler) bridgePtyToWS(conn *websocket.Conn) {
 			break
 		}
 	}
-	conn.WriteJSON(wsOut{Type: "exit", Code: 0})
+	if h.Session.Generation() == gen {
+		conn.WriteJSON(wsOut{Type: "exit", Code: h.Session.ExitCode()})
+	}
 }

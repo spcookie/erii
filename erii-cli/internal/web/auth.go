@@ -7,9 +7,12 @@ import (
 )
 
 // GenerateToken creates a random 12-character hex token.
+// Panics if the OS entropy source fails, as a predictable token would be a security risk.
 func GenerateToken() string {
 	b := make([]byte, 6)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("failed to generate random token: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }
 
