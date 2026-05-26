@@ -7,6 +7,7 @@ import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.GroupMessageEventListener
 import uesugi.core.agent.BotAgent
 import uesugi.onebot.core.config.OneBotConfig
+import uesugi.onebot.core.pipeline.LoggingMiddleware
 import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.api.getLoginInfo
 
@@ -31,11 +32,13 @@ fun configureConnectBots() {
 
                 try {
                     val onebotConfig = OneBotConfig(
-                        wsReverseEnable = true,
-                        wsReverseUrl = config.ws,
+                        wsForwardClientEnable = true,
+                        wsForwardClientUseUniversal = true,
+                        wsForwardClientUrl = config.ws,
                         accessToken = config.token
                     )
                     val client = OneBotClient(onebotConfig)
+                    client.use(LoggingMiddleware(LOG))
                     client.start()
 
                     val selfId = try {

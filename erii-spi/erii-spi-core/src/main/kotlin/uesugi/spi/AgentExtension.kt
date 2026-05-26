@@ -37,6 +37,7 @@ import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.full.allSupertypes
 import kotlin.reflect.full.createInstance
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -617,3 +618,10 @@ interface AgentSender {
     )
 
 }
+
+object MetaContext : CoroutineContext.Key<MetaElement>
+class MetaElement(val meta: Meta) : CoroutineContext.Element {
+    override val key = MetaContext
+}
+
+fun Meta.asContextElement(): CoroutineContext.Element = MetaElement(this)
