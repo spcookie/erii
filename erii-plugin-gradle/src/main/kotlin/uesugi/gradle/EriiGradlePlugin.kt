@@ -127,7 +127,7 @@ class EriiGradlePlugin : Plugin<Project> {
             "uesugi:erii-common:0.0.1",
             "uesugi:erii-spi-core:1.0.0",
             "uesugi:erii-spi-annotation:1.0.0",
-            "top.mrxiaom.mirai:overflow-core:1.0.8",
+            "uesugi:onebot-sdk:1.0.0",
             "org.jobrunr:jobrunr:8.3.1",
             "com.github.ajalt.clikt:clikt:5.1.0",
             "ai.koog:koog-agents:0.7.2",
