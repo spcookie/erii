@@ -1,13 +1,25 @@
 package uesugi.spi.annotation
 
-import uesugi.spi.Meta
-import uesugi.spi.MetaContext
-import uesugi.spi.MetaToolSet
-import uesugi.spi.asContextElement
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
+import uesugi.spi.Meta
+import uesugi.spi.MetaToolSet
 
-suspend fun meta(): Meta = checkNotNull(currentCoroutineContext()[MetaContext]?.meta) {
-    "meta() can only be called within a handler context"
+suspend fun useMeta(): Meta = currentCoroutineContext()[MetaElement]?.meta
+    ?: error(NO_META_ERROR)
+
+fun useToolMeta(): Lazy<Meta> = lazy { MetaToolSet.meta }
+
+suspend fun withMeta(meta: Meta, block: suspend () -> Unit) {
+    withContext(MetaElement(meta)) {
+        block()
+    }
 }
 
-fun useMeta(): Lazy<Meta> = lazy { MetaToolSet.meta }
+
+internal suspend fun withMetaIO(meta: Meta, block: suspend () -> Unit) {
+    withContext(Dispatchers.IO + MetaElement(meta)) {
+        block()
+    }
+}

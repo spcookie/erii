@@ -31,8 +31,8 @@ fun configureConnectBots() {
 
                 try {
                     val onebotConfig = OneBotConfig(
-                        wsReverseEnable = true,
-                        wsReverseUrl = config.ws,
+                        wsForwardClientEnable = true,
+                        wsForwardClientUrl = config.ws,
                         accessToken = config.token
                     )
                     val client = OneBotClient(onebotConfig)

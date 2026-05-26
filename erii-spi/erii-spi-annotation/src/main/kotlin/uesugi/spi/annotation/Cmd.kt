@@ -5,5 +5,7 @@ package uesugi.spi.annotation
 annotation class Cmd(
     val name: String,
     val alias: Array<String> = [],
-    val toolSets: Array<String> = ["default"]
+    val toolSets: Array<String> = ["default"],
+    val onLoad: Array<String> = [],
+    val onUnload: Array<String> = []
 )

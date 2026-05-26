@@ -25,5 +25,4 @@ dependencies {
     compileOnly(libs.exposed.core)
     compileOnly(libs.exposed.jdbc)
     compileOnly(libs.typesafe.config)
-    implementation(kotlin("reflect"))
 }

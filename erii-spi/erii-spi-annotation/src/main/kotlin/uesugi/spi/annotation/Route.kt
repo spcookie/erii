@@ -5,5 +5,7 @@ package uesugi.spi.annotation
 annotation class Route(
     val method: String,
     val path: String,
-    val toolSets: Array<String> = ["default"]
+    val toolSets: Array<String> = ["default"],
+    val onLoad: Array<String> = [],
+    val onUnload: Array<String> = []
 )

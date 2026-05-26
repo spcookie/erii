@@ -51,6 +51,10 @@ class EriiGradlePlugin : Plugin<Project> {
         kapt.arguments {
             arg("plugin.id", project.name)
             arg("plugin.version", project.version.toString())
+            arg(
+                "kapt.kotlin.generated",
+                project.layout.buildDirectory.dir("generated/source/kaptKotlin/main").get().asFile.absolutePath
+            )
         }
     }
 
@@ -121,7 +125,8 @@ class EriiGradlePlugin : Plugin<Project> {
 
         private val COMPILE_ONLY_DEPS = listOf(
             "uesugi:erii-common:0.0.1",
-            "uesugi:erii-spi:0.0.1",
+            "uesugi:erii-spi-core:1.0.0",
+            "uesugi:erii-spi-annotation:1.0.0",
             "top.mrxiaom.mirai:overflow-core:1.0.8",
             "org.jobrunr:jobrunr:8.3.1",
             "com.github.ajalt.clikt:clikt:5.1.0",
@@ -140,7 +145,8 @@ class EriiGradlePlugin : Plugin<Project> {
         )
 
         private val KAPT_DEPS = listOf(
-            "uesugi:erii-spi:0.0.1",
+            "uesugi:erii-spi-core:1.0.0",
+            "uesugi:erii-spi-annotation:1.0.0",
             "org.pf4j:pf4j:3.15.0",
         )
     }
