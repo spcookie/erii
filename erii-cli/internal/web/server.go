@@ -21,11 +21,13 @@ var staticFiles embed.FS
 
 // Config holds the server configuration.
 type Config struct {
-	Port    string
-	Host    string
-	Token   string
-	EriiBin string
-	ConfDir string
+	Port        string
+	Host        string
+	Token       string
+	EriiBin     string
+	ConfDir     string
+	MetaConfDir string
+	PluginDir   string
 }
 
 // Start starts the HTTP + WebSocket server. Blocks until SIGINT/SIGTERM.
@@ -34,10 +36,12 @@ func Start(cfg Config) error {
 
 	session := &Session{}
 	wsHandler := &WSHandler{
-		Session: session,
-		Token:   cfg.Token,
-		EriiBin: cfg.EriiBin,
-		ConfDir: cfg.ConfDir,
+		Session:     session,
+		Token:       cfg.Token,
+		EriiBin:     cfg.EriiBin,
+		ConfDir:     cfg.ConfDir,
+		MetaConfDir: cfg.MetaConfDir,
+		PluginDir:   cfg.PluginDir,
 	}
 
 	staticFS, err := fs.Sub(staticFiles, "static")

@@ -33,12 +33,14 @@ type wsOut struct {
 
 // WSHandler handles WebSocket connections: PTY I/O bridge.
 type WSHandler struct {
-	Session  *Session
-	Token    string
-	EriiBin  string
-	ConfDir  string
-	binPath  string
-	binReady bool
+	Session     *Session
+	Token       string
+	EriiBin     string
+	ConfDir     string
+	MetaConfDir string
+	PluginDir   string
+	binPath     string
+	binReady    bool
 }
 
 func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +88,14 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				bin = h.binPath
 			}
 
-			args := append([]string{"--conf-dir", h.ConfDir}, msg.Args...)
+			args := []string{"--conf-dir", h.ConfDir}
+			if h.MetaConfDir != "" {
+				args = append(args, "--meta-conf-dir", h.MetaConfDir)
+			}
+			if h.PluginDir != "" {
+				args = append(args, "--plugin-dir", h.PluginDir)
+			}
+			args = append(args, msg.Args...)
 			if err := h.Session.Start(bin, msg.Cmd, args, msg.Rows, msg.Cols); err != nil {
 				conn.WriteMessage(websocket.BinaryMessage, []byte("Failed to start: "+err.Error()+"\r\n"))
 				conn.WriteJSON(wsOut{Type: "exit", Code: -1})

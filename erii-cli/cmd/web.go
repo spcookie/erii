@@ -32,11 +32,13 @@ access token. Use --host 0.0.0.0 to expose it on the network.`,
 		eriiBin, _ := os.Executable()
 
 		cfg := web.Config{
-			Port:    webPort,
-			Host:    webHost,
-			Token:   token,
-			EriiBin: eriiBin,
-			ConfDir: path.ConfDir,
+			Port:        webPort,
+			Host:        webHost,
+			Token:       token,
+			EriiBin:     eriiBin,
+			ConfDir:     path.ConfDir,
+			MetaConfDir: path.ConfMetaDir,
+			PluginDir:   path.PluginDir,
 		}
 
 		return web.Start(cfg)
