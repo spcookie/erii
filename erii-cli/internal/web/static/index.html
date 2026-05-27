@@ -4,18 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Erii Console</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+    <link href="/css/xterm.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <div id="app">
-        <div id="icon-bar">
-            <button class="icon-btn active" id="btn-terminal" title="Console">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
-                </svg>
-            </button>
-        </div>
         <div id="sidebar">
             <div id="sidebar-header">
                 <div class="title">Console</div>
@@ -71,7 +64,12 @@
         <div id="resize-handle"></div>
         <div id="main">
             <div id="terminal-header">
-                <span id="current-cmd" class="current-cmd"></span>
+                <span class="current-cmd" id="current-cmd">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>
+                    </svg>
+                    erii
+                </span>
             </div>
             <div id="terminal-container"></div>
             <div id="status-bar">
@@ -81,8 +79,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+    <script src="/js/xterm.min.js"></script>
+    <script src="/js/addon-fit.min.js"></script>
     <script src="/js/main.js"></script>
 </body>
 </html>

@@ -22,6 +22,9 @@
     const sidebarItems = document.querySelectorAll('.sidebar-item');
     const resizeHandle = document.getElementById('resize-handle');
 
+    // Default header content (shown when no command is active)
+    const defaultHeaderHTML = currentCmdEl.innerHTML;
+
     function setStatus(state) {
         statusDot.className = 'status-dot';
         switch (state) {
@@ -46,14 +49,67 @@
 
     function setActiveCmd(cmd) {
         activeCmd = cmd;
-        currentCmdEl.textContent = cmd ? '▶ erii ' + cmd : '';
         sidebarItems.forEach(function (item) {
             if (item.dataset.cmd === cmd) {
                 item.classList.add('active');
+                // Sync header with sidebar item
+                currentCmdEl.innerHTML = item.innerHTML;
             } else {
                 item.classList.remove('active');
             }
         });
+        if (!cmd) {
+            currentCmdEl.innerHTML = defaultHeaderHTML;
+        }
+    }
+
+    function showWelcome() {
+        let i;
+        if (!term) return;
+        term.clear();
+        const cols = term.cols || 80;
+        const rows = term.rows || 24;
+        const banner = [
+            '███████╗██████╗ ██╗██╗██████╗  ██████╗ ████████╗',
+            '██╔════╝██╔══██╗██║██║██╔══██╗██╔═══██╗╚══██╔══╝',
+            '█████╗  ██████╔╝██║██║██████╔╝██║   ██║   ██║',
+            '██╔══╝  ██╔══██╗██║██║██╔══██╗██║   ██║   ██║',
+            '███████╗██║  ██║██║██║██████╔╝╚██████╔╝   ██║',
+            '╚══════╝╚═╝  ╚═╝╚═╝╚═╝╚═════╝  ╚═════╝    ╚═╝',
+        ];
+        const subtitle1 = 'Welcome to Erii Console';
+        const subtitle2 = 'Select a command from the sidebar to begin';
+
+        // Compute max visible widths, pad shorter lines for perfect alignment
+        let maxBanner = 0;
+        for (i = 0; i < banner.length; i++) {
+            if (banner[i].length > maxBanner) maxBanner = banner[i].length;
+        }
+        for (i = 0; i < banner.length; i++) {
+            while (banner[i].length < maxBanner) banner[i] += ' ';
+        }
+
+        // Build all output lines
+        const lines = [];
+        lines.push(''); // blank line before banner
+        for (i = 0; i < banner.length; i++) {
+            const pad = Math.max(0, Math.floor((cols - banner[i].length) / 2));
+            lines.push(' '.repeat(pad) + '\x1b[36m' + banner[i] + '\x1b[0m');
+        }
+        lines.push(''); // blank separator
+        lines.push(' '.repeat(Math.max(0, Math.floor((cols - subtitle1.length) / 2))) + '\x1b[90m' + subtitle1 + '\x1b[0m');
+        lines.push(' '.repeat(Math.max(0, Math.floor((cols - subtitle2.length) / 2))) + '\x1b[90m' + subtitle2 + '\x1b[0m');
+
+        // Vertical centering: prepend blank lines
+        const vpad = Math.max(0, Math.floor((rows - lines.length) / 2));
+        for (let j = 0; j < vpad; j++) {
+            term.writeln('');
+        }
+
+        // Write all content lines
+        for (let k = 0; k < lines.length; k++) {
+            term.writeln(lines[k]);
+        }
     }
 
     function initTerminal() {
@@ -90,7 +146,10 @@
         fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
         term.open(terminalContainer);
-        fitAddon.fit();
+        requestAnimationFrame(function () {
+            fitAddon.fit();
+            showWelcome();
+        });
 
         term.onData(function (data) {
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -108,9 +167,12 @@
             }
         });
 
-        window.addEventListener('resize', function () {
-            if (fitAddon) fitAddon.fit();
-        });
+        if (window.ResizeObserver) {
+            const ro = new ResizeObserver(function () {
+                if (fitAddon) fitAddon.fit();
+            });
+            ro.observe(terminalContainer);
+        }
     }
 
     function connect() {
@@ -121,18 +183,21 @@
 
         setStatus('connecting');
         ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
 
         ws.onopen = function () {
             ws.send(JSON.stringify({ type: 'auth', token: token }));
         };
 
         ws.onmessage = function (event) {
-            var msg = JSON.parse(event.data);
+            if (event.data instanceof ArrayBuffer) {
+                if (term) term.write(new Uint8Array(event.data));
+                return;
+            }
+            const msg = JSON.parse(event.data);
             switch (msg.type) {
-                case 'output':
-                    if (term) term.write(msg.data);
-                    break;
                 case 'exit':
+                    setActiveCmd(null);
                     setStatus('connected');
                     break;
                 case 'error':
@@ -145,7 +210,7 @@
             setStatus('disconnected');
             if (reconnectAttempts < maxReconnects) {
                 reconnectAttempts++;
-                var delay = Math.pow(2, reconnectAttempts) * 1000;
+                const delay = Math.pow(2, reconnectAttempts) * 1000;
                 setTimeout(connect, delay);
             }
         };
@@ -155,26 +220,41 @@
         };
     }
 
+    // Commands that use BubbleTea TUI (alternate screen)
+    const tuiCommands = ['config', 'setup', 'manage', 'stats'];
+
     function execCmd(cmd) {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         setActiveCmd(cmd);
         setStatus('running');
-        term.clear();
-        ws.send(JSON.stringify({ type: 'exec', cmd: cmd }));
+        if (tuiCommands.indexOf(cmd) !== -1) {
+            // TUI: refresh banner on main screen (alt-screen covers it while TUI runs)
+            showWelcome();
+        } else {
+            // Non-TUI: clear main screen for clean output, no banner overlap
+            term.clear();
+        }
+        ws.send(JSON.stringify({
+            type: 'exec',
+            cmd: cmd,
+            cols: term.cols,
+            rows: term.rows
+        }));
+        term.focus();
     }
 
     // Sidebar click handlers
     sidebarItems.forEach(function (item) {
         item.addEventListener('click', function () {
-            var cmd = this.dataset.cmd;
+            const cmd = this.dataset.cmd;
             if (cmd) execCmd(cmd);
         });
     });
 
     // Sidebar resize
-    var sidebar = document.getElementById('sidebar');
-    var isResizing = false;
-    var startX, startWidth;
+    const sidebar = document.getElementById('sidebar');
+    let isResizing = false;
+    let startX, startWidth;
 
     resizeHandle.addEventListener('mousedown', function (e) {
         isResizing = true;
@@ -186,7 +266,7 @@
 
     document.addEventListener('mousemove', function (e) {
         if (!isResizing) return;
-        var newWidth = startWidth + (e.clientX - startX);
+        const newWidth = startWidth + (e.clientX - startX);
         if (newWidth >= 160 && newWidth <= 400) {
             sidebar.style.width = newWidth + 'px';
         }

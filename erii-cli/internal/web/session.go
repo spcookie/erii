@@ -25,7 +25,7 @@ func (s *Session) Generation() int {
 }
 
 // Start launches an erii subcommand in a PTY. Kills any existing process first.
-func (s *Session) Start(eriiBin string, subcmd string, args []string) error {
+func (s *Session) Start(eriiBin string, subcmd string, args []string, rows int, cols int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -33,7 +33,7 @@ func (s *Session) Start(eriiBin string, subcmd string, args []string) error {
 	s.generation++
 
 	cmdArgs := append([]string{subcmd}, args...)
-	cmd, pt, err := StartPty(eriiBin, cmdArgs)
+	cmd, pt, err := StartPty(eriiBin, cmdArgs, rows, cols)
 	if err != nil {
 		return err
 	}

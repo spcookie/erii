@@ -9,40 +9,40 @@ import (
 
 var (
 	TableHeaderStyle = lipgloss.NewStyle().
-		Background(style.SurfaceAlt).
-		Foreground(style.Primary).
-		Bold(true).
-		Padding(0, 1)
+				Background(style.SurfaceAlt).
+				Foreground(style.Primary).
+				Bold(true).
+				Padding(0, 1)
 
 	TableRowStyle = lipgloss.NewStyle().
-		Foreground(style.Text).
-		Padding(0, 1)
+			Foreground(style.Text).
+			Padding(0, 1)
 
 	TableSelectedRowStyle = lipgloss.NewStyle().
-		Background(style.Surface).
-		Foreground(style.Primary).
-		Bold(true).
-		Padding(0, 1)
+				Background(style.Surface).
+				Foreground(style.Primary).
+				Bold(true).
+				Padding(0, 1)
 
 	TableAltRowStyle = lipgloss.NewStyle().
-		Foreground(style.Text).
-		Background(style.SurfaceAlt).
-		Padding(0, 1)
+				Foreground(style.Text).
+				Background(style.SurfaceAlt).
+				Padding(0, 1)
 
 	StatusBarStyle = lipgloss.NewStyle().
-		Background(style.SurfaceAlt).
-		Foreground(style.TextMuted).
-		Padding(0, 1)
+			Background(style.SurfaceAlt).
+			Foreground(style.TextMuted).
+			Padding(0, 1)
 
 	SearchActiveStyle = lipgloss.NewStyle().
-		Foreground(style.Accent).
-		Bold(true)
+				Foreground(style.Accent).
+				Bold(true)
 
 	TitleBarStyle = lipgloss.NewStyle().
-		Background(style.SurfaceAlt).
-		Foreground(style.Primary).
-		Bold(true).
-		Padding(0, 1)
+			Background(style.SurfaceAlt).
+			Foreground(style.Primary).
+			Bold(true).
+			Padding(0, 1)
 )
 
 func CheckboxChecked() string {

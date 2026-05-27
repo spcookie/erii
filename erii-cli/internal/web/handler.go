@@ -4,19 +4,13 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
-	"strings"
 
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			return true // no Origin header = same-origin or non-browser client
-		}
-		// Allow localhost origins
-		return strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1")
+		return true
 	},
 }
 
@@ -34,16 +28,17 @@ type wsMessage struct {
 // wsOut is the JSON protocol message sent to the frontend.
 type wsOut struct {
 	Type string `json:"type"`
-	Data string `json:"data,omitempty"`
 	Code int    `json:"code,omitempty"`
 }
 
 // WSHandler handles WebSocket connections: PTY I/O bridge.
 type WSHandler struct {
-	Session *Session
-	Token   string
-	EriiBin string
-	ConfDir string
+	Session  *Session
+	Token    string
+	EriiBin  string
+	ConfDir  string
+	binPath  string
+	binReady bool
 }
 
 func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +64,6 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if msg.Token == h.Token {
 				authenticated = true
 			} else {
-				conn.WriteJSON(wsOut{Type: "error", Data: "invalid token"})
 				return
 			}
 
@@ -79,17 +73,23 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			bin := h.EriiBin
 			if bin == "" {
-				var err error
-				bin, err = exec.LookPath("erii")
-				if err != nil {
-					conn.WriteJSON(wsOut{Type: "output", Data: "erii: command not found\r\n"})
-					continue
+				if !h.binReady {
+					var err error
+					h.binPath, err = exec.LookPath("erii")
+					if err != nil {
+						conn.WriteMessage(websocket.BinaryMessage, []byte("erii: command not found\r\n"))
+						conn.WriteJSON(wsOut{Type: "exit", Code: -1})
+						continue
+					}
+					h.binReady = true
 				}
+				bin = h.binPath
 			}
 
 			args := append([]string{"--conf-dir", h.ConfDir}, msg.Args...)
-			if err := h.Session.Start(bin, msg.Cmd, args); err != nil {
-				conn.WriteJSON(wsOut{Type: "output", Data: "Failed to start: " + err.Error() + "\r\n"})
+			if err := h.Session.Start(bin, msg.Cmd, args, msg.Rows, msg.Cols); err != nil {
+				conn.WriteMessage(websocket.BinaryMessage, []byte("Failed to start: "+err.Error()+"\r\n"))
+				conn.WriteJSON(wsOut{Type: "exit", Code: -1})
 				continue
 			}
 
@@ -113,13 +113,14 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // bridgePtyToWS reads from PTY and writes to WebSocket until PTY closes.
+// Uses binary messages to preserve raw terminal bytes (no JSON string encoding).
 // Only sends exit message if this generation is still the active one.
 func (h *WSHandler) bridgePtyToWS(conn *websocket.Conn, gen int) {
 	buf := make([]byte, 4096)
 	for {
 		n, err := h.Session.Read(buf)
 		if n > 0 {
-			conn.WriteJSON(wsOut{Type: "output", Data: string(buf[:n])})
+			conn.WriteMessage(websocket.BinaryMessage, buf[:n])
 		}
 		if err != nil {
 			break

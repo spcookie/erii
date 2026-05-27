@@ -3,6 +3,7 @@ package web
 import (
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/creack/pty"
 )
@@ -13,10 +14,27 @@ type Pty struct {
 	f   *os.File
 }
 
-// StartPty creates a PTY and starts the given command in it with default terminal size.
-func StartPty(command string, args []string) (*exec.Cmd, *Pty, error) {
+// StartPty creates a PTY and starts the given command in it with the given terminal size.
+func StartPty(command string, args []string, rows int, cols int) (*exec.Cmd, *Pty, error) {
+	if rows <= 0 {
+		rows = 40
+	}
+	if cols <= 0 {
+		cols = 120
+	}
 	cmd := exec.Command(command, args...)
-	f, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 40, Cols: 120})
+	cmd.Env = os.Environ()
+	// Ensure proper terminal encoding for TUI programs
+	if !envHas(cmd.Env, "TERM") {
+		cmd.Env = append(cmd.Env, "TERM=xterm-256color")
+	}
+	if !envHas(cmd.Env, "LANG") {
+		cmd.Env = append(cmd.Env, "LANG=en_US.UTF-8")
+	}
+	if !envHas(cmd.Env, "LC_ALL") {
+		cmd.Env = append(cmd.Env, "LC_ALL=en_US.UTF-8")
+	}
+	f, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -41,4 +59,14 @@ func (p *Pty) Resize(rows, cols int) error {
 // Close closes the PTY file descriptor. Call cmd.Wait() before Close to get exit code.
 func (p *Pty) Close() error {
 	return p.f.Close()
+}
+
+func envHas(env []string, key string) bool {
+	prefix := key + "="
+	for _, e := range env {
+		if strings.HasPrefix(e, prefix) {
+			return true
+		}
+	}
+	return false
 }
