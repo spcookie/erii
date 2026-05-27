@@ -22,7 +22,7 @@ data class ServerConfig(
 class IpcRingBuffer(filePath: Path) {
     companion object {
         private const val SIZE = 64 * 1024L // 64KB
-        private const val DEFAULT_FILENAME = ".conf/erii.sock"
+        private const val DEFAULT_FILENAME = "erii.sock"
     }
 
     private val file: RandomAccessFile

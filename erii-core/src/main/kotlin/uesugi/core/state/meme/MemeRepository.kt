@@ -358,7 +358,7 @@ class MemeRepository {
 
             if (records.isNotEmpty()) {
                 log.info(
-                    "清理低热度表情包: {} 条 ({} 天前未更新且 seenCount < {})",
+                    "Clean up low-popularity emojis: {} ({} not updated in days and seenCount < {})",
                     records.size, daysAgo, ANALYZE_THRESHOLD
                 )
             }
