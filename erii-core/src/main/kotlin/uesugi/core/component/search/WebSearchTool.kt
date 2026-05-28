@@ -8,7 +8,6 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
 import ai.koog.prompt.markdown.MarkdownContentBuilder
-import ai.koog.prompt.message.Message
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import uesugi.common.LLMProviderChoice
@@ -139,8 +138,8 @@ object WebSearchTool : ToolSet {
         }
 
         val result = promptExecutor.execute(synthesizePrompt, model = LLMProviderChoice.Lite)
-        return result.filterIsInstance<Message.Assistant>().firstOrNull()?.content
-            ?: throw IllegalStateException("LLM synthesis returned no assistant message")
+        return result.textContent()
+            .ifEmpty { throw IllegalStateException("LLM synthesis returned no assistant message") }
     }
 
     @Tool

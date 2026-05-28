@@ -135,9 +135,9 @@ class MemeAgent {
                 model = LLMProviderChoice.Flash
             )
 
-            val response = result.first()
-            log.debug("查询转换结果: {}", response)
-            response.content
+            val text = result.textContent()
+            log.debug("查询转换结果: {}", text)
+            text
         } catch (e: Exception) {
             log.error("查询转换失败", e)
             userQuery // 失败时返回原始查询

@@ -1,7 +1,8 @@
 package uesugi.core.component.llm
 
-import ai.koog.prompt.executor.clients.deepseek.DeepSeekClientSettings
-import ai.koog.prompt.executor.clients.deepseek.DeepSeekLLMClient
+import ai.koog.http.client.ktor.KtorKoogHttpClient
+import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
+import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.clients.retry.RetryConfig
 import ai.koog.prompt.executor.clients.retry.RetryingLLMClient
 import ai.koog.prompt.llm.LLMProvider
@@ -21,10 +22,10 @@ class DeepSeekClientProvider : LLMClientProvider {
     @OptIn(ExperimentalTime::class)
     override fun createClient(baseClient: HttpClient): RetryingLLMClient {
         return RetryingLLMClient(
-            delegate = DeepSeekLLMClient(
+            delegate = OpenAILLMClient(
                 apiKey = apiKey,
-                settings = DeepSeekClientSettings(baseUrl = baseUrl),
-                baseClient = baseClient,
+                settings = OpenAIClientSettings(baseUrl = baseUrl),
+                httpClientFactory = KtorKoogHttpClient.Factory(baseClient),
             ),
             config = RetryConfig.CONSERVATIVE
         )

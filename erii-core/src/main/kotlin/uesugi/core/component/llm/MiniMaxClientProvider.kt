@@ -1,5 +1,6 @@
 package uesugi.core.component.llm
 
+import ai.koog.http.client.ktor.KtorKoogHttpClient
 import ai.koog.prompt.executor.clients.anthropic.AnthropicClientSettings
 import ai.koog.prompt.executor.clients.anthropic.AnthropicLLMClient
 import ai.koog.prompt.executor.clients.retry.RetryConfig
@@ -23,7 +24,6 @@ class MiniMaxClientProvider : LLMClientProvider {
     override fun createClient(baseClient: HttpClient): RetryingLLMClient {
         return RetryingLLMClient(
             delegate = AnthropicLLMClient(
-                baseClient = baseClient,
                 apiKey = apiKey,
                 settings = AnthropicClientSettings(
                     modelVersionsMap = mapOf(
@@ -32,7 +32,8 @@ class MiniMaxClientProvider : LLMClientProvider {
                     ),
                     baseUrl = baseUrl,
                     messagesPath = "anthropic/v1/messages"
-                )
+                ),
+                httpClientFactory = KtorKoogHttpClient.Factory(baseClient),
             ),
             config = RetryConfig.CONSERVATIVE
         )

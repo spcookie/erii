@@ -1,5 +1,6 @@
 package uesugi.core.component.llm
 
+import ai.koog.http.client.ktor.KtorKoogHttpClient
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.clients.retry.RetryConfig
@@ -24,7 +25,7 @@ class OpenRouterClientProvider : LLMClientProvider {
             delegate = OpenAILLMClient(
                 apiKey = apiKey,
                 settings = OpenAIClientSettings(baseUrl = baseUrl),
-                baseClient = baseClient,
+                httpClientFactory = KtorKoogHttpClient.Factory(baseClient),
             ),
             config = RetryConfig.CONSERVATIVE
         )

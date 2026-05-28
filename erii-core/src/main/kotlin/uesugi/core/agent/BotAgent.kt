@@ -9,14 +9,12 @@ import ai.koog.agents.core.dsl.extension.*
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.executor.model.PromptExecutor
-import ai.koog.serialization.kotlinx.toKotlinxJsonElement
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.json.JsonNull
 import uesugi.common.ChatToolSet
 import uesugi.common.EventBus
 import uesugi.common.LLMProviderChoice
@@ -152,29 +150,22 @@ object BotAgent {
 
                         var noCallTool = true
 
-                        val strategy = strategy("chat") {
+                        val strategy = strategy<String, String>("chat") {
                             val nodeSendInput by nodeLLMRequest()
-                            val nodeExecuteTool by nodeExecuteTool()
-                            val nodeSendToolResult by nodeLLMSendToolResult()
+                            val nodeExecuteTool by nodeExecuteTools()
+                            val nodeSendToolResult by nodeLLMSendToolResults()
 
                             edge(nodeStart forwardTo nodeSendInput)
-                            edge(nodeSendInput forwardTo nodeFinish onAssistantMessage { true })
-                            edge(nodeSendInput forwardTo nodeExecuteTool onToolCall {
-                                if (it.tool in chatToolNames) {
+                            edge(nodeSendInput forwardTo nodeFinish onTextMessage { true })
+                            edge(nodeSendInput forwardTo nodeExecuteTool onToolCalls { toolCall ->
+                                if (toolCall.tool in chatToolNames) {
                                     noCallTool = false
                                 }
                                 true
                             })
-                            edge(nodeExecuteTool forwardTo nodeSendToolResult onCondition {
-                                val result = it.result ?: return@onCondition false
-                                result.toKotlinxJsonElement() !is JsonNull
-                            })
-                            edge(nodeExecuteTool forwardTo nodeFinish onCondition {
-                                val result = it.result ?: return@onCondition true
-                                result.toKotlinxJsonElement() is JsonNull
-                            } transformed { it.content })
-                            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-                            edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
+                            edge(nodeExecuteTool forwardTo nodeSendToolResult)
+                            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCalls { true })
+                            edge(nodeSendToolResult forwardTo nodeFinish onTextMessage { true })
                         }
 
                         val context = buildContext(event)
@@ -310,7 +301,7 @@ object BotAgent {
                         for (message in it.prompt.messages) {
                             append("${message.role.name}:")
                             appendLine()
-                            append(message.content)
+                            append(message.textContent())
                             appendLine()
                         }
                     }
@@ -322,10 +313,11 @@ object BotAgent {
                 if (log.isDebugEnabled) {
                     val info = buildString {
                         appendLine()
-                        for (message in it.responses) {
-                            append("${message.role.name}:")
+                        val response = it.response
+                        if (response != null) {
+                            append("${response.role.name}:")
                             appendLine()
-                            append(message.content)
+                            append(response.textContent())
                             appendLine()
                         }
                     }

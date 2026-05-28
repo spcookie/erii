@@ -3,7 +3,6 @@ package uesugi.core.agent
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
-import ai.koog.prompt.message.Message
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -19,7 +18,6 @@ import uesugi.common.toolkit.ref
 import uesugi.core.message.history.HistorySavedEvent
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.spi.MetaToolSet.Companion.meta
-import kotlin.collections.map
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -201,10 +199,10 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
             }
         }
 
-        val responses = promptExecutor.execute(prompt, LLMProviderChoice.Flash)
-        val content = responses.filterIsInstance<Message.Assistant>().firstOrNull()?.content
+        val response = promptExecutor.execute(prompt, LLMProviderChoice.Flash)
+        val content = response.textContent()
         log.info { "Relevance continue determine LLM response: $content" }
-        return content != null && content.contains("CONTINUE")
+        return content.contains("CONTINUE")
     }
 
 }
