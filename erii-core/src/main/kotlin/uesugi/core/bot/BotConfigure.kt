@@ -46,7 +46,7 @@ fun configureConnectBots() {
                         loginInfo.userId.toString().also {
                             LOG.info("Robot $key selfId resolved via get_login_info: $it")
                         }
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         config.selfId ?: run {
                             LOG.error("Robot $key: get_login_info failed and config.selfId is not set, skipping")
                             return@forEach
