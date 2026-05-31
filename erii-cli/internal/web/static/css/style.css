@@ -1,16 +1,16 @@
 :root {
-    --bg-primary: #1a1a1a;
-    --bg-secondary: #1e1e1e;
-    --bg-hover: #2a2a2a;
-    --bg-active: #333333;
-    --border: #333333;
-    --text-primary: #cccccc;
-    --text-secondary: #999999;
-    --text-muted: #666666;
-    --accent: #89b4fa;
-    --terminal-bg: #11111b;
-    --scrollbar-bg: #1e1e1e;
-    --scrollbar-thumb: #444444;
+    --bg-primary: #282A36;
+    --bg-secondary: #282A36;
+    --bg-hover: #44475A;
+    --bg-active: #44475A;
+    --border: #6272A4;
+    --text-primary: #F8F8F2;
+    --text-secondary: #BD93F9;
+    --text-muted: #6272A4;
+    --accent: #50FA7B;
+    --terminal-bg: #282A36;
+    --scrollbar-bg: #282A36;
+    --scrollbar-thumb: #6272A4;
 }
 
 * {
@@ -120,7 +120,7 @@ html, body {
 }
 
 #terminal-header {
-    background: #181825;
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     padding: 6px 14px;
     font-family: inherit;
@@ -149,33 +149,27 @@ html, body {
 #terminal-container {
     flex: 1;
     background: var(--terminal-bg);
-    padding: 8px;
+    padding: 0;
     overflow: hidden;
+    min-width: 0;
+    min-height: 0;
 }
 
-/* Let xterm.js fit addon control dimensions — no fixed height here */
-
-#terminal-container .xterm-viewport {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+/* Consistent terminal font rendering */
+.xterm .xterm-screen {
+    text-rendering: optimizeSpeed;
+    font-kerning: none;
+    font-variant-ligatures: none;
 }
 
-#terminal-container .xterm-viewport::-webkit-scrollbar {
-    width: 6px;
-}
-
-#terminal-container .xterm-viewport::-webkit-scrollbar-track {
-    background: var(--scrollbar-bg);
-}
-
-#terminal-container .xterm-viewport::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 3px;
+.xterm-char-measure-element {
+    overflow: hidden;
+    text-overflow: clip;
 }
 
 /* Status bar */
 #status-bar {
-    background: #181825;
+    background: var(--bg-secondary);
     border-top: 1px solid var(--border);
     padding: 4px 14px;
     font-family: inherit;
@@ -191,11 +185,11 @@ html, body {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #6c7086;
+    background: var(--text-muted);
 }
 
 #status-bar .status-dot.connected {
-    background: #a6e3a1;
+    background: var(--accent);
 }
 
 /* Resizer */

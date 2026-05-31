@@ -6,12 +6,12 @@ import (
 
 	"erii-cli/internal/tui/style"
 
+	"charm.land/glamour/v2"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -19,6 +19,7 @@ import (
 type ViewerModel struct {
 	viewport viewport.Model
 	content  string
+	body     string // raw markdown body
 	title    string
 	done     bool
 	width    int
@@ -26,6 +27,9 @@ type ViewerModel struct {
 	keys     viewerKeyMap
 	help     help.Model
 	fmTable  table.Model
+
+	// glamour renderer, recreated only when viewport width changes
+	renderer *glamour.TermRenderer
 }
 
 type viewerKeyMap struct {
@@ -187,15 +191,20 @@ func splitFirst(s, sep string) []string {
 	return []string{s[:idx], s[idx+len(sep):]}
 }
 
-func buildFrontmatterTable(entries [][2]string, width int) table.Model {
-	keyWidth := width / 3
+func fmColumnWidths(innerWidth int) (keyWidth, valWidth int) {
+	keyWidth = innerWidth / 3
 	if keyWidth < 10 {
 		keyWidth = 10
 	}
-	valWidth := width - keyWidth - 8
+	valWidth = innerWidth - keyWidth - 8
 	if valWidth < 10 {
 		valWidth = 10
 	}
+	return
+}
+
+func buildFrontmatterTable(entries [][2]string, width int) table.Model {
+	keyWidth, valWidth := fmColumnWidths(width)
 
 	cols := []table.Column{
 		{Title: "Key", Width: keyWidth},
@@ -227,23 +236,16 @@ func buildFrontmatterTable(entries [][2]string, width int) table.Model {
 	return t
 }
 
-func renderMarkdownBody(body string, width int) string {
+// createRenderer creates a glamour renderer for the given width.
+func createRenderer(width int) (*glamour.TermRenderer, error) {
 	ww := width - 4
 	if ww < 20 {
 		ww = 20
 	}
-	renderer, err := glamour.NewTermRenderer(
+	return glamour.NewTermRenderer(
 		glamour.WithStandardStyle("tokyo-night"),
 		glamour.WithWordWrap(ww),
 	)
-	if err != nil {
-		return body
-	}
-	rendered, err := renderer.Render(body)
-	if err != nil {
-		return body
-	}
-	return rendered
 }
 
 func NewViewerModel(path, title string) *ViewerModel {
@@ -258,24 +260,37 @@ func NewViewerModel(path, title string) *ViewerModel {
 	}
 
 	entries, body := parseYamlFrontmatter(string(data))
-	renderedBody := renderMarkdownBody(body, 80)
+	initWidth := 80
 
 	m := &ViewerModel{
-		content: renderedBody,
-		title:   title,
-		keys:    defaultViewerKeys,
-		help:    help.New(),
+		body:  body,
+		title: title,
+		keys:  defaultViewerKeys,
+		help:  help.New(),
 	}
 
 	if len(entries) > 0 {
-		m.fmTable = buildFrontmatterTable(entries, 80)
+		m.fmTable = buildFrontmatterTable(entries, initWidth)
 	}
 
-	v := viewport.New(0, 0)
+	m.renderer, _ = createRenderer(initWidth)
+	m.content = m.renderMarkdown()
+	v := viewport.New(initWidth, 0)
 	v.SetContent(m.content)
 	m.viewport = v
 
 	return m
+}
+
+func (m *ViewerModel) renderMarkdown() string {
+	if m.renderer == nil {
+		return m.body
+	}
+	rendered, err := m.renderer.Render(m.body)
+	if err != nil {
+		return m.body
+	}
+	return rendered
 }
 
 func (m *ViewerModel) Init() tea.Cmd {
@@ -283,6 +298,10 @@ func (m *ViewerModel) Init() tea.Cmd {
 }
 
 func (m *ViewerModel) rebuildContent() {
+	if m.viewport.Width <= 0 {
+		return
+	}
+
 	var parts []string
 	if len(m.fmTable.Rows()) > 0 {
 		parts = append(parts, m.fmTable.View())
@@ -306,14 +325,7 @@ func (m *ViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.help.Width = msg.Width
 
 		if len(m.fmTable.Rows()) > 0 {
-			keyWidth := innerWidth / 3
-			if keyWidth < 10 {
-				keyWidth = 10
-			}
-			valWidth := innerWidth - keyWidth - 8
-			if valWidth < 10 {
-				valWidth = 10
-			}
+			keyWidth, valWidth := fmColumnWidths(innerWidth)
 			m.fmTable.SetWidth(innerWidth)
 			m.fmTable.SetColumns([]table.Column{
 				{Title: "Key", Width: keyWidth},
@@ -321,6 +333,10 @@ func (m *ViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 
+		if m.viewport.Width != innerWidth {
+			m.renderer, _ = createRenderer(innerWidth)
+			m.content = m.renderMarkdown()
+		}
 		m.rebuildContent()
 		return m, nil
 	case tea.KeyMsg:

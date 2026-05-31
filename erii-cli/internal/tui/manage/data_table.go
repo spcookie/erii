@@ -18,6 +18,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 )
 
 type previewHelpKeyMap struct{}
@@ -1046,7 +1047,7 @@ func wrapText(text string, maxWidth int) []string {
 	if maxWidth <= 0 {
 		return []string{text}
 	}
-	wrapped := lipgloss.NewStyle().Width(maxWidth).Render(text)
+	wrapped := runewidth.Wrap(text, maxWidth)
 	return strings.Split(wrapped, "\n")
 }
 

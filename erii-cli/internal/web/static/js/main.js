@@ -12,6 +12,7 @@
     let fitAddon = null;
     let reconnectAttempts = 0;
     const maxReconnects = 3;
+    const MIN_COLS = 40;
     let activeCmd = null;
 
     // DOM elements
@@ -116,40 +117,63 @@
         term = new Terminal({
             cursorBlink: true,
             cursorStyle: 'bar',
-            fontSize: 13,
-            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+            fontSize: 14,
+            fontFamily: 'monospace',
+            letterSpacing: 0,
+            lineHeight: 1.2,
             theme: {
-                background: '#11111b',
-                foreground: '#cdd6f4',
-                cursor: '#f5e0dc',
-                selectionBackground: '#45475a',
-                black: '#45475a',
-                red: '#f38ba8',
-                green: '#a6e3a1',
-                yellow: '#f9e2af',
-                blue: '#89b4fa',
-                magenta: '#cba6f7',
-                cyan: '#94e2d5',
-                white: '#bac2de',
-                brightBlack: '#585b70',
-                brightRed: '#f38ba8',
-                brightGreen: '#a6e3a1',
-                brightYellow: '#f9e2af',
-                brightBlue: '#89b4fa',
-                brightMagenta: '#cba6f7',
-                brightCyan: '#94e2d5',
-                brightWhite: '#a6adc8'
+                background: '#282A36',
+                foreground: '#F8F8F2',
+                cursor: '#F8F8F2',
+                selectionBackground: '#44475A',
+                black: '#21222C',
+                red: '#FF5555',
+                green: '#50FA7B',
+                yellow: '#F1FA8C',
+                blue: '#BD93F9',
+                magenta: '#FF79C6',
+                cyan: '#8BE9FD',
+                white: '#F8F8F2',
+                brightBlack: '#6272A4',
+                brightRed: '#FF6E6E',
+                brightGreen: '#69FF94',
+                brightYellow: '#FFFFA5',
+                brightBlue: '#D6ACFF',
+                brightMagenta: '#FF92DF',
+                brightCyan: '#A4FFFF',
+                brightWhite: '#FFFFFF'
             },
-            allowProposedApi: true
+            allowProposedApi: true,
         });
 
         fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
-        term.open(terminalContainer);
-        requestAnimationFrame(function () {
+
+        try {
+            term.loadAddon(new WebglAddon.WebglAddon());
+        } catch (e) {
+            console.warn('WebGL not available, falling back to canvas renderer');
+        }
+
+        function doFit() {
+            // open() MUST be called when the container has final dimensions;
+            // xterm.js does DOM-based measurements during open().
+            term.open(terminalContainer);
             fitAddon.fit();
             showWelcome();
-        });
+        }
+
+        function doFitLater() {
+            requestAnimationFrame(function () {
+                requestAnimationFrame(doFit);
+            });
+        }
+
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(doFitLater);
+        } else {
+            doFitLater();
+        }
 
         term.onData(function (data) {
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -161,16 +185,21 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                     type: 'resize',
-                    cols: size.cols,
+                    cols: Math.max(size.cols, MIN_COLS),
                     rows: size.rows
                 }));
             }
         });
 
         if (window.ResizeObserver) {
-            const ro = new ResizeObserver(function () {
-                if (fitAddon) fitAddon.fit();
-            });
+            var fitTimer;
+            var debouncedFit = function () {
+                clearTimeout(fitTimer);
+                fitTimer = setTimeout(function () {
+                    if (fitAddon) fitAddon.fit();
+                }, 100);
+            };
+            var ro = new ResizeObserver(debouncedFit);
             ro.observe(terminalContainer);
         }
     }
@@ -187,6 +216,7 @@
 
         ws.onopen = function () {
             ws.send(JSON.stringify({ type: 'auth', token: token }));
+            setStatus('connected');
         };
 
         ws.onmessage = function (event) {
@@ -237,7 +267,7 @@
         ws.send(JSON.stringify({
             type: 'exec',
             cmd: cmd,
-            cols: term.cols,
+            cols: Math.max(term.cols, MIN_COLS),
             rows: term.rows
         }));
         term.focus();
