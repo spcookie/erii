@@ -19,10 +19,13 @@ dependencies {
     implementation(project(":erii-spi:erii-spi-core"))
     // 聊天机器人
     implementation("uesugi:onebot-sdk:1.0.0")
+    implementation("uesugi:onebot-mock:1.0.0")
     // 定时任务
     implementation(libs.jobrunr)
     // AI框架
-    implementation(libs.koog.agents)
+    implementation(libs.koog.agents) {
+        exclude("io.ktor", "ktor-client-apache5")
+    }
     // 依赖注入
     implementation(libs.koin.core)
     implementation(libs.koin.ktor)
@@ -55,6 +58,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.msgpack)
     implementation(libs.ktor.server.config.yaml)
     implementation(libs.ktor.server.jte)
+    implementation(libs.ktor.server.websockets)
     // 客户端
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)

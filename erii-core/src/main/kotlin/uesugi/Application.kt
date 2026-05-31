@@ -13,6 +13,7 @@ import uesugi.config.ConfigHolderImpl
 import uesugi.config.configureH2Console
 import uesugi.core.bot.configureBotAgent
 import uesugi.core.bot.configureConnectBots
+import uesugi.core.chat.configureChatBridge
 import uesugi.core.component.browser.BrowserScraperImpl
 import uesugi.server.*
 
@@ -48,6 +49,7 @@ fun Application.module() {
     configureBotAgent()
     configureConnectBots()
     configureH2Console()
+    configureChatBridge()
 }
 
 fun configureLogging() {

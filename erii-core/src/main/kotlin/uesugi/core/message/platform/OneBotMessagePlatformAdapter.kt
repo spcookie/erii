@@ -4,6 +4,10 @@ import uesugi.common.data.MessageType
 import uesugi.common.message.MessagePlatformAdapter
 import uesugi.common.message.ParsedMessage
 import uesugi.onebot.core.model.GroupMessageEvent
+import uesugi.onebot.sdk.message.atQq
+import uesugi.onebot.sdk.message.imageFile
+import uesugi.onebot.sdk.message.imageUrl
+import uesugi.onebot.sdk.message.text
 
 class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
 
@@ -26,8 +30,7 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
             for (segment in event.message) {
                 when (segment.type) {
                     "at" -> {
-                        val qq = segment.data["qq"] ?: ""
-                        if (!isAtBot && qq == botId) {
+                        if (!isAtBot && segment.atQq?.toString() == botId) {
                             isAtBot = true
                             continue
                         }
@@ -36,14 +39,13 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
                     "image" -> {
                         if (imageUrl == null) {
                             messageType = MessageType.IMAGE
-                            imageUrl = segment.data["url"]?.toString()
-                            imageFormat = segment.data["type"]?.toString()
-                                ?: segment.data["file"]?.toString()?.substringAfterLast(".")
+                            imageUrl = segment.imageUrl ?: segment.imageFile
+                            imageFormat = segment.imageFile?.substringAfterLast(".")
                         }
                     }
 
                     "text" -> {
-                        append(segment.data["text"] ?: "")
+                        segment.text?.let { append(it) }
                     }
 
                     "reply" -> {

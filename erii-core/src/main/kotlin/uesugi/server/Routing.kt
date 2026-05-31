@@ -11,14 +11,17 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.doublereceive.*
 import io.ktor.server.resources.*
 import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
 import uesugi.common.toolkit.JSON
 import uesugi.routing.configureBotConfigManager
 import uesugi.routing.configureBotStatus
 import uesugi.routing.configureBotStatusManager
+import uesugi.routing.configureChatRoutes
 import java.nio.file.Path
 import gg.jte.ContentType as JteContentType
 
 fun Application.configureRouting() {
+    install(WebSockets)
     install(Resources)
     install(DoubleReceive)
     install(AutoHeadResponse)
@@ -38,6 +41,7 @@ fun Application.configureRouting() {
         configureBotStatus()
         configureBotStatusManager()
         configureBotConfigManager()
+        configureChatRoutes()
         authenticate("basic") {
             staticResources("/", "assets")
         }

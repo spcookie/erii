@@ -233,7 +233,8 @@ class ConfigHolderImpl : ConfigProvider {
     }
 
     override fun getEffectiveEnableGroups(botKey: String): List<String> =
-        getOnebotBots()[botKey]?.groupsOverride?.enableGroups ?: getEnableGroups()
+        (getOnebotBots()[botKey]?.groupsOverride?.enableGroups
+            ?: getEnableGroups()) + ChatBridgeConst.MOCK_GROUP_ID.toString()
 
     override fun getEffectiveDebugGroupId(botKey: String): String? =
         getOnebotBots()[botKey]?.groupsOverride?.debugGroupId ?: getDebugGroupId()

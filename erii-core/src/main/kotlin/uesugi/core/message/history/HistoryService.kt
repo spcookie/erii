@@ -97,4 +97,33 @@ class HistoryService {
             true
         }
     }
+
+    fun getHistoryByGroupCursor(
+        botMark: String,
+        groupId: String,
+        beforeId: Int?,
+        limit: Int
+    ): Pair<List<HistoryRecord>, Boolean> {
+        return transaction {
+            val baseQuery = if (beforeId != null) {
+                HistoryEntity.find {
+                    (HistoryTable.botMark eq botMark) and
+                            (HistoryTable.groupId eq groupId) and
+                            (HistoryTable.id less beforeId)
+                }
+            } else {
+                HistoryEntity.find {
+                    (HistoryTable.botMark eq botMark) and (HistoryTable.groupId eq groupId)
+                }
+            }
+            val items = baseQuery
+                .orderBy(HistoryTable.id to SortOrder.DESC)
+                .limit(limit + 1)
+                .toList()
+                .map { it.toRecord() }
+            val hasMore = items.size > limit
+            val result = if (hasMore) items.dropLast(1) else items
+            result to hasMore
+        }
+    }
 }

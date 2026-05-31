@@ -1,0 +1,223 @@
+package uesugi.core.chat
+
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeout
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.serialization.Serializable
+import uesugi.common.BotManage
+import uesugi.common.data.HistoryRecord
+import uesugi.common.toolkit.logger
+import uesugi.config.ChatBridgeConst.MOCK_BOT_ID
+import uesugi.config.ChatBridgeConst.MOCK_CONFIG_KEY
+import uesugi.config.ChatBridgeConst.MOCK_GROUP_ID
+import uesugi.config.ChatBridgeConst.MOCK_USER_ID
+import uesugi.core.GroupMessageEventListener
+import uesugi.core.bot.BotRoleManager
+import uesugi.core.message.history.HistoryService
+import uesugi.onebot.core.config.OneBotConfig
+import uesugi.onebot.core.model.GroupMessageEvent
+import uesugi.onebot.core.model.MessageContent
+import uesugi.onebot.mock.MockBot
+import uesugi.onebot.mock.storage.InMemoryStorage
+import uesugi.onebot.sdk.client.OneBotClient
+import uesugi.onebot.sdk.message.buildMessage
+import uesugi.onebot.sdk.message.text
+import java.net.ServerSocket
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
+
+@Serializable
+data class ChatHistoryEntry(
+    val id: Long,
+    val sender: String,
+    val content: String,
+    val timestamp: Long
+)
+
+class ChatBridge(
+    private val historyService: HistoryService
+) {
+
+    companion object {
+        val MOCK_WS_PORT_RANGE = 6701..6710
+        const val HISTORY_LIMIT = 50
+        val RESPONSE_TIMEOUT = 60.seconds
+
+        private val log = logger()
+
+        private fun findAvailablePort(): Int {
+            for (port in MOCK_WS_PORT_RANGE) {
+                var ss: ServerSocket? = null
+                try {
+                    ss = ServerSocket(port)
+                    return port
+                } catch (_: Exception) {
+                    // port in use, try next
+                } finally {
+                    ss?.close()
+                }
+            }
+            throw IllegalStateException("No available port in range $MOCK_WS_PORT_RANGE")
+        }
+    }
+
+    private lateinit var mockBot: MockBot
+    private lateinit var client: OneBotClient
+
+    private val responseDeferreds = ConcurrentHashMap<Int, CompletableDeferred<String>>()
+    private val requestIdCounter = AtomicInteger(0)
+
+    private var wsPort = 0
+    private var messageListener: GroupMessageEventListener? = null
+
+    @Volatile
+    var wsResponseCallback: (suspend (String) -> Unit)? = null
+
+    data class HistoryResult(
+        val entries: List<ChatHistoryEntry>,
+        val hasMore: Boolean
+    )
+
+    fun getHistory(beforeId: Long?, limit: Int = HISTORY_LIMIT): HistoryResult {
+        val botMark = MOCK_BOT_ID.toString()
+        val groupId = MOCK_GROUP_ID.toString()
+        val (records, hasMore) = historyService.getHistoryByGroupCursor(
+            botMark = botMark,
+            groupId = groupId,
+            beforeId = beforeId?.toInt(),
+            limit = limit
+        )
+        return HistoryResult(
+            entries = records.map { it.toChatHistoryEntry() }.reversed(),
+            hasMore = hasMore
+        )
+    }
+
+    suspend fun start() {
+        wsPort = findAvailablePort()
+        log.info("ChatBridge: starting mock bot on port $wsPort")
+
+        val mockConfig = OneBotConfig(
+            wsForwardServerEnable = true,
+            wsForwardServerHost = "127.0.0.1",
+            wsForwardServerPort = wsPort,
+            selfId = MOCK_BOT_ID,
+            appName = "chat-bridge-mock"
+        )
+        mockBot = MockBot(mockConfig, InMemoryStorage(selfId = MOCK_BOT_ID))
+
+        mockBot.addGroup(MOCK_GROUP_ID, "CLI Chat")
+        mockBot.addUser(MOCK_USER_ID, "You")
+        mockBot.addGroupMember(MOCK_GROUP_ID, MOCK_BOT_ID, "Erii")
+        mockBot.addGroupMember(MOCK_GROUP_ID, MOCK_USER_ID, "You")
+
+        mockBot.onBotSendGroupMsg = { event ->
+            val text = extractResponse(event)
+            if (text.isNotBlank()) {
+                wsResponseCallback?.invoke(text)
+                val entry = responseDeferreds.entries.minByOrNull { it.key }
+                if (entry != null && !entry.value.isCompleted) {
+                    responseDeferreds.remove(entry.key)
+                    entry.value.complete(text)
+                }
+            }
+        }
+
+        mockBot.start()
+        log.info("ChatBridge: mock bot started")
+
+        val clientConfig = OneBotConfig(
+            wsForwardClientEnable = true,
+            wsForwardClientUseUniversal = true,
+            wsForwardClientUrl = "ws://127.0.0.1:$wsPort"
+        )
+        client = OneBotClient(clientConfig)
+        client.start()
+
+        BotManage.registerBot(MOCK_CONFIG_KEY, client, MOCK_BOT_ID.toString(), BotRoleManager.getDefaultRole())
+        log.info("ChatBridge: OneBotClient connected to mock bot")
+    }
+
+    fun selectRole(roleId: String) {
+        check(isReady()) { "ChatBridge is not ready yet" }
+        val role = BotRoleManager.getRole(roleId)
+            ?: throw IllegalArgumentException("Role not found: $roleId")
+        BotManage.refreshBotRole(MOCK_CONFIG_KEY, role)
+        mockBot.addGroupMember(MOCK_GROUP_ID, MOCK_BOT_ID, role.name)
+        registerListener(role.name)
+        log.info("ChatBridge: role set to ${role.id} (${role.name})")
+    }
+
+    private fun registerListener(roleName: String) {
+        messageListener = GroupMessageEventListener(
+            botId = MOCK_BOT_ID.toString(),
+            roleName = roleName,
+            botConfigKey = MOCK_CONFIG_KEY
+        ).also { it.register(client) }
+    }
+
+    suspend fun sendMessage(text: String): String {
+        if (text.isBlank()) return ""
+
+        val requestId = requestIdCounter.getAndIncrement()
+        val deferred = CompletableDeferred<String>()
+        responseDeferreds[requestId] = deferred
+
+        try {
+            val message: MessageContent = buildMessage {
+                if (!text.startsWith("/")) {
+                    at(MOCK_BOT_ID)
+                }
+                text(text)
+            }
+            mockBot.simulateGroupMessage(MOCK_GROUP_ID, MOCK_USER_ID, message)
+
+            return withTimeout(RESPONSE_TIMEOUT) {
+                deferred.await()
+            }
+        } finally {
+            responseDeferreds.remove(requestId)
+        }
+    }
+
+    suspend fun stop() {
+        log.info("ChatBridge: stopping")
+        if (::client.isInitialized) {
+            client.stop()
+        }
+        if (::mockBot.isInitialized) {
+            mockBot.stop()
+        }
+    }
+
+    fun isReady(): Boolean = ::mockBot.isInitialized && ::client.isInitialized
+
+    private fun extractResponse(event: GroupMessageEvent): String {
+        if (event.rawMessage.isNotBlank()) return event.rawMessage
+        val sb = StringBuilder()
+        for (segment in event.message) {
+            when (segment.type) {
+                "text" -> segment.text?.let { if (it.isNotBlank()) sb.append(it) }
+                "image" -> sb.append("[图片]")
+                "record", "voice" -> sb.append("[语音]")
+            }
+        }
+        return sb.toString()
+    }
+}
+
+private fun HistoryRecord.toChatHistoryEntry(): ChatHistoryEntry {
+    val sender = when (userId) {
+        MOCK_USER_ID.toString() -> "user"
+        else -> "bot"
+    }
+    val timestamp = createdAt.toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
+    return ChatHistoryEntry(
+        id = (id ?: 0).toLong(),
+        sender = sender,
+        content = content ?: "",
+        timestamp = timestamp
+    )
+}

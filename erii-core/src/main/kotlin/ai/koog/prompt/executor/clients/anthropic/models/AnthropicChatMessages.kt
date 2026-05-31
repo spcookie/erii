@@ -39,9 +39,12 @@ public data class AnthropicMessageRequest(
     @SerialName("max_tokens")
     @EncodeDefault
     val maxTokens: Int = MAX_TOKENS_DEFAULT,
+    val cacheControl: AnthropicCacheControl? = null,
     val container: String? = null,
     @SerialName("mcp_servers")
     val mcpServers: List<AnthropicMCPServerURLDefinition>? = null,
+    @SerialName("output_config")
+    val outputConfig: AnthropicOutputConfig? = null,
     @SerialName("service_tier")
     val serviceTier: AnthropicServiceTier? = null,
     @SerialName("stop_sequence")
@@ -123,7 +126,8 @@ public sealed interface AnthropicMessage {
 public data class SystemAnthropicMessage(
     val text: String,
     @EncodeDefault
-    val type: String = "text"
+    val type: String = "text",
+    val cacheControl: AnthropicCacheControl? = null
 )
 
 /**
@@ -148,7 +152,7 @@ public sealed interface AnthropicContent {
      */
     @Serializable
     @SerialName("text")
-    public data class Text(val text: String) : AnthropicContent
+    public data class Text(val text: String, val cacheControl: AnthropicCacheControl? = null) : AnthropicContent
 
     /**
      * Represents a thinking process.
@@ -172,7 +176,7 @@ public sealed interface AnthropicContent {
      */
     @Serializable
     @SerialName("image")
-    public data class Image(val source: ImageSource) : AnthropicContent
+    public data class Image(val source: ImageSource, val cacheControl: AnthropicCacheControl? = null) : AnthropicContent
 
     /**
      * Represents a document that originates from a specified source.
@@ -182,7 +186,8 @@ public sealed interface AnthropicContent {
      */
     @Serializable
     @SerialName("document")
-    public data class Document(val source: DocumentSource) : AnthropicContent
+    public data class Document(val source: DocumentSource, val cacheControl: AnthropicCacheControl? = null) :
+        AnthropicContent
 
     /**
      * Represents the usage of a tool in a structured format.
@@ -202,7 +207,8 @@ public sealed interface AnthropicContent {
     public data class ToolUse(
         val id: String,
         val name: String,
-        val input: JsonObject
+        val input: JsonObject,
+        val cacheControl: AnthropicCacheControl? = null
     ) : AnthropicContent
 
     /**
@@ -215,7 +221,9 @@ public sealed interface AnthropicContent {
     @SerialName("tool_result")
     public data class ToolResult(
         val toolUseId: String,
-        val content: String
+        val content: String,
+        val isError: Boolean = false,
+        val cacheControl: AnthropicCacheControl? = null
     ) : AnthropicContent
 }
 
@@ -400,7 +408,8 @@ public sealed interface AnthropicThinking {
 public data class AnthropicTool(
     val name: String,
     val description: String,
-    val inputSchema: AnthropicToolSchema
+    val inputSchema: AnthropicToolSchema,
+    val cacheControl: AnthropicCacheControl? = null
 )
 
 /**
@@ -467,6 +476,10 @@ public data class AnthropicResponse(
 public data class AnthropicUsage(
     val inputTokens: Int? = null,
     val outputTokens: Int? = null,
+    @SerialName("cache_read_input_tokens")
+    val cacheReadInputTokens: Int? = null,
+    @SerialName("cache_creation_input_tokens")
+    val cacheCreationInputTokens: Int? = null,
 )
 
 /**
@@ -620,6 +633,31 @@ public sealed interface AnthropicToolChoice {
     @SerialName("tool")
     public data class Tool(val name: String) : AnthropicToolChoice
 }
+
+/**
+ * Represents the output format configuration for Anthropic API requests.
+ *
+ * This sealed interface defines the available output format options.
+ *
+ * Note: This API is internal and subject to change or removal without notice.
+ */
+@InternalLLMClientApi
+@Serializable
+public sealed interface AnthropicOutputFormat
+
+/**
+ * Represents output configuration for Anthropic API requests.
+ *
+ * @property format The desired output format for the response.
+ *
+ * Note: This API is internal and subject to change or removal without notice.
+ */
+@InternalLLMClientApi
+@Serializable
+public data class AnthropicOutputConfig(
+    @SerialName("format")
+    val format: AnthropicOutputFormat
+)
 
 @OptIn(InternalLLMClientApi::class)
 internal object AnthropicMessageRequestSerializer :

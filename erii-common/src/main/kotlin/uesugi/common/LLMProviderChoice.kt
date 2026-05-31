@@ -70,7 +70,8 @@ object LLMProviderChoice {
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices
+                LLMCapability.MultipleChoices,
+                LLMCapability.Thinking
             ),
             contextLength = 204_800,
             maxOutputTokens = 204_800

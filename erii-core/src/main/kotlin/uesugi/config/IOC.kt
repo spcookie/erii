@@ -9,6 +9,7 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
+import uesugi.core.chat.chatModule
 import uesugi.core.component.llm.*
 import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.core.component.storage.LocalObjectStorage
@@ -108,4 +109,5 @@ val appModule = module {
     includes(summaryModule)
     includes(volitionModule)
     includes(cronModule)
+    includes(chatModule)
 }
