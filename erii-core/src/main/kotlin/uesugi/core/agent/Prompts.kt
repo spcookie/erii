@@ -179,7 +179,7 @@ fun MarkdownContentBuilder.buildSummaryPrompt(summary: SummaryEntity?) {
 fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, currentBotId: String) {
     if (histories.isNotEmpty()) {
         header(2, "最近群聊记录")
-        line { text("输入：按时间顺序排列的聊天记录，每条包含：发言者昵称和ID，消息内容") }
+        line { text("输入：按时间顺序排列的聊天记录，每条包含：[发言者昵称](发言者ID): 消息内容") }
         line { text("图片：包含图片ID：image_id") }
         line { text("注意：带有*号的表示你自己的发言") }
         bulleted {
@@ -187,11 +187,11 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
                 item {
                     line {
                         text(
-                            "${DateTimeFormat.format(history.createdAt)} ${
+                            "${DateTimeFormat.format(history.createdAt)} [${
                                 if (currentBotId == history.userId) "*" + BotManage.getBot(
                                     history.userId
                                 ).role.name else history.nick
-                            }(${history.userId})：${if (history.messageType == MessageType.IMAGE) "[image_id:" + history.id + "]" else ""} ${history.content}"
+                            }](${history.userId}): ${if (history.messageType == MessageType.IMAGE) "[image_id:" + history.id + "]" else ""} ${history.content}"
                         )
                     }
                 }
