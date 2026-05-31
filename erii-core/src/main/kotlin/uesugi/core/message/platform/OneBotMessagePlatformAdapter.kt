@@ -36,9 +36,9 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
                     "image" -> {
                         if (imageUrl == null) {
                             messageType = MessageType.IMAGE
-                            imageUrl = segment.data["url"]
-                            imageFormat = segment.data["type"]
-                                ?: segment.data["file"]?.substringAfterLast(".")
+                            imageUrl = segment.data["url"]?.toString()
+                            imageFormat = segment.data["type"]?.toString()
+                                ?: segment.data["file"]?.toString()?.substringAfterLast(".")
                         }
                     }
 
