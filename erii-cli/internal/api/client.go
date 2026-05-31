@@ -83,6 +83,10 @@ func doJSONRequest[T any](c *Client, method, path string, body any) (T, error) {
 	return result, nil
 }
 
+func (c *Client) BaseURL() string  { return c.baseURL }
+func (c *Client) Username() string { return c.username }
+func (c *Client) Password() string { return c.password }
+
 func NewClientFromIPC() (*Client, error) {
 	config, err := ipc.ReadConfig()
 	if err != nil {
