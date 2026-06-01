@@ -251,7 +251,7 @@
     }
 
     // Commands that use BubbleTea TUI (alternate screen)
-    const tuiCommands = ['config', 'setup', 'manage', 'stats'];
+    const tuiCommands = ['config', 'setup', 'manage', 'stats', 'chat'];
 
     function execCmd(cmd) {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;

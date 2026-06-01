@@ -486,7 +486,7 @@ func (m *StatusViewModel) buildContent() string {
 	// Flow
 	rows = append(rows, hline(innerW))
 	rows = append(rows, sectionTitle("Flow State"))
-	fc := flowColor(s.FlowState.State)
+	fc := flowColor()
 	rows = append(rows, fmt.Sprintf("State: %s %s    Meter: %s",
 		lipgloss.NewStyle().Foreground(fc).Bold(true).Render(flowStateName(s.FlowState.State)),
 		style.Muted("("+s.FlowState.State+")"),
@@ -622,15 +622,8 @@ func flowScale(width int) string {
 	return lipgloss.NewStyle().Foreground(style.TextMuted).Render(b.String())
 }
 
-func flowColor(state string) lipgloss.TerminalColor {
-	switch state {
-	case "STANDBY":
-		return style.TextMuted
-	case "FLOW_BURST":
-		return lipgloss.Color("#ef4444")
-	default:
-		return style.Info
-	}
+func flowColor() lipgloss.TerminalColor {
+	return style.Info
 }
 
 func emotionName(en string) string {
