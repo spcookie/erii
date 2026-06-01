@@ -1,7 +1,6 @@
 package uesugi.core.message.pipeline
 
 import kotlinx.coroutines.*
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import okio.Buffer
@@ -22,7 +21,10 @@ import uesugi.core.message.resource.ResourceService
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.core.route.RoutingAgent
+import java.io.File
 import java.net.URL
+import java.util.*
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -37,47 +39,57 @@ class MessagePipeline(
 
     fun process(context: MessageContext, roleName: String) {
         scope.launch {
-            saveHistoryAndPublish(context)
-            routeCall(context, roleName)
+            val record = saveHistory(context)
+            if (context.senderId != context.botId) {
+                EventBus.postAsync(HistorySavedEvent(context.parsedMessage.isAtBot, record))
+                routeCall(context, roleName)
+            }
         }
     }
 
     @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
-    private suspend fun saveHistoryAndPublish(context: MessageContext) {
+    private suspend fun saveHistory(context: MessageContext): HistoryRecord {
         val parsed = context.parsedMessage
-        val historyRecord = withContext(Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             var resource: ResourceRecord? = null
 
             if (parsed.imageUrl != null) {
-                val imageUrl = parsed.imageUrl
+                val imageUrl = parsed.imageUrl!!
                 val format = parsed.imageFormat
 
-                val size: Long
-                val md5: String
-                val path: String
-
-                URL(imageUrl).openStream().use { input ->
-                    val buffer = input.source().buffer().readByteString()
-
-                    size = buffer.size.toLong()
-                    md5 = buffer.md5().hex()
-
-                    val resourceRecord = transaction {
-                        ResourceEntity.find { ResourceTable.md5 eq md5 }.firstOrNull()?.toRecord()
+                val buffer = when {
+                    imageUrl.startsWith("base64://") -> {
+                        val data = Base64.getDecoder().decode(imageUrl.removePrefix("base64://"))
+                        Buffer().write(data).readByteString()
                     }
 
-                    if (resourceRecord != null) {
-                        path = resourceRecord.url
-                    } else {
-                        path = "./image/${context.groupId}/${Uuid.random().toHexString()}.${format}"
-
-                        storage.put(
-                            path.toPath(),
-                            Buffer().write(buffer)
-                                .inputStream()
-                                .source()
-                        )
+                    imageUrl.startsWith("file://") -> {
+                        val data = File(imageUrl.removePrefix("file://")).readBytes()
+                        Buffer().write(data).readByteString()
                     }
+
+                    else -> {
+                        URL(imageUrl).openStream().use { input ->
+                            input.source().buffer().readByteString()
+                        }
+                    }
+                }
+                val size = buffer.size.toLong()
+                val md5 = buffer.md5().hex()
+
+                val resourceRecord = transaction {
+                    ResourceEntity.find { ResourceTable.md5 eq md5 }.firstOrNull()?.toRecord()
+                }
+
+                val path = if (resourceRecord != null) {
+                    resourceRecord.url
+                } else {
+                    val newPath = "./image/${context.groupId}/${Uuid.random().toHexString()}.${format}"
+                    storage.put(
+                        newPath.toPath(),
+                        Buffer().write(buffer).inputStream().source()
+                    )
+                    newPath
                 }
 
                 resource = resourceService.saveResource(
@@ -106,7 +118,6 @@ class MessagePipeline(
                 )
             )
         }
-        EventBus.postAsync(HistorySavedEvent(context.parsedMessage.isAtBot, historyRecord))
     }
 
     private fun routeCall(context: MessageContext, roleName: String) {
