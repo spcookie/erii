@@ -253,6 +253,8 @@ class ConfigHolderImpl : ConfigProvider {
 
     override fun getBrowserDownload(): Boolean = config.getBoolean("browser.download")
 
+    override fun getBrowserExternalUrl(): String = config.tryGetString("browser.external-url") ?: "hostmachine"
+
     override fun getDebugGroupId(): String? = config.tryGetString("groups.debug-group-id")
 
     override fun getEnableGroups(): List<String> {
