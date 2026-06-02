@@ -8,7 +8,7 @@
     "nullable": true,
     "default": ""
   },
-  "browser.status-host": {
+  "browser.external-url": {
     "type": "string",
     "nullable": true,
     "default": ""
