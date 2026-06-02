@@ -4,6 +4,7 @@ import io.ktor.server.config.*
 import org.pf4j.Extension
 import uesugi.common.toolkit.BrowserScraper
 import uesugi.common.toolkit.BrowserScraperHolder
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.onebot.sdk.client.api.sendGroupMsg
 import uesugi.onebot.sdk.message.buildMessage
 import uesugi.plugin.builtin.Builtin
@@ -23,10 +24,7 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
 
     override fun onLoad(context: PluginContext) {
         val browserScraper = BrowserScraperHolder.getInstance()
-        val statusHost = SystemConfigHolder.config
-            .propertyOrNull("browser.status-host")
-            ?.getString()
-            ?: "hostmachine"
+        val externalUrl = ConfigHolder.getBrowserExternalUrl()
 
         val port: Int = SystemConfigHolder.config
             .property("ktor.deployment.port")
@@ -37,7 +35,7 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
 
         context.chain { meta ->
             val bytes = browserScraper.takeFullScreenshot(
-                url = "http://${statusHost}:${port}/view/${meta.botId}/${meta.groupId}",
+                url = "http://${externalUrl}:${port}/view/${meta.botId}/${meta.groupId}",
                 width = 1200,
                 quality = 100,
                 type = BrowserScraper.ScreenshotType.JPEG,
