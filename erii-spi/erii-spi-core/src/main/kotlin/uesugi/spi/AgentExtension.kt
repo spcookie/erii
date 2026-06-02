@@ -18,6 +18,7 @@ import com.github.ajalt.mordant.terminal.TerminalInterface
 import com.typesafe.config.Config
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
+import io.ktor.http.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.JsonElement
@@ -34,10 +35,10 @@ import uesugi.common.event.PSFeature
 import uesugi.common.event.ProactiveSpeakFeature
 import java.io.InputStream
 import java.util.*
+import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KClass
 import kotlin.reflect.full.allSupertypes
 import kotlin.reflect.full.createInstance
-import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -333,7 +334,7 @@ interface Database {
 }
 
 interface Server {
-    val basePath: String
+    val url: URLBuilder
     fun route(conf: Route.() -> Unit)
 }
 
