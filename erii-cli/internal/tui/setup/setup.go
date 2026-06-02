@@ -57,7 +57,7 @@ type GroupsDefaults struct {
 type BrowserDefaults struct {
 	Download      bool   `json:"download"`
 	PlaywrightURL string `json:"playwright-url"`
-	StatusHost    string `json:"status-host"`
+	ExternalURL   string `json:"external-url"`
 }
 
 type ProxyDefaults struct {
@@ -114,7 +114,7 @@ type SetupData struct {
 	BrowserEnabled    bool
 	BrowserDownload   bool
 	PlaywrightURL     string
-	StatusHost        string
+	ExternalURL       string
 	ProxyEnabled      bool
 	HTTPProxy         string
 	SOCKSProxy        string
@@ -359,7 +359,7 @@ func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolP
 		BotToken:           defaults.Bot.Token,
 		BrowserDownload:    defaults.Browser.Download,
 		PlaywrightURL:      defaults.Browser.PlaywrightURL,
-		StatusHost:         defaults.Browser.StatusHost,
+		ExternalURL:         defaults.Browser.ExternalURL,
 		HTTPProxy:          defaults.Proxy.HTTP,
 		SOCKSProxy:         defaults.Proxy.SOCKS,
 		DebugGroupID:       defaults.Groups.DebugGroupID,

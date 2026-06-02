@@ -146,8 +146,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 				if isKey(trimmed, "playwright-url") && d.PlaywrightURL != "" {
 					lines[i] = replaceHoconValue(line, d.PlaywrightURL)
 				}
-				if isKey(trimmed, "status-host") && d.StatusHost != "" {
-					lines[i] = replaceHoconValue(line, d.StatusHost)
+				if isKey(trimmed, "external-url") && d.ExternalURL != "" {
+					lines[i] = replaceHoconValue(line, d.ExternalURL)
 				}
 			}
 		}
