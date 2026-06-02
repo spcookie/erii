@@ -6,6 +6,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
+import uesugi.server.SystemConfigHolder
 import uesugi.spi.PluginDef
 import uesugi.spi.Server
 
@@ -17,7 +18,7 @@ class ServerImpl(val defined: PluginDef) : Server {
             embeddedServer(Netty, configure = {
                 connectors.add(EngineConnectorBuilder().apply {
                     host = "0.0.0.0"
-                    port = 8888
+                    port = SystemConfigHolder.config.property("ktor.deployment.port").getString().toInt() + 100
                 })
                 connectionGroupSize = 2
                 workerGroupSize = 5
