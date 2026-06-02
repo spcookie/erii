@@ -11,29 +11,32 @@ import uesugi.spi.Server
 
 class ServerImpl(val defined: PluginDef) : Server {
 
-    private val routeing by lazy {
-        var ref: Route? = null
-        embeddedServer(Netty, configure = {
-            connectors.add(EngineConnectorBuilder().apply {
-                host = "0.0.0.0"
-                port = 8888
-            })
-            connectionGroupSize = 2
-            workerGroupSize = 5
-            callGroupSize = 10
-        }) {
-            install(ContentNegotiation) {
-                jackson()
-            }
-
-            routing {
-                route("/plugin") {
-                    ref = this
+    companion object {
+        private val routeing by lazy {
+            var ref: Route? = null
+            embeddedServer(Netty, configure = {
+                connectors.add(EngineConnectorBuilder().apply {
+                    host = "0.0.0.0"
+                    port = 8888
+                })
+                connectionGroupSize = 2
+                workerGroupSize = 5
+                callGroupSize = 10
+            }) {
+                install(ContentNegotiation) {
+                    jackson()
                 }
-            }
-        }.start()
-        ref!!
+
+                routing {
+                    route("/plugin") {
+                        ref = this
+                    }
+                }
+            }.start()
+            ref!!
+        }
     }
+
     override val basePath: String
         get() = "/plugin/${defined.name}"
 
