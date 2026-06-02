@@ -12,13 +12,20 @@ import uesugi.spi.Server
 
 class ServerImpl(val defined: PluginDef) : Server {
 
+    override val port: Int
+        get() = _port
+
     companion object {
+        private val _port by lazy {
+            SystemConfigHolder.config.property("ktor.deployment.port").getString().toInt() + 100
+        }
+
         private val routeing by lazy {
             var ref: Route? = null
             embeddedServer(Netty, configure = {
                 connectors.add(EngineConnectorBuilder().apply {
                     host = "0.0.0.0"
-                    port = SystemConfigHolder.config.property("ktor.deployment.port").getString().toInt() + 100
+                    port = _port
                 })
                 connectionGroupSize = 2
                 workerGroupSize = 5
