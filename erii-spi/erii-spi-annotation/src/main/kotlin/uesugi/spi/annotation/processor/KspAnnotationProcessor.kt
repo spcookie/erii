@@ -4,10 +4,7 @@ package uesugi.spi.annotation.processor
 
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.processing.*
-import com.google.devtools.ksp.symbol.KSAnnotated
-import com.google.devtools.ksp.symbol.KSAnnotation
-import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.Modifier
+import com.google.devtools.ksp.symbol.*
 
 class KspAnnotationProcessor(
     private val codeGenerator: CodeGenerator,
@@ -23,14 +20,35 @@ class KspAnnotationProcessor(
         const val ANN_ROUTE = "uesugi.spi.annotation.Route"
         const val ANN_CMD = "uesugi.spi.annotation.Cmd"
         const val ANN_PASSIVE = "uesugi.spi.annotation.Passive"
-        const val ANN_TOOL = "uesugi.spi.annotation.Tool"
+        const val ANN_TOOL = "uesugi.spi.annotation.LLMTool"
         const val ANN_DEFINITION = "uesugi.spi.annotation.Definition"
-        const val ANN_LLM_DESC = "uesugi.spi.annotation.LLMDescription"
+        const val ANN_LLM_DESC = "uesugi.spi.annotation.LLMDesc"
         const val ANN_ON_LOAD = "uesugi.spi.annotation.OnLoad"
         const val ANN_ON_UNLOAD = "uesugi.spi.annotation.OnUnload"
         const val ANN_ON_START = "uesugi.spi.annotation.OnStart"
         const val ANN_ON_STOP = "uesugi.spi.annotation.OnStop"
     }
+
+    // ========== Parameter Slots ==========
+
+    /**
+     * Defines an available parameter slot for annotation-generated functions.
+     * Functions may accept a PREFIX of these slots in declared order.
+     */
+    private data class ParamSlot(
+        val name: String,
+        val qualifiedType: String,
+        val valueExpression: String,
+    )
+
+    private val CMD_SLOTS = listOf(
+        ParamSlot("meta", "uesugi.spi.Meta", "meta"),
+        ParamSlot("args", "kotlin.collections.List", "holder.args"),
+    )
+
+    private val ROUTE_PASSIVE_SLOTS = listOf(
+        ParamSlot("meta", "uesugi.spi.Meta", "meta"),
+    )
 
     private var processed = false
 
@@ -61,7 +79,8 @@ class KspAnnotationProcessor(
 
         val toolFunctions = resolver.getSymbolsWithAnnotation(ANN_TOOL)
             .filterIsInstance<KSFunctionDeclaration>()
-            .filter { it.checkVisibility("Tool") }
+            .filter { it.checkVisibility("LLMTool") }
+            .filter { it.parent !is KSClassDeclaration } // skip @Tool on class methods (handled by MetaToolSet subclass)
             .toList()
 
         // Lifecycle functions
@@ -69,6 +88,7 @@ class KspAnnotationProcessor(
             .filterIsInstance<KSFunctionDeclaration>()
             .filter { it.checkVisibility("OnLoad") }
             .toList()
+        onLoadFunctions.forEach { it.validateLifecycleParams("OnLoad") }
         val namedOnLoad = onLoadFunctions
             .filter { it.findAnnotation(ANN_ON_LOAD)?.stringArg("value")?.isNotEmpty() == true }
             .associateBy { it.findAnnotation(ANN_ON_LOAD)!!.stringArg("value") }
@@ -80,6 +100,7 @@ class KspAnnotationProcessor(
             .filterIsInstance<KSFunctionDeclaration>()
             .filter { it.checkVisibility("OnUnload") }
             .toList()
+        onUnloadFunctions.forEach { it.validateLifecycleParams("OnUnload") }
         val namedOnUnload = onUnloadFunctions
             .filter { it.findAnnotation(ANN_ON_UNLOAD)?.stringArg("value")?.isNotEmpty() == true }
             .associateBy { it.findAnnotation(ANN_ON_UNLOAD)!!.stringArg("value") }
@@ -96,6 +117,7 @@ class KspAnnotationProcessor(
             logger.error("Only one @OnStart function allowed per plugin")
             return emptyList()
         }
+        onStartFuncs.firstOrNull()?.validateLifecycleParams("OnStart")
 
         val onStopFuncs = resolver.getSymbolsWithAnnotation(ANN_ON_STOP)
             .filterIsInstance<KSFunctionDeclaration>()
@@ -105,6 +127,7 @@ class KspAnnotationProcessor(
             logger.error("Only one @OnStop function allowed per plugin")
             return emptyList()
         }
+        onStopFuncs.firstOrNull()?.validateLifecycleParams("OnStop")
 
         // Generate
         generatePluginDelegate(pkgName, defAnno, onStartFuncs.firstOrNull(), onStopFuncs.firstOrNull())
@@ -129,11 +152,13 @@ class KspAnnotationProcessor(
 
     private fun findFileDefinition(resolver: Resolver): Pair<String, KSAnnotation?>? {
         for (file in resolver.getNewFiles()) {
-            val defAnno = file.annotations.find { it.shortName.asString() == "Definition" }
+            val defAnno =
+                file.annotations.find { it.annotationType.resolve().declaration.qualifiedName?.asString() == ANN_DEFINITION }
             if (defAnno != null) return file.packageName.asString() to defAnno
         }
         for (file in resolver.getAllFiles()) {
-            val defAnno = file.annotations.find { it.shortName.asString() == "Definition" }
+            val defAnno =
+                file.annotations.find { it.annotationType.resolve().declaration.qualifiedName?.asString() == ANN_DEFINITION }
             if (defAnno != null) return file.packageName.asString() to defAnno
         }
         return null
@@ -314,8 +339,9 @@ class KspAnnotationProcessor(
             val onLoadCalls = resolveLifecycleCalls(routeAnno.stringArrayArg("onLoad"), namedOnLoad, funcName)
             val onUnloadCalls = resolveLifecycleCalls(routeAnno.stringArrayArg("onUnload"), namedOnUnload, funcName)
             val handlerIsSuspend = func.isSuspendFunc()
-            val handlerHasMeta = func.hasMetaParam()
-            val callExpr = if (handlerHasMeta) "$funcName(meta)" else "$funcName()"
+            val matchedSlots = func.matchSlots(ROUTE_PASSIVE_SLOTS, "Route")
+            val handlerHasMeta = funcDeclaresMeta(matchedSlots, ROUTE_PASSIVE_SLOTS)
+            val callExpr = buildSlotCallExpr(funcName, matchedSlots, ROUTE_PASSIVE_SLOTS)
 
             val content = buildString {
                 appendLine("package $pkgName")
@@ -377,8 +403,9 @@ class KspAnnotationProcessor(
             val onLoadCalls = resolveLifecycleCalls(cmdAnno.stringArrayArg("onLoad"), namedOnLoad, funcName)
             val onUnloadCalls = resolveLifecycleCalls(cmdAnno.stringArrayArg("onUnload"), namedOnUnload, funcName)
             val handlerIsSuspend = func.isSuspendFunc()
-            val handlerHasMeta = func.hasMetaParam()
-            val callExpr = if (handlerHasMeta) "$funcName(holder.args, meta)" else "$funcName(holder.args)"
+            val matchedSlots = func.matchSlots(CMD_SLOTS, "Cmd")
+            val handlerHasMeta = funcDeclaresMeta(matchedSlots, CMD_SLOTS)
+            val callExpr = buildSlotCallExpr(funcName, matchedSlots, CMD_SLOTS)
 
             val content = buildString {
                 appendLine("package $pkgName")
@@ -438,8 +465,9 @@ class KspAnnotationProcessor(
             val onLoadCalls = resolveLifecycleCalls(passiveAnno.stringArrayArg("onLoad"), namedOnLoad, funcName)
             val onUnloadCalls = resolveLifecycleCalls(passiveAnno.stringArrayArg("onUnload"), namedOnUnload, funcName)
             val handlerIsSuspend = func.isSuspendFunc()
-            val handlerHasMeta = func.hasMetaParam()
-            val callExpr = if (handlerHasMeta) "$funcName(meta)" else "$funcName()"
+            val matchedSlots = func.matchSlots(ROUTE_PASSIVE_SLOTS, "Passive")
+            val handlerHasMeta = funcDeclaresMeta(matchedSlots, ROUTE_PASSIVE_SLOTS)
+            val callExpr = buildSlotCallExpr(funcName, matchedSlots, ROUTE_PASSIVE_SLOTS)
 
             val content = buildString {
                 appendLine("package $pkgName")
@@ -622,10 +650,76 @@ class KspAnnotationProcessor(
         }
     }
 
-    private fun KSFunctionDeclaration.hasMetaParam(): Boolean =
-        parameters.any {
-            it.type.resolve().declaration.qualifiedName?.asString() == "uesugi.spi.Meta"
+    // ========== Parameter Slot Validation ==========
+
+    /**
+     * Validates function parameters against [slots] and returns the matched prefix indices.
+     *
+     * Rules:
+     * - Function may declare FEWER parameters than slots (takes a prefix of slots).
+     * - Function CANNOT declare MORE parameters than available slots.
+     * - Parameters must match slot types IN ORDER (skipping/reordering = error).
+     *
+     * On violation, emits a compile error via [logger] and returns an empty list.
+     */
+    private fun KSFunctionDeclaration.matchSlots(
+        slots: List<ParamSlot>,
+        annotationName: String,
+    ): List<Int> {
+        val params = parameters.toList()
+
+        if (params.size > slots.size) {
+            val expected = slots.joinToString(", ") { "${it.name}: ${it.qualifiedType}" }
+            logger.error(
+                "@$annotationName function '${simpleName.asString()}' declares ${params.size} parameter(s), " +
+                        "but only ${slots.size} slot(s) are available. " +
+                        "Available slots (in order): $expected"
+            )
+            return emptyList()
         }
+
+        for ((i, param) in params.withIndex()) {
+            val slot = slots[i]
+            val paramTypeFqn = param.type.resolve().declaration.qualifiedName?.asString()
+            if (paramTypeFqn != slot.qualifiedType) {
+                val paramName = param.name?.asString() ?: "<unnamed>"
+                logger.error(
+                    "@$annotationName function '${simpleName.asString()}' parameter #${i + 1} " +
+                            "('$paramName: $paramTypeFqn') does not match expected type " +
+                            "'${slot.qualifiedType}' for slot '${slot.name}'. " +
+                            "Expected parameter order: ${slots.joinToString(", ") { "${it.name}: ${it.qualifiedType}" }}"
+                )
+                return emptyList()
+            }
+        }
+
+        return params.indices.toList()
+    }
+
+    /** Builds the call expression from matched slot indices. */
+    private fun buildSlotCallExpr(
+        funcName: String,
+        matchedSlots: List<Int>,
+        slots: List<ParamSlot>,
+    ): String {
+        val args = matchedSlots.joinToString(", ") { slots[it].valueExpression }
+        return "$funcName($args)"
+    }
+
+    /** Checks whether the matched slots include the Meta slot. */
+    private fun funcDeclaresMeta(matchedSlots: List<Int>, slots: List<ParamSlot>): Boolean =
+        matchedSlots.any { slots[it].qualifiedType == "uesugi.spi.Meta" }
+
+    /** Validates that a lifecycle function has zero parameters. */
+    private fun KSFunctionDeclaration.validateLifecycleParams(annotationName: String) {
+        val count = parameters.count()
+        if (count > 0) {
+            logger.error(
+                "@$annotationName function '${simpleName.asString()}' must have zero parameters, " +
+                        "but found $count parameter(s)."
+            )
+        }
+    }
 
     private fun KSFunctionDeclaration?.isSuspendFunc(): Boolean =
         this != null && Modifier.SUSPEND in modifiers
