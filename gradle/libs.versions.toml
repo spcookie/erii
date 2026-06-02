@@ -31,8 +31,6 @@ ksp = "2.3.8"
 kotlinx-serialization-msgpack = "0.5.5"
 
 [libraries]
-kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
-kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 jobrunr = { module = "org.jobrunr:jobrunr", version.ref = "jobrunr" }
 koog-agents = { module = "ai.koog:koog-agents", version.ref = "koog" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
@@ -68,8 +66,6 @@ ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-serialization-jackson = { module = "io.ktor:ktor-serialization-jackson", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
-ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
-ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 mapdb = { module = "org.mapdb:mapdb", version.ref = "mapdb" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
