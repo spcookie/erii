@@ -24,7 +24,7 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
 
     override fun onLoad(context: PluginContext) {
         val browserScraper = BrowserScraperHolder.getInstance()
-        val externalUrl = ConfigHolder.getBrowserExternalUrl()
+        val externalHost = ConfigHolder.getBrowserExternalHost()
 
         val port: Int = SystemConfigHolder.config
             .property("ktor.deployment.port")
@@ -35,7 +35,7 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
 
         context.chain { meta ->
             val bytes = browserScraper.takeFullScreenshot(
-                url = "http://${externalUrl}:${port}/view/${meta.botId}/${meta.groupId}",
+                url = "http://${externalHost}:${port}/view/${meta.botId}/${meta.groupId}",
                 width = 1200,
                 quality = 100,
                 type = BrowserScraper.ScreenshotType.JPEG,

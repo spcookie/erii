@@ -87,7 +87,7 @@ interface ConfigProvider {
     // ===== Web =====
     fun getPlaywrightUrl(): String
     fun getBrowserDownload(): Boolean
-    fun getBrowserExternalUrl(): String
+    fun getBrowserExternalHost(): String
 
     // ===== 群组 =====
     fun getDebugGroupId(): String?
@@ -169,7 +169,7 @@ object ConfigHolder {
     // ===== Web =====
     fun getPlaywrightUrl(): String = provider.getPlaywrightUrl()
     fun getBrowserDownload(): Boolean = provider.getBrowserDownload()
-    fun getBrowserExternalUrl(): String = provider.getBrowserExternalUrl()
+    fun getBrowserExternalHost(): String = provider.getBrowserExternalHost()
 
     // ===== 群组 =====
     fun getDebugGroupId(): String? = provider.getDebugGroupId()

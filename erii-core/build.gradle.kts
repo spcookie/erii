@@ -17,6 +17,7 @@ dependencies {
     kapt(libs.autoservice.processor)
     implementation(project(":erii-common"))
     implementation(project(":erii-spi:erii-spi-core"))
+    implementation(project(":erii-spi:erii-spi-annotation"))
     // 聊天机器人
     implementation("uesugi:onebot-sdk:1.0.0")
     implementation("uesugi:onebot-mock:1.0.0")

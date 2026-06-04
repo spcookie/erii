@@ -17,7 +17,7 @@ class ServerImpl(val defined: PluginDef) : Server {
     override val url: URLBuilder
         get() = URLBuilder().apply {
             protocol = URLProtocol.HTTP
-            host = ConfigHolder.getBrowserExternalUrl()
+            host = ConfigHolder.getBrowserExternalHost()
             port = _port
             pathSegments = listOf("plugin", defined.name)
         }

@@ -91,7 +91,7 @@
     "browser": {
       "download": false,
       "playwright-url": "ws://127.0.0.1:13001",
-      "external-url": "localhost"
+      "external-host": "localhost"
     },
     "proxy": {
       "http": "",

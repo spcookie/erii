@@ -199,8 +199,8 @@ func buildBrowserForm(d *SetupData) *huh.Form {
 				Placeholder(placeholderOrValue(d.PlaywrightURL)),
 			huh.NewInput().
 				Title("Status Host").
-				Value(&d.StatusHost).
-				Placeholder(placeholderOrValue(d.StatusHost)),
+				Value(&d.ExternalHost).
+				Placeholder(placeholderOrValue(d.ExternalHost)),
 		).WithShowHelp(false),
 	)
 }
