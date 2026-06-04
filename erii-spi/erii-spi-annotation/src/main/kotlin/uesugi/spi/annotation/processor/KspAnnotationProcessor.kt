@@ -52,10 +52,14 @@ class KspAnnotationProcessor(
 
     private var processed = false
 
+    // 多个 extension 共用 default toolset 时，仅首次注册，避免 ToolRegistry 重复定义
+    private var defaultToolSetEmitted = false
+
     // ========== Entry ==========
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (processed) return emptyList()
+        defaultToolSetEmitted = false
 
         val (pkgName, defAnno) = findFileDefinition(resolver) ?: run {
             logger.warn("No @file:Definition found, skipping KSP processing")
@@ -619,12 +623,13 @@ class KspAnnotationProcessor(
     private fun StringBuilder.emitToolSetRegistrations(
         toolSets: List<String>, packageName: String, indent: String
     ) {
-        val filtered = toolSets.filter { it != DEFAULT_TOOLSET }
-        if (filtered.isNotEmpty()) {
-            for (setName in filtered) {
-                val tsClassName = toolSetClassName(setName)
-                appendLine("${indent}context.tool { { $packageName.$tsClassName(context) } }")
+        for (setName in toolSets) {
+            if (setName == DEFAULT_TOOLSET) {
+                if (defaultToolSetEmitted) continue
+                defaultToolSetEmitted = true
             }
+            val tsClassName = toolSetClassName(setName)
+            appendLine("${indent}context.tool { { $packageName.$tsClassName(context) } }")
         }
     }
 
