@@ -4,10 +4,7 @@ import uesugi.common.data.MessageType
 import uesugi.common.message.MessagePlatformAdapter
 import uesugi.common.message.ParsedMessage
 import uesugi.onebot.core.model.GroupMessageEvent
-import uesugi.onebot.sdk.message.atQq
-import uesugi.onebot.sdk.message.imageFile
-import uesugi.onebot.sdk.message.imageUrl
-import uesugi.onebot.sdk.message.text
+import uesugi.onebot.sdk.message.*
 
 class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
 
@@ -50,7 +47,7 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
 
                     "reply" -> {
                         appendLine("---REFERENCE MESSAGE START---")
-                        append("[引用消息]")
+                        append("[引用消息 id: ${segment.replyId}]")
                         appendLine("---REFERENCE MESSAGE END---")
                     }
                 }
