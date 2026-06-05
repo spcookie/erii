@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.decodeFromJsonElement
 import org.koin.core.context.GlobalContext
 import uesugi.common.message.MessageContext
 import uesugi.common.toolkit.ConfigHolder
@@ -12,6 +13,8 @@ import uesugi.common.toolkit.logger
 import uesugi.core.message.pipeline.MessagePipeline
 import uesugi.core.message.platform.OneBotMessagePlatformAdapter
 import uesugi.onebot.core.model.GroupMessageEvent
+import uesugi.onebot.core.model.RawEvent
+import uesugi.onebot.core.transport.JsonFactory
 import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.onGroupMessage
 
@@ -37,7 +40,7 @@ class GroupMessageEventListener(
     private fun channelKey(groupId: String) = "${botId}_$groupId"
 
     fun register(client: OneBotClient) {
-        client.onGroupMessage { event ->
+        suspend fun serialHandle(event: GroupMessageEvent) {
             serial.computeIfAbsent(channelKey(event.groupId.toString())) {
                 val channel = Channel<GroupMessageEvent>(Channel.UNLIMITED)
                 scope.launch {
@@ -53,6 +56,14 @@ class GroupMessageEventListener(
                 }
                 channel
             }.send(event)
+        }
+        client.onGroupMessage { event ->
+            serialHandle(event)
+        }
+        client.onEvent("message_sent") { event ->
+            event as RawEvent
+            val groupMessageEvent = JsonFactory.lenient.decodeFromJsonElement<GroupMessageEvent>(event.raw)
+            serialHandle(groupMessageEvent)
         }
     }
 
