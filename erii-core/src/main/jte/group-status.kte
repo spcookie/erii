@@ -12,351 +12,861 @@
 <head>
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>群组状态监控 - Erii Bot</title>
+    <title>${vm.groupName} · Bot</title>
     <link href="${vm.basePath}/css/styles.css" rel="stylesheet">
-    <link href="${vm.basePath}/css/fontawesome.min.css" rel="stylesheet">
+    <link href="${vm.basePath}/css/fonts.css" rel="stylesheet">
     <style>
-        .status-detail {
+        :root {
+            --paper: #fafaf8;
+            --paper-rgb: 250, 250, 248;
+            --ink: #0a0a0a;
+            --ink-rgb: 10, 10, 10;
+            --grey-1: #f0f0ee;
+            --grey-2: #d4d4d2;
+            --grey-3: #737373;
+            --accent: #C5E803;
+            --accent-rgb: 197, 232, 3;
+            --accent-on: #0a0a0a;
+
+            --sans: 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', system-ui, -apple-system, sans-serif;
+            --sans-zh: 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+            --mono: 'JetBrains Mono', 'IBM Plex Mono', 'SF Mono', 'Consolas', ui-monospace, monospace;
+
+            --sp-3: 8px;
+            --sp-4: 12px;
+            --sp-5: 16px;
+            --sp-6: 24px;
+            --sp-7: 32px;
+            --sp-8: 40px;
+            --sp-9: 48px;
+            --sp-10: 64px;
+            --sp-11: 80px;
+            --sp-12: 96px;
+            --sp-13: 160px;
+        }
+
+        *, *::before, *::after {
+            margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--sans), var(--sans-zh);
+            font-weight: 400;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: "ss01", "cv11";
+        }
+
+        /* ---- Accent top stripe ---- */
+        .accent-stripe {
+            height: 4px;
+            background: var(--accent);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        /* ---- Page ---- */
+        .page {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: var(--sp-11) var(--sp-9) var(--sp-12);
+        }
+
+        /* ---- Header ---- */
+        .header {
+            margin-bottom: var(--sp-10);
+        }
+
+        .header .report-label {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--grey-3);
+            margin-bottom: var(--sp-7);
+        }
+
+        .header .report-label::before {
+            content: "";
+            display: inline-block;
+            width: 24px;
+            height: 2px;
+            background: var(--accent);
+            margin-right: 12px;
+            vertical-align: middle;
+        }
+
+        .header .report-title {
+            font-family: var(--sans), var(--sans-zh);
+            font-weight: 200;
+            font-size: clamp(48px, 6.4vw, 80px);
+            line-height: 0.96;
+            letter-spacing: -0.025em;
+            margin-bottom: var(--sp-7);
+            max-width: 80%;
+        }
+
+        .header .meta-row {
+            display: flex;
+            gap: 1.2em;
+            align-items: center;
+            flex-wrap: wrap;
+            font-family: var(--mono);
+            font-size: 14px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--grey-3);
+        }
+
+        .header .meta-row .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--grey-3);
+        }
+
+        .header .meta-row span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header .meta-row i {
+            font-size: 12px;
+        }
+
+        /* ---- Section ---- */
+        .section {
+            margin-bottom: var(--sp-11);
+        }
+
+        .section .sec-rule {
+            height: 1px;
+            background: var(--grey-2);
+            margin-bottom: var(--sp-7);
+        }
+
+        .section .sec-head {
+            font-family: var(--sans), var(--sans-zh);
+            font-weight: 300;
+            font-size: clamp(22px, 2vw, 28px);
+            letter-spacing: -0.015em;
+            margin-bottom: var(--sp-7);
+            display: flex;
+            align-items: center;
+            gap: var(--sp-4);
+        }
+
+        .section .sec-head .sec-num {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--grey-3);
+            letter-spacing: 0.06em;
+        }
+
+        /* ---- KPI Grid (12-col) ---- */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: var(--sp-6) var(--sp-5);
+            align-items: start;
+            margin-bottom: var(--sp-8);
+        }
+
+        .kpi-grid .kpi-card {
+            grid-column: span 3;
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-3);
+            padding-top: var(--sp-5);
+            border-top: 3px solid var(--accent);
+        }
+
+        .kpi-grid .kpi-card .kpi-label {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--grey-3);
+        }
+
+        .kpi-grid .kpi-card .kpi-num {
+            font-family: var(--sans);
+            font-weight: 800;
+            font-size: clamp(40px, 4.6vw, 56px);
+            line-height: 0.88;
+            letter-spacing: -0.035em;
+            font-feature-settings: "tnum", "ss01";
+        }
+
+        .kpi-grid .kpi-card .kpi-note {
+            font-family: var(--sans), var(--sans-zh);
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--grey-3);
+            line-height: 1.5;
+        }
+
+        /* ---- KPI 5-col Card Row ---- */
+        .kpi-grid-5 {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        .kpi-grid-5 .kpi-card {
+            grid-column: span 1;
+        }
+
+        /* ---- Grey Block ---- */
+        .grey-panel {
+            background: var(--grey-1);
+            padding: var(--sp-8) var(--sp-9);
+        }
+
+        .grey-panel.tight {
+            padding: var(--sp-7) var(--sp-8);
+        }
+
+        /* ---- Emotion ---- */
+        .emotion-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: var(--sp-7);
+            margin-bottom: var(--sp-6);
+        }
+
+        .emotion-top .em-name {
+            font-family: var(--sans), var(--sans-zh);
+            font-weight: 200;
+            font-size: clamp(36px, 4.4vw, 56px);
+            line-height: 0.96;
+            letter-spacing: -0.025em;
+        }
+
+        .emotion-top .em-code {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--grey-3);
+            letter-spacing: 0.06em;
+            margin-left: var(--sp-3);
+        }
+
+        .emotion-top .em-tendency {
+            flex-shrink: 0;
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: var(--sp-3) var(--sp-5);
+            border: 1px solid var(--ink);
+        }
+
+        .emotion-quote {
+            font-family: var(--sans), var(--sans-zh);
+            font-size: 18px;
+            font-weight: 400;
+            line-height: 1.55;
+            color: var(--grey-3);
+            padding: var(--sp-6) 0 var(--sp-6) var(--sp-6);
+            border-left: 3px solid var(--accent);
+            margin-bottom: var(--sp-7);
+            max-width: 75%;
+        }
+
+        /* ---- PAD Grid ---- */
+        .pad-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--sp-7) var(--sp-8);
+            margin-bottom: var(--sp-6);
+        }
+
+        .pad-grid-3 .pg {
+        }
+
+        .pad-grid-3 .pg .pg-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: var(--sp-3);
+        }
+
+        .pad-grid-3 .pg .pg-label {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--grey-3);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pad-grid-3 .pg .pg-val {
+            font-family: var(--mono);
+            font-size: 16px;
+            font-weight: 600;
+            font-feature-settings: "tnum";
+        }
+
+        .pad-grid-3 .pg .pg-track {
+            height: 4px;
+            background: var(--grey-2);
+            margin-bottom: 4px;
+        }
+
+        .pad-grid-3 .pg .pg-fill {
+            height: 100%;
+            transition: width 0.4s var(--ease-prod, cubic-bezier(.2, 0, .38, .9));
+        }
+
+        .pad-grid-3 .pg .pg-fill.p {
+            background: var(--ink);
+        }
+
+        .pad-grid-3 .pg .pg-fill.a {
+            background: var(--grey-3);
+        }
+
+        .pad-grid-3 .pg .pg-fill.d {
+            background: var(--grey-2);
+        }
+
+        .pad-grid-3 .pg .pg-scale {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--grey-3);
+        }
+
+        /* ---- Behavior Tags ---- */
+        .tag-cluster {
+            display: flex;
+            gap: var(--sp-3);
+            flex-wrap: wrap;
+        }
+
+        .tag-cluster .swiss-tag {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            padding: 5px 14px;
+            border: 1px solid var(--grey-2);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ---- Flow ---- */
+        .flow-block {
+        }
+
+        .flow-block .fl-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--sp-5);
+        }
+
+        .flow-block .fl-state {
+            font-family: var(--sans), var(--sans-zh);
+            font-weight: 300;
+            font-size: clamp(20px, 1.8vw, 26px);
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+        }
+
+        .flow-block .fl-num {
+            font-family: var(--sans);
+            font-weight: 800;
+            font-size: clamp(44px, 5vw, 60px);
+            line-height: 0.85;
+            letter-spacing: -0.04em;
+            font-feature-settings: "tnum";
+        }
+
+        .flow-block .fl-track {
+            height: 6px;
+            background: var(--grey-2);
+            position: relative;
+            margin-bottom: var(--sp-4);
+        }
+
+        .flow-block .fl-fill {
+            height: 100%;
+            transition: width 0.4s ease;
+        }
+
+        .flow-block .fl-marker {
+            position: absolute;
+            top: -4px;
+            width: 2px;
+            height: 14px;
+            background: var(--grey-3);
+        }
+
+        .flow-block .fl-legend {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--mono);
+            font-size: 14px;
+            color: var(--grey-3);
+        }
+
+        .flow-block .fl-legend .flg-num {
+            font-weight: 600;
+        }
+
+        .flow-block .fl-legend .flg-tag {
+            font-size: 12px;
+            font-weight: 400;
+            display: block;
+        }
+
+        /* ---- Volition ---- */
+        .vol-block {
+        }
+
+        .vol-block .vl-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--sp-7);
+        }
+
+        .vol-block .vl-top .vl-label {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--grey-3);
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+        }
+
+        .vol-block .vl-top .vl-badge {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: var(--sp-3) var(--sp-5);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .vol-block .vl-top .vl-badge.on {
+            background: var(--accent);
+            color: var(--accent-on);
+        }
+
+        .vol-block .vl-top .vl-badge.off {
+            border: 1px solid var(--grey-2);
+            color: var(--grey-3);
+        }
+
+        .vol-block .vl-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--sp-9);
+        }
+
+        .vol-block .vl-split .vs {
+        }
+
+        .vol-block .vl-split .vs .vs-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: var(--sp-3);
+        }
+
+        .vol-block .vl-split .vs .vs-label {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--grey-3);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .vol-block .vl-split .vs .vs-val {
+            font-family: var(--mono);
+            font-size: 16px;
+            font-weight: 600;
+            font-feature-settings: "tnum";
+        }
+
+        .vol-block .vl-split .vs .vs-track {
+            height: 4px;
+            background: var(--grey-2);
+            margin-bottom: 4px;
+        }
+
+        .vol-block .vl-split .vs .vs-fill {
+            height: 100%;
+            transition: width 0.4s ease;
+        }
+
+        .vol-block .vl-split .vs .vs-fill.stimulus {
+            background: var(--ink);
+        }
+
+        .vol-block .vl-split .vs .vs-fill.fatigue {
+            background: var(--grey-3);
+        }
+
+        .vol-block .vl-split .vs .vs-scale {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--grey-3);
+        }
+
+        /* ---- Summary ---- */
+        .summary-callout {
+            padding: var(--sp-6) 0 var(--sp-6) var(--sp-6);
+            border-left: 3px solid var(--accent);
+            font-family: var(--sans), var(--sans-zh);
+            font-size: 18px;
+            font-weight: 400;
+            line-height: 1.6;
+            color: var(--grey-3);
+            max-width: 80%;
+        }
+
+        /* ---- Empty ---- */
+        .empty-note {
+            padding: var(--sp-7);
+            border: 1px solid var(--grey-2);
+            font-family: var(--mono);
+            font-size: 14px;
+            color: var(--grey-3);
+            text-align: center;
+            letter-spacing: 0.08em;
+        }
+
+        /* ---- End ---- */
+        .end-rule {
+            height: 2px;
+            background: var(--accent);
+            width: 48px;
+            margin-top: var(--sp-12);
+        }
+
+        .end-note {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--grey-3);
+            margin-top: var(--sp-5);
+        }
+
+        @
+        @media (max-width: 760px) {
+            .page {
+                padding: var(--sp-8) var(--sp-6) var(--sp-9);
+            }
+
+            .header .report-title {
+                max-width: 100%;
+                font-size: 36px;
+            }
+
+            .kpi-grid, .kpi-grid-5 {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .kpi-grid .kpi-card, .kpi-grid-5 .kpi-card {
+                grid-column: span 1;
+            }
+
+            .emotion-quote {
+                max-width: 100%;
+            }
+
+            .pad-grid-3 {
+                grid-template-columns: 1fr;
+                gap: var(--sp-6);
+            }
+
+            .vol-block .vl-split {
+                grid-template-columns: 1fr;
+                gap: var(--sp-7);
+            }
+
+            .summary-callout {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <section class="status-detail" id="group-status-detail">
-        <article class="blog-article">
-            <header class="article-header">
-                <div class="article-meta-bar">
-                    <div class="meta-left">
-                        <span class="meta-badge bot-id">
-                            <i class="fas fa-robot"></i>
-                            <span>${vm.botName} (${vm.botId})</span>
-                        </span>
-                        <span class="meta-badge timestamp">
-                            <i class="fas fa-users"></i>
-                            <span>${vm.groupName} (${vm.groupId})</span>
-                        </span>
-                        <span class="meta-badge timestamp">
-                            <i class="far fa-clock"></i>
-                            <span>${vm.currentTime}</span>
-                        </span>
-                    </div>
-                </div>
-            </header>
 
-            <div class="article-content">
-                <section class="markdown-section">
-                    <h3 class="subsection-title">
-                        <i class="fas fa-puzzle-piece"></i> 插件
-                    </h3>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-label">
-                                <i class="fas fa-puzzle-piece"></i>
-                                <span>Extensions</span>
-                            </div>
-                            <div class="stat-value">${vm.pluginStats.totalExtensions}</div>
-                            <div class="stat-desc">个扩展总数</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">
-                                <i class="fas fa-cubes"></i>
-                                <span>Plugins</span>
-                            </div>
-                            <div class="stat-value">${vm.pluginStats.plugins.size}</div>
-                            <div class="stat-desc">个已加载插件</div>
-                        </div>
-                    </div>
+<div class="accent-stripe"></div>
 
-                    @if(vm.groupStatus.behaviorProfile != null && vm.groupStatus.pad != null)
-                        <h3 class="subsection-title">
-                            <i class="fas fa-smile"></i> 情绪状态
-                        </h3>
-                        <div class="emotion-container">
-                            <div class="emotion-header">
-                                <div class="emotion-current">
-                                    <span class="emotion-name">${EmotionMap.get(vm.groupStatus.behaviorProfile!!.emotion).name}</span>
-                                    <span class="emotion-code">${vm.groupStatus.behaviorProfile!!.emotion}</span>
-                                </div>
-                                <div class="emotion-tendency">${vm.groupStatus.pad!!.emotionTendency()}</div>
-                            </div>
+<div class="page">
 
-                            <div class="emotion-description">
-                                <i class="fas fa-quote-left"></i>
-                                ${EmotionMap.get(vm.groupStatus.behaviorProfile!!.emotion).desc}
-                            </div>
+    <!-- ===== HEADER ===== -->
+    <div class="header">
+        <div class="report-label">Bot · Group Status Report</div>
+        <h1 class="report-title">${vm.groupName}</h1>
+        <div class="meta-row">
+            <span><i data-lucide="bot"></i> ${vm.botName}</span>
+            <span class="dot"></span>
+            <span>${vm.botId}</span>
+            <span class="dot"></span>
+            <span><i data-lucide="users"></i> ${vm.groupId}</span>
+            <span class="dot"></span>
+            <span>${vm.currentTime}</span>
+        </div>
+    </div>
 
-                            <div class="pad-grid">
-                                <div class="pad-item">
-                                    <div class="pad-header">
-                                        <div class="pad-label">
-                                            <i class="fas fa-smile"></i>
-                                            <span>Pleasure</span>
-                                        </div>
-                                        <div class="pad-value">${String.format("%.2f", vm.groupStatus.pad!!.p)}</div>
-                                    </div>
-                                    <div class="pad-bar-wrapper">
-                                        <div class="pad-bar pleasure"
-                                             style="width: ${vm.groupStatus.pad!!.p.normalizeForDisplay()}%"></div>
-                                    </div>
-                                    <div class="pad-scale">
-                                        <span>-4</span>
-                                        <span class="scale-center">0</span>
-                                        <span>+4</span>
-                                    </div>
-                                </div>
+    <!-- ===== KPI: 5 Cards ===== -->
+    <div class="kpi-grid kpi-grid-5">
+        <div class="kpi-card">
+            <span class="kpi-label">Plugins</span>
+            <span class="kpi-num">${vm.pluginStats.plugins.size}</span>
+            <span class="kpi-note">个已加载 · ${vm.pluginStats.totalExtensions} 个拓展</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Facts</span>
+            <span class="kpi-num">${vm.groupStatus.factSize}</span>
+            <span class="kpi-note">条事实记忆</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">User Profiles</span>
+            <span class="kpi-num">${vm.groupStatus.userProfileSize}</span>
+            <span class="kpi-note">个用户档案</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Memes</span>
+            <span class="kpi-num">${vm.groupStatus.memeSize}</span>
+            <span class="kpi-note">表情包 · ${vm.groupStatus.analyzedMemeSize} 已分析</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Vocabulary</span>
+            <span class="kpi-num">${vm.groupStatus.vocabularies.size}</span>
+            <span class="kpi-note">个学习词汇</span>
+        </div>
+    </div>
 
-                                <div class="pad-item">
-                                    <div class="pad-header">
-                                        <div class="pad-label">
-                                            <i class="fas fa-bolt"></i>
-                                            <span>Arousal</span>
-                                        </div>
-                                        <div class="pad-value">${String.format("%.2f", vm.groupStatus.pad!!.a)}</div>
-                                    </div>
-                                    <div class="pad-bar-wrapper">
-                                        <div class="pad-bar arousal"
-                                             style="width: ${vm.groupStatus.pad!!.a.normalizeForDisplay()}%"></div>
-                                    </div>
-                                    <div class="pad-scale">
-                                        <span>-4</span>
-                                        <span class="scale-center">0</span>
-                                        <span>+4</span>
-                                    </div>
-                                </div>
-
-                                <div class="pad-item">
-                                    <div class="pad-header">
-                                        <div class="pad-label">
-                                            <i class="fas fa-crown"></i>
-                                            <span>Dominance</span>
-                                        </div>
-                                        <div class="pad-value">${String.format("%.2f", vm.groupStatus.pad!!.d)}</div>
-                                    </div>
-                                    <div class="pad-bar-wrapper">
-                                        <div class="pad-bar dominance"
-                                             style="width: ${vm.groupStatus.pad!!.d.normalizeForDisplay()}%"></div>
-                                    </div>
-                                    <div class="pad-scale">
-                                        <span>-4</span>
-                                        <span class="scale-center">0</span>
-                                        <span>+4</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="behavior-profile">
-                                <div class="profile-label">行为特征</div>
-                                <div class="profile-tags">
-                                    <span class="profile-tag">
-                                        <i class="fas fa-comment-dots"></i>
-                                        ${vm.groupStatus.behaviorProfile!!.tone.displayName()}
-                                    </span>
-                                    <span class="profile-tag">
-                                        <i class="fas fa-hand-rock"></i>
-                                        ${vm.groupStatus.behaviorProfile!!.aggressiveness.displayName()}
-                                    </span>
-                                    <span class="profile-tag">
-                                        <i class="fas fa-icons"></i>
-                                        ${vm.groupStatus.behaviorProfile!!.emojiLevel.displayName()}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    @else
-                        <blockquote class="info-box"><i class="fas fa-exclamation-triangle"></i> 暂无情绪数据
-                        </blockquote>
-                    @endif
-
-                    <h3 class="subsection-title">
-                        <i class="fas fa-water"></i> 心流投入度
-                    </h3>
-                    <div class="flow-state-container">
-                        <div class="flow-header">
-                            <div class="flow-current-state"
-                                 style="color: ${vm.groupStatus.flowState.state.info().color}">
-                                <i class="fas ${vm.groupStatus.flowState.state.info().icon}"></i>
-                                <span class="state-name">${vm.groupStatus.flowState.state.info().name}</span>
-                            </div>
-                            <div class="flow-meter-value">${String.format("%.1f", vm.groupStatus.flowState.meter)}</div>
-                        </div>
-
-                        <div class="flow-bar-wrapper">
-                            <div class="flow-bar"
-                                 style="width: ${vm.groupStatus.flowState.meter}%; background: ${vm.groupStatus.flowState.state.info().color}"></div>
-                            <div class="flow-marker" style="left: 30%" data-label="30"></div>
-                            <div class="flow-marker" style="left: 70%" data-label="70"></div>
-                        </div>
-
-                        <div class="flow-scale">
-                            <span class="scale-point">
-                                <span class="scale-value">0</span>
-                                <span class="scale-label">待机</span>
-                            </span>
-                            <span class="scale-point">
-                                <span class="scale-value">30</span>
-                                <span class="scale-label">阈值</span>
-                            </span>
-                            <span class="scale-point">
-                                <span class="scale-value">70</span>
-                                <span class="scale-label">阈值</span>
-                            </span>
-                            <span class="scale-point">
-                                <span class="scale-value">100</span>
-                                <span class="scale-label">爆发</span>
-                            </span>
-                        </div>
-                    </div>
-
-                    <h3 class="subsection-title">
-                        <i class="fas fa-brain"></i> 冲动值
-                    </h3>
-                    <div class="volition-container">
-                        <div class="volition-header">
-                            <div class="volition-title">
-                                <i class="fas fa-brain"></i>
-                                <span>冲动值累积</span>
-                            </div>
-                            @if(vm.groupStatus.volitionState.shouldSpeak)
-                                <div class="volition-status active">
-                                    <i class="fas fa-circle-check"></i>
-                                    <span>已触发主动发言阈值</span>
-                                </div>
-                            @else
-                                <div class="volition-status inactive">
-                                    <i class="fas fa-circle-pause"></i>
-                                    <span>保持观察状态</span>
-                                </div>
-                            @endif
-                        </div>
-
-                        <div class="volition-metrics">
-                            <div class="volition-metric">
-                                <div class="metric-header">
-                                    <div class="metric-label">
-                                        <i class="fas fa-bolt"></i>
-                                        <span>Stimulus</span>
-                                    </div>
-                                    <div class="metric-value">${String.format("%.1f", vm.groupStatus.volitionState.stimulus)}</div>
-                                </div>
-                                <div class="metric-bar-wrapper">
-                                    <div class="metric-bar stimulus"
-                                         style="width: ${vm.groupStatus.volitionState.stimulus}%"></div>
-                                </div>
-                                <div class="metric-scale">
-                                    <span>0</span>
-                                    <span class="scale-center">50</span>
-                                    <span>100</span>
-                                </div>
-                            </div>
-
-                            <div class="volition-metric">
-                                <div class="metric-header">
-                                    <div class="metric-label">
-                                        <i class="fas fa-bed"></i>
-                                        <span>Fatigue</span>
-                                    </div>
-                                    <div class="metric-value">${String.format("%.1f", vm.groupStatus.volitionState.fatigue)}</div>
-                                </div>
-                                <div class="metric-bar-wrapper">
-                                    <div class="metric-bar fatigue"
-                                         style="width: ${vm.groupStatus.volitionState.fatigue}%"></div>
-                                </div>
-                                <div class="metric-scale">
-                                    <span>0</span>
-                                    <span class="scale-center">50</span>
-                                    <span>100</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h3 class="subsection-title">
-                        <i class="fas fa-database"></i> 记忆
-                    </h3>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-label">
-                                <i class="fas fa-file-alt"></i>
-                                <span>Facts</span>
-                            </div>
-                            <div class="stat-value">${vm.groupStatus.factSize}</div>
-                            <div class="stat-desc">条事实记忆</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">
-                                <i class="fas fa-user"></i>
-                                <span>UserProfile</span>
-                            </div>
-                            <div class="stat-value">${vm.groupStatus.userProfileSize}</div>
-                            <div class="stat-desc">个用户档案</div>
-                        </div>
-                    </div>
-
-                    <h3 class="subsection-title">
-                        <i class="fas fa-images"></i> 表情包 & 词汇
-                    </h3>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-label">
-                                <i class="fas fa-images"></i>
-                                <span>Memes</span>
-                            </div>
-                            <div class="stat-value">${vm.groupStatus.memeSize}</div>
-                            <div class="stat-desc">个表情包（${vm.groupStatus.analyzedMemeSize} 已分析）</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">
-                                <i class="fas fa-language"></i>
-                                <span>Vocabulary</span>
-                            </div>
-                            <div class="stat-value">${vm.groupStatus.vocabularies.size}</div>
-                            <div class="stat-desc">个学习词汇</div>
-                        </div>
-                    </div>
-
-                    @if(vm.groupStatus.summary != null)
-                        <h3 class="subsection-title">
-                            <i class="fas fa-book-open"></i> 会话摘要
-                        </h3>
-                        <div class="summary-container">
-                            <div class="summary-content">
-                                <i class="fas fa-quote-left"></i>
-                                <div class="summary-text">${vm.groupStatus.summary}</div>
-                            </div>
-                        </div>
-                    @endif
-                </section>
+    @if(vm.groupStatus.behaviorProfile != null && vm.groupStatus.pad != null)
+        <!-- ===== EMOTION ===== -->
+        <div class="section">
+            <div class="sec-rule"></div>
+            <div class="sec-head">
+                <span class="sec-num">01</span>
+                <span>情绪状态</span>
             </div>
 
-            <footer style="padding: 0 0 1rem 0; -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent); mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);">
-                <div style="display: flex; gap: 4px; height: 6px; margin-bottom: 8px;">
-                    <div style="flex: 3; background: #6366f1; border-radius: 3px;"></div>
-                    <div style="flex: 2; background: #8b5cf6; border-radius: 3px;"></div>
-                    <div style="flex: 1; background: #a78bfa; border-radius: 3px;"></div>
-                    <div style="flex: 2; background: #c084fc; border-radius: 3px;"></div>
-                    <div style="flex: 1; background: #e879f9; border-radius: 3px;"></div>
-                    <div style="flex: 3; background: #f472b6; border-radius: 3px;"></div>
-                    <div style="flex: 1; background: #fb923c; border-radius: 3px;"></div>
-                    <div style="flex: 2; background: #fbbf24; border-radius: 3px;"></div>
+            <div class="grey-panel">
+                <div class="emotion-top">
+                    <span>
+                        <span class="em-name">${EmotionMap.get(vm.groupStatus.behaviorProfile!!.emotion).name}</span>
+                        <span class="em-code">${vm.groupStatus.behaviorProfile!!.emotion}</span>
+                    </span>
+                    <span class="em-tendency">${vm.groupStatus.pad!!.emotionTendency()}</span>
                 </div>
-                <div style="display: flex; gap: 4px; height: 32px;">
-                    <div style="flex: 2; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 6px; opacity: 0.9;"></div>
-                    <div style="flex: 1; background: linear-gradient(135deg, #a78bfa, #c084fc); border-radius: 6px; opacity: 0.7;"></div>
-                    <div style="flex: 3; background: linear-gradient(135deg, #818cf8, #6366f1); border-radius: 6px; opacity: 0.15;"></div>
-                    <div style="flex: 1; background: linear-gradient(135deg, #e879f9, #f472b6); border-radius: 6px; opacity: 0.5;"></div>
-                    <div style="flex: 2; background: linear-gradient(135deg, #f472b6, #fb923c); border-radius: 6px; opacity: 0.3;"></div>
+                <div class="emotion-quote">
+                    ${EmotionMap.get(vm.groupStatus.behaviorProfile!!.emotion).desc}
                 </div>
-                <div style="display: flex; gap: 4px; height: 4px; margin-top: 4px;">
-                    <div style="flex: 1; background: #fbbf24; border-radius: 2px; opacity: 0.6;"></div>
-                    <div style="flex: 4; background: #6366f1; border-radius: 2px; opacity: 0.2;"></div>
-                    <div style="flex: 2; background: #e879f9; border-radius: 2px; opacity: 0.4;"></div>
-                    <div style="flex: 1; background: #34d399; border-radius: 2px; opacity: 0.5;"></div>
-                    <div style="flex: 3; background: #8b5cf6; border-radius: 2px; opacity: 0.15;"></div>
+
+                <div class="pad-grid-3">
+                    <div class="pg">
+                        <div class="pg-head">
+                            <span class="pg-label"><i data-lucide="smile"></i> Pleasure</span>
+                            <span class="pg-val">${String.format("%.2f", vm.groupStatus.pad!!.p)}</span>
+                        </div>
+                        <div class="pg-track">
+                            <div class="pg-fill p"
+                                 style="width: ${vm.groupStatus.pad!!.p.normalizeForDisplay()}%"></div>
+                        </div>
+                        <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
+                    </div>
+                    <div class="pg">
+                        <div class="pg-head">
+                            <span class="pg-label"><i data-lucide="zap"></i> Arousal</span>
+                            <span class="pg-val">${String.format("%.2f", vm.groupStatus.pad!!.a)}</span>
+                        </div>
+                        <div class="pg-track">
+                            <div class="pg-fill a"
+                                 style="width: ${vm.groupStatus.pad!!.a.normalizeForDisplay()}%"></div>
+                        </div>
+                        <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
+                    </div>
+                    <div class="pg">
+                        <div class="pg-head">
+                            <span class="pg-label"><i data-lucide="crown"></i> Dominance</span>
+                            <span class="pg-val">${String.format("%.2f", vm.groupStatus.pad!!.d)}</span>
+                        </div>
+                        <div class="pg-track">
+                            <div class="pg-fill d"
+                                 style="width: ${vm.groupStatus.pad!!.d.normalizeForDisplay()}%"></div>
+                        </div>
+                        <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
+                    </div>
                 </div>
-            </footer>
-        </article>
-    </section>
+
+                <div class="tag-cluster">
+                    <span class="swiss-tag">
+                        <i data-lucide="message-circle"></i>
+                        ${vm.groupStatus.behaviorProfile!!.tone.displayName()}
+                    </span>
+                    <span class="swiss-tag">
+                        <i data-lucide="hand"></i>
+                        ${vm.groupStatus.behaviorProfile!!.aggressiveness.displayName()}
+                    </span>
+                    <span class="swiss-tag">
+                        <i data-lucide="sparkles"></i>
+                        ${vm.groupStatus.behaviorProfile!!.emojiLevel.displayName()}
+                    </span>
+                </div>
+            </div>
+        </div>
+    @else
+        <div class="section">
+            <div class="sec-rule"></div>
+            <div class="sec-head">
+                <span class="sec-num">01</span>
+                <span>情绪状态</span>
+            </div>
+            <div class="empty-note">暂无情绪数据</div>
+        </div>
+    @endif
+
+    <!-- ===== FLOW ===== -->
+    <div class="section">
+        <div class="sec-rule"></div>
+        <div class="sec-head">
+            <span class="sec-num">02</span>
+            <span>心流投入度</span>
+        </div>
+
+        <div class="grey-panel tight">
+            <div class="flow-block">
+                <div class="fl-top">
+                    <span class="fl-state" style="color: ${vm.groupStatus.flowState.state.info().color}">
+                        <i data-lucide="${vm.groupStatus.flowState.state.info().icon}"></i>
+                        ${vm.groupStatus.flowState.state.info().name}
+                    </span>
+                    <span class="fl-num">${String.format("%.1f", vm.groupStatus.flowState.meter)}</span>
+                </div>
+                <div class="fl-track">
+                    <div class="fl-fill"
+                         style="width: ${vm.groupStatus.flowState.meter}%; background: ${vm.groupStatus.flowState.state.info().color}"></div>
+                    <div class="fl-marker" style="left: 30%"></div>
+                    <div class="fl-marker" style="left: 70%"></div>
+                </div>
+                <div class="fl-legend">
+                    <span><span class="flg-num">0</span><span class="flg-tag"> 待机</span></span>
+                    <span><span class="flg-num">30</span><span class="flg-tag"> 阈值</span></span>
+                    <span><span class="flg-num">70</span><span class="flg-tag"> 阈值</span></span>
+                    <span><span class="flg-num">100</span><span class="flg-tag"> 爆发</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== VOLITION ===== -->
+    <div class="section">
+        <div class="sec-rule"></div>
+        <div class="sec-head">
+            <span class="sec-num">03</span>
+            <span>冲动值</span>
+        </div>
+
+        <div class="grey-panel tight">
+            <div class="vol-block">
+                <div class="vl-top">
+                    <span class="vl-label"><i data-lucide="brain"></i> 冲动值累积</span>
+                    @if(vm.groupStatus.volitionState.shouldSpeak)
+                        <span class="vl-badge on">
+                            <i data-lucide="check-circle"></i> 已触发主动发言阈值
+                        </span>
+                    @else
+                        <span class="vl-badge off">
+                            <i data-lucide="pause-circle"></i> 保持观察状态
+                        </span>
+                    @endif
+                </div>
+                <div class="vl-split">
+                    <div class="vs">
+                        <div class="vs-head">
+                            <span class="vs-label"><i data-lucide="zap"></i> Stimulus</span>
+                            <span class="vs-val">${String.format("%.1f", vm.groupStatus.volitionState.stimulus)}</span>
+                        </div>
+                        <div class="vs-track">
+                            <div class="vs-fill stimulus"
+                                 style="width: ${vm.groupStatus.volitionState.stimulus}%"></div>
+                        </div>
+                        <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
+                    </div>
+                    <div class="vs">
+                        <div class="vs-head">
+                            <span class="vs-label"><i data-lucide="bed"></i> Fatigue</span>
+                            <span class="vs-val">${String.format("%.1f", vm.groupStatus.volitionState.fatigue)}</span>
+                        </div>
+                        <div class="vs-track">
+                            <div class="vs-fill fatigue" style="width: ${vm.groupStatus.volitionState.fatigue}%"></div>
+                        </div>
+                        <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if(vm.groupStatus.summary != null)
+        <!-- ===== SUMMARY ===== -->
+        <div class="section">
+            <div class="sec-rule"></div>
+            <div class="sec-head">
+                <span class="sec-num">04</span>
+                <span>会话摘要</span>
+            </div>
+
+            <div class="summary-callout">
+                ${vm.groupStatus.summary}
+            </div>
+        </div>
+    @endif
+
+    <!-- ===== END ===== -->
+    <div class="end-rule"></div>
+    <div class="end-note">Bot · ${vm.botName} · ${vm.currentTime}</div>
+
 </div>
+
+<script src="${vm.basePath}/js/lucide.min.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>

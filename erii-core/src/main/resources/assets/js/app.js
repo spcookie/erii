@@ -2,18 +2,10 @@
 const EMOTION_MAP = {
     'JOY': {name: '喜悦', pad: {pleasure: 2.77, arousal: 1.21, dominance: 1.42}, desc: '充满欢乐与活力的状态'},
     'OPTIMISM': {name: '乐观', pad: {pleasure: 2.48, arousal: 1.05, dominance: 1.75}, desc: '对未来持积极态度'},
-    'RELAXATION': {
-        name: '轻松',
-        pad: {pleasure: 2.19, arousal: -0.66, dominance: 1.05},
-        desc: '平和舒适的放松状态'
-    },
+    'RELAXATION': {name: '轻松', pad: {pleasure: 2.19, arousal: -0.66, dominance: 1.05}, desc: '平和舒适的放松状态'},
     'SURPRISE': {name: '惊奇', pad: {pleasure: 1.72, arousal: 1.71, dominance: 0.22}, desc: '对意外事件的反应'},
     'MILDNESS': {name: '温和', pad: {pleasure: 1.57, arousal: -0.79, dominance: 0.38}, desc: '温柔平静的情绪'},
-    'DEPENDENCE': {
-        name: '依赖',
-        pad: {pleasure: 0.39, arousal: -0.81, dominance: 1.48},
-        desc: '需要他人支持的状态'
-    },
+    'DEPENDENCE': {name: '依赖', pad: {pleasure: 0.39, arousal: -0.81, dominance: 1.48}, desc: '需要他人支持的状态'},
     'BOREDOM': {name: '无聊', pad: {pleasure: -0.53, arousal: -1.25, dominance: -0.84}, desc: '缺乏兴趣与刺激'},
     'SADNESS': {name: '悲伤', pad: {pleasure: -0.89, arousal: 0.17, dominance: -0.70}, desc: '消极低落的情绪'},
     'FEAR': {name: '恐惧', pad: {pleasure: -0.93, arousal: 1.30, dominance: -0.64}, desc: '对威胁的警觉反应'},
@@ -88,20 +80,18 @@ function renderBotList(bots) {
                     hx-target="#status-detail"
                     hx-swap="innerHTML"
                     onclick="setActiveBot(this)">
-                <div class="bot-avatar"><i class="fas fa-robot"></i></div>
+                <div class="bot-avatar"><i data-lucide="bot"></i></div>
                 <div class="bot-name">${botId}</div>
-                <div class="bot-status-indicator active"></div>
+                <div class="bot-status-indicator"></div>
             </button>
         `).join('');
 
-    // 重新初始化 htmx
     htmx.process(botList);
+    lucide.createIcons();
 }
 
 function setActiveBot(element) {
-    document.querySelectorAll('.bot-card').forEach(card => {
-        card.classList.remove('active');
-    });
+    document.querySelectorAll('.bot-card').forEach(card => card.classList.remove('active'));
     element.classList.add('active');
 }
 
@@ -126,11 +116,11 @@ function renderStatusDetail(status) {
                     <div class="article-meta-bar">
                         <div class="meta-left">
                             <span class="meta-badge bot-id">
-                                <i class="fas fa-robot"></i>
+                                <i data-lucide="bot"></i>
                                 <span>${status.name} (${status.id})</span>
                             </span>
                             <span class="meta-badge timestamp">
-                                <i class="far fa-clock"></i>
+                                <i data-lucide="clock"></i>
                                 <span>${new Date().toLocaleString('zh-CN', {
         month: 'numeric',
         day: 'numeric',
@@ -150,7 +140,7 @@ function renderStatusDetail(status) {
 
                 <nav class="article-nav">
                     <div class="nav-header">
-                        <i class="fas fa-bars"></i>
+                        <i data-lucide="menu"></i>
                         <span>目录导航</span>
                     </div>
                     <ul class="nav-list">
@@ -159,7 +149,7 @@ function renderStatusDetail(status) {
                                 <a href="#group-${i}" class="nav-link">
                                     <span class="nav-number">${i + 1}</span>
                                     <span class="nav-text">群组 ${g.groupId}</span>
-                                    <i class="fas fa-chevron-right nav-arrow"></i>
+                                    <span class="nav-arrow"><i data-lucide="chevron-right"></i></span>
                                 </a>
                             </li>
                         `).join('')}
@@ -175,7 +165,7 @@ function renderStatusDetail(status) {
                         <div class="stats-grid">
                             <div class="stat-item">
                                 <div class="stat-label">
-                                    <i class="fas fa-puzzle-piece"></i>
+                                    <i data-lucide="puzzle"></i>
                                     <span>Extensions</span>
                                 </div>
                                 <div class="stat-value">${status.pluginStats.totalExtensions}</div>
@@ -183,7 +173,7 @@ function renderStatusDetail(status) {
                             </div>
                             <div class="stat-item">
                                 <div class="stat-label">
-                                    <i class="fas fa-terminal"></i>
+                                    <i data-lucide="terminal"></i>
                                     <span>Cmd</span>
                                 </div>
                                 <div class="stat-value">${status.pluginStats.cmdExtensions}</div>
@@ -191,7 +181,7 @@ function renderStatusDetail(status) {
                             </div>
                             <div class="stat-item">
                                 <div class="stat-label">
-                                    <i class="fas fa-route"></i>
+                                    <i data-lucide="route"></i>
                                     <span>Route</span>
                                 </div>
                                 <div class="stat-value">${status.pluginStats.routeExtensions}</div>
@@ -199,7 +189,7 @@ function renderStatusDetail(status) {
                             </div>
                             <div class="stat-item">
                                 <div class="stat-label">
-                                    <i class="fas fa-eye"></i>
+                                    <i data-lucide="eye"></i>
                                     <span>Passive</span>
                                 </div>
                                 <div class="stat-value">${status.pluginStats.passiveExtensions}</div>
@@ -209,7 +199,7 @@ function renderStatusDetail(status) {
 
                         ${status.pluginStats.plugins && status.pluginStats.plugins.length > 0 ? `
                         <h3 class="subsection-title">
-                            <i class="fas fa-cubes"></i> 已加载插件
+                            <i data-lucide="boxes"></i> 已加载插件
                         </h3>
                         <div class="vocab-container">
                             <div class="vocab-grid">
@@ -231,10 +221,12 @@ function renderStatusDetail(status) {
                 </div>
 
                 <footer class="article-footer">
-                    <p><i class="fas fa-info-circle"></i> <em>本报告每 10 秒自动刷新，展示机器人在各群组的实时状态数据</em></p>
+                    <p><i data-lucide="info"></i> <em>本报告每 10 秒自动刷新，展示机器人在各群组的实时状态数据</em></p>
                 </footer>
             </article>
         `;
+
+    lucide.createIcons();
 
     // 设置自动刷新
     setTimeout(() => {
@@ -242,7 +234,7 @@ function renderStatusDetail(status) {
         if (activeBot) {
             htmx.trigger(activeBot, 'click');
         }
-    }, 10000); // 10秒自动刷新
+    }, 10000);
 }
 
 function renderGroupStatus(groupStatus, index, botId) {
@@ -251,7 +243,6 @@ function renderGroupStatus(groupStatus, index, botId) {
     const flow = groupStatus.flowState;
     const volition = groupStatus.volitionState;
 
-    // 获取折叠状态
     const isFactsCollapsed = collapsedStates[`group-${index}-facts`];
     const isProfilesCollapsed = collapsedStates[`group-${index}-profiles`];
     const isVocabCollapsed = collapsedStates[`group-${index}-vocab`];
@@ -263,34 +254,34 @@ function renderGroupStatus(groupStatus, index, botId) {
                     <span class="title-prefix">#</span>
                     群组 ${groupStatus.groupId}
                     <a href="/view/${botId}/${groupStatus.groupId}" class="view-detail-link" target="_blank" title="在新标签页查看详情">
-                        <i class="fas fa-external-link-alt"></i>
+                        <i data-lucide="external-link"></i>
                     </a>
                 </h2>
 
                 ${bp ? `
                 <h3 class="subsection-title">
-                    <i class="fas fa-smile"></i> 情绪状态
+                    <i data-lucide="smile"></i> 情绪状态
                 </h3>
                 ${renderBehaviorProfileMarkdown(bp, pad)}
-                ` : '<blockquote class="info-box"><i class="fas fa-exclamation-triangle"></i> 暂无情绪数据</blockquote>'}
+                ` : '<div class="info-box"><i data-lucide="alert-triangle"></i> 暂无情绪数据</div>'}
 
                 <h3 class="subsection-title">
-                    <i class="fas fa-water"></i> 心流投入度
+                    <i data-lucide="waves"></i> 心流投入度
                 </h3>
                 ${renderFlowStateMarkdown(flow)}
 
                 <h3 class="subsection-title">
-                    <i class="fas fa-brain"></i> 冲动值
+                    <i data-lucide="brain"></i> 冲动值
                 </h3>
                 ${renderVolitionStateMarkdown(volition)}
 
                 <h3 class="subsection-title">
-                    <i class="fas fa-database"></i> 记忆
+                    <i data-lucide="database"></i> 记忆
                 </h3>
                 <div class="stats-grid">
                     <div class="stat-item">
                         <div class="stat-label">
-                            <i class="fas fa-file-alt"></i>
+                            <i data-lucide="file-text"></i>
                             <span>Facts</span>
                         </div>
                         <div class="stat-value">${groupStatus.factSize}</div>
@@ -298,7 +289,7 @@ function renderGroupStatus(groupStatus, index, botId) {
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">
-                            <i class="fas fa-user"></i>
+                            <i data-lucide="user"></i>
                             <span>UserProfile</span>
                         </div>
                         <div class="stat-value">${groupStatus.userProfileSize}</div>
@@ -310,15 +301,15 @@ function renderGroupStatus(groupStatus, index, botId) {
                 <h3 class="subsection-title collapsible ${isFactsCollapsed ? 'collapsed' : ''}"
                     id="title-group-${index}-facts"
                     onclick="toggleModule(${index}, 'facts')">
-                    <i class="fas fa-lightbulb"></i> 事实记忆
-                    <i class="fas fa-chevron-down toggle-icon"></i>
+                    <i data-lucide="lightbulb"></i> 事实记忆
+                    <span class="toggle-icon"><i data-lucide="chevron-down"></i></span>
                 </h3>
                 <div class="collapsible-content ${isFactsCollapsed ? 'collapsed' : ''}" id="content-group-${index}-facts">
                     <div class="facts-container">
                         ${groupStatus.facts.group.length > 0 ? `
                         <div class="fact-category">
                             <div class="fact-category-header">
-                                <i class="fas fa-users"></i>
+                                <i data-lucide="users"></i>
                                 <span>群组事实</span>
                                 <span class="fact-count">${groupStatus.facts.group.length}</span>
                             </div>
@@ -330,7 +321,7 @@ function renderGroupStatus(groupStatus, index, botId) {
                                         ${fact.subjects.length > 0 ? `<span class="fact-subjects">${fact.subjects.join(', ')}</span>` : ''}
                                     </div>
                                     <div class="fact-description">${fact.description}</div>
-                                    ${fact.values ? `<div class="fact-values"><i class="fas fa-tag"></i> ${fact.values}</div>` : ''}
+                                    ${fact.values ? `<div class="fact-values"><i data-lucide="tag"></i> ${fact.values}</div>` : ''}
                                 </div>
                                 `).join('')}
                             </div>
@@ -339,7 +330,7 @@ function renderGroupStatus(groupStatus, index, botId) {
                         ${groupStatus.facts.user.length > 0 ? `
                         <div class="fact-category">
                             <div class="fact-category-header">
-                                <i class="fas fa-user-circle"></i>
+                                <i data-lucide="user-circle"></i>
                                 <span>用户事实</span>
                                 <span class="fact-count">${groupStatus.facts.user.length}</span>
                             </div>
@@ -351,7 +342,7 @@ function renderGroupStatus(groupStatus, index, botId) {
                                         ${fact.subjects.length > 0 ? `<span class="fact-subjects">${fact.subjects.join(', ')}</span>` : ''}
                                     </div>
                                     <div class="fact-description">${fact.description}</div>
-                                    ${fact.values ? `<div class="fact-values"><i class="fas fa-tag"></i> ${fact.values}</div>` : ''}
+                                    ${fact.values ? `<div class="fact-values"><i data-lucide="tag"></i> ${fact.values}</div>` : ''}
                                 </div>
                                 `).join('')}
                             </div>
@@ -365,23 +356,23 @@ function renderGroupStatus(groupStatus, index, botId) {
                 <h3 class="subsection-title collapsible ${isProfilesCollapsed ? 'collapsed' : ''}"
                     id="title-group-${index}-profiles"
                     onclick="toggleModule(${index}, 'profiles')">
-                    <i class="fas fa-id-card"></i> 用户画像
+                    <i data-lucide="id-card"></i> 用户画像
                     <span class="vocab-count">${groupStatus.userProfiles.filter(p => p.profile || p.preferences).length}</span>
-                    <i class="fas fa-chevron-down toggle-icon"></i>
+                    <span class="toggle-icon"><i data-lucide="chevron-down"></i></span>
                 </h3>
                 <div class="collapsible-content ${isProfilesCollapsed ? 'collapsed' : ''}" id="content-group-${index}-profiles">
                     <div class="user-profiles-container">
                         ${groupStatus.userProfiles.filter(p => p.profile || p.preferences).map((profile, idx) => `
                         <div class="user-profile-item">
                             <div class="user-profile-header">
-                                <i class="fas fa-user"></i>
+                                <i data-lucide="user"></i>
                                 <span>用户 ${profile.id}</span>
                             </div>
                             <div class="user-profile-content">
                                 ${profile.profile ? `
                                 <div class="profile-section">
                                     <div class="profile-section-label">
-                                        <i class="fas fa-address-card"></i>
+                                        <i data-lucide="contact"></i>
                                         <span>个人信息</span>
                                     </div>
                                     <div class="profile-section-text">${profile.profile}</div>
@@ -390,7 +381,7 @@ function renderGroupStatus(groupStatus, index, botId) {
                                 ${profile.preferences ? `
                                 <div class="profile-section">
                                     <div class="profile-section-label">
-                                        <i class="fas fa-heart"></i>
+                                        <i data-lucide="heart"></i>
                                         <span>偏好设置</span>
                                     </div>
                                     <div class="profile-section-text">${profile.preferences}</div>
@@ -404,12 +395,12 @@ function renderGroupStatus(groupStatus, index, botId) {
                 ` : ''}
 
                 <h3 class="subsection-title">
-                    <i class="fas fa-images"></i> 表情包 & 词汇
+                    <i data-lucide="images"></i> 表情包 & 词汇
                 </h3>
                 <div class="stats-grid">
                     <div class="stat-item">
                         <div class="stat-label">
-                            <i class="fas fa-images"></i>
+                            <i data-lucide="images"></i>
                             <span>Memes</span>
                         </div>
                         <div class="stat-value">${groupStatus.memeSize}</div>
@@ -417,7 +408,7 @@ function renderGroupStatus(groupStatus, index, botId) {
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">
-                            <i class="fas fa-language"></i>
+                            <i data-lucide="languages"></i>
                             <span>Vocabulary</span>
                         </div>
                         <div class="stat-value">${groupStatus.vocabularies ? groupStatus.vocabularies.length : 0}</div>
@@ -429,9 +420,9 @@ function renderGroupStatus(groupStatus, index, botId) {
                 <h3 class="subsection-title collapsible ${isMemesCollapsed ? 'collapsed' : ''}"
                     id="title-group-${index}-memes"
                     onclick="toggleModule(${index}, 'memes')">
-                    <i class="fas fa-images"></i> 表情包库
+                    <i data-lucide="images"></i> 表情包库
                     <span class="vocab-count">${groupStatus.memes.length}</span>
-                    <i class="fas fa-chevron-down toggle-icon"></i>
+                    <span class="toggle-icon"><i data-lucide="chevron-down"></i></span>
                 </h3>
                 <div class="collapsible-content ${isMemesCollapsed ? 'collapsed' : ''}" id="content-group-${index}-memes">
                     <div class="facts-container">
@@ -442,8 +433,8 @@ function renderGroupStatus(groupStatus, index, botId) {
                                     <span class="fact-keyword">${meme.description || '未分析'}</span>
                                     <span class="fact-subjects">出现 ${meme.seenCount} 次 | 使用 ${meme.usageCount} 次</span>
                                 </div>
-                                ${meme.purpose ? `<div class="fact-description"><i class="fas fa-bullseye"></i> ${meme.purpose}</div>` : ''}
-                                ${meme.tags && meme.tags.length > 0 ? `<div class="fact-values"><i class="fas fa-tags"></i> ${meme.tags.join(', ')}</div>` : ''}
+                                ${meme.purpose ? `<div class="fact-description"><i data-lucide="target"></i> ${meme.purpose}</div>` : ''}
+                                ${meme.tags && meme.tags.length > 0 ? `<div class="fact-values"><i data-lucide="tags"></i> ${meme.tags.join(', ')}</div>` : ''}
                             </div>
                             `).join('')}
                         </div>
@@ -455,9 +446,9 @@ function renderGroupStatus(groupStatus, index, botId) {
                 <h3 class="subsection-title collapsible ${isVocabCollapsed ? 'collapsed' : ''}"
                     id="title-group-${index}-vocab"
                     onclick="toggleModule(${index}, 'vocab')">
-                    <i class="fas fa-language"></i> 学习词汇库
+                    <i data-lucide="languages"></i> 学习词汇库
                     <span class="vocab-count">${groupStatus.vocabularies.length}</span>
-                    <i class="fas fa-chevron-down toggle-icon"></i>
+                    <span class="toggle-icon"><i data-lucide="chevron-down"></i></span>
                 </h3>
                 <div class="collapsible-content ${isVocabCollapsed ? 'collapsed' : ''}" id="content-group-${index}-vocab">
                     <div class="vocab-container">
@@ -475,11 +466,11 @@ function renderGroupStatus(groupStatus, index, botId) {
 
                 ${groupStatus.summary ? `
                 <h3 class="subsection-title">
-                    <i class="fas fa-book-open"></i> 会话摘要
+                    <i data-lucide="book-open"></i> 会话摘要
                 </h3>
                 <div class="summary-container">
                     <div class="summary-content">
-                        <i class="fas fa-quote-left"></i>
+                        <i data-lucide="quote"></i>
                         <div class="summary-text">${groupStatus.summary}</div>
                     </div>
                 </div>
@@ -491,19 +482,16 @@ function renderGroupStatus(groupStatus, index, botId) {
 }
 
 function renderBehaviorProfileMarkdown(bp, pad) {
-    // 获取情绪枚举对应的数据
     const emotionData = EMOTION_MAP[bp.emotion] || {
         name: bp.emotion,
         pad: {pleasure: 0, arousal: 0, dominance: 0},
         desc: '未知情绪状态'
     };
 
-    // 将 PAD 值归一化到 0-100 范围用于显示（原始范围约 -4 到 +4）
     const normalizeForDisplay = (val) => {
         return Math.max(0, Math.min(100, (val + 4) / 8 * 100));
     };
 
-    // 计算情绪倾向描述
     const getEmotionTendency = (p, a, d) => {
         if (p > 1) return '积极愉悦';
         if (p < -1) return '消极低落';
@@ -521,7 +509,7 @@ function renderBehaviorProfileMarkdown(bp, pad) {
                 </div>
 
                 <div class="emotion-description">
-                    <i class="fas fa-quote-left"></i>
+                    <i data-lucide="quote"></i>
                     ${emotionData.desc}
                 </div>
 
@@ -529,7 +517,7 @@ function renderBehaviorProfileMarkdown(bp, pad) {
                     <div class="pad-item">
                         <div class="pad-header">
                             <div class="pad-label">
-                                <i class="fas fa-smile"></i>
+                                <i data-lucide="smile"></i>
                                 <span>Pleasure</span>
                             </div>
                             <div class="pad-value">${pad.p.toFixed(2)}</div>
@@ -547,7 +535,7 @@ function renderBehaviorProfileMarkdown(bp, pad) {
                     <div class="pad-item">
                         <div class="pad-header">
                             <div class="pad-label">
-                                <i class="fas fa-bolt"></i>
+                                <i data-lucide="zap"></i>
                                 <span>Arousal</span>
                             </div>
                             <div class="pad-value">${pad.a.toFixed(2)}</div>
@@ -565,7 +553,7 @@ function renderBehaviorProfileMarkdown(bp, pad) {
                     <div class="pad-item">
                         <div class="pad-header">
                             <div class="pad-label">
-                                <i class="fas fa-crown"></i>
+                                <i data-lucide="crown"></i>
                                 <span>Dominance</span>
                             </div>
                             <div class="pad-value">${pad.d.toFixed(2)}</div>
@@ -585,15 +573,15 @@ function renderBehaviorProfileMarkdown(bp, pad) {
                     <div class="profile-label">行为特征</div>
                     <div class="profile-tags">
                         <span class="profile-tag">
-                            <i class="fas fa-comment-dots"></i>
+                            <i data-lucide="message-circle"></i>
                             ${TONE_MAP[bp.tone] || bp.tone}
                         </span>
                         <span class="profile-tag">
-                            <i class="fas fa-hand-rock"></i>
+                            <i data-lucide="hand"></i>
                             ${AGGRESSION_MAP[bp.aggressiveness] || bp.aggressiveness}
                         </span>
                         <span class="profile-tag">
-                            <i class="fas fa-icons"></i>
+                            <i data-lucide="sparkles"></i>
                             ${EMOJI_MAP[bp.emojiLevel] || bp.emojiLevel}
                         </span>
                     </div>
@@ -614,16 +602,16 @@ function renderFlowStateMarkdown(flow) {
         'FLOW_BURST': '心流爆发'
     };
     const stateIcons = {
-        'STANDBY': 'fa-circle',
-        'GETTING_BETTER': 'fa-circle-half-stroke',
-        'FLOW_BURST': 'fa-circle-dot'
+        'STANDBY': 'circle',
+        'GETTING_BETTER': 'toggle-left',
+        'FLOW_BURST': 'disc'
     };
 
     return `
             <div class="flow-state-container">
                 <div class="flow-header">
                     <div class="flow-current-state" style="color: ${stateColors[flow.state]}">
-                        <i class="fas ${stateIcons[flow.state]}"></i>
+                        <i data-lucide="${stateIcons[flow.state]}"></i>
                         <span class="state-name">${stateNames[flow.state]}</span>
                     </div>
                     <div class="flow-meter-value">${flow.meter.toFixed(1)}</div>
@@ -661,17 +649,17 @@ function renderFlowStateMarkdown(flow) {
 function renderVolitionStateMarkdown(volition) {
     const shouldSpeakClass = volition.shouldSpeak ? 'active' : 'inactive';
     const speakStatus = volition.shouldSpeak ? '已触发主动发言阈值' : '保持观察状态';
-    const speakIcon = volition.shouldSpeak ? 'fa-circle-check' : 'fa-circle-pause';
+    const speakIcon = volition.shouldSpeak ? 'check-circle' : 'pause-circle';
 
     return `
             <div class="volition-container">
                 <div class="volition-header">
                     <div class="volition-title">
-                        <i class="fas fa-brain"></i>
+                        <i data-lucide="brain"></i>
                         <span>冲动值累积系统</span>
                     </div>
                     <div class="volition-status ${shouldSpeakClass}">
-                        <i class="fas ${speakIcon}"></i>
+                        <i data-lucide="${speakIcon}"></i>
                         <span>${speakStatus}</span>
                     </div>
                 </div>
@@ -680,7 +668,7 @@ function renderVolitionStateMarkdown(volition) {
                     <div class="volition-metric">
                         <div class="metric-header">
                             <div class="metric-label">
-                                <i class="fas fa-bolt"></i>
+                                <i data-lucide="zap"></i>
                                 <span>Stimulus</span>
                             </div>
                             <div class="metric-value">${volition.stimulus.toFixed(1)}</div>
@@ -698,7 +686,7 @@ function renderVolitionStateMarkdown(volition) {
                     <div class="volition-metric">
                         <div class="metric-header">
                             <div class="metric-label">
-                                <i class="fas fa-bed"></i>
+                                <i data-lucide="bed"></i>
                                 <span>Fatigue</span>
                             </div>
                             <div class="metric-value">${volition.fatigue.toFixed(1)}</div>
@@ -722,7 +710,7 @@ function createSakura() {
     const sakuraContainer = document.getElementById('sakura-container');
     const sakura = document.createElement('div');
     sakura.className = 'sakura';
-    sakura.innerHTML = '<i class="fas fa-spa"></i>';
+    sakura.innerHTML = '<i data-lucide="flower"></i>';
     sakura.style.left = Math.random() * 100 + '%';
     sakura.style.animationDuration = (Math.random() * 3 + 5) + 's';
     sakura.style.animationDelay = Math.random() * 2 + 's';
@@ -732,11 +720,3 @@ function createSakura() {
         sakura.remove();
     }, 8000);
 }
-
-// 定期生成樱花
-// setInterval(createSakura, 2000);
-
-// 初始生成几朵樱花
-// for (let i = 0; i < 5; i++) {
-//     setTimeout(createSakura, i * 400);
-// }

@@ -3,23 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>Erii 机器人状态监控</title>
+    <title>Bot · Status</title>
     <link href="/css/styles.css" rel="stylesheet">
-    <link href="/css/fontawesome.min.css" rel="stylesheet">
-    <script src="/js/htmx.min.js"></script>
-    <script src="/js/app.js"></script>
+    <link href="/css/fonts.css" rel="stylesheet">
 </head>
 <body>
-<!-- 主容器 -->
-<div class="container">
-    <!-- 机器人选择区 -->
-    <section class="bot-selector"
+
+<div class="page">
+
+    <header class="header">
+        <div class="label">Bot · Group Status Monitor</div>
+        <h1 class="title">Erii 机器人状态监控</h1>
+    </header>
+
+    <section class="panel"
              hx-get="/bots"
              hx-swap="innerHTML"
              hx-target="#bot-list"
              hx-trigger="load, every 30s">
-        <div class="section-header">
-            <h2><i class="fas fa-robot"></i> 在线机器人</h2>
+        <div class="panel-head">
+            <span class="panel-num">01</span>
+            <span>在线机器人</span>
         </div>
         <div class="bot-list" id="bot-list">
             <div class="loading">
@@ -29,33 +33,28 @@
         </div>
     </section>
 
-    <!-- 状态详情区 -->
-    <section class="status-detail" id="status-detail">
+    <section class="panel" id="status-detail">
         <div class="empty-state">
-            <div class="empty-icon-wrapper">
-                <i class="fas fa-robot empty-icon"></i>
+            <div class="empty-icon-wrap">
+                <i data-lucide="bot"></i>
             </div>
-            <h3 class="empty-title">请选择一个机器人</h3>
-            <p class="empty-description">从上方列表中选择一个在线机器人查看实时状态详情</p>
+            <h3 class="empty-title">选择一个机器人</h3>
+            <p class="empty-desc">从上方列表中选择一个在线机器人，查看实时状态详情</p>
             <div class="empty-hint">
-                <i class="fas fa-arrow-up"></i>
-                <span>点击上方机器人卡片开始</span>
+                <i data-lucide="arrow-up"></i>
+                <span>点击上方机器人卡片</span>
             </div>
         </div>
     </section>
 
-    <!-- 页脚 -->
-    <footer class="site-footer">
-        <div class="footer-tech-stack">
-            <span class="tech-item">Power by</span>
-            <i class="fas fa-heart" style="color: #ef4444; margin: 0 4px;"></i>
-            <span class="tech-item">Spcookie</span>
-        </div>
-        <div class="footer-copyright">
-            <i class="far fa-copyright"></i>
-            <span>2026 Erii. All rights reserved.</span>
-        </div>
-    </footer>
+    <div class="end-rule"></div>
+    <div class="end-note">Bot · Status Monitor</div>
+
 </div>
+
+<script src="/js/htmx.min.js"></script>
+<script src="/js/lucide.min.js"></script>
+<script src="/js/app.js"></script>
+<script>lucide.createIcons();</script>
 </body>
 </html>
