@@ -5,9 +5,13 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.*
-import kotlin.time.Clock
-import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
+import kotlin.time.*
+
+data class HourlyMessageCount(
+    val hourLabel: String,
+    val botCount: Int,
+    val groupCount: Int
+)
 
 class HistoryService {
     @OptIn(ExperimentalTime::class)
@@ -124,6 +128,37 @@ class HistoryService {
             val hasMore = items.size > limit
             val result = if (hasMore) items.dropLast(1) else items
             result to hasMore
+        }
+    }
+
+    fun getHourlyMessageCounts(botMark: String, groupId: String, hours: Int = 12): List<HourlyMessageCount> {
+        val now = Clock.System.now()
+        val startTime = now - hours.toDuration(DurationUnit.HOURS)
+        val timeZone = TimeZone.currentSystemDefault()
+
+        return transaction {
+            HistoryEntity.find {
+                (HistoryTable.botMark eq botMark) and
+                        (HistoryTable.groupId eq groupId) and
+                        (HistoryTable.createdAt greaterEq startTime.toLocalDateTime(timeZone))
+            }.toList()
+        }.groupBy { record ->
+            val dt = record.createdAt
+            dt.hour
+        }.let { grouped ->
+            val nowLdt = now.toLocalDateTime(timeZone)
+            val currentHour = nowLdt.hour
+            (0 until hours).map { offset ->
+                val hour = (currentHour - (hours - 1 - offset) + 24) % 24
+                val records = grouped[hour] ?: emptyList()
+                val botCount = records.count { it.userId == botMark }
+                val groupCount = records.count { it.userId != botMark }
+                HourlyMessageCount(
+                    hourLabel = "${hour.toString().padStart(2, '0')}:00",
+                    botCount = botCount,
+                    groupCount = groupCount
+                )
+            }
         }
     }
 }

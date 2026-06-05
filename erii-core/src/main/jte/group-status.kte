@@ -845,12 +845,25 @@
         </div>
     </div>
 
+    <!-- ===== CHART: 12-Hour Message Activity ===== -->
+    <div class="section">
+        <div class="sec-rule"></div>
+        <div class="sec-head">
+            <span class="sec-num">04</span>
+            <span>聊天活跃度</span>
+        </div>
+
+        <div class="grey-panel tight">
+            <div id="msg-chart" style="width: 100%; height: 320px;"></div>
+        </div>
+    </div>
+
     @if(vm.groupStatus.summary != null)
         <!-- ===== SUMMARY ===== -->
         <div class="section">
             <div class="sec-rule"></div>
             <div class="sec-head">
-                <span class="sec-num">04</span>
+                <span class="sec-num">05</span>
                 <span>会话摘要</span>
             </div>
 
@@ -868,5 +881,124 @@
 
 <script src="${vm.basePath}/js/lucide.min.js"></script>
 <script>lucide.createIcons();</script>
+<script src="${vm.basePath}/js/echarts.min.js"></script>
+<script>
+    (function () {
+        var chartDom = document.getElementById('msg-chart');
+        if (!chartDom) return;
+        var myChart = echarts.init(chartDom);
+
+        var hours = [];
+        var botData = [];
+        var groupData = [];
+        @for(count in vm.hourlyMsgCounts)
+        hours.push('${count.hourLabel}');
+        botData.push(${count.botCount});
+        groupData.push(${count.groupCount});
+        @endfor
+
+        var option = {
+            grid: {
+                left: 48,
+                right: 24,
+                top: 32,
+                bottom: 32
+            },
+            legend: {
+                data: ['机器人', '群组'],
+                right: 0,
+                top: 0,
+                textStyle: {
+                    fontFamily: 'Inter, "PingFang SC", "Noto Sans SC", sans-serif',
+                    fontSize: 14,
+                    fontWeight: 400,
+                    color: '#737373'
+                },
+                itemWidth: 16,
+                itemHeight: 2,
+                itemGap: 24
+            },
+            xAxis: {
+                type: 'category',
+                data: hours,
+                boundaryGap: false,
+                axisLine: {
+                    lineStyle: {color: '#d4d4d2'}
+                },
+                axisTick: {show: false},
+                axisLabel: {
+                    fontFamily: '"JetBrains Mono", "IBM Plex Mono", monospace',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: '#737373',
+                    margin: 12
+                },
+                splitLine: {show: false}
+            },
+            yAxis: {
+                type: 'value',
+                minInterval: 1,
+                axisLine: {show: false},
+                axisTick: {show: false},
+                axisLabel: {
+                    fontFamily: '"JetBrains Mono", "IBM Plex Mono", monospace',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: '#737373',
+                    margin: 12
+                },
+                splitLine: {
+                    lineStyle: {color: '#f0f0ee'}
+                }
+            },
+            series: [
+                {
+                    name: '机器人',
+                    type: 'line',
+                    data: botData,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: {
+                        color: '#C5E803',
+                        width: 2.5
+                    },
+                    itemStyle: {
+                        color: '#C5E803'
+                    },
+                    emphasis: {
+                        focus: 'series',
+                        itemStyle: {borderWidth: 0}
+                    }
+                },
+                {
+                    name: '群组',
+                    type: 'line',
+                    data: groupData,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: {
+                        color: '#d4d4d2',
+                        width: 2
+                    },
+                    itemStyle: {
+                        color: '#d4d4d2'
+                    },
+                    emphasis: {
+                        focus: 'series',
+                        itemStyle: {borderWidth: 0}
+                    }
+                }
+            ]
+        };
+
+        myChart.setOption(option);
+
+        window.addEventListener('resize', function () {
+            myChart.resize();
+        });
+    })();
+</script>
 </body>
 </html>

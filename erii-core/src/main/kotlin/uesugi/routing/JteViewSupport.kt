@@ -4,6 +4,7 @@ package uesugi.routing
 
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.PAD
+import uesugi.core.message.history.HourlyMessageCount
 import uesugi.core.state.emotion.Aggressiveness
 import uesugi.core.state.emotion.EmojiLevel
 import uesugi.core.state.emotion.Tone
@@ -107,5 +108,6 @@ data class GroupStatusViewModel(
     val groupStatus: BotStatus.ByGroup,
     val pluginStats: BotStatus.PluginStats,
     val currentTime: String,
-    val basePath: String = ""
+    val basePath: String = "",
+    val hourlyMsgCounts: List<HourlyMessageCount> = emptyList()
 )

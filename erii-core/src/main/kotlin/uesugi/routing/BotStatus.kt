@@ -10,6 +10,7 @@ import uesugi.common.BotManage
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.PAD
 import uesugi.common.toolkit.ConfigHolder
+import uesugi.core.message.history.HistoryService
 import uesugi.core.state.emotion.BehaviorProfile
 import uesugi.core.state.emotion.EmotionService
 import uesugi.core.state.evolution.EvolutionService
@@ -166,6 +167,7 @@ fun Routing.configureBotStatus() {
         val evolutionService by inject<EvolutionService>()
         val memoryService by inject<MemoryService>()
         val memoService by inject<MemeService>()
+        val historyService by inject<HistoryService>()
 
         get("/bots") {
             call.respond(BotManage.getAllBotIds())
@@ -333,6 +335,8 @@ fun Routing.configureBotStatus() {
                 memoService = memoService
             )
 
+            val hourlyMsgCounts = historyService.getHourlyMessageCounts(botId, groupId, 12)
+
             val viewModel = GroupStatusViewModel(
                 botId = botId,
                 botName = roledBot.role.name,
@@ -341,7 +345,8 @@ fun Routing.configureBotStatus() {
                 groupStatus = groupStatus,
                 pluginStats = pluginStats,
                 currentTime = formatCurrentTime(),
-                basePath = ""
+                basePath = "",
+                hourlyMsgCounts = hourlyMsgCounts
             )
 
             call.respond(JteContent("group-status.kte", mapOf("vm" to viewModel)))
