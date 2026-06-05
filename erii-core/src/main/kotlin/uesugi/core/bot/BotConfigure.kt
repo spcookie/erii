@@ -11,6 +11,8 @@ import uesugi.onebot.core.pipeline.LoggingMiddleware
 import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.api.getLoginInfo
 
+private val botScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineName("connect-bots"))
+
 
 fun configureConnectBots() {
     BotRoleManager.loadRoles()
@@ -23,8 +25,7 @@ fun configureConnectBots() {
     }
     LOG.info("Prepare to connect ${botConfigs.size} robots")
 
-    CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineName("connect-bots"))
-        .launch {
+    botScope.launch {
             botConfigs.forEach { (key, config) ->
                 val role = BotRoleManager.getRole(config.roleId)
                     ?: BotRoleManager.getDefaultRole()
@@ -67,3 +68,10 @@ fun configureConnectBots() {
 }
 
 fun configureBotAgent() = BotAgent.run()
+
+fun disconnectBots() {
+    LOG.info("Disconnecting all bots...")
+    BotManage.closeAll()
+    botScope.cancel()
+    LOG.info("All bots disconnected")
+}

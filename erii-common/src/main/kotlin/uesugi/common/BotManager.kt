@@ -1,5 +1,6 @@
 package uesugi.common
 
+import kotlinx.coroutines.runBlocking
 import uesugi.common.IBotManage.RoledBot
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.toolkit.logger
@@ -64,6 +65,23 @@ object BotManage : IBotManage {
         bots[botId]?.let {
             bots[botId] = it.copy(role = role)
         }
+    }
+
+    fun closeAll() {
+        log.info("Closing all bot connections...")
+        bots.values.forEach { bot ->
+            runBlocking {
+                try {
+                    bot.refBot.stop()
+                } catch (e: Exception) {
+                    log.warn("Error stopping bot ${bot.selfId}: ${e.message}")
+                }
+            }
+        }
+        bots.clear()
+        configKeys.clear()
+        botKeys.clear()
+        log.info("All bot connections closed")
     }
 
 }

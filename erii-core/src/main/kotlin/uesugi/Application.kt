@@ -13,6 +13,7 @@ import uesugi.config.ConfigHolderImpl
 import uesugi.config.configureH2Console
 import uesugi.core.bot.configureBotAgent
 import uesugi.core.bot.configureConnectBots
+import uesugi.core.bot.disconnectBots
 import uesugi.core.chat.configureChatBridge
 import uesugi.core.component.browser.BrowserScraperImpl
 import uesugi.server.*
@@ -34,7 +35,8 @@ fun Application.module() {
 
     val browserScraperImpl = BrowserScraperImpl()
     BrowserScraperHolder.init(browserScraperImpl)
-    this.monitor.unsubscribe(ApplicationStopped) {
+    monitor.subscribe(ApplicationStopPreparing) {
+        disconnectBots()
         browserScraperImpl.close()
     }
 
