@@ -177,7 +177,7 @@ object BotAgent {
                             agentConfig = AIAgentConfig(
                                 prompt = buildPrompt(context),
                                 model = LLMProviderChoice.Pro,
-                                maxAgentIterations = 20,
+                                maxAgentIterations = 50,
                             ),
                             strategy = strategy
                         ) { handleEvents(event) }
