@@ -4,11 +4,13 @@ import ai.koog.agents.core.agent.AIAgentService
 import ai.koog.agents.core.agent.GraphAIAgent
 import ai.koog.agents.core.agent.GraphAIAgentService
 import ai.koog.agents.core.agent.config.AIAgentConfig
+import ai.koog.agents.core.annotation.InternalAgentsApi
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
 import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.message.MessagePart
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.onTimeout
@@ -138,7 +140,7 @@ object BotAgent {
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
+    @OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class, InternalAgentsApi::class)
     private suspend fun processChannel(key: BotGroupKey, channel: Channel<ProactiveSpeakEvent?>) {
         for (event in channel) {
             if (event == null) continue
@@ -174,9 +176,27 @@ object BotAgent {
                                 }
                                 true
                             })
+                            edge(
+                                nodeExecuteTool forwardTo nodeFinish
+                                        onCondition { results ->
+                                    results.toolResults.all { it.resultObject == null }
+                                }
+                                        transformed { "" }
+                            )
                             edge(nodeExecuteTool forwardTo nodeSendToolResult)
                             edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCalls { true })
                             edge(nodeSendToolResult forwardTo nodeFinish onTextMessage { true })
+                            edge(
+                                nodeSendToolResult forwardTo nodeFinish
+                                        onCondition { msg ->
+                                    msg.parts.any { it is MessagePart.Reasoning } &&
+                                            msg.parts.none { it is MessagePart.Text || it is MessagePart.Tool.Call }
+                                }
+                                        transformed { msg ->
+                                    msg.parts.filterIsInstance<MessagePart.Reasoning>()
+                                        .joinToString("\n") { it.content.joinToString("\n") }
+                                }
+                            )
                         }
 
                         val context = buildContext(event)
