@@ -19,9 +19,7 @@ import uesugi.core.state.memory.FactsEntity
 import uesugi.core.state.memory.UserProfileEntity
 import uesugi.core.state.summary.SummaryEntity
 import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalTime::class)
 internal suspend fun buildPrompt(context: Context): Prompt {
     val transient = context.toTransient()
     val constraints = buildConstraint(context, transient)
@@ -41,20 +39,40 @@ internal suspend fun buildPrompt(context: Context): Prompt {
                 buildVocabularyPrompt(transient.vocabulary)
                 buildUserProfilesPrompt(transient.userProfiles)
                 buildFactsPrompt(transient.facts)
+                buildSummaryPrompt(transient.summary)
+                buildMetadataPrompt()
             }
         }
         user {
             markdown {
-                buildMetadataPrompt()
-                buildSummaryPrompt(transient.summary)
-                buildHistoriesPrompt(transient.histories, context.currentBotId)
+                if (transient.histories.isNotEmpty()) {
+                    header(2, "最近群聊记录")
+                    line { text("按时间顺序排列的群聊消息如下。你的历史发言以 assistant 消息形式呈现。") }
+                    line { text("图片：包含图片ID：image_id") }
+                }
             }
         }
-
+        for (history in transient.histories) {
+            val content = buildString {
+                append(
+                    "${DateTimeFormat.format(history.createdAt)} [${
+                        if (context.currentBotId == history.userId) BotManage.getBot(history.userId).role.name else history.nick
+                    }](${history.userId}): "
+                )
+                if (history.messageType == MessageType.IMAGE) {
+                    append("[image_id:${history.id}] ")
+                }
+                append(history.content)
+            }
+            if (context.currentBotId == history.userId) {
+                assistant(content)
+            } else {
+                user(content)
+            }
+        }
     }
 }
 
-@OptIn(ExperimentalTime::class)
 fun MarkdownContentBuilder.buildMetadataPrompt() {
     header(2, "元数据")
     val instant = Clock.System.now()
@@ -204,8 +222,8 @@ fun MarkdownContentBuilder.buildConstraintRulePrompt() {
     h2("重要约束")
     bulleted {
         item { line { text("工具调用完毕后，请输出 <end_tern>") } }
-        item { line { text("所有对外消息必须调用发言工具。") } }
-        item { line { text("如果你判断本次不应对外发言，请调用 sendSilent() 作为本次唯一/最终调用，或者直接返回 SILENT") } }
+        item { line { text("你处于群聊环境中，所有对外消息必须通过调用 sendText 等发言工具发送。直接返回的纯文本内容不会出现在群聊中，等同于未发言。") } }
+        item { line { text("如果你判断本次不应对外发言，唯一正确的做法是调用 sendSilent() 结束本次交互。禁止直接返回 SILENT 文本。") } }
         item { line { text("你是在聊天，不是在写答案，不是在总结。") } }
         item { line { text("在群聊中，你应该像真人一样使用多种表达方式。") } }
     }
