@@ -161,7 +161,12 @@ func mergeJSONFile(src, dst string) FileMergeResult {
 
 	merged, addedKeys := deepMergeJSON(dstMap, srcMap)
 	if len(addedKeys) == 0 {
-		return FileMergeResult{Action: "skipped"}
+		dstJSON, _ := json.Marshal(dstMap)
+		mergedJSON, _ := json.Marshal(merged)
+		if string(dstJSON) == string(mergedJSON) {
+			return FileMergeResult{Action: "skipped"}
+		}
+		addedKeys = []string{"<nested changes>"}
 	}
 
 	mergedData, err := json.MarshalIndent(merged, "", "  ")

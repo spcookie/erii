@@ -53,8 +53,6 @@ func reloadConfigDirs() error {
 	)
 	if err != nil {
 		fmt.Printf("  Meta merge error: %v\n", err)
-	} else {
-		printFileResults(".conf", metaResults)
 	}
 
 	confResult, err := ReloadConfDirs(
@@ -66,8 +64,6 @@ func reloadConfigDirs() error {
 	} else {
 		printFileResult("application.conf", confResult.AppConfResult)
 		printFileResult(".env.local", confResult.EnvResult)
-		printFileResults("rules/", confResult.RulesResults)
-		printFileResults("souls/", confResult.SoulsResults)
 	}
 
 	// Collect all results for summary

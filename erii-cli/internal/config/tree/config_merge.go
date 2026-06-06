@@ -103,7 +103,7 @@ func extractFieldKey(line string) string {
 			continue
 		}
 		if ch == '=' || ch == '{' {
-			return line[:i]
+			return strings.TrimSpace(line[:i])
 		}
 	}
 	return ""
@@ -142,7 +142,8 @@ func extractBlockFieldLines(blockLines []string) map[string][]string {
 			} else if currentKey != "" {
 				currentLines = append(currentLines, line)
 			}
-		} else if currentKey != "" {
+		} else if currentKey != "" && newDepth > 0 {
+			// Still inside the block; skip the final closing brace
 			currentLines = append(currentLines, line)
 		}
 
