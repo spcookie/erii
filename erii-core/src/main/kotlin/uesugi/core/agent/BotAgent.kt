@@ -31,6 +31,11 @@ object BotAgent {
 
     private val log = logger()
 
+    private val fallbackEmoticons = listOf(
+        "(×_×)", "(@_@)", "(；￣Д￣)", "(⊙_⊙;)", "(>_<)",
+        "(￣□￣;)", "(⊙＿⊙')", "(；・∀・)", "(._.)"
+    )
+
     private val scope = CoroutineScope(
         SupervisorJob()
                 + Dispatchers.Default
@@ -54,6 +59,12 @@ object BotAgent {
         ChatToolSet::class.functions
             .filter { it.hasAnnotation<Tool>() }
             .map { it.name }
+    }
+
+    private suspend fun sendFallback(event: ProactiveSpeakEvent, context: Context) {
+        val emoticon = fallbackEmoticons.random()
+        log.info("LLM no call tool: {}", emoticon)
+        buildChatToolSet(event, context).sendText(listOf(emoticon))
     }
 
     private suspend fun getChannel(botId: String, groupId: String): Channel<ProactiveSpeakEvent?> {
@@ -189,21 +200,9 @@ object BotAgent {
 
                         while (true) {
                             if (noCallTool) {
-                                noCallTool = false
-                                val emoticon = listOf(
-                                    "(×_×)",
-                                    "(@_@)",
-                                    "(；￣Д￣)",
-                                    "(⊙_⊙;)",
-                                    "(>_<)",
-                                    "(￣□￣;)",
-                                    "(⊙＿⊙')",
-                                    "(；・∀・)",
-                                    "(._.)"
-                                )
-                                log.info("LLM no call tool: {}", emoticon)
-                                buildChatToolSet(event, context).sendText(listOf(emoticon.random()))
+                                sendFallback(event, context)
                             }
+                            noCallTool = true
 
                             val newEvent = MessageAwaiter(context)
                                 .apply {
@@ -272,7 +271,7 @@ object BotAgent {
                 agentConfig = AIAgentConfig(
                     prompt = buildPrompt(context),
                     model = LLMProviderChoice.Pro,
-                    maxAgentIterations = 20,
+                    maxAgentIterations = 50,
                 ),
                 additionalToolRegistry = with(buildToolEnv(event, context)) { buildToolRegistry() },
             )
