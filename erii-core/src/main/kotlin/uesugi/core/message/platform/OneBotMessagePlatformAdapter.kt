@@ -29,8 +29,8 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
                     "at" -> {
                         if (!isAtBot && segment.atQq?.toString() == botId) {
                             isAtBot = true
-                            continue
                         }
+                        append("@${segment.atQq}")
                     }
 
                     "image" -> {
@@ -39,6 +39,7 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
                             imageUrl = segment.imageUrl ?: segment.imageFile
                             imageFormat = segment.imageFile?.substringAfterLast(".")
                         }
+                        append("[图片]")
                     }
 
                     "text" -> {
