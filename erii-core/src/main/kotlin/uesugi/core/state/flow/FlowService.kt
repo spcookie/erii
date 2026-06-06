@@ -156,7 +156,7 @@ class FlowGauge(
         var drainAmount = baseDrain * decayFactor
         if (isNegative) {
             drainAmount *= 1.2
-            pleasure -= 0.3
+            pleasure = (pleasure - 0.3).coerceIn(-1.0, 1.0)
         }
         state.drain(drainAmount, botMark, groupId)
     }
