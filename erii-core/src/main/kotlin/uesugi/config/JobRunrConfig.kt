@@ -1,5 +1,6 @@
 package uesugi.config
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jobrunr.configuration.JobRunr
 import org.jobrunr.jobs.states.StateName
 import org.jobrunr.scheduling.JobScheduler
@@ -16,16 +17,13 @@ import javax.sql.DataSource
 class JobRunrConfig(
     val dataSource: DataSource
 ) {
+
+    private val log = KotlinLogging.logger {}
+
     fun start(): JobScheduler {
-        val storageProvider = H2StorageProvider(dataSource)
-
-        val threeDaysAgo = Instant.now().minus(1, ChronoUnit.DAYS)
-        storageProvider.deleteJobsPermanently(StateName.SUCCEEDED, threeDaysAgo)
-        storageProvider.deleteJobsPermanently(StateName.DELETED, threeDaysAgo)
-
-        return JobRunr.configure()
+        val jobRunr = JobRunr.configure()
             .useJobActivator(Activator)
-            .useStorageProvider(storageProvider)
+            .useStorageProvider(H2StorageProvider(dataSource))
             .useBackgroundJobServer(
                 BackgroundJobServerConfiguration.usingStandardBackgroundJobServerConfiguration()
                     .andPollIntervalInSeconds(30)
@@ -37,7 +35,16 @@ class JobRunrConfig(
                 System.getProperty("jobrunr.dashboard.port", "8000").toInt()
             )
             .initialize()
-            .jobScheduler
+
+        val storageProvider = JobRunr.getBackgroundJobServer().storageProvider
+        val oneDayAgo = Instant.now().minus(1, ChronoUnit.DAYS)
+        val deletedSucceeded = storageProvider.deleteJobsPermanently(StateName.SUCCEEDED, oneDayAgo)
+        val deletedDeleted = storageProvider.deleteJobsPermanently(StateName.DELETED, oneDayAgo)
+        if (deletedSucceeded > 0 || deletedDeleted > 0) {
+            log.info { "[JobRunr] Cleaned up old jobs: $deletedSucceeded succeeded, $deletedDeleted deleted (before $oneDayAgo)" }
+        }
+
+        return jobRunr.jobScheduler
     }
 
     object Activator : JobActivator {
