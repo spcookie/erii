@@ -2,17 +2,26 @@ package uesugi.core.agent
 
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.markdown.markdown
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import com.nlf.calendar.Solar
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
+import okio.Path.Companion.toPath
+import okio.buffer
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import uesugi.common.BotManage
+import uesugi.common.LLMProviderChoice
 import uesugi.common.data.HistoryRecord
 import uesugi.common.data.MessageType
 import uesugi.common.toolkit.DateTimeFormat
+import uesugi.common.toolkit.ref
+import uesugi.core.component.storage.ObjectStorage
+import uesugi.core.message.resource.ResourceService
 import uesugi.core.rule.Rule
 import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.memory.FactsEntity
@@ -23,6 +32,13 @@ import kotlin.time.Clock
 internal suspend fun buildPrompt(context: Context): Prompt {
     val transient = context.toTransient()
     val constraints = buildConstraint(context, transient)
+    val supportsVision = LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
+
+    val imageSources = if (supportsVision) {
+        transient.histories
+            .filter { it.messageType == MessageType.IMAGE && context.currentBotId != it.userId }
+            .associate { it.id to loadImageSource(it) }
+    } else emptyMap()
 
     return prompt("群聊机器人") {
         system {
@@ -48,29 +64,66 @@ internal suspend fun buildPrompt(context: Context): Prompt {
                 if (transient.histories.isNotEmpty()) {
                     header(2, "最近群聊记录")
                     line { text("按时间顺序排列的群聊消息如下。你的历史发言以 assistant 消息形式呈现。") }
-                    line { text("图片：包含图片ID：image_id") }
+                    if (!supportsVision) {
+                        line { text("图片：包含图片ID：image_id") }
+                    }
                 }
             }
         }
         for (history in transient.histories) {
-            val content = buildString {
-                append(
-                    "${DateTimeFormat.format(history.createdAt)} [${
-                        if (context.currentBotId == history.userId) BotManage.getBot(history.userId).role.name else history.nick
-                    }](${history.userId}): "
-                )
-                if (history.messageType == MessageType.IMAGE) {
-                    append("[image_id:${history.id}] ")
+            val isBot = context.currentBotId == history.userId
+            val prefix = "${DateTimeFormat.format(history.createdAt)} [${
+                if (isBot) BotManage.getBot(history.userId).role.name else history.nick
+            }](${history.userId}): "
+
+            if (history.messageType == MessageType.IMAGE && supportsVision && !isBot) {
+                val imageSource = imageSources[history.id]
+                if (imageSource != null) {
+                    user {
+                        text(prefix + (history.content ?: ""))
+                        image(imageSource)
+                    }
+                } else {
+                    val content = prefix + "[image_id:${history.id}] " + (history.content ?: "")
+                    user(content)
                 }
-                append(history.content)
-            }
-            if (context.currentBotId == history.userId) {
-                assistant(content)
             } else {
-                user(content)
+                val content = buildString {
+                    append(prefix)
+                    if (history.messageType == MessageType.IMAGE) {
+                        append("[image_id:${history.id}] ")
+                    }
+                    append(history.content)
+                }
+                if (isBot) assistant(content) else user(content)
             }
         }
     }
+}
+
+private fun loadImageSource(history: HistoryRecord): AttachmentSource.Image? {
+    val resource = history.resource ?: return null
+    val resourceService: ResourceService by ref()
+    val objectStorage: ObjectStorage by ref()
+
+    return try {
+        val fullResource = resourceService.getResource(resource.id ?: return null) ?: return null
+        val bytes = objectStorage.get(fullResource.url.toPath()).buffer().readByteArray()
+        val format = extractImageFormat(fullResource.fileName)
+        AttachmentSource.Image(
+            content = AttachmentContent.Binary.Bytes(bytes),
+            format = format,
+            fileName = fullResource.fileName
+        )
+    } catch (e: Exception) {
+        null
+    }
+}
+
+private fun extractImageFormat(fileName: String): String {
+    return fileName.substringAfterLast(".", "")
+        .lowercase()
+        .takeIf { it.isNotEmpty() } ?: "png"
 }
 
 fun MarkdownContentBuilder.buildMetadataPrompt() {

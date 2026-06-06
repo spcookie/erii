@@ -33,7 +33,8 @@ object LLMProviderChoice {
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices
+                LLMCapability.MultipleChoices,
+                LLMCapability.Vision.Image
             ),
             contextLength = 128_000,
             maxOutputTokens = 8_000
@@ -51,8 +52,7 @@ object LLMProviderChoice {
                 LLMCapability.PromptCaching,
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
-                LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices
+                LLMCapability.ToolChoice
             ),
             contextLength = 128_000,
             maxOutputTokens = 8_000
@@ -70,8 +70,8 @@ object LLMProviderChoice {
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices,
-                LLMCapability.Thinking
+                LLMCapability.Thinking,
+                LLMCapability.Vision.Image
             ),
             contextLength = 512_000,
             maxOutputTokens = 512_000
@@ -90,7 +90,8 @@ object LLMProviderChoice {
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices
+                LLMCapability.MultipleChoices,
+                LLMCapability.Vision.Image
             ),
             contextLength = 128_000,
             maxOutputTokens = 16_000
@@ -109,7 +110,8 @@ object LLMProviderChoice {
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices
+                LLMCapability.MultipleChoices,
+                LLMCapability.Vision.Image
             ),
             contextLength = 200_000,
             maxOutputTokens = 16_000
@@ -127,7 +129,8 @@ object LLMProviderChoice {
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices
+                LLMCapability.MultipleChoices,
+                LLMCapability.Vision.Image
             ),
             contextLength = 128_000,
             maxOutputTokens = 16_000
