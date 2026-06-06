@@ -63,7 +63,9 @@ internal suspend fun buildPrompt(context: Context): Prompt {
             markdown {
                 if (transient.histories.isNotEmpty()) {
                     header(2, "最近群聊记录")
-                    line { text("按时间顺序排列的群聊消息如下。你的历史发言以 assistant 消息形式呈现。") }
+                    line { text("按时间顺序排列的群聊消息如下。") }
+                    line { text("注意：你的历史发言（assistant 消息）是你此前通过调用 sendText、sendMeme、sendImageByUrl、sendAtAndText、sendAtAll 等工具发送到群里的记录，不是直接输出的文本。") }
+                    line { text("你必须始终通过调用工具来发送消息，禁止直接输出聊天内容。") }
                     if (!supportsVision) {
                         line { text("图片：包含图片ID：image_id") }
                     }
@@ -72,9 +74,11 @@ internal suspend fun buildPrompt(context: Context): Prompt {
         }
         for (history in transient.histories) {
             val isBot = context.currentBotId == history.userId
-            val prefix = "${DateTimeFormat.format(history.createdAt)} [${
-                if (isBot) BotManage.getBot(history.userId).role.name else history.nick
-            }](${history.userId}): "
+            val prefix = if (isBot) {
+                "${DateTimeFormat.format(history.createdAt)} [${BotManage.getBot(history.userId).role.name}](${history.userId}) [已发送]: "
+            } else {
+                "${DateTimeFormat.format(history.createdAt)} [${history.nick}](${history.userId}): "
+            }
 
             if (history.messageType == MessageType.IMAGE && supportsVision && !isBot) {
                 val imageSource = imageSources[history.id]
