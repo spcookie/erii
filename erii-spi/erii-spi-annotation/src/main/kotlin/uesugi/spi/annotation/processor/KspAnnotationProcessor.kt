@@ -27,6 +27,15 @@ class KspAnnotationProcessor(
         const val ANN_ON_UNLOAD = "uesugi.spi.annotation.OnUnload"
         const val ANN_ON_START = "uesugi.spi.annotation.OnStart"
         const val ANN_ON_STOP = "uesugi.spi.annotation.OnStop"
+
+        private val CMD_SLOTS = listOf(
+            ParamSlot("meta", "uesugi.spi.Meta", "meta"),
+            ParamSlot("args", "kotlin.collections.List", "holder.args"),
+        )
+
+        private val ROUTE_PASSIVE_SLOTS = listOf(
+            ParamSlot("meta", "uesugi.spi.Meta", "meta"),
+        )
     }
 
     // ========== Parameter Slots ==========
@@ -41,25 +50,18 @@ class KspAnnotationProcessor(
         val valueExpression: String,
     )
 
-    private val CMD_SLOTS = listOf(
-        ParamSlot("meta", "uesugi.spi.Meta", "meta"),
-        ParamSlot("args", "kotlin.collections.List", "holder.args"),
-    )
-
-    private val ROUTE_PASSIVE_SLOTS = listOf(
-        ParamSlot("meta", "uesugi.spi.Meta", "meta"),
-    )
-
     private var processed = false
 
     // 多个 extension 共用 default toolset 时，仅首次注册，避免 ToolRegistry 重复定义
     private var defaultToolSetEmitted = false
+    private val availableToolSets = mutableSetOf<String>()
 
     // ========== Entry ==========
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (processed) return emptyList()
         defaultToolSetEmitted = false
+        availableToolSets.clear()
 
         val (pkgName, defAnno) = findFileDefinition(resolver) ?: run {
             logger.warn("No @file:Definition found, skipping KSP processing")
@@ -215,11 +217,7 @@ class KspAnnotationProcessor(
             appendLine("}")
         }
 
-        codeGenerator.createNewFile(
-            dependencies = Dependencies(aggregating = false),
-            packageName = pkgName,
-            fileName = className
-        ).writer().use { it.write(content) }
+        writeFile(pkgName, className, content)
     }
 
     private fun buildPluginDefinitionAnnotation(defAnno: KSAnnotation?): String {
@@ -232,6 +230,20 @@ class KspAnnotationProcessor(
         return if (params.isEmpty()) "@PluginDefinition" else "@PluginDefinition(${params.joinToString(", ")})"
     }
 
+    private fun writeFile(
+        packageName: String,
+        fileName: String,
+        content: String,
+        extensionName: String = "kt",
+    ) {
+        codeGenerator.createNewFile(
+            dependencies = Dependencies(aggregating = false),
+            packageName = packageName,
+            fileName = fileName,
+            extensionName = extensionName,
+        ).writer().use { it.write(content) }
+    }
+
     // ========== ToolSets ==========
 
     private fun generateToolSets(toolFunctions: List<KSFunctionDeclaration>, pkgName: String) {
@@ -241,6 +253,7 @@ class KspAnnotationProcessor(
 
         for ((setName, functions) in grouped) {
             val className = toolSetClassName(setName)
+            availableToolSets.add(setName)
             val hasNonSuspend = functions.any { !it.isSuspendFunc() }
 
             val content = buildString {
@@ -293,11 +306,7 @@ class KspAnnotationProcessor(
                 appendLine("}")
             }
 
-            codeGenerator.createNewFile(
-                dependencies = Dependencies(aggregating = false),
-                packageName = pkgName,
-                fileName = className
-            ).writer().use { it.write(content) }
+            writeFile(pkgName, className, content)
         }
     }
 
@@ -324,6 +333,56 @@ class KspAnnotationProcessor(
         return paramDecls to argNames
     }
 
+    // ========== Extension Generation ==========
+
+    private fun generateExtensionFile(
+        func: KSFunctionDeclaration,
+        pkgName: String,
+        className: String,
+        interfaceName: String,
+        slots: List<ParamSlot>,
+        annotationLabel: String,
+        onLoadCalls: List<String>,
+        onUnloadCalls: List<String>,
+        globalOnLoad: List<String>,
+        globalOnUnload: List<String>,
+        toolSets: List<String>,
+        extraProperties: StringBuilder.() -> Unit = {},
+        extraOnLoad: StringBuilder.() -> Unit = {},
+    ) {
+        val handlerIsSuspend = func.isSuspendFunc()
+        val matchedSlots = func.matchSlots(slots, annotationLabel)
+        val handlerHasMeta = funcDeclaresMeta(matchedSlots, slots)
+        val callExpr = buildSlotCallExpr(func.simpleName.asString(), matchedSlots, slots)
+
+        val content = buildString {
+            appendLine("package $pkgName")
+            appendLine()
+            emitExtensionImports(handlerHasMeta, handlerIsSuspend)
+            appendLine()
+            appendLine("@Extension")
+            appendLine("class $className : $interfaceName<GeneratedPlugin> {")
+            extraProperties()
+            appendLine("    override fun onLoad(context: PluginContext) {")
+            emitLifecycleCalls(onLoadCalls + globalOnLoad, "        ")
+            appendLine("        context.chain { meta ->")
+            extraOnLoad()
+            appendLine("            withPluginContext(context) {")
+            emitHandlerInvocation(callExpr, handlerIsSuspend, handlerHasMeta, "                ")
+            appendLine("            }")
+            appendLine("        }")
+            emitToolSetRegistrations(toolSets, pkgName, "        ")
+            appendLine("    }")
+            appendLine()
+            appendLine("    override fun onUnload() {")
+            emitLifecycleCalls(onUnloadCalls + globalOnUnload, "        ")
+            appendLine("    }")
+            appendLine("}")
+        }
+
+        writeFile(pkgName, className, content)
+    }
+
     // ========== Route Extensions ==========
 
     private fun generateRouteExtensions(
@@ -334,54 +393,34 @@ class KspAnnotationProcessor(
         globalOnLoad: List<String>,
         globalOnUnload: List<String>,
     ) {
-        val pluginClassName = "GeneratedPlugin"
-
         for (func in routeFunctions) {
             val routeAnno = func.findAnnotation(ANN_ROUTE) ?: continue
             val funcName = func.simpleName.asString()
-            val className = "GeneratedRoute_${funcName}"
             val onLoadCalls = resolveLifecycleCalls(routeAnno.stringArrayArg("onLoad"), namedOnLoad, funcName)
             val onUnloadCalls = resolveLifecycleCalls(routeAnno.stringArrayArg("onUnload"), namedOnUnload, funcName)
-            val handlerIsSuspend = func.isSuspendFunc()
-            val matchedSlots = func.matchSlots(ROUTE_PASSIVE_SLOTS, "Route")
-            val handlerHasMeta = funcDeclaresMeta(matchedSlots, ROUTE_PASSIVE_SLOTS)
-            val callExpr = buildSlotCallExpr(funcName, matchedSlots, ROUTE_PASSIVE_SLOTS)
 
-            val content = buildString {
-                appendLine("package $pkgName")
-                appendLine()
-                emitExtensionImports(handlerHasMeta, handlerIsSuspend)
-                appendLine()
-                appendLine("@Extension")
-                appendLine("class $className : RouteExtension<$pluginClassName> {")
-                appendLine("    override val matcher: Pair<String, String>")
-                appendLine(
-                    "        get() = \"${
-                        routeAnno.stringArg("path").escapeForLiteral()
-                    }\" to \"${routeAnno.stringArg("method").escapeForLiteral()}\""
-                )
-                appendLine()
-                appendLine("    override fun onLoad(context: PluginContext) {")
-                emitLifecycleCalls(onLoadCalls + globalOnLoad, "        ")
-                appendLine("        context.chain { meta ->")
-                appendLine("            withPluginContext(context) {")
-                emitHandlerInvocation(callExpr, handlerIsSuspend, handlerHasMeta, "                ")
-                appendLine("            }")
-                appendLine("        }")
-                emitToolSetRegistrations(routeAnno.stringArrayArg("toolSets"), pkgName, "        ")
-                appendLine("    }")
-                appendLine()
-                appendLine("    override fun onUnload() {")
-                emitLifecycleCalls(onUnloadCalls + globalOnUnload, "        ")
-                appendLine("    }")
-                appendLine("}")
-            }
-
-            codeGenerator.createNewFile(
-                dependencies = Dependencies(aggregating = false),
-                packageName = pkgName,
-                fileName = className
-            ).writer().use { it.write(content) }
+            generateExtensionFile(
+                func = func,
+                pkgName = pkgName,
+                className = "GeneratedRoute_${funcName}",
+                interfaceName = "RouteExtension",
+                slots = ROUTE_PASSIVE_SLOTS,
+                annotationLabel = "Route",
+                onLoadCalls = onLoadCalls,
+                onUnloadCalls = onUnloadCalls,
+                globalOnLoad = globalOnLoad,
+                globalOnUnload = globalOnUnload,
+                toolSets = routeAnno.stringArrayArg("toolSets"),
+                extraProperties = {
+                    appendLine("    override val matcher: Pair<String, String>")
+                    appendLine(
+                        "        get() = \"${
+                            routeAnno.stringArg("path").escapeForLiteral()
+                        }\" to \"${routeAnno.stringArg("method").escapeForLiteral()}\""
+                    )
+                    appendLine()
+                }
+            )
         }
     }
 
@@ -395,58 +434,40 @@ class KspAnnotationProcessor(
         globalOnLoad: List<String>,
         globalOnUnload: List<String>,
     ) {
-        val pluginClassName = "GeneratedPlugin"
-
         for (func in cmdFunctions) {
             val cmdAnno = func.findAnnotation(ANN_CMD) ?: continue
             val funcName = func.simpleName.asString()
             val cmdName = cmdAnno.stringArg("name")
-            val className = "GeneratedCmd_${cmdName.replace("-", "_")}"
             val aliases = cmdAnno.stringArrayArg("alias")
             val aliasList = aliases.joinToString(", ") { "\"$it\"" }
             val onLoadCalls = resolveLifecycleCalls(cmdAnno.stringArrayArg("onLoad"), namedOnLoad, funcName)
             val onUnloadCalls = resolveLifecycleCalls(cmdAnno.stringArrayArg("onUnload"), namedOnUnload, funcName)
-            val handlerIsSuspend = func.isSuspendFunc()
-            val matchedSlots = func.matchSlots(CMD_SLOTS, "Cmd")
-            val handlerHasMeta = funcDeclaresMeta(matchedSlots, CMD_SLOTS)
-            val callExpr = buildSlotCallExpr(funcName, matchedSlots, CMD_SLOTS)
 
-            val content = buildString {
-                appendLine("package $pkgName")
-                appendLine()
-                emitExtensionImports(handlerHasMeta, handlerIsSuspend)
-                appendLine()
-                appendLine("@Extension")
-                appendLine("class $className : SlashCmdExtension<$pluginClassName> {")
-                appendLine("    override val cmd: String")
-                appendLine("        get() = \"$cmdName\"")
-                if (aliases.isNotEmpty()) {
-                    appendLine("    override val alias: List<String>")
-                    appendLine("        get() = listOf($aliasList)")
+            generateExtensionFile(
+                func = func,
+                pkgName = pkgName,
+                className = "GeneratedCmd_${cmdName.replace("-", "_")}",
+                interfaceName = "SlashCmdExtension",
+                slots = CMD_SLOTS,
+                annotationLabel = "Cmd",
+                onLoadCalls = onLoadCalls,
+                onUnloadCalls = onUnloadCalls,
+                globalOnLoad = globalOnLoad,
+                globalOnUnload = globalOnUnload,
+                toolSets = cmdAnno.stringArrayArg("toolSets"),
+                extraProperties = {
+                    appendLine("    override val cmd: String")
+                    appendLine("        get() = \"$cmdName\"")
+                    if (aliases.isNotEmpty()) {
+                        appendLine("    override val alias: List<String>")
+                        appendLine("        get() = listOf($aliasList)")
+                    }
+                    appendLine()
+                },
+                extraOnLoad = {
+                    appendLine("            val holder = meta.parser(Unit)")
                 }
-                appendLine()
-                appendLine("    override fun onLoad(context: PluginContext) {")
-                emitLifecycleCalls(onLoadCalls + globalOnLoad, "        ")
-                appendLine("        context.chain { meta ->")
-                appendLine("            val holder = meta.parser(Unit)")
-                appendLine("            withPluginContext(context) {")
-                emitHandlerInvocation(callExpr, handlerIsSuspend, handlerHasMeta, "                ")
-                appendLine("            }")
-                appendLine("        }")
-                emitToolSetRegistrations(cmdAnno.stringArrayArg("toolSets"), pkgName, "        ")
-                appendLine("    }")
-                appendLine()
-                appendLine("    override fun onUnload() {")
-                emitLifecycleCalls(onUnloadCalls + globalOnUnload, "        ")
-                appendLine("    }")
-                appendLine("}")
-            }
-
-            codeGenerator.createNewFile(
-                dependencies = Dependencies(aggregating = false),
-                packageName = pkgName,
-                fileName = className
-            ).writer().use { it.write(content) }
+            )
         }
     }
 
@@ -460,57 +481,35 @@ class KspAnnotationProcessor(
         globalOnLoad: List<String>,
         globalOnUnload: List<String>,
     ) {
-        val pluginClassName = "GeneratedPlugin"
-
         for (func in passiveFunctions) {
             val passiveAnno = func.findAnnotation(ANN_PASSIVE) ?: continue
             val funcName = func.simpleName.asString()
-            val className = "GeneratedPassive_${funcName}"
             val onLoadCalls = resolveLifecycleCalls(passiveAnno.stringArrayArg("onLoad"), namedOnLoad, funcName)
             val onUnloadCalls = resolveLifecycleCalls(passiveAnno.stringArrayArg("onUnload"), namedOnUnload, funcName)
-            val handlerIsSuspend = func.isSuspendFunc()
-            val matchedSlots = func.matchSlots(ROUTE_PASSIVE_SLOTS, "Passive")
-            val handlerHasMeta = funcDeclaresMeta(matchedSlots, ROUTE_PASSIVE_SLOTS)
-            val callExpr = buildSlotCallExpr(funcName, matchedSlots, ROUTE_PASSIVE_SLOTS)
 
-            val content = buildString {
-                appendLine("package $pkgName")
-                appendLine()
-                emitExtensionImports(handlerHasMeta, handlerIsSuspend)
-                appendLine()
-                appendLine("@Extension")
-                appendLine("class $className : PassiveExtension<$pluginClassName> {")
-                appendLine("    override fun onLoad(context: PluginContext) {")
-                emitLifecycleCalls(onLoadCalls + globalOnLoad, "        ")
-                appendLine("        context.chain { meta ->")
-                appendLine("            withPluginContext(context) {")
-                emitHandlerInvocation(callExpr, handlerIsSuspend, handlerHasMeta, "                ")
-                appendLine("            }")
-                appendLine("        }")
-                emitToolSetRegistrations(passiveAnno.stringArrayArg("toolSets"), pkgName, "        ")
-                appendLine("    }")
-                appendLine()
-                appendLine("    override fun onUnload() {")
-                emitLifecycleCalls(onUnloadCalls + globalOnUnload, "        ")
-                appendLine("    }")
-                appendLine("}")
-            }
-
-            codeGenerator.createNewFile(
-                dependencies = Dependencies(aggregating = false),
-                packageName = pkgName,
-                fileName = className
-            ).writer().use { it.write(content) }
+            generateExtensionFile(
+                func = func,
+                pkgName = pkgName,
+                className = "GeneratedPassive_${funcName}",
+                interfaceName = "PassiveExtension",
+                slots = ROUTE_PASSIVE_SLOTS,
+                annotationLabel = "Passive",
+                onLoadCalls = onLoadCalls,
+                onUnloadCalls = onUnloadCalls,
+                globalOnLoad = globalOnLoad,
+                globalOnUnload = globalOnUnload,
+                toolSets = passiveAnno.stringArrayArg("toolSets"),
+            )
         }
     }
 
     // ========== Default Passive (auto-generated for tool-only plugins) ==========
 
     private fun generateDefaultPassive(toolFunctions: List<KSFunctionDeclaration>, pkgName: String) {
-        val pluginClassName = "GeneratedPlugin"
         val toolSetClasses = toolFunctions
             .map { it.findAnnotation(ANN_TOOL)?.stringArg("set")?.takeUnless { s -> s.isEmpty() } ?: DEFAULT_TOOLSET }
             .distinct()
+            .filter { it in availableToolSets }
             .map { toolSetClassName(it) }
 
         val className = "GeneratedPassive_default"
@@ -523,7 +522,7 @@ class KspAnnotationProcessor(
             appendLine("import uesugi.spi.PluginContext")
             appendLine()
             appendLine("@Extension")
-            appendLine("class $className : PassiveExtension<$pluginClassName> {")
+            appendLine("class $className : PassiveExtension<GeneratedPlugin> {")
             appendLine("    override fun onLoad(context: PluginContext) {")
             for (tsClass in toolSetClasses) {
                 appendLine("        context.tool { { $pkgName.$tsClass(context) } }")
@@ -535,11 +534,7 @@ class KspAnnotationProcessor(
             appendLine("}")
         }
 
-        codeGenerator.createNewFile(
-            dependencies = Dependencies(aggregating = false),
-            packageName = pkgName,
-            fileName = className
-        ).writer().use { it.write(content) }
+        writeFile(pkgName, className, content)
     }
 
     // ========== PF4J Extensions file ==========
@@ -571,13 +566,7 @@ class KspAnnotationProcessor(
         if (extensionClasses.isEmpty()) return
 
         val content = extensionClasses.joinToString("\n")
-
-        codeGenerator.createNewFile(
-            dependencies = Dependencies(aggregating = false),
-            packageName = "",
-            fileName = PF4J_EXTENSION_PATH,
-            extensionName = ""
-        ).writer().use { it.write(content) }
+        writeFile("", PF4J_EXTENSION_PATH, content, "")
     }
 
     // ========== Import / Handler / Lifecycle helpers ==========
@@ -624,13 +613,18 @@ class KspAnnotationProcessor(
         toolSets: List<String>, packageName: String, indent: String
     ) {
         for (setName in toolSets) {
-            if (setName == DEFAULT_TOOLSET) {
-                if (defaultToolSetEmitted) continue
-                defaultToolSetEmitted = true
-            }
-            val tsClassName = toolSetClassName(setName)
-            appendLine("${indent}context.tool { { $packageName.$tsClassName(context) } }")
+            emitSingleToolSetRegistration(packageName, setName, indent)
         }
+    }
+
+    private fun StringBuilder.emitSingleToolSetRegistration(packageName: String, setName: String, indent: String) {
+        if (setName !in availableToolSets) return
+        if (setName == DEFAULT_TOOLSET) {
+            if (defaultToolSetEmitted) return
+            defaultToolSetEmitted = true
+        }
+        val tsClassName = toolSetClassName(setName)
+        appendLine("${indent}context.tool { { $packageName.$tsClassName(context) } }")
     }
 
     private fun StringBuilder.emitLifecycleCalls(calls: List<String>, indent: String) {
