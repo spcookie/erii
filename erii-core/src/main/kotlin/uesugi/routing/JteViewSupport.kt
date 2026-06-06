@@ -84,6 +84,12 @@ fun FlowMeterState.info(): FlowStateInfo = when (this) {
 /** PAD 归一化（-4 ~ +4 → 0 ~ 100） */
 fun Double.normalizeForDisplay(): Double = max(0.0, min(100.0, (this + 4) / 8 * 100))
 
+/** PAD 居中进度条 left 百分比（0 点在中间） */
+fun Double.padCenteredLeft(): Double = 50.0 + min(0.0, this / 4 * 50)
+
+/** PAD 居中进度条 width 百分比 */
+fun Double.padCenteredWidth(): Double = kotlin.math.abs(this) / 4 * 50
+
 /** 情绪倾向判断 */
 fun PAD.emotionTendency(): String = when {
     p > 1 -> "积极愉悦"
