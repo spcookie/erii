@@ -73,8 +73,8 @@ object LLMProviderChoice {
                 LLMCapability.MultipleChoices,
                 LLMCapability.Thinking
             ),
-            contextLength = 204_800,
-            maxOutputTokens = 204_800
+            contextLength = 512_000,
+            maxOutputTokens = 512_000
         )
     }
 
