@@ -77,12 +77,12 @@
         .page {
             max-width: 1120px;
             margin: 0 auto;
-            padding: var(--sp-11) var(--sp-9) var(--sp-12);
+            padding: var(--sp-10) var(--sp-9) var(--sp-9);
         }
 
         /* ---- Header ---- */
         .header {
-            margin-bottom: var(--sp-10);
+            margin-bottom: var(--sp-8);
         }
 
         .header .report-label {
@@ -146,13 +146,13 @@
 
         /* ---- Section ---- */
         .section {
-            margin-bottom: var(--sp-11);
+            margin-bottom: var(--sp-9);
         }
 
         .section .sec-rule {
             height: 1px;
             background: var(--grey-2);
-            margin-bottom: var(--sp-7);
+            margin-bottom: var(--sp-5);
         }
 
         .section .sec-head {
@@ -160,7 +160,7 @@
             font-weight: 300;
             font-size: clamp(22px, 2vw, 28px);
             letter-spacing: -0.015em;
-            margin-bottom: var(--sp-7);
+            margin-bottom: var(--sp-5);
             display: flex;
             align-items: center;
             gap: var(--sp-4);
@@ -180,7 +180,7 @@
             grid-template-columns: repeat(12, 1fr);
             gap: var(--sp-6) var(--sp-5);
             align-items: start;
-            margin-bottom: var(--sp-8);
+            margin-bottom: var(--sp-6);
         }
 
         .kpi-grid .kpi-card {
@@ -230,11 +230,11 @@
         /* ---- Grey Block ---- */
         .grey-panel {
             background: var(--grey-1);
-            padding: var(--sp-8) var(--sp-9);
+            padding: var(--sp-6) var(--sp-7);
         }
 
         .grey-panel.tight {
-            padding: var(--sp-7) var(--sp-8);
+            padding: var(--sp-5) var(--sp-6);
         }
 
         /* ---- Emotion ---- */
@@ -243,7 +243,7 @@
             justify-content: space-between;
             align-items: flex-start;
             gap: var(--sp-7);
-            margin-bottom: var(--sp-6);
+            margin-bottom: var(--sp-4);
         }
 
         .emotion-top .em-name {
@@ -280,9 +280,9 @@
             font-weight: 400;
             line-height: 1.55;
             color: var(--grey-3);
-            padding: var(--sp-6) 0 var(--sp-6) var(--sp-6);
+            padding: var(--sp-4) 0 var(--sp-4) var(--sp-4);
             border-left: 3px solid var(--accent);
-            margin-bottom: var(--sp-7);
+            margin-bottom: var(--sp-4);
             max-width: 75%;
         }
 
@@ -290,8 +290,8 @@
         .pad-grid-3 {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: var(--sp-7) var(--sp-8);
-            margin-bottom: var(--sp-6);
+            gap: var(--sp-5) var(--sp-6);
+            margin-bottom: var(--sp-4);
         }
 
         .pad-grid-3 .pg {
@@ -327,11 +327,27 @@
             height: 4px;
             background: var(--grey-2);
             margin-bottom: 4px;
+            position: relative;
+        }
+
+        .pad-grid-3 .pg .pg-zero {
+            position: absolute;
+            left: 50%;
+            top: -2px;
+            width: 2px;
+            height: 8px;
+            background: var(--ink);
+            transform: translateX(-50%);
+            z-index: 2;
         }
 
         .pad-grid-3 .pg .pg-fill {
             height: 100%;
-            transition: width 0.4s var(--ease-prod, cubic-bezier(.2, 0, .38, .9));
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            transition: width 0.4s var(--ease-prod, cubic-bezier(.2, 0, .38, .9)),
+            left 0.4s var(--ease-prod, cubic-bezier(.2, 0, .38, .9));
         }
 
         .pad-grid-3 .pg .pg-fill.p {
@@ -382,7 +398,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: var(--sp-5);
+            margin-bottom: var(--sp-4);
         }
 
         .flow-block .fl-state {
@@ -408,7 +424,7 @@
             height: 6px;
             background: var(--grey-2);
             position: relative;
-            margin-bottom: var(--sp-4);
+            margin-bottom: var(--sp-3);
         }
 
         .flow-block .fl-fill {
@@ -440,6 +456,19 @@
             font-size: 12px;
             font-weight: 400;
             display: block;
+        }
+
+        /* ---- Merged Flow + Volition ---- */
+        .state-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--sp-8);
+        }
+
+        .state-grid-2 .sg-left {
+        }
+
+        .state-grid-2 .sg-right {
         }
 
         /* ---- Volition ---- */
@@ -576,7 +605,7 @@
             height: 2px;
             background: var(--accent);
             width: 48px;
-            margin-top: var(--sp-12);
+            margin-top: var(--sp-9);
         }
 
         .end-note {
@@ -620,6 +649,11 @@
             .vol-block .vl-split {
                 grid-template-columns: 1fr;
                 gap: var(--sp-7);
+            }
+
+            .state-grid-2 {
+                grid-template-columns: 1fr;
+                gap: var(--sp-8);
             }
 
             .summary-callout {
@@ -687,7 +721,7 @@
                 <span>情绪状态</span>
             </div>
 
-            <div class="grey-panel">
+            <div class="grey-panel tight">
                 <div class="emotion-top">
                     <span>
                         <span class="em-name">${EmotionMap.get(vm.groupStatus.behaviorProfile!!.emotion).name}</span>
@@ -706,8 +740,9 @@
                             <span class="pg-val">${String.format("%.2f", vm.groupStatus.pad!!.p)}</span>
                         </div>
                         <div class="pg-track">
+                            <div class="pg-zero"></div>
                             <div class="pg-fill p"
-                                 style="width: ${vm.groupStatus.pad!!.p.normalizeForDisplay()}%"></div>
+                                 style="left: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.p / 4.0 * 50.0)}%; width: ${kotlin.math.abs(vm.groupStatus.pad!!.p) / 4.0 * 50.0}%;"></div>
                         </div>
                         <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
                     </div>
@@ -717,8 +752,9 @@
                             <span class="pg-val">${String.format("%.2f", vm.groupStatus.pad!!.a)}</span>
                         </div>
                         <div class="pg-track">
+                            <div class="pg-zero"></div>
                             <div class="pg-fill a"
-                                 style="width: ${vm.groupStatus.pad!!.a.normalizeForDisplay()}%"></div>
+                                 style="left: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.a / 4.0 * 50.0)}%; width: ${kotlin.math.abs(vm.groupStatus.pad!!.a) / 4.0 * 50.0}%;"></div>
                         </div>
                         <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
                     </div>
@@ -728,8 +764,9 @@
                             <span class="pg-val">${String.format("%.2f", vm.groupStatus.pad!!.d)}</span>
                         </div>
                         <div class="pg-track">
+                            <div class="pg-zero"></div>
                             <div class="pg-fill d"
-                                 style="width: ${vm.groupStatus.pad!!.d.normalizeForDisplay()}%"></div>
+                                 style="left: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.d / 4.0 * 50.0)}%; width: ${kotlin.math.abs(vm.groupStatus.pad!!.d) / 4.0 * 50.0}%;"></div>
                         </div>
                         <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
                     </div>
@@ -762,82 +799,77 @@
         </div>
     @endif
 
-    <!-- ===== FLOW ===== -->
+    <!-- ===== FLOW & VOLITION ===== -->
     <div class="section">
         <div class="sec-rule"></div>
         <div class="sec-head">
             <span class="sec-num">02</span>
-            <span>心流投入度</span>
+            <span>心流与冲动</span>
         </div>
 
         <div class="grey-panel tight">
-            <div class="flow-block">
-                <div class="fl-top">
-                    <span class="fl-state" style="color: ${vm.groupStatus.flowState.state.info().color}">
-                        <i data-lucide="${vm.groupStatus.flowState.state.info().icon}"></i>
-                        ${vm.groupStatus.flowState.state.info().name}
-                    </span>
-                    <span class="fl-num">${String.format("%.1f", vm.groupStatus.flowState.meter)}</span>
-                </div>
-                <div class="fl-track">
-                    <div class="fl-fill"
-                         style="width: ${vm.groupStatus.flowState.meter}%; background: ${vm.groupStatus.flowState.state.info().color}"></div>
-                    <div class="fl-marker" style="left: 30%"></div>
-                    <div class="fl-marker" style="left: 70%"></div>
-                </div>
-                <div class="fl-legend">
-                    <span><span class="flg-num">0</span><span class="flg-tag"> 待机</span></span>
-                    <span><span class="flg-num">30</span><span class="flg-tag"> 阈值</span></span>
-                    <span><span class="flg-num">70</span><span class="flg-tag"> 阈值</span></span>
-                    <span><span class="flg-num">100</span><span class="flg-tag"> 爆发</span></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== VOLITION ===== -->
-    <div class="section">
-        <div class="sec-rule"></div>
-        <div class="sec-head">
-            <span class="sec-num">03</span>
-            <span>冲动值</span>
-        </div>
-
-        <div class="grey-panel tight">
-            <div class="vol-block">
-                <div class="vl-top">
-                    <span class="vl-label"><i data-lucide="brain"></i> 冲动值累积</span>
-                    @if(vm.groupStatus.volitionState.shouldSpeak)
-                        <span class="vl-badge on">
-                            <i data-lucide="check-circle"></i> 已触发主动发言阈值
-                        </span>
-                    @else
-                        <span class="vl-badge off">
-                            <i data-lucide="pause-circle"></i> 保持观察状态
-                        </span>
-                    @endif
-                </div>
-                <div class="vl-split">
-                    <div class="vs">
-                        <div class="vs-head">
-                            <span class="vs-label"><i data-lucide="zap"></i> Stimulus</span>
-                            <span class="vs-val">${String.format("%.1f", vm.groupStatus.volitionState.stimulus)}</span>
+            <div class="state-grid-2">
+                <div class="sg-left">
+                    <div class="flow-block">
+                        <div class="fl-top">
+                            <span class="fl-state" style="color: ${vm.groupStatus.flowState.state.info().color}">
+                                <i data-lucide="${vm.groupStatus.flowState.state.info().icon}"></i>
+                                ${vm.groupStatus.flowState.state.info().name}
+                            </span>
+                            <span class="fl-num">${String.format("%.1f", vm.groupStatus.flowState.meter)}</span>
                         </div>
-                        <div class="vs-track">
-                            <div class="vs-fill stimulus"
-                                 style="width: ${vm.groupStatus.volitionState.stimulus}%"></div>
+                        <div class="fl-track">
+                            <div class="fl-fill"
+                                 style="width: ${vm.groupStatus.flowState.meter}%; background: ${vm.groupStatus.flowState.state.info().color}"></div>
+                            <div class="fl-marker" style="left: 30%"></div>
+                            <div class="fl-marker" style="left: 70%"></div>
                         </div>
-                        <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
+                        <div class="fl-legend">
+                            <span><span class="flg-num">0</span><span class="flg-tag"> 待机</span></span>
+                            <span><span class="flg-num">30</span><span class="flg-tag"> 阈值</span></span>
+                            <span><span class="flg-num">70</span><span class="flg-tag"> 阈值</span></span>
+                            <span><span class="flg-num">100</span><span class="flg-tag"> 爆发</span></span>
+                        </div>
                     </div>
-                    <div class="vs">
-                        <div class="vs-head">
-                            <span class="vs-label"><i data-lucide="bed"></i> Fatigue</span>
-                            <span class="vs-val">${String.format("%.1f", vm.groupStatus.volitionState.fatigue)}</span>
+                </div>
+                <div class="sg-right">
+                    <div class="vol-block">
+                        <div class="vl-top" style="margin-bottom: var(--sp-4);">
+                            <span class="vl-label"><i data-lucide="brain"></i> 冲动值累积</span>
+                            @if(vm.groupStatus.volitionState.shouldSpeak)
+                                <span class="vl-badge on">
+                                <i data-lucide="check-circle"></i> 已触发
+                            </span>
+                            @else
+                                <span class="vl-badge off">
+                                <i data-lucide="pause-circle"></i> 观察中
+                            </span>
+                            @endif
                         </div>
-                        <div class="vs-track">
-                            <div class="vs-fill fatigue" style="width: ${vm.groupStatus.volitionState.fatigue}%"></div>
+                        <div class="vl-split" style="gap: var(--sp-6);">
+                            <div class="vs">
+                                <div class="vs-head">
+                                    <span class="vs-label"><i data-lucide="zap"></i> Stimulus</span>
+                                    <span class="vs-val">${String.format("%.1f", vm.groupStatus.volitionState.stimulus)}</span>
+                                </div>
+                                <div class="vs-track">
+                                    <div class="vs-fill stimulus"
+                                         style="width: ${vm.groupStatus.volitionState.stimulus}%"></div>
+                                </div>
+                                <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
+                            </div>
+                            <div class="vs">
+                                <div class="vs-head">
+                                    <span class="vs-label"><i data-lucide="bed"></i> Fatigue</span>
+                                    <span class="vs-val">${String.format("%.1f", vm.groupStatus.volitionState.fatigue)}</span>
+                                </div>
+                                <div class="vs-track">
+                                    <div class="vs-fill fatigue"
+                                         style="width: ${vm.groupStatus.volitionState.fatigue}%"></div>
+                                </div>
+                                <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
+                            </div>
                         </div>
-                        <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
                     </div>
                 </div>
             </div>
@@ -848,21 +880,21 @@
     <div class="section">
         <div class="sec-rule"></div>
         <div class="sec-head">
-            <span class="sec-num">04</span>
+            <span class="sec-num">03</span>
             <span>聊天活跃度</span>
         </div>
 
         <div class="grey-panel tight">
-            <div id="msg-chart" style="width: 100%; height: 320px;"></div>
+            <div id="msg-chart" style="width: 100%; height: 260px;"></div>
         </div>
     </div>
 
     @if(vm.groupStatus.summary != null)
         <!-- ===== SUMMARY ===== -->
-        <div class="section">
+        <div class="section" style="margin-bottom: var(--sp-7);">
             <div class="sec-rule"></div>
             <div class="sec-head">
-                <span class="sec-num">05</span>
+                <span class="sec-num">04</span>
                 <span>会话摘要</span>
             </div>
 
