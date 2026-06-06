@@ -40,6 +40,7 @@ class SchedulerImpl(
 
     override fun schedule(id: String, delay: Duration, action: () -> Unit) {
         val qid = qualifiedId(id)
+        cancel(id)
         SchedulerBridge.register(qid, action, onMissing = { cancel(id) })
         val jobId = jobScheduler.schedule(java.time.Instant.now().plus(delay.toJavaDuration())) {
             SchedulerBridge.runTask(qid)
@@ -49,6 +50,7 @@ class SchedulerImpl(
 
     override fun enqueue(id: String, action: () -> Unit) {
         val qid = qualifiedId(id)
+        cancel(id)
         SchedulerBridge.register(qid, action, onMissing = { cancel(id) })
         val jobId = jobScheduler.enqueue {
             SchedulerBridge.runTask(qid)
