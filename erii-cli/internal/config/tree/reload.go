@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"erii-cli/internal/path"
 	"erii-cli/internal/tui/style"
@@ -69,6 +70,25 @@ func reloadConfigDirs() error {
 		printFileResults("souls/", confResult.SoulsResults)
 	}
 
+	// Collect all results for summary
+	var allResults []FileMergeResult
+	if metaResults != nil {
+		allResults = append(allResults, metaResults...)
+	}
+	if confResult != nil {
+		allResults = append(allResults, confResult.AppConfResult)
+		allResults = append(allResults, confResult.EnvResult)
+		allResults = append(allResults, confResult.RulesResults...)
+		allResults = append(allResults, confResult.SoulsResults...)
+	}
+
+	var created, merged, skipped, errors int
+	for _, r := range allResults {
+		created, merged, skipped, errors = tally(created, merged, skipped, errors, r.Action)
+	}
+
+	printSummary(created+merged+skipped+errors, created, merged, skipped, errors)
+
 	fmt.Println("\n" + createdStyle.Render("✓") + " Config directory merge completed.")
 	return nil
 }
@@ -99,33 +119,26 @@ func printPluginSummary(summary *PluginInitSummary) {
 
 	fmt.Println("\n" + sectionStyle.Render("=== Plugin Configuration Reload ==="))
 
-	var created, merged, skipped, errors int
+	var fileCreated, fileMerged, fileSkipped, fileErrors int
 	for _, r := range summary.Results {
 		fmt.Printf("\n%s\n", pluginStyle.Render("["+r.PluginID+"]"))
 
 		if r.Error != nil {
 			fmt.Printf("  %s: %v\n", errorStyle.Render("Error"), r.Error)
-			errors++
+			fileErrors++
 			continue
 		}
 
 		printFileResult("plugin.json", r.ConfigResult)
 		printFileResult("schema.json", r.SchemaResult)
 
-		created, merged, skipped, errors = tally(
-			created, merged, skipped, errors,
+		fileCreated, fileMerged, fileSkipped, fileErrors = tally(
+			fileCreated, fileMerged, fileSkipped, fileErrors,
 			r.ConfigResult.Action, r.SchemaResult.Action,
 		)
 	}
 
-	fmt.Printf("\n%s\n", sectionStyle.Render("=== Summary ==="))
-	fmt.Printf("Total: %d | %s: %d | %s: %d | %s: %d | %s: %d\n",
-		len(summary.Results),
-		createdStyle.Render("Created"), created,
-		mergedStyle.Render("Merged"), merged,
-		skippedStyle.Render("Skipped"), skipped,
-		errorStyle.Render("Errors"), errors,
-	)
+	printSummary(fileCreated+fileMerged+fileSkipped+fileErrors, fileCreated, fileMerged, fileSkipped, fileErrors)
 }
 
 func tally(created, merged, skipped, errors int, actions ...string) (int, int, int, int) {
@@ -135,7 +148,7 @@ func tally(created, merged, skipped, errors int, actions ...string) (int, int, i
 			created++
 		case "merged":
 			merged++
-		case "skipped":
+		case "skipped", "source_missing":
 			skipped++
 		case "error":
 			errors++
@@ -167,20 +180,24 @@ func printFileResults(label string, results []FileMergeResult) {
 	for _, r := range results {
 		created, merged, skipped, errors = tally(created, merged, skipped, errors, r.Action)
 	}
-	if errors > 0 {
-		fmt.Printf("  %s: %s %d, %s %d, %s %d, %s %d\n",
-			label,
-			createdStyle.Render("created"), created,
-			mergedStyle.Render("merged"), merged,
-			skippedStyle.Render("skipped"), skipped,
-			errorStyle.Render("errors"), errors,
-		)
-	} else {
-		fmt.Printf("  %s: %s %d, %s %d, %s %d\n",
-			label,
-			createdStyle.Render("created"), created,
-			mergedStyle.Render("merged"), merged,
-			skippedStyle.Render("skipped"), skipped,
-		)
+	parts := []string{
+		createdStyle.Render("created") + " " + fmt.Sprint(created),
+		mergedStyle.Render("merged") + " " + fmt.Sprint(merged),
+		skippedStyle.Render("skipped") + " " + fmt.Sprint(skipped),
 	}
+	if errors > 0 {
+		parts = append(parts, errorStyle.Render("errors")+" "+fmt.Sprint(errors))
+	}
+	fmt.Printf("  %s: %s\n", label, strings.Join(parts, ", "))
+}
+
+func printSummary(total, created, merged, skipped, errors int) {
+	fmt.Printf("\n%s\n", sectionStyle.Render("=== Summary ==="))
+	fmt.Printf("Total: %d | %s: %d | %s: %d | %s: %d | %s: %d\n",
+		total,
+		createdStyle.Render("Created"), created,
+		mergedStyle.Render("Merged"), merged,
+		skippedStyle.Render("Skipped"), skipped,
+		errorStyle.Render("Errors"), errors,
+	)
 }

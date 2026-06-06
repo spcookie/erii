@@ -90,8 +90,91 @@ func ReloadConfDirs(srcConfDir, dstConfDir string) (*ConfReloadResult, error) {
 	return result, nil
 }
 
+// extractFieldKey extracts the field key from an already-trimmed line like "key = value" or "key {".
+func extractFieldKey(line string) string {
+	inQuote := false
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if ch == '"' && (i == 0 || line[i-1] != '\\') {
+			inQuote = !inQuote
+			continue
+		}
+		if inQuote {
+			continue
+		}
+		if ch == '=' || ch == '{' {
+			return line[:i]
+		}
+	}
+	return ""
+}
+
+// extractBlockFieldLines extracts top-level fields from inside a HOCON block.
+// The blockLines include the opening and closing braces.
+func extractBlockFieldLines(blockLines []string) map[string][]string {
+	fields := make(map[string][]string)
+	if len(blockLines) < 2 {
+		return fields
+	}
+
+	depth := 1 // Already inside the block after the opening line
+	var currentKey string
+	var currentLines []string
+
+	for i := 1; i < len(blockLines); i++ {
+		line := blockLines[i]
+		open, close := countBracesOutsideStrings(line)
+		newDepth := depth + open - close
+
+		if depth == 1 && newDepth >= 1 {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") || trimmed == "}" {
+				depth = newDepth
+				continue
+			}
+			key := extractFieldKey(trimmed)
+			if key != "" {
+				if currentKey != "" {
+					fields[currentKey] = currentLines
+				}
+				currentKey = key
+				currentLines = []string{line}
+			} else if currentKey != "" {
+				currentLines = append(currentLines, line)
+			}
+		} else if currentKey != "" {
+			currentLines = append(currentLines, line)
+		}
+
+		depth = newDepth
+	}
+
+	if currentKey != "" {
+		fields[currentKey] = currentLines
+	}
+
+	return fields
+}
+
+// formatFieldAsDotPath formats field lines as a dot-path assignment under a parent key.
+// e.g., ["  external-host = ${?EXTERNAL_HOST}"] -> ["  browser.external-host = ${?EXTERNAL_HOST}"]
+func formatFieldAsDotPath(parentKey string, fieldLines []string) []string {
+	if len(fieldLines) == 0 {
+		return nil
+	}
+	first := fieldLines[0]
+	key := extractFieldKey(strings.TrimSpace(first))
+	if key == "" {
+		return append([]string{parentKey + "." + first}, fieldLines[1:]...)
+	}
+
+	newFirst := strings.Replace(first, key, parentKey+"."+key, 1)
+	return append([]string{newFirst}, fieldLines[1:]...)
+}
+
 // mergeHOCONFile merges src HOCON into dst by appending top-level blocks
-// that exist in src but not in dst.
+// that exist in src but not in dst. For existing blocks, new fields inside
+// the block are appended as dot-path assignments (e.g., browser.status-host).
 func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 	srcData, err := os.ReadFile(srcPath)
 	if err != nil {
@@ -104,13 +187,15 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 	}
 
 	var dstKeys map[string]bool
-	if dstData, err := os.ReadFile(dstPath); err == nil {
+	var dstData []byte
+	if data, err := os.ReadFile(dstPath); err == nil {
+		dstData = data
 		dstKeys, _ = topLevelHOCONKeys(string(dstData))
 	} else if !os.IsNotExist(err) {
 		return FileMergeResult{Action: "error", Error: fmt.Errorf("read destination: %w", err)}
 	}
 
-	// Find new keys in src
+	// Find new top-level keys in src
 	var newKeys []string
 	for k := range srcKeys {
 		if !dstKeys[k] {
@@ -118,7 +203,47 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 		}
 	}
 
-	if len(newKeys) == 0 {
+	// Find new fields inside existing blocks
+	srcBlocks := extractHOCONBlocks(string(srcData))
+	dstBlocks := extractHOCONBlocks(string(dstData))
+
+	// Pre-compute dst field keys for all existing blocks to avoid re-parsing
+	dstBlockMap := make(map[string]hoconBlock, len(dstBlocks))
+	dstFieldKeysMap := make(map[string]map[string]bool, len(dstBlocks))
+	for _, b := range dstBlocks {
+		dstBlockMap[b.key] = b
+		fields := extractBlockFieldLines(b.lines)
+		keys := make(map[string]bool, len(fields))
+		for k := range fields {
+			keys[k] = true
+		}
+		dstFieldKeysMap[b.key] = keys
+	}
+
+	var mergedFields []string
+	var addedKeys []string
+	addedKeys = append(addedKeys, newKeys...)
+
+	for _, srcBlock := range srcBlocks {
+		if !dstKeys[srcBlock.key] {
+			continue
+		}
+		dstFieldKeys, ok := dstFieldKeysMap[srcBlock.key]
+		if !ok {
+			continue
+		}
+		srcFieldLines := extractBlockFieldLines(srcBlock.lines)
+		for fieldKey, fieldLines := range srcFieldLines {
+			if !dstFieldKeys[fieldKey] {
+				dotPathLines := formatFieldAsDotPath(srcBlock.key, fieldLines)
+				mergedFields = append(mergedFields, dotPathLines...)
+				addedKeys = append(addedKeys, srcBlock.key+"."+fieldKey)
+			}
+		}
+	}
+
+	// If nothing new at top level and no new fields inside blocks
+	if len(newKeys) == 0 && len(mergedFields) == 0 {
 		if len(dstKeys) == 0 {
 			return FileMergeResult{Action: "source_missing"}
 		}
@@ -133,10 +258,10 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 		return FileMergeResult{Action: "created", AddedKeys: newKeys}
 	}
 
-	// Extract blocks for new keys from src and append to dst
-	blocks := extractHOCONBlocks(string(srcData))
 	var toAppend strings.Builder
-	for _, block := range blocks {
+
+	// Extract blocks for new top-level keys from src and append
+	for _, block := range srcBlocks {
 		if slices.Contains(newKeys, block.key) {
 			for _, line := range block.lines {
 				toAppend.WriteString(line)
@@ -144,6 +269,12 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 			}
 			toAppend.WriteByte('\n')
 		}
+	}
+
+	// Append merged fields for existing blocks
+	for _, line := range mergedFields {
+		toAppend.WriteString(line)
+		toAppend.WriteByte('\n')
 	}
 
 	if toAppend.Len() == 0 {
@@ -159,7 +290,8 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 	if _, err := f.WriteString("\n" + toAppend.String()); err != nil {
 		return FileMergeResult{Action: "error", Error: fmt.Errorf("append to destination: %w", err)}
 	}
-	return FileMergeResult{Action: "merged", AddedKeys: newKeys}
+
+	return FileMergeResult{Action: "merged", AddedKeys: addedKeys}
 }
 
 // subPattern matches ${?VAR} or ${VAR} substitution references.
@@ -244,8 +376,14 @@ func countBracesOutsideStrings(s string) (open, close int) {
 	inStr := false
 	for i := 0; i < len(s); i++ {
 		ch := s[i]
-		if ch == '"' && (i == 0 || s[i-1] != '\\') {
-			inStr = !inStr
+		if ch == '"' {
+			backslashes := 0
+			for j := i - 1; j >= 0 && s[j] == '\\'; j-- {
+				backslashes++
+			}
+			if backslashes%2 == 0 {
+				inStr = !inStr
+			}
 			continue
 		}
 		if inStr {
@@ -266,21 +404,11 @@ func extractKeyFromLines(lines []string) string {
 		return ""
 	}
 	first := strings.TrimSpace(lines[0])
-	inQuote := false
-	for i := 0; i < len(first); i++ {
-		ch := first[i]
-		if ch == '"' && (i == 0 || first[i-1] != '\\') {
-			inQuote = !inQuote
-			continue
-		}
-		if inQuote {
-			continue
-		}
-		if ch == '=' || ch == '{' {
-			return strings.TrimSpace(first[:i])
-		}
+	key := extractFieldKey(first)
+	if key == "" {
+		return first
 	}
-	return first
+	return key
 }
 
 // stripHOCONComments removes # and // comments from HOCON text.
