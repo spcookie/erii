@@ -146,7 +146,7 @@
 
         /* ---- Section ---- */
         .section {
-            margin-bottom: var(--sp-9);
+            margin-bottom: var(--sp-6);
         }
 
         .section .sec-rule {
@@ -397,26 +397,45 @@
         .flow-block .fl-top {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--sp-4);
+            align-items: flex-start;
         }
 
-        .flow-block .fl-state {
-            font-family: var(--sans), var(--sans-zh);
-            font-weight: 300;
-            font-size: clamp(20px, 1.8vw, 26px);
-            letter-spacing: -0.01em;
+        .flow-block .fl-top .fl-label {
+            font-family: var(--mono);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--grey-3);
             display: flex;
             align-items: center;
             gap: var(--sp-3);
+            margin-top: 2px;
         }
 
-        .flow-block .fl-num {
-            font-family: var(--sans);
-            font-weight: 800;
-            font-size: clamp(44px, 5vw, 60px);
-            line-height: 0.85;
-            letter-spacing: -0.04em;
+        .flow-block .fl-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .flow-block .fl-right .fl-state {
+            font-family: var(--sans), var(--sans-zh);
+            font-weight: 400;
+            font-size: 14px;
+            letter-spacing: 0.02em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid var(--grey-2);
+        }
+
+        .flow-block .fl-right .fl-num {
+            font-family: var(--mono);
+            font-size: 16px;
+            font-weight: 600;
             font-feature-settings: "tnum";
         }
 
@@ -438,24 +457,32 @@
             width: 2px;
             height: 14px;
             background: var(--grey-3);
+            transform: translateX(-50%);
         }
 
         .flow-block .fl-legend {
             display: flex;
             justify-content: space-between;
             font-family: var(--mono);
-            font-size: 14px;
+            font-size: 13px;
             color: var(--grey-3);
+        }
+
+        .flow-block .fl-legend > span {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
         }
 
         .flow-block .fl-legend .flg-num {
             font-weight: 600;
+            font-size: 13px;
         }
 
         .flow-block .fl-legend .flg-tag {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 400;
-            display: block;
         }
 
         /* ---- Merged Flow + Volition ---- */
@@ -605,7 +632,7 @@
             height: 2px;
             background: var(--accent);
             width: 48px;
-            margin-top: var(--sp-9);
+            margin-top: var(--sp-8);
         }
 
         .end-note {
@@ -812,11 +839,14 @@
                 <div class="sg-left">
                     <div class="flow-block">
                         <div class="fl-top">
-                            <span class="fl-state" style="color: ${vm.groupStatus.flowState.state.info().color}">
-                                <i data-lucide="${vm.groupStatus.flowState.state.info().icon}"></i>
-                                ${vm.groupStatus.flowState.state.info().name}
-                            </span>
-                            <span class="fl-num">${String.format("%.1f", vm.groupStatus.flowState.meter)}</span>
+                            <span class="fl-label"><i data-lucide="disc"></i> 心流投入度</span>
+                            <div class="fl-right">
+                                <span class="fl-state" style="color: ${vm.groupStatus.flowState.state.info().color}">
+                                    <i data-lucide="${vm.groupStatus.flowState.state.info().icon}"></i>
+                                    ${vm.groupStatus.flowState.state.info().name}
+                                </span>
+                                <span class="fl-num">${String.format("%.1f", vm.groupStatus.flowState.meter)}</span>
+                            </div>
                         </div>
                         <div class="fl-track">
                             <div class="fl-fill"
@@ -825,10 +855,10 @@
                             <div class="fl-marker" style="left: 70%"></div>
                         </div>
                         <div class="fl-legend">
-                            <span><span class="flg-num">0</span><span class="flg-tag"> 待机</span></span>
-                            <span><span class="flg-num">30</span><span class="flg-tag"> 阈值</span></span>
-                            <span><span class="flg-num">70</span><span class="flg-tag"> 阈值</span></span>
-                            <span><span class="flg-num">100</span><span class="flg-tag"> 爆发</span></span>
+                            <span><span class="flg-num">0</span><span class="flg-tag">待机</span></span>
+                            <span><span class="flg-num">30</span><span class="flg-tag">阈值</span></span>
+                            <span><span class="flg-num">70</span><span class="flg-tag">阈值</span></span>
+                            <span><span class="flg-num">100</span><span class="flg-tag">爆发</span></span>
                         </div>
                     </div>
                 </div>
