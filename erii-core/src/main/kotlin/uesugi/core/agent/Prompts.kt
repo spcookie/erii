@@ -115,7 +115,7 @@ private fun loadImageSource(history: HistoryRecord): AttachmentSource.Image? {
             format = format,
             fileName = fullResource.fileName
         )
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }
