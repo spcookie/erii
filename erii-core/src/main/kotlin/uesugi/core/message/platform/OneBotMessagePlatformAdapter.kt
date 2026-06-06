@@ -1,5 +1,8 @@
 package uesugi.core.message.platform
 
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import uesugi.common.data.MessageType
 import uesugi.common.message.MessagePlatformAdapter
 import uesugi.common.message.ParsedMessage
@@ -39,18 +42,23 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
                             imageUrl = segment.imageUrl ?: segment.imageFile
                             imageFormat = segment.imageFile?.substringAfterLast(".")
                         }
-                        append("[图片]")
+                        append(segment.data["summary"]?.jsonPrimitive?.contentOrNull ?: "[图片]")
                     }
 
                     "text" -> {
                         segment.text?.let { append(it) }
                     }
 
-                    "reply" -> {
-                        appendLine("---REFERENCE MESSAGE START---")
-                        append("[引用消息 id: ${segment.replyId}]")
-                        appendLine("---REFERENCE MESSAGE END---")
+                    "face" -> {
+                        val face = segment.data["row"]?.jsonObject["faceText"]?.jsonPrimitive?.contentOrNull ?: ""
+                        append("[${face.removePrefix("/")}]")
                     }
+
+                    "reply" -> {
+                        append("[引用消息 id: ${segment.replyId}]")
+                    }
+
+                    else -> append("[${segment.type}]")
                 }
             }
         }
