@@ -147,7 +147,11 @@ data class PAD(
             val p = (scale.q1 - scale.q4 + scale.q7 - scale.q10) / 4
             val a = (-scale.q2 + scale.q5 - scale.q8 + scale.q11) / 4
             val d = (scale.q3 - scale.q6 + scale.q9 - scale.q12) / 4
-            return PAD(p, a, d)
+            return PAD(
+                p = p.coerceIn(-4.0, 4.0),
+                a = a.coerceIn(-4.0, 4.0),
+                d = d.coerceIn(-4.0, 4.0)
+            )
         }
 
     }
