@@ -2,6 +2,7 @@ package uesugi.config
 
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import com.typesafe.config.ConfigResolveOptions
 import com.typesafe.config.ConfigValueFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.config.*
@@ -35,10 +36,13 @@ class ConfigHolderImpl : ConfigProvider {
 
     private val config: Config by lazy { loadConfig() }
 
+    private val resolveOptions: ConfigResolveOptions
+        get() = ConfigResolveOptions.defaults().setUseSystemEnvironment(true)
+
     private fun loadConfig(): Config {
-        val classpathConfig = ConfigFactory.load("application.conf").resolve()
+        val classpathConfig = ConfigFactory.load("application.conf").resolve(resolveOptions)
         val fileConfig = configPath?.let { p ->
-            ConfigFactory.parseFile(File(p)).resolve()
+            ConfigFactory.parseFile(File(p)).resolve(resolveOptions)
         } ?: ConfigFactory.empty()
         val baseConfig = fileConfig.withFallback(classpathConfig)
         var cfg = baseConfig
@@ -314,7 +318,7 @@ class ConfigHolderImpl : ConfigProvider {
             if (resourceAsStream != null) {
                 log.info { "Loading base config for $pluginName from classpath: $resourcePath" }
                 config = resourceAsStream.use { inputStream ->
-                    ConfigFactory.parseReader(inputStream.reader()).resolve()
+                    ConfigFactory.parseReader(inputStream.reader()).resolve(resolveOptions)
                 }
             }
 
@@ -323,7 +327,7 @@ class ConfigHolderImpl : ConfigProvider {
                 val pluginConfigFile = File(pluginConfigDir, "$pluginId.json")
                 if (pluginConfigFile.exists()) {
                     log.info { "Overriding config for $pluginId from dir: ${pluginConfigFile.absolutePath}" }
-                    config = ConfigFactory.parseFile(pluginConfigFile).resolve().withFallback(config)
+                    config = ConfigFactory.parseFile(pluginConfigFile).resolve(resolveOptions).withFallback(config)
                 }
             }
 
@@ -331,7 +335,7 @@ class ConfigHolderImpl : ConfigProvider {
             val customPath = System.getProperty("plugin.$pluginId.config")
             if (customPath != null) {
                 log.info { "Overriding config for $pluginId with: $customPath" }
-                config = ConfigFactory.parseFile(File(customPath)).resolve().withFallback(config)
+                config = ConfigFactory.parseFile(File(customPath)).resolve(resolveOptions).withFallback(config)
             }
 
             config
