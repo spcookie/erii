@@ -15,16 +15,32 @@ import (
 // Reload performs the full reload workflow:
 // 1. Config directory merge, 2. Plugin configs, 3. Metadata schemas.
 func Reload() error {
-	if err := reloadConfigDirs(); err != nil {
+	var created, merged, skipped, errors int
+
+	if err := reloadConfigDirs(&created, &merged, &skipped, &errors); err != nil {
 		return err
 	}
-	if err := reloadPlugins(); err != nil {
+	if err := reloadPlugins(&created, &merged, &skipped, &errors); err != nil {
 		return err
 	}
-	return reloadMetadata()
+	if err := reloadMetadata(); err != nil {
+		return err
+	}
+
+	total := created + merged + skipped + errors
+	fmt.Printf("\n%s\n", sectionStyle.Render("=== Summary ==="))
+	fmt.Printf("Total: %d | %s: %d | %s: %d | %s: %d | %s: %d\n",
+		total,
+		createdStyle.Render("Created"), created,
+		mergedStyle.Render("Merged"), merged,
+		skippedStyle.Render("Skipped"), skipped,
+		errorStyle.Render("Errors"), errors,
+	)
+
+	return nil
 }
 
-func reloadPlugins() error {
+func reloadPlugins(created, merged, skipped, errors *int) error {
 	summary, err := InitializePluginConfigs(
 		path.PluginDir,
 		path.PluginConfigDir,
@@ -33,11 +49,11 @@ func reloadPlugins() error {
 	if err != nil {
 		return fmt.Errorf("plugin initialization failed: %w", err)
 	}
-	printPluginSummary(summary)
+	printPluginSummary(summary, created, merged, skipped, errors)
 	return nil
 }
 
-func reloadConfigDirs() error {
+func reloadConfigDirs(created, merged, skipped, errors *int) error {
 	updateDir := FindUpdateConfDir()
 	if _, err := os.Stat(updateDir); os.IsNotExist(err) {
 		fmt.Println("\n" + sectionStyle.Render("=== Config Directory Merge ==="))
@@ -66,7 +82,12 @@ func reloadConfigDirs() error {
 		printFileResult(".env.local", confResult.EnvResult)
 	}
 
-	// Collect all results for summary
+	printFileResults(".conf", metaResults)
+	if confResult != nil {
+		printFileResults("rules/", confResult.RulesResults)
+		printFileResults("souls/", confResult.SoulsResults)
+	}
+
 	var allResults []FileMergeResult
 	if metaResults != nil {
 		allResults = append(allResults, metaResults...)
@@ -78,12 +99,9 @@ func reloadConfigDirs() error {
 		allResults = append(allResults, confResult.SoulsResults...)
 	}
 
-	var created, merged, skipped, errors int
 	for _, r := range allResults {
-		created, merged, skipped, errors = tally(created, merged, skipped, errors, r.Action)
+		*created, *merged, *skipped, *errors = tally(*created, *merged, *skipped, *errors, r.Action)
 	}
-
-	printSummary(created+merged+skipped+errors, created, merged, skipped, errors)
 
 	fmt.Println("\n" + createdStyle.Render("✓") + " Config directory merge completed.")
 	return nil
@@ -107,34 +125,30 @@ var (
 	mutedStyle   = lipgloss.NewStyle().Foreground(style.TextMuted)
 )
 
-func printPluginSummary(summary *PluginInitSummary) {
+func printPluginSummary(summary *PluginInitSummary, created, merged, skipped, errors *int) {
 	if summary == nil || len(summary.Results) == 0 {
-		fmt.Println("No plugins found.")
 		return
 	}
 
 	fmt.Println("\n" + sectionStyle.Render("=== Plugin Configuration Reload ==="))
 
-	var fileCreated, fileMerged, fileSkipped, fileErrors int
 	for _, r := range summary.Results {
 		fmt.Printf("\n%s\n", pluginStyle.Render("["+r.PluginID+"]"))
 
 		if r.Error != nil {
 			fmt.Printf("  %s: %v\n", errorStyle.Render("Error"), r.Error)
-			fileErrors++
+			*errors++
 			continue
 		}
 
 		printFileResult("plugin.json", r.ConfigResult)
 		printFileResult("schema.json", r.SchemaResult)
 
-		fileCreated, fileMerged, fileSkipped, fileErrors = tally(
-			fileCreated, fileMerged, fileSkipped, fileErrors,
+		*created, *merged, *skipped, *errors = tally(
+			*created, *merged, *skipped, *errors,
 			r.ConfigResult.Action, r.SchemaResult.Action,
 		)
 	}
-
-	printSummary(fileCreated+fileMerged+fileSkipped+fileErrors, fileCreated, fileMerged, fileSkipped, fileErrors)
 }
 
 func tally(created, merged, skipped, errors int, actions ...string) (int, int, int, int) {
@@ -187,13 +201,3 @@ func printFileResults(label string, results []FileMergeResult) {
 	fmt.Printf("  %s: %s\n", label, strings.Join(parts, ", "))
 }
 
-func printSummary(total, created, merged, skipped, errors int) {
-	fmt.Printf("\n%s\n", sectionStyle.Render("=== Summary ==="))
-	fmt.Printf("Total: %d | %s: %d | %s: %d | %s: %d | %s: %d\n",
-		total,
-		createdStyle.Render("Created"), created,
-		mergedStyle.Render("Merged"), merged,
-		skippedStyle.Render("Skipped"), skipped,
-		errorStyle.Render("Errors"), errors,
-	)
-}
