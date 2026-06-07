@@ -11,6 +11,7 @@ import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.ToolFromCallable
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.message.MessagePart
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -275,8 +276,10 @@ object BotAgent {
                             agentRun(aiAgent, context, evt, reg)
                         }
 
+                        val multimodal = isMultimodalProvider()
+
                         suspend fun runWithRetry(targetEvent: ProactiveSpeakEvent) {
-                            val registry = with(buildToolEnv(targetEvent, context)) { buildToolRegistry() }
+                            val registry = with(buildToolEnv(targetEvent, context, multimodal)) { buildToolRegistry() }
                             chatMessageToolNames = registry.tools
                                 .filterIsInstance<ToolFromCallable<*>>()
                                 .filter { it.callable.hasAnnotation<ChatMessage>() }
@@ -370,6 +373,9 @@ object BotAgent {
         }
     }
 
+    private fun isMultimodalProvider(): Boolean =
+        LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
+
     @OptIn(ExperimentalTime::class)
     private suspend fun agentRun(
         aiAgent: GraphAIAgentService<String, String>,
@@ -387,7 +393,7 @@ object BotAgent {
         var error: Exception? = null
         try {
             val additionalToolRegistry = preBuiltRegistry
-                ?: with(buildToolEnv(event, context)) { buildToolRegistry() }
+                ?: with(buildToolEnv(event, context, isMultimodalProvider())) { buildToolRegistry() }
             val text = aiAgent.createAgentAndRun(
                 agentInput = event.input ?: DEFAULT_INPUT,
                 agentConfig = AIAgentConfig(

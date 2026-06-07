@@ -14,6 +14,7 @@ data class ToolEnv(
     val chatToolSet: ChatToolSet,
     val webSearch: Boolean,
     val chatVision: Boolean,
+    val multimodal: Boolean = false,
     val toolSetBuilder: ((ChatToolSet) -> List<ToolSet>)?,
     val ruleToolSet: RuleToolSet?,
     val cronToolSet: CronToolSet?
@@ -31,7 +32,7 @@ fun webTools() =
 
 context(env: ToolEnv)
 fun chatVision() =
-    if (env.chatVision) ChatVisionTool.asTools() else emptyList()
+    if (env.chatVision) ChatVisionTool(env.multimodal).asTools() else emptyList()
 
 
 context(env: ToolEnv)
@@ -93,11 +94,12 @@ fun buildCronToolSet(event: ProactiveSpeakEvent): CronToolSet {
     )
 }
 
-fun buildToolEnv(event: ProactiveSpeakEvent, context: Context): ToolEnv {
+fun buildToolEnv(event: ProactiveSpeakEvent, context: Context, multimodal: Boolean = false): ToolEnv {
     return ToolEnv(
         buildChatToolSet(event, context),
         event.chatVision,
         event.webSearch,
+        multimodal,
         event.toolSetBuilder,
         buildRuleToolSet(event, context),
         buildCronToolSet(event)
