@@ -8,8 +8,100 @@ import (
 	"strings"
 )
 
+// writeEnvLocal writes sensitive values (API keys, tokens, proxy config) to .env.local.
+// Existing lines for the same keys are updated; new keys are appended.
+func writeEnvLocal(d *SetupData, envFilePath string) error {
+	envVars := buildEnvVars(d)
+
+	var lines []string
+	f, err := os.Open(envFilePath)
+	if err == nil {
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
+		f.Close()
+	}
+
+	for key, value := range envVars {
+		if value == "" {
+			continue
+		}
+		found := false
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			// Skip comments and empty lines
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			// Extract key before '=' and compare exactly
+			eqIdx := strings.Index(trimmed, "=")
+			if eqIdx < 0 {
+				continue
+			}
+			lineKey := strings.TrimSpace(trimmed[:eqIdx])
+			if lineKey == key {
+				lines[i] = key + "=" + value
+				found = true
+				break
+			}
+		}
+		if !found {
+			lines = append(lines, key+"="+value)
+		}
+	}
+
+	out, err := os.Create(envFilePath)
+	if err != nil {
+		return fmt.Errorf("cannot write .env.local: %w", err)
+	}
+	defer out.Close()
+
+	for _, line := range lines {
+		fmt.Fprintln(out, line)
+	}
+	return nil
+}
+
+// buildEnvVars maps sensitive SetupData fields to .env.local variable names.
+func buildEnvVars(d *SetupData) map[string]string {
+	vars := make(map[string]string)
+	prov := d.Providers[d.SelectedProv]
+	provKey := prov.Key
+
+	envKey := strings.ReplaceAll(strings.ToUpper(provKey), "-", "_") + "_API_KEY"
+	if d.APIKey != "" {
+		vars[envKey] = d.APIKey
+	}
+
+	if d.EmbeddingEnabled && d.EmbeddingAPIKey != "" {
+		vars["EMBEDDING_API_KEY"] = d.EmbeddingAPIKey
+	}
+	if d.SearchEnabled && d.SearchAPIKey != "" {
+		vars["SEARCH_API_KEY"] = d.SearchAPIKey
+	}
+	if d.VisionEnabled && d.VisionAPIKey != "" {
+		vars["VISION_API_KEY"] = d.VisionAPIKey
+	}
+	// Browser URLs are not sensitive — they go directly to application.conf
+	if d.ProxyEnabled {
+		if d.HTTPProxy != "" {
+			vars["HTTP_PROXY"] = d.HTTPProxy
+		}
+		if d.SOCKSProxy != "" {
+			vars["SOCKS_PROXY"] = d.SOCKSProxy
+		}
+	}
+	if d.BotToken != "" {
+		vars["NAPCAT_TOKEN"] = d.BotToken
+	}
+
+	return vars
+}
+
 // modifyConfig reads the existing application.conf, updates configured values in-place,
 // and writes back. Unconfigured keys are left unchanged.
+// Sensitive values (api-key, token, proxy) are NOT written here — they go to .env.local.
 func modifyConfig(d *SetupData, filePath string) error {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -56,8 +148,9 @@ func modifyConfig(d *SetupData, filePath string) error {
 
 		// Provider-specific llm blocks
 		if ctx.match("llm", provKey) {
-			if isKey(trimmed, "api-key") && d.APIKey != "" {
-				lines[i] = replaceHoconValue(line, d.APIKey)
+			if isKey(trimmed, "api-key") {
+				envKey := strings.ReplaceAll(strings.ToUpper(provKey), "-", "_") + "_API_KEY"
+				lines[i] = migrateSensitiveToEnv(line, &d.APIKey, "${?"+envKey+"}")
 			}
 			if isKey(trimmed, "base-url") && d.BaseURL != "" {
 				lines[i] = replaceHoconValue(line, d.BaseURL)
@@ -92,8 +185,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 		// embedding
 		if d.EmbeddingEnabled {
 			if ctx.match("embedding") {
-				if isKey(trimmed, "api-key") && d.EmbeddingAPIKey != "" {
-					lines[i] = replaceHoconValue(line, d.EmbeddingAPIKey)
+				if isKey(trimmed, "api-key") {
+					lines[i] = migrateSensitiveToEnv(line, &d.EmbeddingAPIKey, "${?EMBEDDING_API_KEY}")
 				}
 				if isKey(trimmed, "url") && d.EmbeddingURL != "" {
 					lines[i] = replaceHoconValue(line, d.EmbeddingURL)
@@ -110,8 +203,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 		// search
 		if d.SearchEnabled {
 			if ctx.match("search") {
-				if isKey(trimmed, "api-key") && d.SearchAPIKey != "" {
-					lines[i] = replaceHoconValue(line, d.SearchAPIKey)
+				if isKey(trimmed, "api-key") {
+					lines[i] = migrateSensitiveToEnv(line, &d.SearchAPIKey, "${?SEARCH_API_KEY}")
 				}
 				if isKey(trimmed, "url") && d.SearchURL != "" {
 					lines[i] = replaceHoconValue(line, d.SearchURL)
@@ -125,8 +218,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 		// vision
 		if d.VisionEnabled {
 			if ctx.match("vision") {
-				if isKey(trimmed, "api-key") && d.VisionAPIKey != "" {
-					lines[i] = replaceHoconValue(line, d.VisionAPIKey)
+				if isKey(trimmed, "api-key") {
+					lines[i] = migrateSensitiveToEnv(line, &d.VisionAPIKey, "${?VISION_API_KEY}")
 				}
 				if isKey(trimmed, "url") && d.VisionURL != "" {
 					lines[i] = replaceHoconValue(line, d.VisionURL)
@@ -137,7 +230,7 @@ func modifyConfig(d *SetupData, filePath string) error {
 			}
 		}
 
-		// browser
+		// browser (non-sensitive only)
 		if d.BrowserEnabled {
 			if ctx.match("browser") {
 				if isKey(trimmed, "download") {
@@ -155,11 +248,11 @@ func modifyConfig(d *SetupData, filePath string) error {
 		// proxy
 		if d.ProxyEnabled {
 			if ctx.match("proxy") {
-				if isKey(trimmed, "http") && d.HTTPProxy != "" {
-					lines[i] = replaceHoconValue(line, d.HTTPProxy)
+				if isKey(trimmed, "http") {
+					lines[i] = migrateSensitiveToEnv(line, &d.HTTPProxy, "${?HTTP_PROXY}")
 				}
-				if isKey(trimmed, "socks") && d.SOCKSProxy != "" {
-					lines[i] = replaceHoconValue(line, d.SOCKSProxy)
+				if isKey(trimmed, "socks") {
+					lines[i] = migrateSensitiveToEnv(line, &d.SOCKSProxy, "${?SOCKS_PROXY}")
 				}
 			}
 		}
@@ -169,8 +262,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 			if isKey(trimmed, "ws") && d.BotWS != "" {
 				lines[i] = replaceHoconValue(line, d.BotWS)
 			}
-			if isKey(trimmed, "token") && d.BotToken != "" {
-				lines[i] = replaceHoconValue(line, d.BotToken)
+			if isKey(trimmed, "token") {
+				lines[i] = migrateSensitiveToEnv(line, &d.BotToken, "${NAPCAT_TOKEN}")
 			}
 		}
 
@@ -360,6 +453,27 @@ func replaceHoconValue(line string, value string) string {
 		return matches[1] + "\"" + value + "\""
 	}
 	return matches[1] + value
+}
+
+// migrateSensitiveToEnv checks if a HOCON line has a plaintext sensitive value.
+// If so, captures it into *target (when empty) and replaces the line with ${?VAR}.
+// Lines already using ${?} are left unchanged.
+func migrateSensitiveToEnv(line string, target *string, envRef string) string {
+	matches := keyValueRe.FindStringSubmatch(line)
+	if matches == nil {
+		return line
+	}
+	origValue := strings.TrimSpace(matches[2])
+	// Already an env reference — keep as-is
+	if strings.HasPrefix(origValue, "${") {
+		return line
+	}
+	// Plaintext — strip quotes and capture
+	val := strings.Trim(origValue, "\"")
+	if *target == "" && val != "" {
+		*target = val
+	}
+	return matches[1] + envRef
 }
 
 func replaceHoconArray(line string, csv string) string {

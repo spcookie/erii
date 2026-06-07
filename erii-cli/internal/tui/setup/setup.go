@@ -942,6 +942,10 @@ func (m *Model) nextEnabledTool() Step {
 
 func (m *Model) writeConfig() {
 	m.writeErr = modifyConfig(m.data, path.AppFile)
+	if m.writeErr != nil {
+		return
+	}
+	m.writeErr = writeEnvLocal(m.data, path.EnvFile)
 	m.wrote = (m.writeErr == nil)
 }
 
