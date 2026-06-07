@@ -34,8 +34,57 @@ object BotAgent {
     private val log = logger()
 
     private val fallbackEmoticons = listOf(
-        "(×_×)", "(@_@)", "(；￣Д￣)", "(⊙_⊙;)", "(>_<)",
-        "(￣□￣;)", "(⊙＿⊙')", "(；・∀・)", "(._.)"
+        // 困惑/懵逼
+        "(×_×)", "(@_@)", "(；￣Д￣)", "(⊙_⊙;)", "(￣□￣;)", "(⊙＿⊙')",
+        "(ﾟДﾟ；)", "(´･_･`)", "(・_・ヾ)", "(｡ŏ_ŏ)", "(◎_◎;)", "(°o°;)",
+        "(o_O)", "(@[]@;;)", "(。_。)", "(；ω；)", "(´；ω；`)", "(・・；)",
+        "( ꒪⌓꒪)", "(ㆆ_ㆆ)", "( ´△｀)", "( •́ ▾ •̀ )", "(ㅇㅅㅇ;)", "(๑•́ ₃ •̀๑)",
+
+        // 尴尬/无奈
+        "(>_<)", "(；・∀・)", "(._.)", "(´-ω-`)", "(￣▽￣*)ゞ", "( ;´Д｀)",
+        "( -_-)", "(￣ヘ￣)", "(´Д｀)", "(´；д；`)", "(っ˘̩╭╮˘̩)っ", "(｡•́︿•̀｡)",
+        "(｡ŏ﹏ŏ)", "(´-﹏-`；)", "( ´･･)ﾉ(._.`)",
+        "(๑°o°๑)", "(｡♥‿♥｡)", "(◕‿◕✿)", "(｡◕‿◕｡)", "(✿◠‿◠)", "(◍•ᴗ•◍)",
+        "(｡･ω･｡)ﾉ♡", "(⁄ ⁄•⁄ω⁄•⁄ ⁄)", "(⁎˃ᆺ˂)", "(๑˃̵ᴗ˂̵)و", "(｡･//ω//･｡)",
+        "(´∩｡• ᵕ •｡∩`)", "(❁´◡`❁)", "(✿ ♡‿♡)", "(˵ ͡~ ͜ʖ ͡°˵)",
+
+        // 惊讶/震惊
+        "( ͡° ͜ʖ ͡°)", "( ⚆ _ ⚆ )", "(ﾉﾟ0ﾟ)ﾉ~", "(〇o〇；)", "Σ(°ロ°)", "(⊙_⊙)",
+        "(º ﾛ º๑)", "(◎-◎；)", "(ʘᗩʘ')", "(◎_◎;)", "( ꒪ͧ-꒪ͧ)", "( ﾟдﾟ)つ", "｡ﾟ(ﾟ´Д｀ﾟ)ﾟ｡",
+
+        // 流汗/心虚
+        "(;;^_^;;)", "(；一_一)", "(^^ゞ", "(-_-;)・・・", "(^_^;)", "(°o°;)",
+        "(；´∀｀)", "(￣◇￣;)", "(-_-メ)", "(；・∀・)", "(；´Д｀)", "(；・・)", "(；´_ゝ`)",
+
+        // 睡觉/晕倒/去世
+        "(=_=)", "(×_×)⌒☆", "(-_-) zzz", "(。-ω-)zzz", "(´～`ヾ)", "(￣o￣) zzZ",
+        "(∪｡∪)｡｡｡zzz", "(￣д￣)ノ", "(￣□￣」)」", "( ´Д｀)y━・~~",
+
+        // 祈祷/拜托
+        "(人´▽｀)", "(ノ_＜)", "(つд⊂)", "(ﾉ´ｰ`)ﾉ", "(/ω＼)", "(╯▽╰ )",
+        "(っ´ω｀)ﾉ(╥ω╥)", "( ´ ▽ ` )ﾉ",
+
+        // 生气/暴躁
+        "(¬_¬)", "(｀Δ´)ψ", "(｀ー´)", "(¬‿¬)", "(｀ε´)", "(╬ Ò ‸ Ó)",
+        "(‡▼益▼)", "(¬､¬)", "( `ε´ )", "(눈_눈)", "(¬▂¬)", "(｀へ´)=3",
+
+        // 更多创意
+        "( ͡~ ͜ʖ ͡° )", "( ͡☉ ͜ʖ ͡☉)", "(✿╹◡╹)", "(っ˘ڡ˘ς)", "(づ｡◕‿‿◕｡)づ",
+        "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧", "(☞ﾟヮﾟ)☞", "☜(˚▽˚)☞", "¯\\_(ツ)_/¯", "(╯°□°）╯︵ ┻━┻",
+        "┬─┬ ノ( ゜-゜ノ)", "( ͡• ͜ʖ ͡• )", "(ง'̀-'́)ง", "ᕕ( ᐛ )ᕗ", "(☉_☉)",
+        "(•_•) ( •_•)>⌐■-■ (⌐■_■)", "ʕ•ᴥ•ʔ", "(☞ ͡° ͜ʖ ͡°)☞", "( ͡°ᴥ ͡° ʋ)",
+        "( ﾟ▽ﾟ)/", "(⌐■_■)", "(☆▽☆)", "(♡˙︶˙♡)", "ヾ(•ω•`)o", "(っ＾▿＾)۶🍸",
+        "(｡•̀ᴗ-)✧", "( ´ ∀ `)ノ～ ♡", "( ◡́.◡̀)", "( ^_^)/~~~", "(ﾉ´ з `)ノ",
+        "( ◜‿◝ )♡", "(´｡• ᵕ •｡`) ♡", "( ˘ ³˘)♥︎", "(✯◡✯)", "( ´ ▽ ` ).｡ｏ♡",
+        "¯\\_༼ ಥ ‿ ಥ ༽_/¯", "(ﾉ*ﾟｰﾟ)ﾉ", "(☆ω☆)", "(ノ^_^)ノ", "o(〃＾▽＾〃)o",
+        "(๑˘▽˘๑)", "(*^ω^*)", "(◕‿◕✿)", "(｡♥‿♥｡)", "(✿◠‿◠)", "(◍•ᴗ•◍)❤",
+        "(｡･ω･｡)ﾉ♡", "( ´ ∀ ` *)", "(◕ᴗ◕✿)", "(｡◕‿◕｡)", "(✿╹◡╹)",
+        "(◍•ᴗ•◍)", "(´∩｡• ᵕ •｡∩`)", "(❁´◡`❁)", "(✿ ♡‿♡)", "(˵ ͡~ ͜ʖ ͡°˵)",
+        "(⁄ ⁄•⁄ω⁄•⁄ ⁄)", "(⁎˃ᆺ˂)", "(๑˃̵ᴗ˂̵)و", "(◕‿◕✿)", "(｡◕‿◕｡)", "(✿◠‿◠)",
+        "(◍•ᴗ•◍)", "(｡･ω･｡)ﾉ♡", "(｡♥‿♥｡)", "(◕‿◕✿)", "(｡◕‿◕｡)", "(✿◠‿◠)",
+        "(◍•ᴗ•◍)❤", "(｡･ω･｡)ﾉ♡", "(｡♥‿♥｡)", "(◕‿◕✿)", "(｡◕‿◕｡)", "(✿◠‿◠)",
+        "(◍•ᴗ•◍)", "(´∩｡• ᵕ •｡∩`)", "(❁´◡`❁)", "(✿ ♡‿♡)", "(˵ ͡~ ͜ʖ ͡°˵)",
+        "(⁄ ⁄•⁄ω⁄•⁄ ⁄)", "(⁎˃ᆺ˂)", "(๑˃̵ᴗ˂̵)و"
     )
 
     private val scope = CoroutineScope(
@@ -84,8 +133,17 @@ object BotAgent {
     }
 
     private val DEFAULT_INPUT = """
-                你是在聊天，不是在写答案，不是在总结。
-                """.trimIndent()
+        你是这个 QQ 群里的普通成员，正在跟大家一起聊天。
+        像真人一样说话：自然、随意、有情绪，可以用短句、口语、颜文字。
+        不要总结、不要分析、不要给建议，除非别人明确问你。
+        可以只发几个字，也可以只发表情、表情包或图片，不想说话的时候可以不说话。
+        你的目标是融入群聊，不是当一个"AI助手"。
+    """.trimIndent()
+
+    private val RETRY_HINT = """
+        注意：你刚才没有使用任何工具，直接返回的文本不会出现在群聊中。
+        请调用 sendText、sendMeme、sendImageByUrl、sendAtAndText 或 sendAtAll 等工具来回应。
+    """.trimIndent()
 
     fun run() {
         EventBus.subscribeAsync<ProactiveSpeakEvent>(scope) {
@@ -161,7 +219,8 @@ object BotAgent {
                             states[key] = BotGroupState(event.feature, null)
                         }
 
-                        var noCallTool = true
+                        var calledAnyTool: Boolean
+                        var calledChatTool = false
 
                         val strategy = strategy<String, String>("chat") {
                             val nodeSendInput by nodeLLMRequest()
@@ -171,20 +230,27 @@ object BotAgent {
                             edge(nodeStart forwardTo nodeSendInput)
                             edge(nodeSendInput forwardTo nodeFinish onTextMessage { true })
                             edge(nodeSendInput forwardTo nodeExecuteTool onToolCalls { toolCall ->
-                                if (toolCall.tool in chatToolNames) {
-                                    noCallTool = false
+                                calledAnyTool = true
+                                val toolName = toolCall.tool.substringAfterLast(".")
+                                if (toolName in chatToolNames) {
+                                    calledChatTool = true
                                 }
                                 true
                             })
                             edge(
                                 nodeExecuteTool forwardTo nodeFinish
-                                        onCondition { results ->
-                                    results.toolResults.all { it.resultObject == null }
-                                }
+                                        onCondition { results -> results.toolResults.all { it.resultObject == null } }
                                         transformed { "" }
                             )
                             edge(nodeExecuteTool forwardTo nodeSendToolResult)
-                            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCalls { true })
+                            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCalls { toolCall ->
+                                calledAnyTool = true
+                                val toolName = toolCall.tool.substringAfterLast(".")
+                                if (toolName in chatToolNames) {
+                                    calledChatTool = true
+                                }
+                                true
+                            })
                             edge(nodeSendToolResult forwardTo nodeFinish onTextMessage { true })
                             edge(
                                 nodeSendToolResult forwardTo nodeFinish
@@ -216,14 +282,40 @@ object BotAgent {
 
                         val roundAgentRun = (::agentRun).curry()(aiAgent)(context)
 
-                        roundAgentRun(event)
+                        suspend fun runWithRetry(targetEvent: ProactiveSpeakEvent) {
+                            val baseInput = targetEvent.input ?: DEFAULT_INPUT
+                            repeat(3) { attempt ->
+                                calledAnyTool = false
+                                calledChatTool = false
+                                val runInput = if (attempt == 0) baseInput else "$baseInput\n\n$RETRY_HINT"
+                                log.info(
+                                    "BotAgent: Agent run attempt {}/3 for group={}",
+                                    attempt + 1,
+                                    targetEvent.groupId
+                                )
+                                roundAgentRun(targetEvent.copy(input = runInput))
+                                if (calledAnyTool) {
+                                    if (calledChatTool) {
+                                        log.info("BotAgent: Chat tool called on attempt {}, no retry", attempt + 1)
+                                    } else {
+                                        log.info("BotAgent: Non-chat tool called on attempt {}, no retry", attempt + 1)
+                                    }
+                                    return
+                                }
+                                if (attempt < 2) {
+                                    log.warn("BotAgent: No tool called on attempt {}/3, will retry", attempt + 1)
+                                }
+                            }
+                            log.warn("BotAgent: No tool called after 3 attempts, will fallback")
+                        }
+
+                        runWithRetry(event)
+                        if (!calledChatTool) {
+                            log.warn("BotAgent: No chat tool called for event={}, sending fallback", event.groupId)
+                            sendFallback(event, context)
+                        }
 
                         while (true) {
-                            if (noCallTool) {
-                                sendFallback(event, context)
-                            }
-                            noCallTool = true
-
                             val newEvent = MessageAwaiter(context)
                                 .apply {
                                     fare()
@@ -239,7 +331,10 @@ object BotAgent {
                                 break
                             }
 
-                            roundAgentRun(newEvent)
+                            runWithRetry(newEvent)
+                            if (!calledChatTool) {
+                                sendFallback(newEvent, context)
+                            }
                         }
                     } catch (e: Exception) {
                         error = e
