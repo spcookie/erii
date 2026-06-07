@@ -309,7 +309,7 @@ class ConfigHolderImpl : ConfigProvider {
 
     override fun getPluginConfig(pluginClass: KClass<*>, pluginName: String): Config {
         return pluginConfigCache.computeIfAbsent(pluginName) {
-            val pluginId = pluginName.substringBeforeLast("_")
+            val pluginId = pluginName.substringBefore("_")
 
             // 1. 从 classpath 加载 resourcePath 作为基础配置
             var config = ConfigFactory.empty()
