@@ -5,6 +5,7 @@ import ai.koog.agents.core.tools.annotations.Tool
 import ai.koog.agents.core.tools.reflect.ToolSet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import uesugi.common.ChatMessage
 import uesugi.common.ChatToolSet
 import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.api.sendGroupMsg
@@ -22,6 +23,7 @@ class AgentChatToolSet(
         private val NUMBER_PATTERN = Regex("""(?<!\d)(\d{4,})(?!\d)""")
     }
 
+    @ChatMessage
     override suspend fun sendText(texts: List<String>): String {
         try {
             for (text in texts) {
@@ -57,6 +59,7 @@ class AgentChatToolSet(
         return "发送文本消息成功"
     }
 
+    @ChatMessage
     override suspend fun sendMeme(tag: String, alt: String): String {
         try {
             val memo = context.meme(tag)
@@ -75,6 +78,7 @@ class AgentChatToolSet(
         return "发送表情包消息成功"
     }
 
+    @ChatMessage
     override suspend fun sendImageByUrl(url: String): String {
         val isImg = isImageUrl(url)
         if (!isImg) {
@@ -106,6 +110,7 @@ class AgentChatToolSet(
         }
     }
 
+    @ChatMessage
     override suspend fun sendAtAndText(
         userIds: List<Long>,
         text: String?
@@ -125,6 +130,7 @@ class AgentChatToolSet(
         return "发送消息成功"
     }
 
+    @ChatMessage
     override suspend fun sendAtAll(): String {
         try {
             client.sendGroupMsg(groupId, buildMessage { atAll() })
