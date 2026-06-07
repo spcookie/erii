@@ -23,6 +23,7 @@ class KspAnnotationProcessor(
         const val ANN_TOOL = "uesugi.spi.annotation.LLMTool"
         const val ANN_DEFINITION = "uesugi.spi.annotation.Definition"
         const val ANN_LLM_DESC = "uesugi.spi.annotation.LLMDesc"
+        const val ANN_CHAT_MESSAGE = "uesugi.common.ChatMessage"
         const val ANN_ON_LOAD = "uesugi.spi.annotation.OnLoad"
         const val ANN_ON_UNLOAD = "uesugi.spi.annotation.OnUnload"
         const val ANN_ON_START = "uesugi.spi.annotation.OnStart"
@@ -256,6 +257,30 @@ class KspAnnotationProcessor(
             availableToolSets.add(setName)
             val hasNonSuspend = functions.any { !it.isSuspendFunc() }
 
+            // Pre-compute per-function data to avoid double annotation lookup
+            data class FuncData(
+                val func: KSFunctionDeclaration,
+                val funcName: String,
+                val funcIsSuspend: Boolean,
+                val descAnno: KSAnnotation?,
+                val chatMsgAnno: KSAnnotation?,
+                val paramDecls: List<String>,
+                val argNames: List<String>,
+            )
+
+            val funcsData = functions.map { func ->
+                FuncData(
+                    func = func,
+                    funcName = func.simpleName.asString(),
+                    funcIsSuspend = func.isSuspendFunc(),
+                    descAnno = func.findAnnotation(ANN_LLM_DESC),
+                    chatMsgAnno = func.findAnnotation(ANN_CHAT_MESSAGE),
+                    paramDecls = buildToolParams(func).first,
+                    argNames = buildToolParams(func).second,
+                )
+            }
+            val hasChatMessage = funcsData.any { it.chatMsgAnno != null }
+
             val content = buildString {
                 appendLine("package $pkgName")
                 appendLine()
@@ -264,40 +289,40 @@ class KspAnnotationProcessor(
                 appendLine("import uesugi.spi.annotation.withPluginContext")
                 appendLine("import ai.koog.agents.core.tools.annotations.Tool as KoogTool")
                 appendLine("import ai.koog.agents.core.tools.annotations.LLMDescription as KoogLLMDescription")
+                if (hasChatMessage) {
+                    appendLine("import uesugi.common.ChatMessage")
+                }
                 if (hasNonSuspend) {
                     appendLine("import kotlinx.coroutines.Dispatchers")
                     appendLine("import kotlinx.coroutines.withContext")
                 }
-                for (func in functions) {
-                    appendLine("import $pkgName.${func.simpleName.asString()} as _erii_${func.simpleName.asString()}")
+                for (fd in funcsData) {
+                    appendLine("import $pkgName.${fd.funcName} as _erii_${fd.funcName}")
                 }
                 appendLine()
                 appendLine("class $className(private val context: PluginContext) : MetaToolSet {")
 
-                for (func in functions) {
-                    val funcName = func.simpleName.asString()
-                    val funcIsSuspend = func.isSuspendFunc()
-                    val descAnno = func.findAnnotation(ANN_LLM_DESC)
-
-                    val (paramDecls, argNames) = buildToolParams(func)
-
-                    descAnno?.stringArg("description")?.takeUnless { it.isEmpty() }?.let {
+                for (fd in funcsData) {
+                    if (fd.chatMsgAnno != null) {
+                        appendLine("    @ChatMessage")
+                    }
+                    fd.descAnno?.stringArg("description")?.takeUnless { it.isEmpty() }?.let {
                         appendLine("    @KoogLLMDescription(\"${it.escapeForLiteral()}\")")
                     }
                     appendLine("    @KoogTool")
 
-                    val argsStr = argNames.joinToString(", ")
-                    val callExpr = if (funcIsSuspend) {
-                        "withPluginContext(context) { _erii_$funcName($argsStr) }"
+                    val argsStr = fd.argNames.joinToString(", ")
+                    val callExpr = if (fd.funcIsSuspend) {
+                        "withPluginContext(context) { _erii_${fd.funcName}($argsStr) }"
                     } else {
-                        "withPluginContext(context) { withContext(Dispatchers.IO) { _erii_$funcName($argsStr) } }"
+                        "withPluginContext(context) { withContext(Dispatchers.IO) { _erii_${fd.funcName}($argsStr) } }"
                     }
 
-                    if (paramDecls.isEmpty()) {
-                        appendLine("    suspend fun $funcName(): String? = $callExpr")
+                    if (fd.paramDecls.isEmpty()) {
+                        appendLine("    suspend fun ${fd.funcName}(): String? = $callExpr")
                     } else {
-                        appendLine("    suspend fun $funcName(")
-                        appendLine(paramDecls.joinToString(",\n"))
+                        appendLine("    suspend fun ${fd.funcName}(")
+                        appendLine(fd.paramDecls.joinToString(",\n"))
                         appendLine("    ): String? = $callExpr")
                     }
                     appendLine()
