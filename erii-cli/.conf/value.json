@@ -226,8 +226,8 @@
     "nullable": true
   },
   "search.provider": {
-    "type": "string",
-    "default": ""
+    "type": "enum",
+    "default": "exa"
   },
   "search.url": {
     "type": "string",
@@ -238,8 +238,8 @@
     "nullable": true
   },
   "vision.provider": {
-    "type": "string",
-    "default": ""
+    "type": "enum",
+    "default": "minimax"
   },
   "vision.url": {
     "type": "string",

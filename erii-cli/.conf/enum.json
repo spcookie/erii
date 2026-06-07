@@ -12,5 +12,14 @@
     "openai",
     "anthropic",
     "openrouter"
+  ],
+  "search.provider": [
+    "none",
+    "exa",
+    "minimax"
+  ],
+  "vision.provider": [
+    "none",
+    "minimax"
   ]
 }
