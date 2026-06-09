@@ -88,6 +88,13 @@ object BotAgent {
         "(⁄ ⁄•⁄ω⁄•⁄ ⁄)", "(⁎˃ᆺ˂)", "(๑˃̵ᴗ˂̵)و"
     )
 
+    private val chatRateLimitHint = """
+        [限流提示] 你在短时间内调用了过多的聊天消息工具（sendText、sendMeme、sendImage 等），
+        触发了每10秒最多3次调用的频率限制。
+        请放慢节奏，精简表达，不要再调用聊天消息发送工具了。
+        可以使用其他工具（如思考、规划类工具），或者静默等待下一次对话机会。
+    """.trimIndent()
+
     private val scope = CoroutineScope(
         SupervisorJob()
                 + Dispatchers.Default
@@ -101,6 +108,25 @@ object BotAgent {
         val flag: ProactiveSpeakFeature?,
         val cancel: (() -> Unit)?
     )
+
+    private class ChatMessageRateLimiter(
+        private val maxCalls: Int = 3,
+        private val windowMs: Long = 10_000L
+    ) {
+        private val timestamps = mutableListOf<Long>()
+
+        fun tryAcquire(): Boolean {
+            val now = System.currentTimeMillis()
+            timestamps.removeAll { now - it > windowMs }
+            if (timestamps.size >= maxCalls) return false
+            timestamps.add(now)
+            return true
+        }
+
+        fun reset() {
+            timestamps.clear()
+        }
+    }
 
     private val channels = mutableMapOf<BotGroupKey, Channel<ProactiveSpeakEvent?>>()
     private val states = mutableMapOf<BotGroupKey, BotGroupState>()
@@ -217,16 +243,26 @@ object BotAgent {
                         var calledAnyTool: Boolean
                         var calledChatTool = false
                         var chatMessageToolNames = emptySet<String>()
+                        var rateLimited: Boolean
+                        val chatRateLimiter = ChatMessageRateLimiter()
 
                         val context = buildContext(event)
 
                         fun toolShortName(fullName: String): String = fullName.substringAfterLast(".")
                         fun isChatTool(toolName: String): Boolean = toolName in chatMessageToolNames
                         fun onToolCall(toolCall: MessagePart.Tool.Call): Boolean {
-                            calledAnyTool = true
                             if (isChatTool(toolShortName(toolCall.tool))) {
+                                if (!chatRateLimiter.tryAcquire()) {
+                                    rateLimited = true
+                                    log.warn(
+                                        "Bot Chat tool rate-limited: tool={}, group={}",
+                                        toolShortName(toolCall.tool), key.groupId
+                                    )
+                                    return false
+                                }
                                 calledChatTool = true
                             }
+                            calledAnyTool = true
                             return true
                         }
 
@@ -269,8 +305,9 @@ object BotAgent {
                                 maxAgentIterations = 50,
                             ),
                             strategy = strategy
-                        ) { handleEvents(event) }
-
+                        ) {
+                            handleEvents(event)
+                        }
 
                         val roundAgentRun: suspend (ProactiveSpeakEvent, ToolRegistry?) -> Unit = { evt, reg ->
                             agentRun(aiAgent, context, evt, reg)
@@ -279,6 +316,8 @@ object BotAgent {
                         val multimodal = isMultimodalProvider()
 
                         suspend fun runWithRetry(targetEvent: ProactiveSpeakEvent) {
+                            rateLimited = false
+                            chatRateLimiter.reset()
                             val registry = with(buildToolEnv(targetEvent, context, multimodal)) { buildToolRegistry() }
                             chatMessageToolNames = registry.tools
                                 .filterIsInstance<ToolFromCallable<*>>()
@@ -290,7 +329,14 @@ object BotAgent {
                             repeat(3) { attempt ->
                                 calledAnyTool = false
                                 calledChatTool = false
-                                val runInput = if (attempt == 0) baseInput else "$baseInput\n\n$RETRY_HINT"
+                                val runInput = buildString {
+                                    append(if (attempt == 0) baseInput else "$baseInput\n\n$RETRY_HINT")
+                                    if (rateLimited) {
+                                        appendLine()
+                                        appendLine()
+                                        append(chatRateLimitHint)
+                                    }
+                                }
                                 if (attempt == 0) {
                                     log.info("Bot Agent run for group={}", targetEvent.groupId)
                                 } else {
