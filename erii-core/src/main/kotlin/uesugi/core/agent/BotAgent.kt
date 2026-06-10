@@ -223,7 +223,13 @@ object BotAgent {
     private suspend fun processChannel(key: BotGroupKey, channel: Channel<ProactiveSpeakEvent?>) {
         for (event in channel) {
             if (event == null) continue
-            log.info("Bot agent received event: $event")
+            log.info(
+                "Bot agent [${event.botId}] group=${event.groupId} sender=${event.senderId} mode=${event.interruptionMode} feature=${event.feature} vision=${event.chatVision} webSearch=${event.webSearch} echo=${
+                    event.echo.take(
+                        8
+                    )
+                } input=${event.input?.take(200)}"
+            )
             try {
                 val job = scope.launch {
                     var error: Throwable? = null
