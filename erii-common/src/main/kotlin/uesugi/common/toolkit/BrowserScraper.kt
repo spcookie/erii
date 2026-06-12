@@ -27,6 +27,7 @@ interface BrowserScraper : AutoCloseable {
         waitForNetworkIdle: Boolean = true,
         username: String? = null,
         password: String? = null,
+        scaleFactor: Double = 1.0,
     ): ByteArray
 
     /**
