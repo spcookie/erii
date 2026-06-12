@@ -165,7 +165,6 @@ class ConfigHolderImpl : ConfigProvider {
                     disabledPlugins = if (botConfig.hasPath("disabled-plugins")) {
                         parseStringList(botConfig, "disabled-plugins")
                     } else null,
-                    serverHost = botConfig.tryGetString("server-host"),
                     externalHost = botConfig.tryGetString("external-host")
                 )
             }
