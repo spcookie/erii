@@ -110,7 +110,7 @@ object BotAgent {
     )
 
     private class ChatMessageRateLimiter(
-        private val maxCalls: Int = 3,
+        private val maxCalls: Int = 5,
         private val windowMs: Long = 10_000L
     ) {
         private val timestamps = mutableListOf<Long>()
