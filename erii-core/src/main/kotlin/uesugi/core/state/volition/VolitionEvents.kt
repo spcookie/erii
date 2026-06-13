@@ -9,7 +9,7 @@ sealed class VolitionEvent {
 data class ResetStimulusEvent(
     override val botMark: String,
     override val groupId: String,
-    val stimulus: Double = 50.0
+    val stimulus: Double = 15.0
 ) : VolitionEvent()
 
 data class KeywordHitEvent(
