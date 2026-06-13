@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.okio)
     implementation(libs.pf4j)
     implementation(libs.kotlin.logging)
+    implementation(libs.thumbnailator)
     compileOnly(libs.jte.kotlin)
     compileOnly(libs.autoservice.annotations)
     // 测试

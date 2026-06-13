@@ -28,6 +28,7 @@ pf4j = "3.15.0"
 kotlin-logging = "8.0.02"
 ksp = "2.3.8"
 kotlinx-serialization-msgpack = "0.5.5"
+thumbnailator = "0.4.20"
 
 [libraries]
 jobrunr = { module = "org.jobrunr:jobrunr", version.ref = "jobrunr" }
@@ -90,6 +91,7 @@ typesafe-config = { module = "com.typesafe:config", version.ref = "typesafe" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 kotlinx-serialization-msgpack = { module = "com.ensarsarajcic.kotlinx:serialization-msgpack", version.ref = "kotlinx-serialization-msgpack" }
 ksp-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
+thumbnailator = { module = "net.coobird:thumbnailator", version.ref = "thumbnailator" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

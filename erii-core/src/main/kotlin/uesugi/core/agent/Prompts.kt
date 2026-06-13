@@ -11,8 +11,6 @@ import com.nlf.calendar.Solar
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
-import okio.Path.Companion.toPath
-import okio.buffer
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import uesugi.common.BotManage
 import uesugi.common.LLMProviderChoice
@@ -105,14 +103,15 @@ internal suspend fun buildPrompt(context: Context): Prompt {
     }
 }
 
-private fun loadImageSource(history: HistoryRecord): AttachmentSource.Image? {
+private suspend fun loadImageSource(history: HistoryRecord): AttachmentSource.Image? {
     val resource = history.resource ?: return null
     val resourceService: ResourceService by ref()
     val objectStorage: ObjectStorage by ref()
+    val thumbnailService = ThumbnailService(objectStorage)
 
     return try {
         val fullResource = resourceService.getResource(resource.id ?: return null) ?: return null
-        val bytes = objectStorage.get(fullResource.url.toPath()).buffer().readByteArray()
+        val bytes = thumbnailService.getThumbnail(fullResource) ?: return null
         val format = extractImageFormat(fullResource.fileName)
         AttachmentSource.Image(
             content = AttachmentContent.Binary.Bytes(bytes),
