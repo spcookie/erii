@@ -9,6 +9,7 @@ import uesugi.common.BotManage
 import uesugi.common.BotRole
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.HistoryRecord
+import uesugi.common.data.PAD
 import uesugi.common.event.InterruptionMode
 import uesugi.common.event.ProactiveSpeakEvent
 import uesugi.common.toolkit.ConfigHolder
@@ -23,7 +24,6 @@ import uesugi.core.state.emotion.EmojiLevel.*
 import uesugi.core.state.evolution.EvolutionService
 import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.flow.FlowGaugeManager
-import uesugi.core.state.flow.FlowMeterState
 import uesugi.core.state.meme.MemeData.MemeResource
 import uesugi.core.state.meme.MemeService
 import uesugi.core.state.memory.FactsEntity
@@ -44,12 +44,13 @@ internal fun buildSpeechConstraints(
     aggressiveness: Aggressiveness?,
     emojiLevel: EmojiLevel?,
     interruptionMode: InterruptionMode,
-    flowState: FlowMeterState
+    mood: PAD?,
+    flowValue: Double
 ): SpeechConstraints {
     val constraints = SpeechConstraints()
 
     emotion?.apply {
-        applyEmotion(this, constraints)
+        applyEmotion(this, mood, constraints)
     }
     tone?.apply {
         applyTone(this, constraints)
@@ -62,13 +63,15 @@ internal fun buildSpeechConstraints(
     }
 
     applyInterruptionMode(interruptionMode, constraints)
-    applyFlowState(flowState, constraints)
+    applyFlowState(flowValue, constraints)
+    applyEmotionFlowInteraction(mood, flowValue, constraints)
 
     return constraints
 }
 
 private fun applyEmotion(
     emotion: EmotionalTendencies,
+    mood: PAD?,
     constraints: SpeechConstraints
 ) {
     when (emotion) {
@@ -123,6 +126,40 @@ private fun applyEmotion(
             constraints.styleHints += "语气显得需要对方确认或支持"
             constraints.styleHints += "多用软化语气的助词（如'呢'、'吧'）"
             constraints.forbiddenHints += "禁止独断专行或过于强势的命令口吻"
+        }
+    }
+
+    mood?.normalize()?.let { pad ->
+        val (p, a, d) = Triple(pad.p, pad.a, pad.d)
+        when {
+            p > 0.5 -> {
+                constraints.styleHints += "情绪积极，表达可更热情、正面"
+            }
+
+            p < -0.5 -> {
+                constraints.styleHints += "情绪偏消极，表达更克制、简短"
+                constraints.forbiddenHints += "避免过度热情或兴奋的语气"
+            }
+        }
+        when {
+            a > 0.5 -> {
+                constraints.styleHints += "情绪兴奋度高，可稍微加快节奏、多用短句"
+            }
+
+            a < -0.5 -> {
+                constraints.styleHints += "情绪兴奋度低，节奏放慢，句子更短"
+                constraints.forbiddenHints += "避免连续长句或过度活跃"
+            }
+        }
+        when {
+            d > 0.5 -> {
+                constraints.styleHints += "掌控感强，表达更主动、有主见"
+            }
+
+            d < -0.5 -> {
+                constraints.styleHints += "掌控感弱，表达更随和、多征询对方"
+                constraints.forbiddenHints += "避免强势断言或命令式口吻"
+            }
         }
     }
 }
@@ -187,20 +224,55 @@ private fun applyEmojiLevel(
     when (emojiLevel) {
 
         NONE -> {
-            constraints.forbiddenHints += "不使用 Emoji"
+            constraints.forbiddenHints += "不使用 Emoji、颜文字"
+            constraints.forbiddenHints += "不要发送表情包"
         }
 
         LOW -> {
-            constraints.styleHints += "如使用 Emoji，最多一个"
+            constraints.styleHints += "可少量使用 Emoji 和颜文字辅助语气"
+            constraints.styleHints += "可在合适时机使用一次表情包（sendMeme）"
         }
 
         MEDIUM -> {
-            constraints.styleHints += "可适度使用 Emoji 辅助语气"
+            constraints.styleHints += "可积极使用 Emoji、颜文字和表情包（sendMeme）丰富表达"
+            constraints.styleHints += "表情包可适时发送，无需刻意控制次数"
         }
 
         HIGH -> {
-            constraints.styleHints += "可较频繁使用 Emoji 增强情绪"
+            constraints.styleHints += "鼓励频繁使用 Emoji、颜文字增强情绪表达"
+            constraints.styleHints += "鼓励多发表情包（sendMeme）来活跃气氛、接梗、回应"
         }
+    }
+}
+
+private fun applyEmotionFlowInteraction(
+    mood: PAD?,
+    flowValue: Double,
+    constraints: SpeechConstraints
+) {
+    if (mood == null) return
+    val (p, a, d) = Triple(mood.normalize().p, mood.normalize().a, mood.normalize().d)
+
+    if (flowValue >= 70 && a > 0.3) {
+        constraints.styleHints += "对话热度高且情绪兴奋，可适当增加互动感"
+    }
+    if (flowValue >= 70 && d > 0.3) {
+        constraints.styleHints += "对话热度高且掌控感强，可主动引导话题走向"
+    }
+    if (flowValue < 30 && p < -0.3) {
+        constraints.styleHints += "对话冷清且情绪偏负面，回复尽量简短、不施压"
+        constraints.forbiddenHints += "不要强行活跃气氛或追问"
+    }
+    if (flowValue < 30 && d < -0.3) {
+        constraints.styleHints += "对话冷清且掌控感弱，以附和、简短回应为主"
+    }
+    if (a > 0.5 && flowValue < 50) {
+        constraints.styleHints += "情绪兴奋但对话热度不足，可尝试轻快点燃气氛"
+        constraints.forbiddenHints += "避免过长输出"
+    }
+    if (p < -0.5 && flowValue >= 50) {
+        constraints.styleHints += "情绪偏负面但对话仍在进行，保持克制参与"
+        constraints.forbiddenHints += "避免情绪化争论"
     }
 }
 
@@ -229,23 +301,34 @@ private fun applyInterruptionMode(
 }
 
 private fun applyFlowState(
-    flowState: FlowMeterState,
+    flowValue: Double,
     constraints: SpeechConstraints
 ) {
-    when (flowState) {
-
-        FlowMeterState.STANDBY -> {
-            constraints.styleHints += "句子偏短，不超过两句"
-            constraints.forbiddenHints += "避免延伸话题"
+    when {
+        flowValue < 15 -> {
+            constraints.styleHints += "当前对话心流很低，回复控制在1句话以内"
+            constraints.forbiddenHints += "不要主动延续话题"
         }
 
-        FlowMeterState.GETTING_BETTER -> {
-            constraints.styleHints += "可适度展开，但保持简洁"
+        flowValue < 30 -> {
+            constraints.styleHints += "当前对话心流较低，回复控制在1-2句话"
         }
 
-        FlowMeterState.FLOW_BURST -> {
-            constraints.styleHints += "可稍微多说一点，允许补充细节"
-            constraints.forbiddenHints += "避免跑题或长篇输出"
+        flowValue < 50 -> {
+            constraints.styleHints += "当前对话心流一般，回复控制在2-3句话"
+        }
+
+        flowValue < 70 -> {
+            constraints.styleHints += "当前对话心流较好，回复可控制在3-4句话"
+        }
+
+        flowValue < 85 -> {
+            constraints.styleHints += "当前对话心流较高，回复可控制在4-5句话"
+        }
+
+        else -> {
+            constraints.styleHints += "当前对话心流很高，可适当多说，但仍控制在5句话以内"
+            constraints.forbiddenHints += "避免长篇大论或偏离当前话题"
         }
     }
 }
@@ -259,7 +342,7 @@ data class Context(
     val interruptionMode: InterruptionMode,
     val behaviorProfile: suspend () -> BehaviorProfile?,
     val flow: () -> Double,
-    val flowState: () -> FlowMeterState,
+    val mood: suspend () -> PAD?,
     val facts: suspend () -> List<FactsEntity>,
     val userProfiles: suspend () -> List<UserProfileEntity>,
     val vocabulary: suspend () -> List<LearnedVocabEntity>,
@@ -275,7 +358,7 @@ data class Context(
     data class Transient(
         val behaviorProfile: BehaviorProfile?,
         val flow: Double,
-        val flowState: FlowMeterState,
+        val mood: PAD?,
         val facts: List<FactsEntity>,
         val userProfiles: List<UserProfileEntity>,
         val vocabulary: List<LearnedVocabEntity>,
@@ -290,7 +373,7 @@ data class Context(
     suspend fun toTransient() = Transient(
         behaviorProfile = behaviorProfile(),
         flow = flow(),
-        flowState = flowState(),
+        mood = mood(),
         facts = facts(),
         userProfiles = userProfiles(),
         vocabulary = vocabulary(),
@@ -339,14 +422,21 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
             },
             interruptionMode = event.interruptionMode,
             flow = {
+                val configKey = BotManage.getConfigKey(currentBotId)
+                val baseDesire = ConfigHolder.getOnebotBots()[configKey]?.groups?.get(groupId)?.desire ?: 15.0
                 val flowGauge =
-                    flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId).role.emoticon)
+                    flowGaugeManager.getOrCreate(
+                        currentBotId,
+                        groupId,
+                        BotManage.getBot(currentBotId).role.emoticon,
+                        baseDesire
+                    )
                 flowGauge.getFlowMeter()
             },
-            flowState = {
-                val flowGauge =
-                    flowGaugeManager.getOrCreate(currentBotId, groupId, BotManage.getBot(currentBotId).role.emoticon)
-                flowGauge.mapToState()
+            mood = {
+                withContext(Dispatchers.IO) {
+                    emotionService.getCurrentMood(currentBotId, groupId)
+                }
             },
             facts = {
                 withContext(Dispatchers.IO) {
@@ -459,7 +549,8 @@ internal fun buildConstraint(
         behaviorProfile?.aggressiveness,
         behaviorProfile?.emojiLevel,
         context.interruptionMode,
-        transient.flowState
+        transient.mood,
+        transient.flow
     )
     return constraints
 }

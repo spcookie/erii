@@ -352,8 +352,10 @@ fun MarkdownContentBuilder.buildRuleAwarenessPrompt() {
 
 fun MarkdownContentBuilder.buildMemeAwarenessPrompt(memes: Int) {
     h2("表情包感知")
-    line { text("你可以使用 `send_meme` 工具发送表情包") }
+    line { text("你可以使用 `send_meme` 工具发送表情包来活跃气氛、表达情绪或回应群友。") }
     line { text("当前可以发送的表情包数量：$memes") }
+    line { text("适当使用表情包能让对话更生动自然，建议在合适的时机积极使用。") }
+    line { text("例如：回应吐槽时、表达开心时、接梗时、缓和气氛时都可以发。") }
 }
 
 fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {
