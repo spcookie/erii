@@ -70,6 +70,7 @@ object LLMProviderChoice {
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
+                LLMCapability.PromptCaching,
                 LLMCapability.Thinking,
                 LLMCapability.Vision.Image
             ),
