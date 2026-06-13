@@ -12,6 +12,7 @@ object MapDB {
         Files.createDirectories(dbFile.parent)
         val db = DBMaker
             .fileDB(dbFile.toFile())
+            .checksumHeaderBypass()
             .make()
         Runtime.getRuntime().addShutdownHook(Thread {
             try {
