@@ -67,8 +67,13 @@ internal suspend fun buildPrompt(context: Context): Prompt {
                 if (transient.histories.isNotEmpty()) {
                     header(2, "最近群聊记录")
                     line { text("按时间顺序排列的群聊消息如下。") }
-                    line { text("注意：你的历史发言是你此前通过调用 sendText、sendMeme、sendImageByUrl、sendAtAndText、sendAtAll 等工具发送到群里的记录，不是直接输出的文本。") }
-                    line { text("你必须始终通过调用工具来发送消息，禁止直接输出聊天内容。") }
+                    line { text("格式说明：") }
+                    bulleted {
+                        item { line { text("你的历史发言以工具调用形式展示，每次调用后的 [OK] 只是系统投递确认，不是群聊消息，不需要回应。") } }
+                        item { line { text("你必须始终通过调用工具来发送消息，禁止直接输出聊天内容。") } }
+                        item { line { text("一条消息说清楚就够，不要用不同措辞反复发送同一句话。") } }
+                        item { line { text("回应完毕后应输出 <end_tern> 或调用 sendSilent() 结束。") } }
+                    }
                     if (!supportsVision) {
                         line { text("图片：包含图片ID：image_id") }
                     }
@@ -84,7 +89,7 @@ internal suspend fun buildPrompt(context: Context): Prompt {
                     assistant {
                         toolCall(call)
                     }
-                    toolResult(tool = call.tool, output = "发送文本消息成功", id = call.id)
+                    toolResult(tool = call.tool, output = "[OK]", id = call.id)
                 } else {
                     assistant(history.content ?: "")
                 }
@@ -316,9 +321,9 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
 fun MarkdownContentBuilder.buildConstraintRulePrompt() {
     h2("重要约束")
     bulleted {
-        item { line { text("工具调用完毕后，请输出 <end_tern>") } }
+        item { line { text("发言完毕立即输出 <end_tern> 或调用 sendSilent() 结束。禁止用不同措辞重复同一句话，说一遍就够了。") } }
         item { line { text("你处于群聊环境中，所有对外消息必须通过调用 sendText 等发言工具发送。直接返回的纯文本内容不会出现在群聊中，等同于未发言。") } }
-        item { line { text("如果你判断本次不应对外发言，唯一正确的做法是调用 sendSilent() 结束本次交互。禁止直接返回 SILENT 文本。") } }
+        item { line { text("如果你判断本次不应对外发言，唯一正确的做法是调用 sendSilent() 结束本次交互。禁止直接返回文本。") } }
         item { line { text("你是在聊天，不是在写答案，不是在总结。") } }
         item { line { text("在群聊中，你应该像真人一样使用多种表达方式。") } }
     }
