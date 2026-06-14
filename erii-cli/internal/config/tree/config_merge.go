@@ -157,25 +157,8 @@ func extractBlockFieldLines(blockLines []string) map[string][]string {
 	return fields
 }
 
-// formatFieldAsDotPath formats field lines as a dot-path assignment under a parent key.
-// e.g., ["  external-host = ${?EXTERNAL_HOST}"] -> ["  browser.external-host = ${?EXTERNAL_HOST}"]
-func formatFieldAsDotPath(parentKey string, fieldLines []string) []string {
-	if len(fieldLines) == 0 {
-		return nil
-	}
-	first := fieldLines[0]
-	key := extractFieldKey(strings.TrimSpace(first))
-	if key == "" {
-		return append([]string{parentKey + "." + first}, fieldLines[1:]...)
-	}
-
-	newFirst := strings.Replace(first, key, parentKey+"."+key, 1)
-	return append([]string{newFirst}, fieldLines[1:]...)
-}
-
-// mergeHOCONFile merges src HOCON into dst by appending top-level blocks
-// that exist in src but not in dst. For existing blocks, new fields inside
-// the block are appended as dot-path assignments (e.g., browser.status-host).
+// mergeHOCONFile merges src HOCON into dst. New top-level blocks are appended.
+// New fields inside existing blocks are inserted into those blocks (before closing }).
 func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 	srcData, err := os.ReadFile(srcPath)
 	if err != nil {
@@ -208,11 +191,8 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 	srcBlocks := extractHOCONBlocks(string(srcData))
 	dstBlocks := extractHOCONBlocks(string(dstData))
 
-	// Pre-compute dst field keys for all existing blocks to avoid re-parsing
-	dstBlockMap := make(map[string]hoconBlock, len(dstBlocks))
 	dstFieldKeysMap := make(map[string]map[string]bool, len(dstBlocks))
 	for _, b := range dstBlocks {
-		dstBlockMap[b.key] = b
 		fields := extractBlockFieldLines(b.lines)
 		keys := make(map[string]bool, len(fields))
 		for k := range fields {
@@ -221,7 +201,8 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 		dstFieldKeysMap[b.key] = keys
 	}
 
-	var mergedFields []string
+	// Collect new nested fields by parent block: blockKey -> new field lines
+	newFieldsByBlock := make(map[string][]string)
 	var addedKeys []string
 	addedKeys = append(addedKeys, newKeys...)
 
@@ -236,15 +217,14 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 		srcFieldLines := extractBlockFieldLines(srcBlock.lines)
 		for fieldKey, fieldLines := range srcFieldLines {
 			if !dstFieldKeys[fieldKey] {
-				dotPathLines := formatFieldAsDotPath(srcBlock.key, fieldLines)
-				mergedFields = append(mergedFields, dotPathLines...)
+				newFieldsByBlock[srcBlock.key] = append(newFieldsByBlock[srcBlock.key], fieldLines...)
 				addedKeys = append(addedKeys, srcBlock.key+"."+fieldKey)
 			}
 		}
 	}
 
-	// If nothing new at top level and no new fields inside blocks
-	if len(newKeys) == 0 && len(mergedFields) == 0 {
+	// If nothing new
+	if len(newKeys) == 0 && len(newFieldsByBlock) == 0 {
 		if len(dstKeys) == 0 {
 			return FileMergeResult{Action: "source_missing"}
 		}
@@ -259,37 +239,42 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 		return FileMergeResult{Action: "created", AddedKeys: newKeys}
 	}
 
-	var toAppend strings.Builder
+	// Start with dst content; insert new nested fields into existing blocks
+	content := string(dstData)
+	for _, dstBlock := range dstBlocks {
+		newFieldLines, hasNew := newFieldsByBlock[dstBlock.key]
+		if !hasNew {
+			continue
+		}
+		// Insert new fields before the closing } of the block
+		oldBlock := strings.Join(dstBlock.lines, "\n")
+		closingBrace := dstBlock.lines[len(dstBlock.lines)-1]
+		innerLines := make([]string, 0, len(dstBlock.lines)+len(newFieldLines)+1)
+		innerLines = append(innerLines, dstBlock.lines[:len(dstBlock.lines)-1]...)
+		innerLines = append(innerLines, "")
+		innerLines = append(innerLines, newFieldLines...)
+		innerLines = append(innerLines, closingBrace)
+		newBlock := strings.Join(innerLines, "\n")
+		content = strings.Replace(content, oldBlock, newBlock, 1)
+	}
 
-	// Extract blocks for new top-level keys from src and append
-	for _, block := range srcBlocks {
-		if slices.Contains(newKeys, block.key) {
-			for _, line := range block.lines {
-				toAppend.WriteString(line)
+	// Append new top-level blocks
+	if len(newKeys) > 0 {
+		var toAppend strings.Builder
+		for _, block := range srcBlocks {
+			if slices.Contains(newKeys, block.key) {
+				for _, line := range block.lines {
+					toAppend.WriteString(line)
+					toAppend.WriteByte('\n')
+				}
 				toAppend.WriteByte('\n')
 			}
-			toAppend.WriteByte('\n')
 		}
+		content = strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(toAppend.String(), "\n") + "\n"
 	}
 
-	// Append merged fields for existing blocks
-	for _, line := range mergedFields {
-		toAppend.WriteString(line)
-		toAppend.WriteByte('\n')
-	}
-
-	if toAppend.Len() == 0 {
-		return FileMergeResult{Action: "skipped"}
-	}
-
-	f, err := os.OpenFile(dstPath, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return FileMergeResult{Action: "error", Error: fmt.Errorf("open destination for append: %w", err)}
-	}
-	defer f.Close()
-
-	if _, err := f.WriteString("\n" + toAppend.String()); err != nil {
-		return FileMergeResult{Action: "error", Error: fmt.Errorf("append to destination: %w", err)}
+	if err := os.WriteFile(dstPath, []byte(content), 0644); err != nil {
+		return FileMergeResult{Action: "error", Error: fmt.Errorf("write destination: %w", err)}
 	}
 
 	return FileMergeResult{Action: "merged", AddedKeys: addedKeys}
