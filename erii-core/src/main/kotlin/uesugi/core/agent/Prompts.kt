@@ -15,6 +15,8 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import okio.Path.Companion.toPath
+import okio.buffer
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import uesugi.common.BotManage
 import uesugi.common.LLMProviderChoice
@@ -36,11 +38,17 @@ internal suspend fun buildPrompt(context: Context): Prompt {
     val transient = context.toTransient()
     val constraints = buildConstraint(context, transient)
     val supportsVision = LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
+    val objectStorage: ObjectStorage by ref()
+    val thumbnailService = ThumbnailService(objectStorage)
 
     val imageSources = if (supportsVision) {
-        transient.histories
+        val imageHistories = transient.histories
             .filter { it.messageType == MessageType.IMAGE && context.currentBotId != it.userId }
-            .associate { it.id to loadImageSource(it) }
+        val lastImageId = imageHistories.lastOrNull()?.id
+        imageHistories.associate { history ->
+            val useOriginal = history.id == lastImageId
+            history.id to loadImageSource(history, objectStorage, thumbnailService, useOriginal)
+        }
     } else emptyMap()
 
     return prompt("群聊机器人") {
@@ -147,15 +155,22 @@ private fun buildBotToolCall(history: HistoryRecord, callId: String): MessagePar
     }
 }
 
-private suspend fun loadImageSource(history: HistoryRecord): AttachmentSource.Image? {
+private suspend fun loadImageSource(
+    history: HistoryRecord,
+    objectStorage: ObjectStorage,
+    thumbnailService: ThumbnailService,
+    useOriginal: Boolean = false
+): AttachmentSource.Image? {
     val resource = history.resource ?: return null
     val resourceService: ResourceService by ref()
-    val objectStorage: ObjectStorage by ref()
-    val thumbnailService = ThumbnailService(objectStorage)
 
     return try {
         val fullResource = resourceService.getResource(resource.id ?: return null) ?: return null
-        val bytes = thumbnailService.getThumbnail(fullResource) ?: return null
+        val bytes = if (useOriginal) {
+            objectStorage.get(fullResource.url.toPath()).buffer().readByteArray()
+        } else {
+            thumbnailService.getThumbnail(fullResource) ?: return null
+        }
         val format = extractImageFormat(fullResource.fileName)
         AttachmentSource.Image(
             content = AttachmentContent.Binary.Bytes(bytes),
