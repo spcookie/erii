@@ -10,6 +10,24 @@ object LLMProviderChoice {
 
     private val log = logger()
 
+    private fun capabilityKey(cap: LLMCapability): String = when (cap) {
+        LLMCapability.Completion -> "completion"
+        LLMCapability.PromptCaching -> "prompt-caching"
+        LLMCapability.Temperature -> "temperature"
+        LLMCapability.Tools -> "tools"
+        LLMCapability.ToolChoice -> "tool-choice"
+        LLMCapability.MultipleChoices -> "multiple-choices"
+        LLMCapability.Thinking -> "thinking"
+        LLMCapability.Vision.Image -> "vision-image"
+        else -> ""
+    }
+
+    private fun filterCapabilities(capabilities: List<LLMCapability>): List<LLMCapability> =
+        capabilities.filter { cap ->
+            val key = capabilityKey(cap)
+            key.isEmpty() || ConfigHolder.isLlmCapabilityEnabled(key)
+        }
+
     private val choice by lazy {
         val choice = ConfigHolder.getChoiceProvider()
         log.info("apply llm provider: $choice")
@@ -27,14 +45,16 @@ object LLMProviderChoice {
         return LLModel(
             provider = LLMProvider.Google,
             id = modelId,
-            capabilities = listOf(
+            capabilities = filterCapabilities(
+                listOf(
                 LLMCapability.Completion,
                 LLMCapability.PromptCaching,
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
                 LLMCapability.MultipleChoices,
-                LLMCapability.Vision.Image
+                    LLMCapability.Vision.Image,
+                )
             ),
             contextLength = 128_000,
             maxOutputTokens = 8_000
@@ -47,12 +67,14 @@ object LLMProviderChoice {
         return LLModel(
             provider = LLMProvider.DeepSeek,
             id = modelId,
-            capabilities = listOf(
+            capabilities = filterCapabilities(
+                listOf(
                 LLMCapability.Completion,
                 LLMCapability.PromptCaching,
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
-                LLMCapability.ToolChoice
+                    LLMCapability.ToolChoice,
+                )
             ),
             contextLength = 128_000,
             maxOutputTokens = 8_000
@@ -65,14 +87,16 @@ object LLMProviderChoice {
         return LLModel(
             provider = LLMProvider.Anthropic,
             id = modelId,
-            capabilities = listOf(
+            capabilities = filterCapabilities(
+                listOf(
                 LLMCapability.Completion,
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
                 LLMCapability.PromptCaching,
                 LLMCapability.Thinking,
-                LLMCapability.Vision.Image
+                    LLMCapability.Vision.Image,
+                )
             ),
             contextLength = 512_000,
             maxOutputTokens = 512_000
@@ -85,14 +109,16 @@ object LLMProviderChoice {
         return LLModel(
             provider = LLMProvider.OpenAI,
             id = modelId,
-            capabilities = listOf(
+            capabilities = filterCapabilities(
+                listOf(
                 LLMCapability.Completion,
                 LLMCapability.PromptCaching,
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
                 LLMCapability.MultipleChoices,
-                LLMCapability.Vision.Image
+                    LLMCapability.Vision.Image,
+                )
             ),
             contextLength = 128_000,
             maxOutputTokens = 16_000
@@ -105,14 +131,16 @@ object LLMProviderChoice {
         return LLModel(
             provider = LLMProvider.Anthropic,
             id = modelId,
-            capabilities = listOf(
+            capabilities = filterCapabilities(
+                listOf(
                 LLMCapability.Completion,
                 LLMCapability.PromptCaching,
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
                 LLMCapability.MultipleChoices,
-                LLMCapability.Vision.Image
+                    LLMCapability.Vision.Image,
+                )
             ),
             contextLength = 200_000,
             maxOutputTokens = 16_000
@@ -125,13 +153,15 @@ object LLMProviderChoice {
         return LLModel(
             provider = LLMProvider.OpenRouter,
             id = modelId,
-            capabilities = listOf(
+            capabilities = filterCapabilities(
+                listOf(
                 LLMCapability.Completion,
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
                 LLMCapability.MultipleChoices,
-                LLMCapability.Vision.Image
+                    LLMCapability.Vision.Image,
+                )
             ),
             contextLength = 128_000,
             maxOutputTokens = 16_000
