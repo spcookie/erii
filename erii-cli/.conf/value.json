@@ -46,129 +46,161 @@
     "type": "enum",
     "default": "none"
   },
-  "llm.deep-seek.api-key": {
+  "llm.capability.completion": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.prompt-caching": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.temperature": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.tools": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.tool-choice": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.multiple-choices": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.thinking": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.vision-image": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.providers.deep-seek.api-key": {
     "type": "string",
     "nullable": true,
     "default": ""
   },
-  "llm.deep-seek.base-url": {
+  "llm.providers.deep-seek.base-url": {
     "type": "string",
     "default": ""
   },
-  "llm.deep-seek.models.flash": {
+  "llm.providers.deep-seek.models.flash": {
     "type": "string",
     "default": ""
   },
-  "llm.deep-seek.models.lite": {
+  "llm.providers.deep-seek.models.lite": {
     "type": "string",
     "default": ""
   },
-  "llm.deep-seek.models.pro": {
+  "llm.providers.deep-seek.models.pro": {
     "type": "string",
     "default": ""
   },
-  "llm.google.api-key": {
-    "type": "string",
-    "nullable": true,
-    "default": ""
-  },
-  "llm.google.base-url": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.google.models.flash": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.google.models.lite": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.google.models.pro": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.minimax.api-key": {
+  "llm.providers.google.api-key": {
     "type": "string",
     "nullable": true,
     "default": ""
   },
-  "llm.minimax.base-url": {
+  "llm.providers.google.base-url": {
     "type": "string",
     "default": ""
   },
-  "llm.minimax.models.flash": {
+  "llm.providers.google.models.flash": {
     "type": "string",
     "default": ""
   },
-  "llm.minimax.models.lite": {
+  "llm.providers.google.models.lite": {
     "type": "string",
     "default": ""
   },
-  "llm.minimax.models.pro": {
+  "llm.providers.google.models.pro": {
     "type": "string",
     "default": ""
   },
-  "llm.openai.api-key": {
-    "type": "string",
-    "nullable": true,
-    "default": ""
-  },
-  "llm.openai.base-url": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.openai.models.flash": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.openai.models.lite": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.openai.models.pro": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.anthropic.api-key": {
+  "llm.providers.minimax.api-key": {
     "type": "string",
     "nullable": true,
     "default": ""
   },
-  "llm.anthropic.base-url": {
+  "llm.providers.minimax.base-url": {
     "type": "string",
     "default": ""
   },
-  "llm.anthropic.models.flash": {
+  "llm.providers.minimax.models.flash": {
     "type": "string",
     "default": ""
   },
-  "llm.anthropic.models.lite": {
+  "llm.providers.minimax.models.lite": {
     "type": "string",
     "default": ""
   },
-  "llm.anthropic.models.pro": {
+  "llm.providers.minimax.models.pro": {
     "type": "string",
     "default": ""
   },
-  "llm.openrouter.api-key": {
+  "llm.providers.openai.api-key": {
     "type": "string",
     "nullable": true,
     "default": ""
   },
-  "llm.openrouter.base-url": {
+  "llm.providers.openai.base-url": {
     "type": "string",
     "default": ""
   },
-  "llm.openrouter.models.flash": {
+  "llm.providers.openai.models.flash": {
     "type": "string",
     "default": ""
   },
-  "llm.openrouter.models.lite": {
+  "llm.providers.openai.models.lite": {
     "type": "string",
     "default": ""
   },
-  "llm.openrouter.models.pro": {
+  "llm.providers.openai.models.pro": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.providers.anthropic.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "llm.providers.anthropic.base-url": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.providers.anthropic.models.flash": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.providers.anthropic.models.lite": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.providers.anthropic.models.pro": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.providers.openrouter.api-key": {
+    "type": "string",
+    "nullable": true,
+    "default": ""
+  },
+  "llm.providers.openrouter.base-url": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.providers.openrouter.models.flash": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.providers.openrouter.models.lite": {
+    "type": "string",
+    "default": ""
+  },
+  "llm.providers.openrouter.models.pro": {
     "type": "string",
     "default": ""
   },
