@@ -1,6 +1,5 @@
 package uesugi.core.component.browser
 
-import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.options.WaitUntilState
@@ -10,15 +9,9 @@ import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.apache.commons.pool2.BasePooledObjectFactory
-import org.apache.commons.pool2.PooledObject
-import org.apache.commons.pool2.impl.DefaultPooledObject
-import org.apache.commons.pool2.impl.GenericObjectPool
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig
 import uesugi.common.toolkit.BrowserScraper
 import uesugi.common.toolkit.ScrapedResult
 import uesugi.common.toolkit.logger
-import java.time.Duration
 import kotlin.io.encoding.Base64
 
 class BrowserScraperImpl : BrowserScraper {
@@ -44,52 +37,10 @@ class BrowserScraperImpl : BrowserScraper {
         FlexmarkHtmlConverter.builder(options).build()
     }
 
-    private val contextPool: GenericObjectPool<BrowserContext>
-
-    init {
-        val config = GenericObjectPoolConfig<BrowserContext>().apply {
-            maxTotal = 2
-            maxIdle = 2
-            minIdle = 0
-            blockWhenExhausted = true
-            setMaxWait(Duration.ofMinutes(1))
-            testOnBorrow = true
-            testOnReturn = true
-        }
-        contextPool = GenericObjectPool(BrowserContextFactory(), config)
-    }
-
-    private class BrowserContextFactory : BasePooledObjectFactory<BrowserContext>() {
-        override fun create(): BrowserContext =
-            BrowserSession.getInstance().browser.newContext()
-
-        override fun wrap(context: BrowserContext): PooledObject<BrowserContext> =
-            DefaultPooledObject(context)
-
-        override fun validateObject(p: PooledObject<BrowserContext>): Boolean =
-            runCatching { p.getObject().pages(); true }.getOrDefault(false)
-
-        override fun passivateObject(p: PooledObject<BrowserContext>) {
-            val context = p.getObject()
-            runCatching {
-                context.pages().forEach { it.close() }
-                context.clearCookies()
-            }
-        }
-
-        override fun destroyObject(p: PooledObject<BrowserContext>) {
-            runCatching { p.getObject().close() }
-        }
-    }
-
-    private inline fun <R> useContext(block: (BrowserContext) -> R): R {
-        val context = contextPool.borrowObject()
-        return try {
-            block(context)
-        } finally {
-            contextPool.returnObject(context)
-        }
-    }
+    private val contextPool = BrowserContextPool(
+        browserSupplier = { BrowserSession.getInstance().browser },
+        maxTotal = 2
+    )
 
     override fun takeFullScreenshot(
         url: String,
@@ -102,7 +53,7 @@ class BrowserScraperImpl : BrowserScraper {
         password: String?,
         scaleFactor: Double,
     ): ByteArray {
-        return useContext { context ->
+        return contextPool.use { context ->
             val page = context.newPage()
             page.setViewportSize((width * scaleFactor).toInt(), (height * scaleFactor).toInt())
 
@@ -178,7 +129,7 @@ class BrowserScraperImpl : BrowserScraper {
     override fun scrape(url: String, maxMarkdownChars: Int): ScrapedResult {
         log.info("Scraping $url")
 
-        return useContext { context ->
+        return contextPool.use { context ->
             val page = context.newPage()
             page.setViewportSize(1920, 1080)
 
