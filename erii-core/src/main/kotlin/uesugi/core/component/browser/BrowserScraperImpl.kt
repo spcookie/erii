@@ -1,6 +1,6 @@
 package uesugi.core.component.browser
 
-import com.microsoft.playwright.Browser
+import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.options.WaitUntilState
@@ -10,9 +10,15 @@ import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.apache.commons.pool2.BasePooledObjectFactory
+import org.apache.commons.pool2.PooledObject
+import org.apache.commons.pool2.impl.DefaultPooledObject
+import org.apache.commons.pool2.impl.GenericObjectPool
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig
 import uesugi.common.toolkit.BrowserScraper
 import uesugi.common.toolkit.ScrapedResult
 import uesugi.common.toolkit.logger
+import java.time.Duration
 import kotlin.io.encoding.Base64
 
 class BrowserScraperImpl : BrowserScraper {
@@ -20,8 +26,6 @@ class BrowserScraperImpl : BrowserScraper {
     private val log = logger()
 
     private val jsonParser = Json { ignoreUnknownKeys = true }
-
-    private val lock = Any()
 
     private val readabilityJs: String by lazy {
         this::class.java.getResource("readability.js")?.readText()
@@ -40,6 +44,53 @@ class BrowserScraperImpl : BrowserScraper {
         FlexmarkHtmlConverter.builder(options).build()
     }
 
+    private val contextPool: GenericObjectPool<BrowserContext>
+
+    init {
+        val config = GenericObjectPoolConfig<BrowserContext>().apply {
+            maxTotal = 2
+            maxIdle = 2
+            minIdle = 0
+            blockWhenExhausted = true
+            setMaxWait(Duration.ofMinutes(1))
+            testOnBorrow = true
+            testOnReturn = true
+        }
+        contextPool = GenericObjectPool(BrowserContextFactory(), config)
+    }
+
+    private class BrowserContextFactory : BasePooledObjectFactory<BrowserContext>() {
+        override fun create(): BrowserContext =
+            BrowserSession.getInstance().browser.newContext()
+
+        override fun wrap(context: BrowserContext): PooledObject<BrowserContext> =
+            DefaultPooledObject(context)
+
+        override fun validateObject(p: PooledObject<BrowserContext>): Boolean =
+            runCatching { p.getObject().pages(); true }.getOrDefault(false)
+
+        override fun passivateObject(p: PooledObject<BrowserContext>) {
+            val context = p.getObject()
+            runCatching {
+                context.pages().forEach { it.close() }
+                context.clearCookies()
+            }
+        }
+
+        override fun destroyObject(p: PooledObject<BrowserContext>) {
+            runCatching { p.getObject().close() }
+        }
+    }
+
+    private inline fun <R> useContext(block: (BrowserContext) -> R): R {
+        val context = contextPool.borrowObject()
+        return try {
+            block(context)
+        } finally {
+            contextPool.returnObject(context)
+        }
+    }
+
     override fun takeFullScreenshot(
         url: String,
         width: Int,
@@ -51,45 +102,39 @@ class BrowserScraperImpl : BrowserScraper {
         password: String?,
         scaleFactor: Double,
     ): ByteArray {
-        val session = BrowserSession.getInstance()
+        return useContext { context ->
+            val page = context.newPage()
+            page.setViewportSize((width * scaleFactor).toInt(), (height * scaleFactor).toInt())
 
-        synchronized(lock) {
-            session.browser.newContext(
-                Browser.NewContextOptions()
-                    .setViewportSize(width, height)
-                    .setDeviceScaleFactor(scaleFactor)
-            ).use { context ->
-                try {
-                    val page = context.newPage()
-                    // --- 资源过滤优化 ---
-                    var token: String? = null
-                    if (username != null && password != null) {
-                        token = Base64.encode("$username:$password".toByteArray())
-                    }
-                    page.route("**/*") { route ->
-                        val headers = HashMap(route.request().headers())
-                        if (token != null) {
-                            headers["Authorization"] = "Basic $token"
-                        }
-                        val resourceType = route.request().resourceType()
-                        if (listOf("media").contains(resourceType)) {
-                            route.abort()
-                        } else {
-                            route.resume(Route.ResumeOptions().setHeaders(headers))
-                        }
-                    }
+            // --- 资源过滤优化 ---
+            var token: String? = null
+            if (username != null && password != null) {
+                token = Base64.encode("$username:$password".toByteArray())
+            }
+            page.route("**/*") { route ->
+                val headers = HashMap(route.request().headers())
+                if (token != null) {
+                    headers["Authorization"] = "Basic $token"
+                }
+                val resourceType = route.request().resourceType()
+                if (listOf("media").contains(resourceType)) {
+                    route.abort()
+                } else {
+                    route.resume(Route.ResumeOptions().setHeaders(headers))
+                }
+            }
 
-                    // --- 导航与等待 ---
-                    val waitState = if (waitForNetworkIdle)
-                        WaitUntilState.NETWORKIDLE
-                    else
-                        WaitUntilState.DOMCONTENTLOADED
+            // --- 导航与等待 ---
+            val waitState = if (waitForNetworkIdle)
+                WaitUntilState.NETWORKIDLE
+            else
+                WaitUntilState.DOMCONTENTLOADED
 
-                    page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
+            page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
 
-                    // --- 滚动加载 ---
-                    page.evaluate(
-                        """
+            // --- 滚动加载 ---
+            page.evaluate(
+                """
                 async () => {
                     await new Promise((resolve) => {
                         let totalHeight = 0;
@@ -108,47 +153,34 @@ class BrowserScraperImpl : BrowserScraper {
                     });
                 }
             """
-                    )
+            )
 
-                    page.waitForTimeout(500.0)
+            page.waitForTimeout(500.0)
 
-                    // --- 截图 ---
-                    val screenshotOptions = Page.ScreenshotOptions()
-                        .setFullPage(true)
-                        .setType(
-                            when (type) {
-                                BrowserScraper.ScreenshotType.PNG -> com.microsoft.playwright.options.ScreenshotType.PNG
-                                BrowserScraper.ScreenshotType.JPEG -> com.microsoft.playwright.options.ScreenshotType.JPEG
-                            }
-                        )
-
-                    if (type == BrowserScraper.ScreenshotType.JPEG) {
-                        screenshotOptions.setQuality(quality)
+            // --- 截图 ---
+            val screenshotOptions = Page.ScreenshotOptions()
+                .setFullPage(true)
+                .setType(
+                    when (type) {
+                        BrowserScraper.ScreenshotType.PNG -> com.microsoft.playwright.options.ScreenshotType.PNG
+                        BrowserScraper.ScreenshotType.JPEG -> com.microsoft.playwright.options.ScreenshotType.JPEG
                     }
+                )
 
-                    return page.screenshot(screenshotOptions)
-
-                } catch (e: Exception) {
-                    log.error("Screenshot failed for $url: ${e.message}", e)
-                    throw e
-                }
+            if (type == BrowserScraper.ScreenshotType.JPEG) {
+                screenshotOptions.setQuality(quality)
             }
+
+            page.screenshot(screenshotOptions)
         }
     }
 
     override fun scrape(url: String, maxMarkdownChars: Int): ScrapedResult {
         log.info("Scraping $url")
 
-        val session = BrowserSession.getInstance()
-
-        synchronized(lock) {
-            val context = session.browser.newContext(
-                Browser.NewContextOptions()
-                    .setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                    .setViewportSize(1920, 1080)
-            )
-
+        return useContext { context ->
             val page = context.newPage()
+            page.setViewportSize(1920, 1080)
 
             try {
                 page.route("**/*") { route ->
@@ -228,7 +260,7 @@ class BrowserScraperImpl : BrowserScraper {
                     fullMarkdown
                 }
 
-                return ScrapedResult(
+                ScrapedResult(
                     url = url,
                     title = response.title ?: "No Title",
                     excerpt = response.excerpt ?: "",
@@ -241,12 +273,13 @@ class BrowserScraperImpl : BrowserScraper {
                 log.warn("Scraping failed for $url: ${e.message}")
                 throw e
             } finally {
-                context.close()
+                page.close()
             }
         }
     }
 
     override fun close() {
+        runCatching { contextPool.close() }
         BrowserSession.close()
     }
 
