@@ -146,8 +146,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 			lines[i] = replaceHoconValue(line, choiceModel)
 		}
 
-		// Provider-specific llm blocks
-		if ctx.match("llm", provKey) {
+		// Provider-specific llm blocks (new nested providers structure)
+		if ctx.match("llm", "providers", provKey) {
 			if isKey(trimmed, "api-key") {
 				envKey := strings.ReplaceAll(strings.ToUpper(provKey), "-", "_") + "_API_KEY"
 				lines[i] = migrateSensitiveToEnv(line, &d.APIKey, "${?"+envKey+"}")
@@ -158,7 +158,7 @@ func modifyConfig(d *SetupData, filePath string) error {
 		}
 
 		// Provider models
-		if ctx.match("llm", provKey, "models") {
+		if ctx.match("llm", "providers", provKey, "models") {
 			if d.ModelMode == "all" && d.AllModel != "" {
 				if isKey(trimmed, "lite") {
 					lines[i] = replaceHoconValue(line, d.AllModel)
