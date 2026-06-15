@@ -28,6 +28,7 @@ interface BrowserScraper : AutoCloseable {
         username: String? = null,
         password: String? = null,
         scaleFactor: Double = 1.0,
+        fitContent: Boolean = false,
     ): ByteArray
 
     /**

@@ -1,5 +1,6 @@
 package uesugi.core.component.browser
 
+import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.options.WaitUntilState
@@ -37,10 +38,18 @@ class BrowserScraperImpl : BrowserScraper {
         FlexmarkHtmlConverter.builder(options).build()
     }
 
-    private val contextPool = BrowserContextPool(
-        browserSupplier = { BrowserSession.getInstance().browser },
-        maxTotal = 2
-    )
+    private val sessionPool = BrowserSessionPool()
+
+    private fun <R> useContext(block: (BrowserContext) -> R): R {
+        return sessionPool.use { session ->
+            val context = session.browser.newContext()
+            try {
+                block(context)
+            } finally {
+                runCatching { context.close() }
+            }
+        }
+    }
 
     override fun takeFullScreenshot(
         url: String,
@@ -52,40 +61,42 @@ class BrowserScraperImpl : BrowserScraper {
         username: String?,
         password: String?,
         scaleFactor: Double,
+        fitContent: Boolean,
     ): ByteArray {
-        return contextPool.use { context ->
+        return useContext { context ->
             val page = context.newPage()
-            page.setViewportSize((width * scaleFactor).toInt(), (height * scaleFactor).toInt())
+            try {
+                page.setViewportSize((width * scaleFactor).toInt(), (height * scaleFactor).toInt())
 
-            // --- 资源过滤优化 ---
-            var token: String? = null
-            if (username != null && password != null) {
-                token = Base64.encode("$username:$password".toByteArray())
-            }
-            page.route("**/*") { route ->
-                val headers = HashMap(route.request().headers())
-                if (token != null) {
-                    headers["Authorization"] = "Basic $token"
+                // --- 资源过滤优化 ---
+                var token: String? = null
+                if (username != null && password != null) {
+                    token = Base64.encode("$username:$password".toByteArray())
                 }
-                val resourceType = route.request().resourceType()
-                if (listOf("media").contains(resourceType)) {
-                    route.abort()
-                } else {
-                    route.resume(Route.ResumeOptions().setHeaders(headers))
+                page.route("**/*") { route ->
+                    val headers = HashMap(route.request().headers())
+                    if (token != null) {
+                        headers["Authorization"] = "Basic $token"
+                    }
+                    val resourceType = route.request().resourceType()
+                    if (listOf("media").contains(resourceType)) {
+                        route.abort()
+                    } else {
+                        route.resume(Route.ResumeOptions().setHeaders(headers))
+                    }
                 }
-            }
 
-            // --- 导航与等待 ---
-            val waitState = if (waitForNetworkIdle)
-                WaitUntilState.NETWORKIDLE
-            else
-                WaitUntilState.DOMCONTENTLOADED
+                // --- 导航与等待 ---
+                val waitState = if (waitForNetworkIdle)
+                    WaitUntilState.NETWORKIDLE
+                else
+                    WaitUntilState.DOMCONTENTLOADED
 
-            page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
+                page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
 
-            // --- 滚动加载 ---
-            page.evaluate(
-                """
+                // --- 滚动加载 ---
+                page.evaluate(
+                    """
                 async () => {
                     await new Promise((resolve) => {
                         let totalHeight = 0;
@@ -104,32 +115,53 @@ class BrowserScraperImpl : BrowserScraper {
                     });
                 }
             """
-            )
-
-            page.waitForTimeout(500.0)
-
-            // --- 截图 ---
-            val screenshotOptions = Page.ScreenshotOptions()
-                .setFullPage(true)
-                .setType(
-                    when (type) {
-                        BrowserScraper.ScreenshotType.PNG -> com.microsoft.playwright.options.ScreenshotType.PNG
-                        BrowserScraper.ScreenshotType.JPEG -> com.microsoft.playwright.options.ScreenshotType.JPEG
-                    }
                 )
 
-            if (type == BrowserScraper.ScreenshotType.JPEG) {
-                screenshotOptions.setQuality(quality)
-            }
+                page.waitForTimeout(500.0)
 
-            page.screenshot(screenshotOptions)
+                // --- 截图 ---
+                val screenshotType = when (type) {
+                    BrowserScraper.ScreenshotType.PNG -> com.microsoft.playwright.options.ScreenshotType.PNG
+                    BrowserScraper.ScreenshotType.JPEG -> com.microsoft.playwright.options.ScreenshotType.JPEG
+                }
+
+                if (fitContent) {
+                    val target = page.locator(".card")
+                    if (target.count() > 0) {
+                        val locatorOpts = com.microsoft.playwright.Locator.ScreenshotOptions()
+                            .setType(screenshotType)
+                        if (type == BrowserScraper.ScreenshotType.JPEG) {
+                            locatorOpts.setQuality(quality)
+                        }
+                        target.screenshot(locatorOpts)
+                    } else {
+                        val pageOpts = Page.ScreenshotOptions()
+                            .setFullPage(false)
+                            .setType(screenshotType)
+                        if (type == BrowserScraper.ScreenshotType.JPEG) {
+                            pageOpts.setQuality(quality)
+                        }
+                        page.screenshot(pageOpts)
+                    }
+                } else {
+                    val pageOpts = Page.ScreenshotOptions()
+                        .setFullPage(true)
+                        .setType(screenshotType)
+                    if (type == BrowserScraper.ScreenshotType.JPEG) {
+                        pageOpts.setQuality(quality)
+                    }
+                    page.screenshot(pageOpts)
+                }
+            } finally {
+                page.close()
+            }
         }
     }
 
     override fun scrape(url: String, maxMarkdownChars: Int): ScrapedResult {
         log.info("Scraping $url")
 
-        return contextPool.use { context ->
+        return useContext { context ->
             val page = context.newPage()
             page.setViewportSize(1920, 1080)
 
@@ -230,8 +262,7 @@ class BrowserScraperImpl : BrowserScraper {
     }
 
     override fun close() {
-        runCatching { contextPool.close() }
-        BrowserSession.close()
+        sessionPool.close()
     }
 
     @Serializable
