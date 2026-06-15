@@ -380,7 +380,7 @@ class ConfigHolderImpl : ConfigProvider {
         }
         val enabled = getEnabledPlugins(botKey)
         val disabled = getDisabledPlugins(botKey) ?: emptyList()
-        val matchShort = { short: String -> pluginName == short || pluginName.endsWith("_$short") }
+        val matchShort = { short: String -> pluginName == short || pluginName.startsWith("${short}_") }
         return when {
             enabled != null -> enabled.any(matchShort)
             else -> disabled.none(matchShort)
