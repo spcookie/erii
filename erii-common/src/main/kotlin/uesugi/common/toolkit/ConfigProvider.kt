@@ -32,7 +32,6 @@ data class BotConfig(
     val groupsOverride: BotGroupsOverride? = null,
     val enabledPlugins: List<String>? = null,
     val disabledPlugins: List<String>? = null,
-    val serverHost: String? = null,
     val externalHost: String? = null
 )
 
@@ -61,6 +60,7 @@ interface ConfigProvider {
     fun getLlmOpenRouterBaseUrl(): String
     fun getLlmOpenRouterModels(): Map<String, String>
     fun getChoiceProvider(): String
+    fun isLlmCapabilityEnabled(name: String): Boolean
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String
@@ -143,6 +143,7 @@ object ConfigHolder {
     fun getLlmOpenRouterBaseUrl(): String = provider.getLlmOpenRouterBaseUrl()
     fun getLlmOpenRouterModels(): Map<String, String> = provider.getLlmOpenRouterModels()
     fun getChoiceProvider(): String = provider.getChoiceProvider()
+    fun isLlmCapabilityEnabled(name: String): Boolean = provider.isLlmCapabilityEnabled(name)
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()

@@ -20,7 +20,6 @@ import uesugi.core.state.emotion.EmotionChangeEvent
 import uesugi.core.state.flow.FlowChangeEvent
 import uesugi.spi.MetaToolSet.Companion.meta
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.map
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -98,7 +97,7 @@ class VolitionGauge(
                         )
                     )
 
-                    gauge.addFatigue(100.0)
+                    gauge.addFatigue(40.0)
                     gauge.state.lastActiveTime = System.currentTimeMillis()
                 }
             }
@@ -122,7 +121,8 @@ class VolitionGauge(
                     state.lastActiveTime = volitionState.lastActiveTime
                     log.debug("从数据库加载主动意愿状态, botId=$botMark, groupId=$groupId, fatigue=${state.fatigue}, stimulus=${state.stimulus}")
                 } else {
-                    log.debug("群组 botId=$botMark, groupId=$groupId 没有主动意愿状态记录, 使用默认值")
+                    state.stimulus = baseDesire
+                    log.debug("群组 botId=$botMark, groupId=$groupId 没有主动意愿状态记录, 使用默认值, stimulus=$baseDesire")
                 }
             }
         } catch (e: Exception) {
@@ -216,7 +216,7 @@ class VolitionGauge(
     fun shouldSpeak(): Boolean {
         val impulse = calculateImpulse()
 
-        val threshold = if (flowValue > 70) 70.0 else 95.0
+        val threshold = if (flowValue > 70) 50.0 else 65.0
 
         return impulse > threshold
     }
@@ -246,7 +246,7 @@ class VolitionGaugeManager {
             val onebotBots = ConfigHolder.getOnebotBots()
             val desire = onebotBots[configKey]?.let {
                 it.groups[groupId]?.desire
-            } ?: 0.0
+            } ?: 15.0
             VolitionGauge(mood, botMark, groupId, desire)
         }
     }

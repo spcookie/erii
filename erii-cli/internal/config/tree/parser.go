@@ -392,13 +392,16 @@ func writeHOCON(b *strings.Builder, node ConfigNode, depth int) {
 }
 
 func formatHOCONValue(leaf *LeafNode) string {
-	// Environment variable references should not be quoted
-	if leaf.isEnvRef {
-		return leaf.Value().(string)
-	}
-	// Null values should serialize as null
+	// Null values should serialize as null (check before env ref: null+isEnvRef can coexist)
 	if leaf.isNull {
 		return "null"
+	}
+	// Environment variable references should not be quoted
+	if leaf.isEnvRef {
+		if v := leaf.Value(); v != nil {
+			return v.(string)
+		}
+		return ""
 	}
 	switch leaf.ValueType() {
 	case TypeBool:

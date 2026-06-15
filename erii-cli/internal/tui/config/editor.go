@@ -555,6 +555,7 @@ func (m *LeafEditorModel) saveValue() {
 			// isNullMark is true and formValue is empty - set to null
 			m.leaf.SetValue(nil)
 			m.leaf.SetNull(true)
+			m.leaf.SetEnvRef(false)
 		}
 
 	case tree.TypeNumber:
@@ -609,6 +610,7 @@ func (m *LeafEditorModel) saveValue() {
 		} else {
 			m.leaf.SetValue(nil)
 			m.leaf.SetNull(true)
+			m.leaf.SetEnvRef(false)
 		}
 	}
 }

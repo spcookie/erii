@@ -70,7 +70,7 @@ class ConfigHolderImpl : ConfigProvider {
     }
 
     private fun getLlmModelsHierarchical(provider: String): Map<String, String> {
-        val hierarchicalPath = "llm.$provider.models"
+        val hierarchicalPath = "llm.providers.$provider.models"
         val hierarchicalConfig = config.getConfig(hierarchicalPath)
         val result = mutableMapOf<String, String>()
         // Read all tier keys from config
@@ -88,36 +88,43 @@ class ConfigHolderImpl : ConfigProvider {
         return result
     }
 
-    override fun getLlmGoogleApiKey(): String = config.getString("llm.google.api-key")
-    override fun getLlmGoogleBaseUrl(): String = config.getString("llm.google.base-url")
+    override fun getLlmGoogleApiKey(): String = config.getString("llm.providers.google.api-key")
+    override fun getLlmGoogleBaseUrl(): String = config.getString("llm.providers.google.base-url")
     override fun getLlmGoogleModels(): Map<String, String> = getLlmModelsHierarchical("google")
 
-    override fun getLlmDeepSeekApiKey(): String = config.getString("llm.deep-seek.api-key")
-    override fun getLlmDeepSeekBaseUrl(): String = config.getString("llm.deep-seek.base-url")
+    override fun getLlmDeepSeekApiKey(): String = config.getString("llm.providers.deep-seek.api-key")
+    override fun getLlmDeepSeekBaseUrl(): String = config.getString("llm.providers.deep-seek.base-url")
     override fun getLlmDeepSeekModels(): Map<String, String> =
         getLlmModelsHierarchical("deep-seek")
 
-    override fun getLlmMinimaxApiKey(): String = config.getString("llm.minimax.api-key")
-    override fun getLlmMinimaxBaseUrl(): String = config.getString("llm.minimax.base-url")
+    override fun getLlmMinimaxApiKey(): String = config.getString("llm.providers.minimax.api-key")
+    override fun getLlmMinimaxBaseUrl(): String = config.getString("llm.providers.minimax.base-url")
     override fun getLlmMinimaxModels(): Map<String, String> =
         getLlmModelsHierarchical("minimax")
 
-    override fun getLlmOpenAIApiKey(): String = config.getString("llm.openai.api-key")
-    override fun getLlmOpenAIBaseUrl(): String = config.getString("llm.openai.base-url")
+    override fun getLlmOpenAIApiKey(): String = config.getString("llm.providers.openai.api-key")
+    override fun getLlmOpenAIBaseUrl(): String = config.getString("llm.providers.openai.base-url")
     override fun getLlmOpenAIModels(): Map<String, String> =
         getLlmModelsHierarchical("openai")
 
-    override fun getLlmAnthropicApiKey(): String = config.getString("llm.anthropic.api-key")
-    override fun getLlmAnthropicBaseUrl(): String = config.getString("llm.anthropic.base-url")
+    override fun getLlmAnthropicApiKey(): String = config.getString("llm.providers.anthropic.api-key")
+    override fun getLlmAnthropicBaseUrl(): String = config.getString("llm.providers.anthropic.base-url")
     override fun getLlmAnthropicModels(): Map<String, String> =
         getLlmModelsHierarchical("anthropic")
 
-    override fun getLlmOpenRouterApiKey(): String = config.getString("llm.openrouter.api-key")
-    override fun getLlmOpenRouterBaseUrl(): String = config.getString("llm.openrouter.base-url")
+    override fun getLlmOpenRouterApiKey(): String = config.getString("llm.providers.openrouter.api-key")
+    override fun getLlmOpenRouterBaseUrl(): String = config.getString("llm.providers.openrouter.base-url")
     override fun getLlmOpenRouterModels(): Map<String, String> =
         getLlmModelsHierarchical("openrouter")
 
     override fun getChoiceProvider(): String = config.getString("llm.choice-provider")
+
+    override fun isLlmCapabilityEnabled(name: String): Boolean =
+        try {
+            config.getBoolean("llm.capability.$name")
+        } catch (_: Exception) {
+            true
+        }
 
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
     override fun getEmbeddingProvider(): String = config.getString("embedding.provider")
@@ -165,7 +172,6 @@ class ConfigHolderImpl : ConfigProvider {
                     disabledPlugins = if (botConfig.hasPath("disabled-plugins")) {
                         parseStringList(botConfig, "disabled-plugins")
                     } else null,
-                    serverHost = botConfig.tryGetString("server-host"),
                     externalHost = botConfig.tryGetString("external-host")
                 )
             }

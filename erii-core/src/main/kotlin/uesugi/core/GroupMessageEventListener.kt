@@ -16,7 +16,7 @@ import uesugi.onebot.core.model.GroupMessageEvent
 import uesugi.onebot.core.model.RawEvent
 import uesugi.onebot.core.transport.JsonFactory
 import uesugi.onebot.sdk.client.OneBotClient
-import uesugi.onebot.sdk.client.onGroupMessage
+import uesugi.onebot.sdk.client.event.onGroupMessage
 
 class GroupMessageEventListener(
     private val botId: String,

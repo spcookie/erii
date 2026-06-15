@@ -74,7 +74,9 @@ class FlowJob(
 
     private fun ensureFlowGaugeExists(botMark: String, groupId: String) {
         val flowGaugeManager by GlobalContext.get().inject<FlowGaugeManager>()
-        flowGaugeManager.getOrCreate(botMark, groupId, BotManage.getBot(botMark).role.emoticon)
+        val configKey = BotManage.getConfigKey(botMark)
+        val baseDesire = ConfigHolder.getOnebotBots()[configKey]?.groups?.get(groupId)?.desire ?: 15.0
+        flowGaugeManager.getOrCreate(botMark, groupId, BotManage.getBot(botMark).role.emoticon, baseDesire)
     }
 
     @OptIn(ExperimentalTime::class)

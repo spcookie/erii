@@ -48,7 +48,8 @@ class BrowserScraperImpl : BrowserScraper {
         type: BrowserScraper.ScreenshotType,
         waitForNetworkIdle: Boolean,
         username: String?,
-        password: String?
+        password: String?,
+        scaleFactor: Double,
     ): ByteArray {
         val session = BrowserSession.getInstance()
 
@@ -56,7 +57,7 @@ class BrowserScraperImpl : BrowserScraper {
             session.browser.newContext(
                 Browser.NewContextOptions()
                     .setViewportSize(width, height)
-                    .setDeviceScaleFactor(1.0)
+                    .setDeviceScaleFactor(scaleFactor)
             ).use { context ->
                 try {
                     val page = context.newPage()

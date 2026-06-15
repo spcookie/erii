@@ -7,10 +7,14 @@ import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.message.AttachmentContent
 import ai.koog.prompt.message.AttachmentSource
+import ai.koog.prompt.message.MessagePart
 import com.nlf.calendar.Solar
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import okio.Path.Companion.toPath
 import okio.buffer
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
@@ -27,17 +31,24 @@ import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.memory.FactsEntity
 import uesugi.core.state.memory.UserProfileEntity
 import uesugi.core.state.summary.SummaryEntity
+import java.util.*
 import kotlin.time.Clock
 
 internal suspend fun buildPrompt(context: Context): Prompt {
     val transient = context.toTransient()
     val constraints = buildConstraint(context, transient)
     val supportsVision = LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
+    val objectStorage: ObjectStorage by ref()
+    val thumbnailService = ThumbnailService(objectStorage)
 
     val imageSources = if (supportsVision) {
-        transient.histories
+        val imageHistories = transient.histories
             .filter { it.messageType == MessageType.IMAGE && context.currentBotId != it.userId }
-            .associate { it.id to loadImageSource(it) }
+        val lastImageId = imageHistories.lastOrNull()?.id
+        imageHistories.associate { history ->
+            val useOriginal = history.id == lastImageId
+            history.id to loadImageSource(history, objectStorage, thumbnailService, useOriginal)
+        }
     } else emptyMap()
 
     return prompt("群聊机器人") {
@@ -64,8 +75,13 @@ internal suspend fun buildPrompt(context: Context): Prompt {
                 if (transient.histories.isNotEmpty()) {
                     header(2, "最近群聊记录")
                     line { text("按时间顺序排列的群聊消息如下。") }
-                    line { text("注意：你的历史发言（assistant 消息）是你此前通过调用 sendText、sendMeme、sendImageByUrl、sendAtAndText、sendAtAll 等工具发送到群里的记录，不是直接输出的文本。") }
-                    line { text("你必须始终通过调用工具来发送消息，禁止直接输出聊天内容。") }
+                    line { text("格式说明：") }
+                    bulleted {
+                        item { line { text("你的历史发言以工具调用形式展示，每次调用后的 [OK] 只是系统投递确认，不是群聊消息，不需要回应。") } }
+                        item { line { text("你必须始终通过调用工具来发送消息，禁止直接输出聊天内容。") } }
+                        item { line { text("一条消息说清楚就够，不要用不同措辞反复发送同一句话。") } }
+                        item { line { text("回应完毕后应输出 <end_tern> 或调用 sendSilent() 结束。") } }
+                    }
                     if (!supportsVision) {
                         line { text("图片：包含图片ID：image_id") }
                     }
@@ -74,13 +90,23 @@ internal suspend fun buildPrompt(context: Context): Prompt {
         }
         for (history in transient.histories) {
             val isBot = context.currentBotId == history.userId
-            val prefix = if (isBot) {
-                "${DateTimeFormat.format(history.createdAt)} [${BotManage.getBot(history.userId).role.name}](${history.userId}) [已发送]: "
-            } else {
-                "${DateTimeFormat.format(history.createdAt)} [${history.nick}](${history.userId}): "
+
+            if (isBot) {
+                val call = buildBotToolCall(history, generateToolCallId())
+                if (call != null) {
+                    assistant {
+                        toolCall(call)
+                    }
+                    toolResult(tool = call.tool, output = "[OK]", id = call.id)
+                } else {
+                    assistant(history.content ?: "")
+                }
+                continue
             }
 
-            if (history.messageType == MessageType.IMAGE && supportsVision && !isBot) {
+            val prefix = "${DateTimeFormat.format(history.createdAt)} [${history.nick}](${history.userId}): "
+
+            if (history.messageType == MessageType.IMAGE && supportsVision) {
                 val imageSource = imageSources[history.id]
                 if (imageSource != null) {
                     user {
@@ -99,20 +125,52 @@ internal suspend fun buildPrompt(context: Context): Prompt {
                     }
                     append(history.content)
                 }
-                if (isBot) assistant(content) else user(content)
+                user(content)
             }
         }
     }
 }
 
-private fun loadImageSource(history: HistoryRecord): AttachmentSource.Image? {
+private fun generateToolCallId(): String {
+    return "toolu_" + UUID.randomUUID().toString().replace("-", "").take(22)
+}
+
+private fun buildBotToolCall(history: HistoryRecord, callId: String): MessagePart.Tool.Call? {
+    return when (history.messageType) {
+        MessageType.TEXT, MessageType.IMAGE -> {
+            val text = when (history.messageType) {
+                MessageType.IMAGE -> "[图片]"
+                else -> history.content ?: ""
+            }
+            MessagePart.Tool.Call(
+                id = callId,
+                tool = "sendText",
+                args = buildJsonObject {
+                    put("texts", JsonArray(listOf(JsonPrimitive(text))))
+                }
+            )
+        }
+
+        else -> null
+    }
+}
+
+private suspend fun loadImageSource(
+    history: HistoryRecord,
+    objectStorage: ObjectStorage,
+    thumbnailService: ThumbnailService,
+    useOriginal: Boolean = false
+): AttachmentSource.Image? {
     val resource = history.resource ?: return null
     val resourceService: ResourceService by ref()
-    val objectStorage: ObjectStorage by ref()
 
     return try {
         val fullResource = resourceService.getResource(resource.id ?: return null) ?: return null
-        val bytes = objectStorage.get(fullResource.url.toPath()).buffer().readByteArray()
+        val bytes = if (useOriginal) {
+            objectStorage.get(fullResource.url.toPath()).buffer().readByteArray()
+        } else {
+            thumbnailService.getThumbnail(fullResource) ?: return null
+        }
         val format = extractImageFormat(fullResource.fileName)
         AttachmentSource.Image(
             content = AttachmentContent.Binary.Bytes(bytes),
@@ -278,9 +336,9 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
 fun MarkdownContentBuilder.buildConstraintRulePrompt() {
     h2("重要约束")
     bulleted {
-        item { line { text("工具调用完毕后，请输出 <end_tern>") } }
+        item { line { text("发言完毕立即输出 <end_tern> 或调用 sendSilent() 结束。禁止用不同措辞重复同一句话，说一遍就够了。") } }
         item { line { text("你处于群聊环境中，所有对外消息必须通过调用 sendText 等发言工具发送。直接返回的纯文本内容不会出现在群聊中，等同于未发言。") } }
-        item { line { text("如果你判断本次不应对外发言，唯一正确的做法是调用 sendSilent() 结束本次交互。禁止直接返回 SILENT 文本。") } }
+        item { line { text("如果你判断本次不应对外发言，唯一正确的做法是调用 sendSilent() 结束本次交互。禁止直接返回文本。") } }
         item { line { text("你是在聊天，不是在写答案，不是在总结。") } }
         item { line { text("在群聊中，你应该像真人一样使用多种表达方式。") } }
     }
@@ -314,8 +372,10 @@ fun MarkdownContentBuilder.buildRuleAwarenessPrompt() {
 
 fun MarkdownContentBuilder.buildMemeAwarenessPrompt(memes: Int) {
     h2("表情包感知")
-    line { text("你可以使用 `send_meme` 工具发送表情包") }
+    line { text("你可以使用 `send_meme` 工具发送表情包来活跃气氛、表达情绪或回应群友。") }
     line { text("当前可以发送的表情包数量：$memes") }
+    line { text("适当使用表情包能让对话更生动自然，建议在合适的时机积极使用。") }
+    line { text("例如：回应吐槽时、表达开心时、接梗时、缓和气氛时都可以发。") }
 }
 
 fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {

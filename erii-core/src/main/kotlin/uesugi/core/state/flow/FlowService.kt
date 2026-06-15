@@ -33,6 +33,7 @@ class FlowGauge(
     mood: EmotionalTendencies,
     private val botMark: String,
     private val groupId: String,
+    private val minFlow: Double = 5.0,
     private val decayIntervalMs: Long = 1000 * 60L,
     private val persistIntervalMs: Long = 1000 * 20L
 ) {
@@ -162,10 +163,9 @@ class FlowGauge(
     }
 
     fun decayFlow() {
-        val minutes = 1.0
-        var drainAmount = minutes
-        if (pleasure < -0.3) drainAmount = 5.0 * minutes
-        state.drain(drainAmount, botMark, groupId)
+        if (state.value <= minFlow) return
+        val drainAmount = if (pleasure < -0.3) 1.5 else 0.3
+        state.drain(minOf(drainAmount, state.value - minFlow), botMark, groupId)
     }
 
     fun mapToState(): FlowMeterState {
@@ -197,11 +197,12 @@ class FlowGaugeManager {
         private val log = logger()
     }
 
-    fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies): FlowGauge {
+    fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies, baseDesire: Double = 15.0): FlowGauge {
         val key = "$botMark:$groupId"
         return gauges.getOrPut(key) {
-            log.debug("创建新的FlowGauge实例, botId=$botMark, groupId=$groupId")
-            FlowGauge(mood, botMark, groupId)
+            val minFlow = (baseDesire * 0.3).coerceIn(1.0, 20.0)
+            log.debug("创建新的FlowGauge实例, botId=$botMark, groupId=$groupId, minFlow=$minFlow")
+            FlowGauge(mood, botMark, groupId, minFlow)
         }
     }
 
