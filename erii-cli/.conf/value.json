@@ -174,27 +174,6 @@
     "type": "boolean",
     "default": true
   },
-  "llm.providers.deep-seek.api-key": {
-    "type": "string",
-    "nullable": true,
-    "default": ""
-  },
-  "llm.providers.deep-seek.base-url": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.deep-seek.models.flash": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.deep-seek.models.lite": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.deep-seek.models.pro": {
-    "type": "string",
-    "default": ""
-  },
   "llm.providers.google.api-key": {
     "type": "string",
     "nullable": true,
@@ -213,27 +192,6 @@
     "default": ""
   },
   "llm.providers.google.models.pro": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.minimax.api-key": {
-    "type": "string",
-    "nullable": true,
-    "default": ""
-  },
-  "llm.providers.minimax.base-url": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.minimax.models.flash": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.minimax.models.lite": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.minimax.models.pro": {
     "type": "string",
     "default": ""
   },

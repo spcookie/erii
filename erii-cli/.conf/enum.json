@@ -7,8 +7,6 @@
   "llm.choice-provider": [
     "none",
     "google",
-    "minimax",
-    "deep-seek",
     "openai",
     "anthropic",
     "openrouter"

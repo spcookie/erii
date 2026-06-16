@@ -44,12 +44,6 @@ interface ConfigProvider {
     fun getLlmGoogleApiKey(): String
     fun getLlmGoogleBaseUrl(): String
     fun getLlmGoogleModels(): Map<String, String>
-    fun getLlmDeepSeekApiKey(): String
-    fun getLlmDeepSeekBaseUrl(): String
-    fun getLlmDeepSeekModels(): Map<String, String>
-    fun getLlmMinimaxApiKey(): String
-    fun getLlmMinimaxBaseUrl(): String
-    fun getLlmMinimaxModels(): Map<String, String>
     fun getLlmOpenAIApiKey(): String
     fun getLlmOpenAIBaseUrl(): String
     fun getLlmOpenAIModels(): Map<String, String>
@@ -128,12 +122,6 @@ object ConfigHolder {
     fun getLlmGoogleApiKey(): String = provider.getLlmGoogleApiKey()
     fun getLlmGoogleBaseUrl(): String = provider.getLlmGoogleBaseUrl()
     fun getLlmGoogleModels(): Map<String, String> = provider.getLlmGoogleModels()
-    fun getLlmDeepSeekApiKey(): String = provider.getLlmDeepSeekApiKey()
-    fun getLlmDeepSeekBaseUrl(): String = provider.getLlmDeepSeekBaseUrl()
-    fun getLlmDeepSeekModels(): Map<String, String> = provider.getLlmDeepSeekModels()
-    fun getLlmMinimaxApiKey(): String = provider.getLlmMinimaxApiKey()
-    fun getLlmMinimaxBaseUrl(): String = provider.getLlmMinimaxBaseUrl()
-    fun getLlmMinimaxModels(): Map<String, String> = provider.getLlmMinimaxModels()
     fun getLlmOpenAIApiKey(): String = provider.getLlmOpenAIApiKey()
     fun getLlmOpenAIBaseUrl(): String = provider.getLlmOpenAIBaseUrl()
     fun getLlmOpenAIModels(): Map<String, String> = provider.getLlmOpenAIModels()

@@ -60,46 +60,6 @@ object LLMProviderChoice {
         )
     }
 
-    private fun deepSeekModel(tier: String): LLModel {
-        val models = ConfigHolder.getLlmDeepSeekModels()
-        val modelId = resolveModelId(models, tier)
-        return LLModel(
-            provider = LLMProvider.DeepSeek,
-            id = modelId,
-            capabilities = filterCapabilities(
-                tier,
-                listOf(
-                    LLMCapability.Completion,
-                    LLMCapability.PromptCaching,
-                    LLMCapability.Temperature,
-                    LLMCapability.Tools,
-                    LLMCapability.ToolChoice,
-                )
-            ),
-        )
-    }
-
-    private fun minimaxModel(tier: String): LLModel {
-        val models = ConfigHolder.getLlmMinimaxModels()
-        val modelId = resolveModelId(models, tier)
-        return LLModel(
-            provider = LLMProvider.Anthropic,
-            id = modelId,
-            capabilities = filterCapabilities(
-                tier,
-                listOf(
-                    LLMCapability.Completion,
-                    LLMCapability.Temperature,
-                    LLMCapability.Tools,
-                    LLMCapability.ToolChoice,
-                    LLMCapability.PromptCaching,
-                    LLMCapability.Thinking,
-                    LLMCapability.Vision.Image,
-                )
-            ),
-        )
-    }
-
     private fun openaiModel(tier: String): LLModel {
         val models = ConfigHolder.getLlmOpenAIModels()
         val modelId = resolveModelId(models, tier)
@@ -168,8 +128,6 @@ object LLMProviderChoice {
     val Lite by lazy {
         when (choice) {
             "GOOGLE" -> googleModel("lite")
-            "DEEP_SEEK" -> deepSeekModel("lite")
-            "MINIMAX" -> minimaxModel("lite")
             "OPENAI" -> openaiModel("lite")
             "ANTHROPIC" -> anthropicModel("lite")
             "OPENROUTER" -> openrouterModel("lite")
@@ -180,8 +138,6 @@ object LLMProviderChoice {
     val Flash by lazy {
         when (choice) {
             "GOOGLE" -> googleModel("flash")
-            "DEEP_SEEK" -> deepSeekModel("flash")
-            "MINIMAX" -> minimaxModel("flash")
             "OPENAI" -> openaiModel("flash")
             "ANTHROPIC" -> anthropicModel("flash")
             "OPENROUTER" -> openrouterModel("flash")
@@ -192,8 +148,6 @@ object LLMProviderChoice {
     val Pro by lazy {
         when (choice) {
             "GOOGLE" -> googleModel("pro")
-            "DEEP_SEEK" -> deepSeekModel("pro")
-            "MINIMAX" -> minimaxModel("pro")
             "OPENAI" -> openaiModel("pro")
             "ANTHROPIC" -> anthropicModel("pro")
             "OPENROUTER" -> openrouterModel("pro")
