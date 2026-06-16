@@ -73,7 +73,7 @@ object RoutingAgent {
         try {
             val result = promptExecutor.execute(
                 prompt,
-                model = LLMProviderChoice.Lite,
+                model = LLMProviderChoice.Flash,
             )
             return RouteRuleRegister.getRule(result.textContent().trim())!!
         } catch (e: Exception) {

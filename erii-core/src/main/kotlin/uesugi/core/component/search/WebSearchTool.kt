@@ -65,7 +65,7 @@ object WebSearchTool : ToolSet {
 
         val result = promptExecutor.executeStructured<SearchPlan>(
             prompt = rewritePrompt,
-            model = LLMProviderChoice.Lite,
+            model = LLMProviderChoice.Flash,
             fixingParser = StructureFixingParser(
                 model = LLMProviderChoice.Lite,
                 retries = 2
