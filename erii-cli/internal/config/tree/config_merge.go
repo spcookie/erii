@@ -109,6 +109,133 @@ func extractFieldKey(line string) string {
 	return ""
 }
 
+// isBlock returns true if the field lines represent a nested HOCON block
+// (i.e., the first line opens a block with "key {" and the last line closes it with "}").
+func isBlock(lines []string) bool {
+	if len(lines) < 2 {
+		return false
+	}
+	first := strings.TrimSpace(lines[0])
+	last := strings.TrimSpace(lines[len(lines)-1])
+	return strings.HasSuffix(first, "{") && last == "}"
+}
+
+// extractBlockFieldKeysOrdered returns the keys of top-level fields inside a block, in appearance order.
+func extractBlockFieldKeysOrdered(lines []string) []string {
+	var order []string
+	if len(lines) < 2 {
+		return order
+	}
+	depth := 1
+	for i := 1; i < len(lines); i++ {
+		line := lines[i]
+		open, close := countBracesOutsideStrings(line)
+		newDepth := depth + open - close
+		if depth == 1 && newDepth >= 1 {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") || trimmed == "}" {
+				depth = newDepth
+				continue
+			}
+			key := extractFieldKey(trimmed)
+			if key != "" {
+				order = append(order, key)
+			}
+		}
+		depth = newDepth
+	}
+	return order
+}
+
+// extractFieldsRecursive returns all fields at any nesting depth using dot-notation keys.
+// Exposed for testing.
+func extractFieldsRecursive(lines []string) map[string][]string {
+	result := make(map[string][]string)
+	extractFieldsRecursiveInner(lines, "", result)
+	return result
+}
+
+func extractFieldsRecursiveInner(lines []string, prefix string, result map[string][]string) {
+	fields := extractBlockFieldLines(lines)
+	order := extractBlockFieldKeysOrdered(lines)
+	for _, key := range order {
+		fieldLines := fields[key]
+		fullKey := key
+		if prefix != "" {
+			fullKey = prefix + "." + key
+		}
+		result[fullKey] = fieldLines
+		if isBlock(fieldLines) {
+			extractFieldsRecursiveInner(fieldLines, fullKey, result)
+		}
+	}
+}
+
+// mergeBlockRecursive merges src block lines into dst block lines recursively.
+// Returns the merged block lines and the dot-notation paths that were added.
+func mergeBlockRecursive(srcLines, dstLines []string) ([]string, []string) {
+	if len(dstLines) < 2 {
+		// Malformed dst block; just return src
+		return srcLines, nil
+	}
+
+	srcFields := extractBlockFieldLines(srcLines)
+	dstFields := extractBlockFieldLines(dstLines)
+	srcOrder := extractBlockFieldKeysOrdered(srcLines)
+	dstOrder := extractBlockFieldKeysOrdered(dstLines)
+
+	dstFieldSet := make(map[string]bool, len(dstFields))
+	for k := range dstFields {
+		dstFieldSet[k] = true
+	}
+
+	var output []string
+	var addedPaths []string
+
+	// Keep opening line from dst
+	output = append(output, dstLines[0])
+
+	processed := make(map[string]bool)
+
+	// Process dst fields in order: recursively merge shared block fields, keep others
+	for _, key := range dstOrder {
+		dstFieldLines := dstFields[key]
+		if srcFieldLines, inSrc := srcFields[key]; inSrc {
+			if isBlock(srcFieldLines) && isBlock(dstFieldLines) {
+				// Both are blocks: recursively merge
+				mergedLines, innerAdded := mergeBlockRecursive(srcFieldLines, dstFieldLines)
+				output = append(output, mergedLines...)
+				for _, a := range innerAdded {
+					addedPaths = append(addedPaths, key+"."+a)
+				}
+			} else {
+				// Keep dst (user value preserved for leaves or type mismatch)
+				output = append(output, dstFieldLines...)
+			}
+		} else {
+			// Only in dst: keep
+			output = append(output, dstFieldLines...)
+		}
+		processed[key] = true
+	}
+
+	// Add new fields from src in src order
+	for _, key := range srcOrder {
+		if dstFieldSet[key] {
+			continue
+		}
+		// Separate from preceding field with a blank line
+		output = append(output, "")
+		output = append(output, srcFields[key]...)
+		addedPaths = append(addedPaths, key)
+	}
+
+	// Closing brace
+	output = append(output, dstLines[len(dstLines)-1])
+
+	return output, addedPaths
+}
+
 // extractBlockFieldLines extracts top-level fields from inside a HOCON block.
 // The blockLines include the opening and closing braces.
 func extractBlockFieldLines(blockLines []string) map[string][]string {
@@ -157,8 +284,9 @@ func extractBlockFieldLines(blockLines []string) map[string][]string {
 	return fields
 }
 
-// mergeHOCONFile merges src HOCON into dst. New top-level blocks are appended.
-// New fields inside existing blocks are inserted into those blocks (before closing }).
+// mergeHOCONFile merges src HOCON into dst using recursive block merging.
+// New top-level blocks are appended. New fields inside existing blocks are merged
+// recursively, preserving user-modified values in dst.
 func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 	srcData, err := os.ReadFile(srcPath)
 	if err != nil {
@@ -187,75 +315,50 @@ func mergeHOCONFile(srcPath, dstPath string) FileMergeResult {
 		}
 	}
 
-	// Find new fields inside existing blocks
-	srcBlocks := extractHOCONBlocks(string(srcData))
-	dstBlocks := extractHOCONBlocks(string(dstData))
-
-	dstFieldKeysMap := make(map[string]map[string]bool, len(dstBlocks))
-	for _, b := range dstBlocks {
-		fields := extractBlockFieldLines(b.lines)
-		keys := make(map[string]bool, len(fields))
-		for k := range fields {
-			keys[k] = true
-		}
-		dstFieldKeysMap[b.key] = keys
-	}
-
-	// Collect new nested fields by parent block: blockKey -> new field lines
-	newFieldsByBlock := make(map[string][]string)
-	var addedKeys []string
-	addedKeys = append(addedKeys, newKeys...)
-
-	for _, srcBlock := range srcBlocks {
-		if !dstKeys[srcBlock.key] {
-			continue
-		}
-		dstFieldKeys, ok := dstFieldKeysMap[srcBlock.key]
-		if !ok {
-			continue
-		}
-		srcFieldLines := extractBlockFieldLines(srcBlock.lines)
-		for fieldKey, fieldLines := range srcFieldLines {
-			if !dstFieldKeys[fieldKey] {
-				newFieldsByBlock[srcBlock.key] = append(newFieldsByBlock[srcBlock.key], fieldLines...)
-				addedKeys = append(addedKeys, srcBlock.key+"."+fieldKey)
-			}
-		}
-	}
-
-	// If nothing new
-	if len(newKeys) == 0 && len(newFieldsByBlock) == 0 {
-		if len(dstKeys) == 0 {
-			return FileMergeResult{Action: "source_missing"}
-		}
-		return FileMergeResult{Action: "skipped"}
-	}
-
 	// If dst doesn't exist, just copy src verbatim
 	if len(dstKeys) == 0 {
+		if len(srcKeys) == 0 {
+			return FileMergeResult{Action: "source_missing"}
+		}
 		if err := os.WriteFile(dstPath, srcData, 0644); err != nil {
 			return FileMergeResult{Action: "error", Error: fmt.Errorf("write destination: %w", err)}
 		}
 		return FileMergeResult{Action: "created", AddedKeys: newKeys}
 	}
 
-	// Start with dst content; insert new nested fields into existing blocks
+	// Recursively merge shared top-level blocks
+	srcBlocks := extractHOCONBlocks(string(srcData))
+	dstBlocks := extractHOCONBlocks(string(dstData))
+
 	content := string(dstData)
-	for _, dstBlock := range dstBlocks {
-		newFieldLines, hasNew := newFieldsByBlock[dstBlock.key]
-		if !hasNew {
+	var addedKeys []string
+	addedKeys = append(addedKeys, newKeys...)
+	hasChanges := len(newKeys) > 0
+
+	dstBlockByKey := make(map[string]hoconBlock, len(dstBlocks))
+	for _, b := range dstBlocks {
+		dstBlockByKey[b.key] = b
+	}
+
+	for _, srcBlock := range srcBlocks {
+		dstBlock, exists := dstBlockByKey[srcBlock.key]
+		if !exists {
 			continue
 		}
-		// Insert new fields before the closing } of the block
-		oldBlock := strings.Join(dstBlock.lines, "\n")
-		closingBrace := dstBlock.lines[len(dstBlock.lines)-1]
-		innerLines := make([]string, 0, len(dstBlock.lines)+len(newFieldLines)+1)
-		innerLines = append(innerLines, dstBlock.lines[:len(dstBlock.lines)-1]...)
-		innerLines = append(innerLines, "")
-		innerLines = append(innerLines, newFieldLines...)
-		innerLines = append(innerLines, closingBrace)
-		newBlock := strings.Join(innerLines, "\n")
-		content = strings.Replace(content, oldBlock, newBlock, 1)
+		mergedLines, innerAdded := mergeBlockRecursive(srcBlock.lines, dstBlock.lines)
+		for _, a := range innerAdded {
+			addedKeys = append(addedKeys, srcBlock.key+"."+a)
+		}
+		if len(innerAdded) > 0 {
+			hasChanges = true
+			oldBlock := strings.Join(dstBlock.lines, "\n")
+			newBlock := strings.Join(mergedLines, "\n")
+			content = strings.Replace(content, oldBlock, newBlock, 1)
+		}
+	}
+
+	if !hasChanges {
+		return FileMergeResult{Action: "skipped"}
 	}
 
 	// Append new top-level blocks
