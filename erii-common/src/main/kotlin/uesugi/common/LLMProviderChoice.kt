@@ -47,17 +47,15 @@ object LLMProviderChoice {
             id = modelId,
             capabilities = filterCapabilities(
                 listOf(
-                LLMCapability.Completion,
-                LLMCapability.PromptCaching,
-                LLMCapability.Temperature,
-                LLMCapability.Tools,
-                LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices,
+                    LLMCapability.Completion,
+                    LLMCapability.PromptCaching,
+                    LLMCapability.Temperature,
+                    LLMCapability.Tools,
+                    LLMCapability.ToolChoice,
+                    LLMCapability.MultipleChoices,
                     LLMCapability.Vision.Image,
                 )
             ),
-            contextLength = 128_000,
-            maxOutputTokens = 8_000
         )
     }
 
@@ -69,15 +67,13 @@ object LLMProviderChoice {
             id = modelId,
             capabilities = filterCapabilities(
                 listOf(
-                LLMCapability.Completion,
-                LLMCapability.PromptCaching,
-                LLMCapability.Temperature,
-                LLMCapability.Tools,
+                    LLMCapability.Completion,
+                    LLMCapability.PromptCaching,
+                    LLMCapability.Temperature,
+                    LLMCapability.Tools,
                     LLMCapability.ToolChoice,
                 )
             ),
-            contextLength = 128_000,
-            maxOutputTokens = 8_000
         )
     }
 
@@ -89,17 +85,15 @@ object LLMProviderChoice {
             id = modelId,
             capabilities = filterCapabilities(
                 listOf(
-                LLMCapability.Completion,
-                LLMCapability.Temperature,
-                LLMCapability.Tools,
-                LLMCapability.ToolChoice,
-                LLMCapability.PromptCaching,
-                LLMCapability.Thinking,
+                    LLMCapability.Completion,
+                    LLMCapability.Temperature,
+                    LLMCapability.Tools,
+                    LLMCapability.ToolChoice,
+                    LLMCapability.PromptCaching,
+                    LLMCapability.Thinking,
                     LLMCapability.Vision.Image,
                 )
             ),
-            contextLength = 512_000,
-            maxOutputTokens = 512_000
         )
     }
 
@@ -111,17 +105,17 @@ object LLMProviderChoice {
             id = modelId,
             capabilities = filterCapabilities(
                 listOf(
-                LLMCapability.Completion,
-                LLMCapability.PromptCaching,
-                LLMCapability.Temperature,
-                LLMCapability.Tools,
-                LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices,
+                    LLMCapability.Completion,
+                    LLMCapability.PromptCaching,
+                    LLMCapability.Temperature,
+                    LLMCapability.Thinking,
+                    LLMCapability.Tools,
+                    LLMCapability.ToolChoice,
+                    LLMCapability.MultipleChoices,
                     LLMCapability.Vision.Image,
+                    LLMCapability.OpenAIEndpoint.Completions,
                 )
-            ),
-            contextLength = 128_000,
-            maxOutputTokens = 16_000
+            )
         )
     }
 
@@ -133,17 +127,15 @@ object LLMProviderChoice {
             id = modelId,
             capabilities = filterCapabilities(
                 listOf(
-                LLMCapability.Completion,
-                LLMCapability.PromptCaching,
-                LLMCapability.Temperature,
-                LLMCapability.Tools,
-                LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices,
+                    LLMCapability.Completion,
+                    LLMCapability.PromptCaching,
+                    LLMCapability.Temperature,
+                    LLMCapability.Tools,
+                    LLMCapability.ToolChoice,
+                    LLMCapability.MultipleChoices,
                     LLMCapability.Vision.Image,
                 )
             ),
-            contextLength = 200_000,
-            maxOutputTokens = 16_000
         )
     }
 
@@ -155,16 +147,14 @@ object LLMProviderChoice {
             id = modelId,
             capabilities = filterCapabilities(
                 listOf(
-                LLMCapability.Completion,
-                LLMCapability.Temperature,
-                LLMCapability.Tools,
-                LLMCapability.ToolChoice,
-                LLMCapability.MultipleChoices,
+                    LLMCapability.Completion,
+                    LLMCapability.Temperature,
+                    LLMCapability.Tools,
+                    LLMCapability.ToolChoice,
+                    LLMCapability.MultipleChoices,
                     LLMCapability.Vision.Image,
                 )
             ),
-            contextLength = 128_000,
-            maxOutputTokens = 16_000
         )
     }
 
