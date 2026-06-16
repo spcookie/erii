@@ -10,7 +10,10 @@ import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
 import uesugi.core.chat.chatModule
-import uesugi.core.component.llm.*
+import uesugi.core.component.llm.AnthropicClientProvider
+import uesugi.core.component.llm.GoogleClientProvider
+import uesugi.core.component.llm.OpenAIClientProvider
+import uesugi.core.component.llm.OpenRouterClientProvider
 import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.core.component.storage.ObjectStorage
@@ -87,8 +90,6 @@ val infrastructureModule = module {
         LLMFactory(
             listOf(
                 GoogleClientProvider(),
-                DeepSeekClientProvider(),
-                MiniMaxClientProvider(),
                 OpenAIClientProvider(),
                 AnthropicClientProvider(),
                 OpenRouterClientProvider()
