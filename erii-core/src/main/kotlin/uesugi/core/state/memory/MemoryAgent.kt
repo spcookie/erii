@@ -171,7 +171,7 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<UserProfileAnalysis>(
             prompt = prompt,
-            model = LLMProviderChoice.Flash,
+            model = LLMProviderChoice.Pro,
             fixingParser = StructureFixingParser(
                 model = LLMProviderChoice.Lite,
                 retries = 2
@@ -259,7 +259,7 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<SummaryAnalysis>(
             prompt = prompt,
-            model = LLMProviderChoice.Flash,
+            model = LLMProviderChoice.Pro,
             fixingParser = StructureFixingParser(
                 model = LLMProviderChoice.Lite,
                 retries = 2
@@ -416,7 +416,7 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<FactExtractionResult>(
             prompt = prompt,
-            model = LLMProviderChoice.Flash,
+            model = LLMProviderChoice.Pro,
             fixingParser = StructureFixingParser(
                 model = LLMProviderChoice.Lite,
                 retries = 2

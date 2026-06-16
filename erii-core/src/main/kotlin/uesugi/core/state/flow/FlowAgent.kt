@@ -198,7 +198,7 @@ class FlowAgent {
         try {
             val response = promptExecutor.executeStructured<FlowAnalysisResult>(
                 prompt,
-                model = LLMProviderChoice.Flash,
+                model = LLMProviderChoice.Pro,
                 fixingParser = StructureFixingParser(
                     model = LLMProviderChoice.Lite,
                     retries = 2

@@ -22,10 +22,10 @@ object LLMProviderChoice {
         else -> ""
     }
 
-    private fun filterCapabilities(capabilities: List<LLMCapability>): List<LLMCapability> =
+    private fun filterCapabilities(tier: String, capabilities: List<LLMCapability>): List<LLMCapability> =
         capabilities.filter { cap ->
             val key = capabilityKey(cap)
-            key.isEmpty() || ConfigHolder.isLlmCapabilityEnabled(key)
+            key.isEmpty() || ConfigHolder.isLlmCapabilityEnabled(tier, key)
         }
 
     private val choice by lazy {
@@ -46,6 +46,7 @@ object LLMProviderChoice {
             provider = LLMProvider.Google,
             id = modelId,
             capabilities = filterCapabilities(
+                tier,
                 listOf(
                     LLMCapability.Completion,
                     LLMCapability.PromptCaching,
@@ -66,6 +67,7 @@ object LLMProviderChoice {
             provider = LLMProvider.DeepSeek,
             id = modelId,
             capabilities = filterCapabilities(
+                tier,
                 listOf(
                     LLMCapability.Completion,
                     LLMCapability.PromptCaching,
@@ -84,6 +86,7 @@ object LLMProviderChoice {
             provider = LLMProvider.Anthropic,
             id = modelId,
             capabilities = filterCapabilities(
+                tier,
                 listOf(
                     LLMCapability.Completion,
                     LLMCapability.Temperature,
@@ -104,6 +107,7 @@ object LLMProviderChoice {
             provider = LLMProvider.OpenAI,
             id = modelId,
             capabilities = filterCapabilities(
+                tier,
                 listOf(
                     LLMCapability.Completion,
                     LLMCapability.PromptCaching,
@@ -126,12 +130,14 @@ object LLMProviderChoice {
             provider = LLMProvider.Anthropic,
             id = modelId,
             capabilities = filterCapabilities(
+                tier,
                 listOf(
                     LLMCapability.Completion,
                     LLMCapability.PromptCaching,
                     LLMCapability.Temperature,
                     LLMCapability.Tools,
                     LLMCapability.ToolChoice,
+                    LLMCapability.Thinking,
                     LLMCapability.MultipleChoices,
                     LLMCapability.Vision.Image,
                 )
@@ -146,6 +152,7 @@ object LLMProviderChoice {
             provider = LLMProvider.OpenRouter,
             id = modelId,
             capabilities = filterCapabilities(
+                tier,
                 listOf(
                     LLMCapability.Completion,
                     LLMCapability.Temperature,

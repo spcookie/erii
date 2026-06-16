@@ -97,7 +97,7 @@ class VolitionAgent {
         return try {
             val response = promptExecutor.executeStructured<StimulusAnalysis>(
                 prompt,
-                model = LLMProviderChoice.Flash,
+                model = LLMProviderChoice.Pro,
                 fixingParser = StructureFixingParser(
                     model = LLMProviderChoice.Lite,
                     retries = 2

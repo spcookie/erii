@@ -61,6 +61,7 @@ interface ConfigProvider {
     fun getLlmOpenRouterModels(): Map<String, String>
     fun getChoiceProvider(): String
     fun isLlmCapabilityEnabled(name: String): Boolean
+    fun isLlmCapabilityEnabled(tier: String, name: String): Boolean
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String
@@ -144,6 +145,7 @@ object ConfigHolder {
     fun getLlmOpenRouterModels(): Map<String, String> = provider.getLlmOpenRouterModels()
     fun getChoiceProvider(): String = provider.getChoiceProvider()
     fun isLlmCapabilityEnabled(name: String): Boolean = provider.isLlmCapabilityEnabled(name)
+    fun isLlmCapabilityEnabled(tier: String, name: String): Boolean = provider.isLlmCapabilityEnabled(tier, name)
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()

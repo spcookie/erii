@@ -74,7 +74,7 @@ class MemeAgent {
 
             val result = promptExecutor.executeStructured<MemoAnalysis>(
                 prompt = userPromptObj,
-                model = LLMProviderChoice.Flash,
+                model = LLMProviderChoice.Pro,
                 fixingParser = StructureFixingParser(
                     model = LLMProviderChoice.Lite,
                     retries = 2
@@ -132,7 +132,7 @@ class MemeAgent {
 
             val result = promptExecutor.execute(
                 prompt = userPromptObj,
-                model = LLMProviderChoice.Flash
+                model = LLMProviderChoice.Pro
             )
 
             val text = result.textContent()

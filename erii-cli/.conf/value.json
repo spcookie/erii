@@ -78,6 +78,102 @@
     "type": "boolean",
     "default": true
   },
+  "llm.capability.lite.completion": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.lite.prompt-caching": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.lite.temperature": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.lite.tools": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.lite.tool-choice": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.lite.multiple-choices": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.lite.thinking": {
+    "type": "boolean",
+    "default": false
+  },
+  "llm.capability.lite.vision-image": {
+    "type": "boolean",
+    "default": false
+  },
+  "llm.capability.flash.completion": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.flash.prompt-caching": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.flash.temperature": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.flash.tools": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.flash.tool-choice": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.flash.multiple-choices": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.flash.thinking": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.flash.vision-image": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.pro.completion": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.pro.prompt-caching": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.pro.temperature": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.pro.tools": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.pro.tool-choice": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.pro.multiple-choices": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.pro.thinking": {
+    "type": "boolean",
+    "default": true
+  },
+  "llm.capability.pro.vision-image": {
+    "type": "boolean",
+    "default": true
+  },
   "llm.providers.deep-seek.api-key": {
     "type": "string",
     "nullable": true,

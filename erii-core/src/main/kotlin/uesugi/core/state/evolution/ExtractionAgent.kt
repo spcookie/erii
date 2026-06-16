@@ -81,9 +81,9 @@ class ExtractionAgent {
 
             val result = promptExecutor.executeStructured<SlangWordList>(
                 prompt = userPromptObj,
-                model = LLMProviderChoice.Flash,
+                model = LLMProviderChoice.Pro,
                 fixingParser = StructureFixingParser(
-                    model = LLMProviderChoice.Flash,
+                    model = LLMProviderChoice.Lite,
                     retries = 2
                 )
             )

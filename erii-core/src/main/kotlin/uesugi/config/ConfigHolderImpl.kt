@@ -120,11 +120,20 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getChoiceProvider(): String = config.getString("llm.choice-provider")
 
     override fun isLlmCapabilityEnabled(name: String): Boolean =
-        try {
-            config.getBoolean("llm.capability.$name")
+        isLlmCapabilityEnabled("default", name)
+
+    override fun isLlmCapabilityEnabled(tier: String, name: String): Boolean {
+        val tierKey = "llm.capability.$tier.$name"
+        return try {
+            if (config.hasPath(tierKey)) {
+                config.getBoolean(tierKey)
+            } else {
+                config.getBoolean("llm.capability.$name")
+            }
         } catch (_: Exception) {
             true
         }
+    }
 
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
     override fun getEmbeddingProvider(): String = config.getString("embedding.provider")

@@ -308,7 +308,7 @@ object BotAgent {
                             promptExecutor = promptExecutor,
                             agentConfig = AIAgentConfig(
                                 prompt = prompt("empty") {},
-                                model = LLMProviderChoice.Pro,
+                                model = LLMProviderChoice.Flash,
                                 maxAgentIterations = 50,
                             ),
                             strategy = strategy
@@ -451,7 +451,7 @@ object BotAgent {
                 agentInput = event.input ?: DEFAULT_INPUT,
                 agentConfig = AIAgentConfig(
                     prompt = buildPrompt(context),
-                    model = LLMProviderChoice.Pro,
+                    model = LLMProviderChoice.Flash,
                     maxAgentIterations = 50,
                 ),
                 additionalToolRegistry = additionalToolRegistry,
