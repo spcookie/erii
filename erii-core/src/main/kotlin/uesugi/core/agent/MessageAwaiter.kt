@@ -3,6 +3,7 @@ package uesugi.core.agent
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
+import ai.koog.prompt.params.LLMParams
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -151,7 +152,7 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
     private suspend fun isRelevanceContinue(histories: List<HistoryRecord>, currentBotId: String): Boolean {
         val promptExecutor by ref<PromptExecutor>()
 
-        val prompt = prompt("relevance-continue") {
+        val prompt = prompt("relevance-continue", LLMParams(maxTokens = 2048)) {
             system(
                 """
             你是一个群聊行为判断器。

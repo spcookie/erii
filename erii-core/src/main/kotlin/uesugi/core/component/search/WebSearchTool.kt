@@ -8,6 +8,7 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
 import ai.koog.prompt.markdown.MarkdownContentBuilder
+import ai.koog.prompt.params.LLMParams
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import uesugi.common.LLMProviderChoice
@@ -45,7 +46,7 @@ object WebSearchTool : ToolSet {
     private suspend fun rewriteQuery(originalQuery: String): SearchPlan {
         val promptExecutor by ref<PromptExecutor>()
 
-        val rewritePrompt = prompt("query-rewrite") {
+        val rewritePrompt = prompt("query-rewrite", LLMParams(maxTokens = 2048)) {
             system(
                 """
                 你是一个搜索查询优化专家。将用户的原始问题转化为 1-3 个高质量搜索引擎查询。

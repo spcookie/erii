@@ -3,6 +3,7 @@ package uesugi.core.route
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
+import ai.koog.prompt.params.LLMParams
 import uesugi.common.LLMProviderChoice
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
@@ -27,7 +28,7 @@ object RoutingAgent {
         val summaryEntity = memoryService.getSummary(botId, groupId)
         val latestHistory = historyService.getLatestHistory(botId, groupId, 50, 24.hours)
 
-        val prompt = prompt("RoutingAgent") {
+        val prompt = prompt("RoutingAgent", LLMParams(maxTokens = 2048)) {
             system {
                 markdown {
                     h1("你是一个【消息路由判定器】，负责根据用户的输入内容，判断应当使用哪一条处理规则。")

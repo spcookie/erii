@@ -5,6 +5,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.params.LLMParams
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
@@ -160,7 +161,7 @@ class FlowAgent {
 
         val botInterests = BotManage.getBot(botMark).role.character
 
-        val prompt = prompt("心流分析") {
+        val prompt = prompt("心流分析", LLMParams(maxTokens = 4096)) {
             system(
                 """
                 你是一名"群聊对话状态分析器"，用于为 AI 机器人计算心流状态。

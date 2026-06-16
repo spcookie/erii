@@ -4,6 +4,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.params.LLMParams
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import org.koin.core.context.GlobalContext
@@ -52,7 +53,8 @@ data class GMessage(
  */
 @OptIn(ExperimentalTime::class)
 fun buildPrompt(history: List<GMessage>) = prompt(
-    "提取群聊消息的情感 PAD 数值"
+    "提取群聊消息的情感 PAD 数值",
+    LLMParams(maxTokens = 4096)
 ) {
     system(
         """

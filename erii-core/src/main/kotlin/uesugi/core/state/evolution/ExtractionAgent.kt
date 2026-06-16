@@ -4,6 +4,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.params.LLMParams
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.common.LLMProviderChoice
@@ -50,7 +51,7 @@ class ExtractionAgent {
         return try {
             log.debug("调用 LLM 执行流行语提取...")
 
-            val userPromptObj = prompt("提取群聊流行语") {
+            val userPromptObj = prompt("提取群聊流行语", LLMParams(maxTokens = 4096)) {
                 system(
                     """
                     你是一名**群聊用语分析专家**。

@@ -5,6 +5,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.params.LLMParams
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
@@ -61,7 +62,7 @@ class VolitionAgent {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         val messagesText = messages.joinToString("\n") { it.asLlmPrompt() }
 
-        val prompt = prompt("主动行为分析") {
+        val prompt = prompt("主动行为分析", LLMParams(maxTokens = 4096)) {
             system(
                 """
                 你是一名"群聊主动行为分析器"，用于判断我是否应该主动插话。
