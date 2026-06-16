@@ -63,9 +63,13 @@ class EmotionJob(
                         }
                         log.debug("情绪任务发现 ${groups.size} 个群组有新消息需要分析")
 
-                        // 2. 对每个群组执行情绪分析
+                        // 2. 对每个群组执行情绪分析（单群失败不影响其他群）
                         for (group in groups) {
-                            emotionService.analyzeGroupEmotion(currentBotId, group)
+                            try {
+                                emotionService.analyzeGroupEmotion(currentBotId, group)
+                            } catch (e: Exception) {
+                                log.error("Emotional analysis failed, botId=$currentBotId, group=$group", e)
+                            }
                         }
 
                         // 3. 查找需要衰减的群组
@@ -76,13 +80,17 @@ class EmotionJob(
 
                         // 4. 对每个群组执行情绪衰减
                         for (group in decayGroups) {
-                            emotionService.decayGroupEmotion(currentBotId, group)
+                            try {
+                                emotionService.decayGroupEmotion(currentBotId, group)
+                            } catch (e: Exception) {
+                                log.error("Emotional decline fails, botId=$currentBotId, group=$group", e)
+                            }
                         }
                     }
 
                     log.debug("情绪任务执行完成")
                 } catch (e: Exception) {
-                    log.error("情绪任务执行失败", e)
+                    log.error("Emotional task execution fails", e)
                 }
             }
         } finally {
