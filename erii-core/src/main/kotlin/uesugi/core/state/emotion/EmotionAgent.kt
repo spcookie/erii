@@ -54,7 +54,7 @@ data class GMessage(
 @OptIn(ExperimentalTime::class)
 fun buildPrompt(history: List<GMessage>) = prompt(
     "提取群聊消息的情感 PAD 数值",
-    LLMParams(maxTokens = 4096)
+    LLMParams(maxTokens = 65536)
 ) {
     system(
         """

@@ -6,6 +6,7 @@ import io.ktor.client.*
 import io.ktor.client.engine.*
 import io.ktor.client.plugins.logging.*
 import uesugi.common.toolkit.ConfigHolder
+import uesugi.core.component.llm.FixingPromptExecutor
 import kotlin.time.ExperimentalTime
 
 class LLMFactory(private val providers: List<LLMClientProvider>) {
@@ -21,7 +22,7 @@ class LLMFactory(private val providers: List<LLMClientProvider>) {
             .filter { it.isConfigured() }
             .associate { it.provider to it.createClient(baseClient) }
 
-        return MultiLLMPromptExecutor(llmClients)
+        return FixingPromptExecutor(MultiLLMPromptExecutor(llmClients))
     }
 
     fun getBaseClient(isDebug: Boolean): HttpClient = HttpClient {

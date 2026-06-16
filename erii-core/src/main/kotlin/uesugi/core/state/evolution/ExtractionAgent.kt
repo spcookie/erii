@@ -51,7 +51,7 @@ class ExtractionAgent {
         return try {
             log.debug("调用 LLM 执行流行语提取...")
 
-            val userPromptObj = prompt("提取群聊流行语", LLMParams(maxTokens = 4096)) {
+            val userPromptObj = prompt("提取群聊流行语", LLMParams(maxTokens = 65536)) {
                 system(
                     """
                     你是一名**群聊用语分析专家**。

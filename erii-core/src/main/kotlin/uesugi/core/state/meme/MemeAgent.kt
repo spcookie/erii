@@ -49,7 +49,7 @@ class MemeAgent {
         return try {
             log.debug("调用 LLM 执行表情包分析...")
 
-            val userPromptObj = prompt("分析表情包", LLMParams(maxTokens = 4096)) {
+            val userPromptObj = prompt("分析表情包", LLMParams(maxTokens = 65536)) {
                 system(
                     """
                     你是一名**表情包分析专家**。
@@ -111,7 +111,7 @@ class MemeAgent {
         log.debug("转换搜索查询: $userQuery")
 
         return try {
-            val userPromptObj = prompt("转换搜索查询", LLMParams(maxTokens = 4096)) {
+            val userPromptObj = prompt("转换搜索查询", LLMParams(maxTokens = 65536)) {
                 system(
                     """
                     你是一个搜索关键词转换器。

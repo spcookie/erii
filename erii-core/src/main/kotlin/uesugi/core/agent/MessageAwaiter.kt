@@ -152,7 +152,7 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
     private suspend fun isRelevanceContinue(histories: List<HistoryRecord>, currentBotId: String): Boolean {
         val promptExecutor by ref<PromptExecutor>()
 
-        val prompt = prompt("relevance-continue", LLMParams(maxTokens = 2048)) {
+        val prompt = prompt("relevance-continue", LLMParams(maxTokens = 16384)) {
             system(
                 """
             你是一个群聊行为判断器。
