@@ -30,7 +30,8 @@ class ExaSearch : ISearch {
     override suspend fun search(query: String?, urls: List<String>?, maxResult: Int): List<SearchResultItem> {
         try {
             val items = mutableListOf<SearchResultItem>()
-            val searchUrl = ConfigHolder.getSearchUrl()
+            val base = ConfigHolder.getSearchUrl()
+            val searchUrl = "$base/search"
             val contentsUrl = "$searchUrl/contents"
             if (!query.isNullOrBlank()) {
                 val root: JsonNode = httpClient.post(searchUrl) {
