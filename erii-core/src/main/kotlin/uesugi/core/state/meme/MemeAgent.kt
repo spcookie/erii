@@ -63,12 +63,14 @@ class MemeAgent {
                     请直接输出 JSON，不要添加额外说明。
                     """.trimIndent()
                 )
-                user(
-                    """
+                user {
+                    text(
+                        """
                     表情包出现的上下文:
-                    $contextText
                     """.trimIndent()
-                )
+                    )
+                    text(contextText)
+                }
             }
 
             val promptExecutor: PromptExecutor by GlobalContext.get().inject()
@@ -126,7 +128,10 @@ class MemeAgent {
                     直接输出关键词，用顿号分隔，不要有额外说明。
                     """.trimIndent()
                 )
-                user(userQuery)
+                user {
+                    text("转换以下搜索文本为表情包描述关键词：")
+                    text(userQuery)
+                }
             }
 
             val promptExecutor: PromptExecutor by GlobalContext.get().inject()

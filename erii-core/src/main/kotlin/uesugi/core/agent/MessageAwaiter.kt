@@ -194,8 +194,11 @@ class MessageAwaiter(val context: Context) : AutoCloseable, CoroutineScope {
             """.trimIndent()
             )
             user {
-                markdown {
-                    buildHistoriesPrompt(histories, currentBotId)
+                text("根据以下群聊记录判断机器人是否应该继续发言。只输出 CONTINUE 或 SILENT。")
+                text {
+                    markdown {
+                        buildHistoriesPrompt(histories, currentBotId)
+                    }
                 }
             }
         }

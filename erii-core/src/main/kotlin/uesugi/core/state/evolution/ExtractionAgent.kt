@@ -70,12 +70,14 @@ class ExtractionAgent {
                     请直接输出 JSON，不要添加额外说明。
                     """.trimIndent()
                 )
-                user(
-                    """
-                群聊记录如下：
-                $messagesText
-                """.trimIndent()
-                )
+                user {
+                    text(
+                        """
+                    群聊记录如下：
+                    """.trimIndent()
+                    )
+                    text(messagesText)
+                }
             }
 
             val promptExecutor: PromptExecutor by GlobalContext.get().inject()

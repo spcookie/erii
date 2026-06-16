@@ -33,16 +33,6 @@ object RoutingAgent {
                 markdown {
                     h1("你是一个【消息路由判定器】，负责根据用户的输入内容，判断应当使用哪一条处理规则。")
 
-                    text("【可用规则枚举】")
-                    table(
-                        headers = listOf("规则名称", "规则描述"),
-                        rows = buildList {
-                            for (rule in RouteRuleRegister.getRulesForBot(botId)) {
-                                add(listOf(rule.name, rule.description))
-                            }
-                        }
-                    )
-
                     text("【判定原则】")
                     numbered {
                         item { text("只关注【当前用户消息】的真实意图") }
@@ -52,21 +42,34 @@ object RoutingAgent {
 
                     text("【输出结果约束】")
                     numbered {
-                        item { text("只输出“规则名称”") }
+                        item { text("只输出规则名称") }
                         item { text("不要包含任何其他文字") }
                     }
+
+                    text("【可用规则枚举】")
+                    table(
+                        headers = listOf("规则名称", "规则描述"),
+                        rows = buildList {
+                            for (rule in RouteRuleRegister.getRulesForBot(botId)) {
+                                add(listOf(rule.name, rule.description))
+                            }
+                        }
+                    )
                 }
             }
             user {
-                markdown {
-                    text("【群聊消息摘要】")
-                    buildSummaryPrompt(summaryEntity)
+                text("根据当前群聊上下文和用户消息，判定应当使用哪一条处理规则。")
+                text {
+                    markdown {
+                        text("【群聊消息摘要】")
+                        buildSummaryPrompt(summaryEntity)
 
-                    text("【最近的聊天记录】")
-                    buildHistoriesPrompt(latestHistory, botId)
+                        text("【最近的聊天记录】")
+                        buildHistoriesPrompt(latestHistory, botId)
 
-                    header(3, "当前用户消息")
-                    text(message)
+                        header(3, "当前用户消息")
+                        text(message)
+                    }
                 }
             }
         }

@@ -61,7 +61,10 @@ object WebSearchTool : ToolSet {
                 7. 简单事实查询只需 1 个查询，复杂问题 2-3 个
                 """.trimIndent()
             )
-            user("原始问题：$originalQuery")
+            user {
+                text("原始问题：")
+                text(originalQuery)
+            }
         }
 
         val result = promptExecutor.executeStructured<SearchPlan>(
