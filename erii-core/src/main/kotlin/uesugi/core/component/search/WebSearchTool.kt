@@ -93,55 +93,6 @@ object WebSearchTool : ToolSet {
         }.build()
     }
 
-    /**
-     * 使用 LLM 对搜索结果进行信息融合聚合
-     */
-    @OptIn(ExperimentalTime::class)
-    private suspend fun synthesizeResults(
-        originalQuery: String,
-        results: List<SearchResultItem>
-    ): String {
-        val promptExecutor by ref<PromptExecutor>()
-
-        val resultsText = results.mapIndexed { index, item ->
-            """
-            [${index + 1}] ${item.title}
-            URL: ${item.url}
-            相关度: ${"%.2f".format(item.score)}
-            内容: ${item.content}
-            """.trimIndent()
-        }.joinToString("\n\n---\n\n")
-
-        val synthesizePrompt = prompt("result-synthesis") {
-            system(
-                """
-                你是一个信息整合专家。根据以下搜索结果，为用户的问题提供一个准确、结构化的综合回答。
-
-                整合规则：
-                1. 交叉验证：多个来源一致的信息可信度更高
-                2. 优先级：官方文档 > 知名技术社区 > 普通博客
-                3. 矛盾处理：如果不同来源信息矛盾，明确指出分歧
-                4. 来源标注：关键信息标注来源 URL
-                5. 结构化输出：使用清晰的分点/分段组织
-                6. 时效性：优先采用最新信息
-                7. 不要编造搜索结果中没有的信息
-                """.trimIndent()
-            )
-            user(
-                """
-                用户问题：$originalQuery
-
-                搜索结果：
-                $resultsText
-                """.trimIndent()
-            )
-        }
-
-        val result = promptExecutor.execute(synthesizePrompt, model = LLMProviderChoice.Lite)
-        return result.textContent()
-            .ifEmpty { throw IllegalStateException("LLM synthesis returned no assistant message") }
-    }
-
     @Tool
     @LLMDescription(
         """
@@ -208,18 +159,7 @@ object WebSearchTool : ToolSet {
                         .take(effectiveMaxResults)
 
                     // Step 4: 信息聚合合成
-                    // 条件：有关键词搜索结果且结果数 >= 2 时使用 LLM 聚合
-                    // 仅 URL 直读或单条结果时直接格式化输出
-                    if (!query.isNullOrBlank() && mergedResults.size >= 2) {
-                        try {
-                            synthesizeResults(query, mergedResults)
-                        } catch (e: Exception) {
-                            log.warn("Result synthesis failed, falling back to raw results: {}", e.message)
-                            buildResultMarkdown(mergedResults)
-                        }
-                    } else {
-                        buildResultMarkdown(mergedResults)
-                    }
+                    buildResultMarkdown(mergedResults)
                 }
             }
         } catch (e: Exception) {
