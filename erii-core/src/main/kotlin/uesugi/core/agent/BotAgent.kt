@@ -10,6 +10,7 @@ import ai.koog.agents.core.dsl.extension.*
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.ToolFromCallable
 import ai.koog.agents.features.eventHandler.feature.handleEvents
+import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.message.MessagePart
@@ -306,7 +307,7 @@ object BotAgent {
                         val aiAgent = AIAgentService(
                             promptExecutor = promptExecutor,
                             agentConfig = AIAgentConfig(
-                                prompt = buildPrompt(context),
+                                prompt = prompt("empty") {},
                                 model = LLMProviderChoice.Pro,
                                 maxAgentIterations = 50,
                             ),
