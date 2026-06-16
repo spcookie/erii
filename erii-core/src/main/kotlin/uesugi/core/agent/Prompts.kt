@@ -197,27 +197,25 @@ fun MarkdownContentBuilder.buildMetadataPrompt() {
         localDateTime.month.number,
         localDateTime.day
     )
-    var lunar = solar.lunar
-    line { text("当前日期时间: ${DateTimeFormat.format(localDateTime)}") }
-
+    line { text("当前日期: ${DateTimeFormat.format(localDateTime)}") }
     line { text("当前星期: 星期${solar.weekInChinese}") }
-    buildList {
+
+    val todayFestivals = buildList {
         addAll(solar.festivals)
         addAll(solar.otherFestivals)
-        addAll(lunar.festivals)
-        addAll(lunar.otherFestivals)
+        addAll(solar.lunar.festivals)
+        addAll(solar.lunar.otherFestivals)
     }.joinToString("、")
-        .takeIf { it.isNotBlank() }
-        ?.let {
-            line { text("当前节日: $it") }
-        }
-    val maxDays = 365
-    var count = 0
-    val max = 2
-    var inc = 0
-    while (count++ < maxDays) {
+    if (todayFestivals.isNotBlank()) {
+        line { text("当前节日: $todayFestivals") }
+    }
+
+    var found = 0
+    var daysChecked = 0
+    while (found < 2 && daysChecked < 365) {
         solar = solar.next(1)
-        lunar = solar.lunar
+        daysChecked++
+        val lunar = solar.lunar
         val festivals = buildList {
             addAll(solar.festivals)
             addAll(solar.otherFestivals)
@@ -225,27 +223,13 @@ fun MarkdownContentBuilder.buildMetadataPrompt() {
             addAll(lunar.otherFestivals)
         }
         if (festivals.isNotEmpty()) {
-            var label = ""
-            repeat(inc + 1) { label += "下" }
-            label += "一次节日"
+            val label = "下".repeat(found + 1) + "一次节日"
             val time =
                 "${solar.month}/${solar.day} ${lunar.monthInChinese}月${lunar.dayInChinese} 星期${solar.weekInChinese}"
-            line {
-                text(
-                    "$label[$time]: ${
-                        festivals.joinToString(
-                            "、"
-                        )
-                    }"
-                )
-            }
-            inc++
-            if (inc >= max) {
-                break
-            }
+            line { text("$label[$time]: ${festivals.joinToString("、")}") }
+            found++
         }
     }
-
 }
 
 fun MarkdownContentBuilder.buildConstraintsPrompt(constraints: SpeechConstraints) {

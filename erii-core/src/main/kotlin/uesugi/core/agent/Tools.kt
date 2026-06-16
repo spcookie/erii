@@ -24,6 +24,7 @@ context(env: ToolEnv)
 fun baseTools() = buildList {
     addAll(env.chatToolSet.asTools())
     addAll(SilentToolSet.asTools())
+    addAll(MetaToolSet.asTools())
 }
 
 context(env: ToolEnv)

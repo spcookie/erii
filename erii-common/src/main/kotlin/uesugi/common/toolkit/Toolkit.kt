@@ -32,7 +32,7 @@ val JSON = Json {
 
 @OptIn(FormatStringsInDatetimeFormats::class)
 val DateTimeFormat = LocalDateTime.Format {
-    byUnicodePattern("yyyy-MM-dd HH:mm:ss")
+    byUnicodePattern("yyyy-MM-dd")
 }
 
 object LocalDateTimeAsDateSerializer : KSerializer<LocalDateTime> {
