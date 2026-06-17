@@ -85,6 +85,7 @@ dependencies {
     implementation(libs.pf4j)
     implementation(libs.kotlin.logging)
     implementation(libs.thumbnailator)
+    implementation(libs.commons.pool2)
     compileOnly(libs.jte.kotlin)
     compileOnly(libs.autoservice.annotations)
     // 测试

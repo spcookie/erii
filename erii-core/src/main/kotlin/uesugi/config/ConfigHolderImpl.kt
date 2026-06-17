@@ -92,16 +92,6 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getLlmGoogleBaseUrl(): String = config.getString("llm.providers.google.base-url")
     override fun getLlmGoogleModels(): Map<String, String> = getLlmModelsHierarchical("google")
 
-    override fun getLlmDeepSeekApiKey(): String = config.getString("llm.providers.deep-seek.api-key")
-    override fun getLlmDeepSeekBaseUrl(): String = config.getString("llm.providers.deep-seek.base-url")
-    override fun getLlmDeepSeekModels(): Map<String, String> =
-        getLlmModelsHierarchical("deep-seek")
-
-    override fun getLlmMinimaxApiKey(): String = config.getString("llm.providers.minimax.api-key")
-    override fun getLlmMinimaxBaseUrl(): String = config.getString("llm.providers.minimax.base-url")
-    override fun getLlmMinimaxModels(): Map<String, String> =
-        getLlmModelsHierarchical("minimax")
-
     override fun getLlmOpenAIApiKey(): String = config.getString("llm.providers.openai.api-key")
     override fun getLlmOpenAIBaseUrl(): String = config.getString("llm.providers.openai.base-url")
     override fun getLlmOpenAIModels(): Map<String, String> =
@@ -120,11 +110,20 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getChoiceProvider(): String = config.getString("llm.choice-provider")
 
     override fun isLlmCapabilityEnabled(name: String): Boolean =
-        try {
-            config.getBoolean("llm.capability.$name")
+        isLlmCapabilityEnabled("default", name)
+
+    override fun isLlmCapabilityEnabled(tier: String, name: String): Boolean {
+        val tierKey = "llm.capability.$tier.$name"
+        return try {
+            if (config.hasPath(tierKey)) {
+                config.getBoolean(tierKey)
+            } else {
+                config.getBoolean("llm.capability.$name")
+            }
         } catch (_: Exception) {
             true
         }
+    }
 
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
     override fun getEmbeddingProvider(): String = config.getString("embedding.provider")
@@ -380,7 +379,7 @@ class ConfigHolderImpl : ConfigProvider {
         }
         val enabled = getEnabledPlugins(botKey)
         val disabled = getDisabledPlugins(botKey) ?: emptyList()
-        val matchShort = { short: String -> pluginName == short || pluginName.endsWith("_$short") }
+        val matchShort = { short: String -> pluginName == short || pluginName.startsWith("${short}_") }
         return when {
             enabled != null -> enabled.any(matchShort)
             else -> disabled.none(matchShort)

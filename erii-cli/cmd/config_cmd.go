@@ -32,7 +32,7 @@ var configAppSetCmd = &cobra.Command{
 	Use:   "set <key> <value>",
 	Short: "Set a value in application.conf",
 	Long: `Set a key to a value in the HOCON application.conf file.
-Key supports dot-separated paths (e.g. llm.google.api-key).
+Key supports dot-separated paths (e.g. llm.providers.google.api-key).
 Value auto-detects type: true/false/yes/no → boolean, null → null,
 numbers → numeric, [a,b] → array, ${X} → substitution.`,
 	Args: cobra.ExactArgs(2),

@@ -1,6 +1,6 @@
 package uesugi.core.component.browser
 
-import com.microsoft.playwright.Browser
+import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.options.WaitUntilState
@@ -21,8 +21,6 @@ class BrowserScraperImpl : BrowserScraper {
 
     private val jsonParser = Json { ignoreUnknownKeys = true }
 
-    private val lock = Any()
-
     private val readabilityJs: String by lazy {
         this::class.java.getResource("readability.js")?.readText()
             ?: throw IllegalStateException("readability.js not found!")
@@ -40,6 +38,19 @@ class BrowserScraperImpl : BrowserScraper {
         FlexmarkHtmlConverter.builder(options).build()
     }
 
+    private val sessionPool = BrowserSessionPool()
+
+    private fun <R> useContext(block: (BrowserContext) -> R): R {
+        return sessionPool.use { session ->
+            val context = session.browser.newContext()
+            try {
+                block(context)
+            } finally {
+                runCatching { context.close() }
+            }
+        }
+    }
+
     override fun takeFullScreenshot(
         url: String,
         width: Int,
@@ -50,46 +61,42 @@ class BrowserScraperImpl : BrowserScraper {
         username: String?,
         password: String?,
         scaleFactor: Double,
+        fitContent: Boolean,
     ): ByteArray {
-        val session = BrowserSession.getInstance()
+        return useContext { context ->
+            val page = context.newPage()
+            try {
+                page.setViewportSize((width * scaleFactor).toInt(), (height * scaleFactor).toInt())
 
-        synchronized(lock) {
-            session.browser.newContext(
-                Browser.NewContextOptions()
-                    .setViewportSize(width, height)
-                    .setDeviceScaleFactor(scaleFactor)
-            ).use { context ->
-                try {
-                    val page = context.newPage()
-                    // --- 资源过滤优化 ---
-                    var token: String? = null
-                    if (username != null && password != null) {
-                        token = Base64.encode("$username:$password".toByteArray())
+                // --- 资源过滤优化 ---
+                var token: String? = null
+                if (username != null && password != null) {
+                    token = Base64.encode("$username:$password".toByteArray())
+                }
+                page.route("**/*") { route ->
+                    val headers = HashMap(route.request().headers())
+                    if (token != null) {
+                        headers["Authorization"] = "Basic $token"
                     }
-                    page.route("**/*") { route ->
-                        val headers = HashMap(route.request().headers())
-                        if (token != null) {
-                            headers["Authorization"] = "Basic $token"
-                        }
-                        val resourceType = route.request().resourceType()
-                        if (listOf("media").contains(resourceType)) {
-                            route.abort()
-                        } else {
-                            route.resume(Route.ResumeOptions().setHeaders(headers))
-                        }
+                    val resourceType = route.request().resourceType()
+                    if (listOf("media").contains(resourceType)) {
+                        route.abort()
+                    } else {
+                        route.resume(Route.ResumeOptions().setHeaders(headers))
                     }
+                }
 
-                    // --- 导航与等待 ---
-                    val waitState = if (waitForNetworkIdle)
-                        WaitUntilState.NETWORKIDLE
-                    else
-                        WaitUntilState.DOMCONTENTLOADED
+                // --- 导航与等待 ---
+                val waitState = if (waitForNetworkIdle)
+                    WaitUntilState.NETWORKIDLE
+                else
+                    WaitUntilState.DOMCONTENTLOADED
 
-                    page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
+                page.navigate(url, Page.NavigateOptions().setWaitUntil(waitState))
 
-                    // --- 滚动加载 ---
-                    page.evaluate(
-                        """
+                // --- 滚动加载 ---
+                page.evaluate(
+                    """
                 async () => {
                     await new Promise((resolve) => {
                         let totalHeight = 0;
@@ -108,30 +115,45 @@ class BrowserScraperImpl : BrowserScraper {
                     });
                 }
             """
-                    )
+                )
 
-                    page.waitForTimeout(500.0)
+                page.waitForTimeout(500.0)
 
-                    // --- 截图 ---
-                    val screenshotOptions = Page.ScreenshotOptions()
-                        .setFullPage(true)
-                        .setType(
-                            when (type) {
-                                BrowserScraper.ScreenshotType.PNG -> com.microsoft.playwright.options.ScreenshotType.PNG
-                                BrowserScraper.ScreenshotType.JPEG -> com.microsoft.playwright.options.ScreenshotType.JPEG
-                            }
-                        )
-
-                    if (type == BrowserScraper.ScreenshotType.JPEG) {
-                        screenshotOptions.setQuality(quality)
-                    }
-
-                    return page.screenshot(screenshotOptions)
-
-                } catch (e: Exception) {
-                    log.error("Screenshot failed for $url: ${e.message}", e)
-                    throw e
+                // --- 截图 ---
+                val screenshotType = when (type) {
+                    BrowserScraper.ScreenshotType.PNG -> com.microsoft.playwright.options.ScreenshotType.PNG
+                    BrowserScraper.ScreenshotType.JPEG -> com.microsoft.playwright.options.ScreenshotType.JPEG
                 }
+
+                if (fitContent) {
+                    val target = page.locator(".card")
+                    if (target.count() > 0) {
+                        val locatorOpts = com.microsoft.playwright.Locator.ScreenshotOptions()
+                            .setType(screenshotType)
+                        if (type == BrowserScraper.ScreenshotType.JPEG) {
+                            locatorOpts.setQuality(quality)
+                        }
+                        target.screenshot(locatorOpts)
+                    } else {
+                        val pageOpts = Page.ScreenshotOptions()
+                            .setFullPage(false)
+                            .setType(screenshotType)
+                        if (type == BrowserScraper.ScreenshotType.JPEG) {
+                            pageOpts.setQuality(quality)
+                        }
+                        page.screenshot(pageOpts)
+                    }
+                } else {
+                    val pageOpts = Page.ScreenshotOptions()
+                        .setFullPage(true)
+                        .setType(screenshotType)
+                    if (type == BrowserScraper.ScreenshotType.JPEG) {
+                        pageOpts.setQuality(quality)
+                    }
+                    page.screenshot(pageOpts)
+                }
+            } finally {
+                page.close()
             }
         }
     }
@@ -139,16 +161,9 @@ class BrowserScraperImpl : BrowserScraper {
     override fun scrape(url: String, maxMarkdownChars: Int): ScrapedResult {
         log.info("Scraping $url")
 
-        val session = BrowserSession.getInstance()
-
-        synchronized(lock) {
-            val context = session.browser.newContext(
-                Browser.NewContextOptions()
-                    .setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                    .setViewportSize(1920, 1080)
-            )
-
+        return useContext { context ->
             val page = context.newPage()
+            page.setViewportSize(1920, 1080)
 
             try {
                 page.route("**/*") { route ->
@@ -228,7 +243,7 @@ class BrowserScraperImpl : BrowserScraper {
                     fullMarkdown
                 }
 
-                return ScrapedResult(
+                ScrapedResult(
                     url = url,
                     title = response.title ?: "No Title",
                     excerpt = response.excerpt ?: "",
@@ -241,13 +256,13 @@ class BrowserScraperImpl : BrowserScraper {
                 log.warn("Scraping failed for $url: ${e.message}")
                 throw e
             } finally {
-                context.close()
+                page.close()
             }
         }
     }
 
     override fun close() {
-        BrowserSession.close()
+        sessionPool.close()
     }
 
     @Serializable

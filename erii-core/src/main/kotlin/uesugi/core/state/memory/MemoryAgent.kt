@@ -5,6 +5,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.params.LLMParams
 import kotlinx.coroutines.*
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
@@ -104,7 +105,7 @@ class MemoryAgent(
     ): UserProfileAnalysis {
         log.debug("Start analyzing user profile, userId=${messages.firstOrNull()?.userId}, message count=${messages.size}")
 
-        val prompt = prompt("分析用户画像和偏好") {
+        val prompt = prompt("分析用户画像和偏好", LLMParams(maxTokens = 65536)) {
             system(
                 """
                 你是一名【用户行为分析专家】，擅长从群聊历史消息中提取可验证的行为特征。
@@ -151,8 +152,15 @@ class MemoryAgent(
             )
 
             val msg = messages.joinToString("\n") { it.asLlmPrompt() }
-            user(
-                buildString {
+            user {
+                text(
+                    """
+                    分析以下用户的群聊行为特征和兴趣偏好。请基于消息内容提取可验证的行为特征，输出结构化JSON。
+
+                    数据如下：
+                    """.trimIndent()
+                )
+                text(buildString {
                     append("用户ID: ${messages.firstOrNull()?.userId ?: "unknown"}")
                     if (userProfileEntity != null) {
                         append("参考：")
@@ -163,15 +171,15 @@ class MemoryAgent(
                     append(msg)
                     append("请分析该用户的画像和偏好。")
                     append("只输出该用户当前最新的画像和偏好。")
-                }
-            )
+                })
+            }
         }
 
         val promptExecutor by ref<PromptExecutor>()
 
         val result = promptExecutor.executeStructured<UserProfileAnalysis>(
             prompt = prompt,
-            model = LLMProviderChoice.Flash,
+            model = LLMProviderChoice.Pro,
             fixingParser = StructureFixingParser(
                 model = LLMProviderChoice.Lite,
                 retries = 2
@@ -196,7 +204,7 @@ class MemoryAgent(
     ): SummaryAnalysis {
         log.debug("Start generating summary, groupId=$groupId, message count=${messages.size}")
 
-        val prompt = prompt("生成对话摘要") {
+        val prompt = prompt("生成对话摘要", LLMParams(maxTokens = 65536)) {
             system(
                 """
                 # Role
@@ -243,23 +251,32 @@ class MemoryAgent(
                 }
                 ?: ""
 
-            user(
-                """
-                ${previousBlock}时间范围: $startTime ~ $endTime
+            user {
+                text(
+                    """
+                    根据以下群聊记录生成对话摘要。请遵循系统消息中的分析步骤，对消息进行数据清洗、话题聚类和因果分析，输出结构化JSON。
 
-                历史消息:
-                $msg
+                    数据如下：
+                    """.trimIndent()
+                )
+                text(
+                    """
+                    ${previousBlock}时间范围: $startTime ~ $endTime
 
-                请生成对话摘要。
-                """.trimIndent()
-            )
+                    历史消息:
+                    $msg
+
+                    请生成对话摘要。
+                    """.trimIndent()
+                )
+            }
         }
 
         val promptExecutor by ref<PromptExecutor>()
 
         val result = promptExecutor.executeStructured<SummaryAnalysis>(
             prompt = prompt,
-            model = LLMProviderChoice.Flash,
+            model = LLMProviderChoice.Pro,
             fixingParser = StructureFixingParser(
                 model = LLMProviderChoice.Lite,
                 retries = 2
@@ -367,7 +384,7 @@ class MemoryAgent(
 
     @OptIn(ExperimentalTime::class)
     private suspend fun extractFacts(messages: List<MemoryMessage>): FactExtractionResult {
-        val prompt = prompt("事实提取") {
+        val prompt = prompt("事实提取", LLMParams(maxTokens = 65536)) {
             system(
                 """
                 你是一名事实提取专家。从给定的群聊消息中提取有价值、长久有效的事实信息。
@@ -403,20 +420,26 @@ class MemoryAgent(
 
             val msgText = messages.joinToString("\n") { it.asLlmPrompt() }
 
-            user(
-                """
-                请从以下群聊消息中提取事实：
+            user {
+                text(
+                    """
+                    请从以下群聊消息中提取事实：
 
-                $msgText
+                    """.trimIndent()
+                )
+                text(
+                    """
+                    $msgText
 
-                请输出 JSON 格式的事实列表。
-                """.trimIndent()
-            )
+                    请输出 JSON 格式的事实列表。
+                    """.trimIndent()
+                )
+            }
         }
 
         val result = promptExecutor.executeStructured<FactExtractionResult>(
             prompt = prompt,
-            model = LLMProviderChoice.Flash,
+            model = LLMProviderChoice.Pro,
             fixingParser = StructureFixingParser(
                 model = LLMProviderChoice.Lite,
                 retries = 2
@@ -433,7 +456,7 @@ class MemoryAgent(
         newFacts: List<ExtractedFact>,
         existingFacts: List<FactsRecord>
     ): ConflictResolutionResult {
-        val prompt = prompt("冲突解决") {
+        val prompt = prompt("冲突解决", LLMParams(maxTokens = 65536)) {
             system(
                 """
                 你是一名记忆冲突解决专家。你的任务是将新提取的事实与已有记忆进行对比，做出最优决策。
@@ -476,17 +499,23 @@ class MemoryAgent(
                 "ID: ${it.id} | keyword: ${it.keyword} | description: ${it.description} | values: ${it.values} | subjects: ${it.subjects} | scope: ${it.scopeType}"
             }
 
-            user(
-                """
-                ## 新提取的事实
-                $newFactsText
+            user {
+                text(
+                    """
+                    ## 新提取的事实
+                    """.trimIndent()
+                )
+                text(
+                    """
+                    $newFactsText
 
-                ## 已有记忆
-                $existingFactsText
+                    ## 已有记忆
+                    $existingFactsText
 
-                请对比并输出决策列表。
-                """.trimIndent()
-            )
+                    请对比并输出决策列表。
+                    """.trimIndent()
+                )
+            }
         }
 
         val result = promptExecutor.executeStructured<ConflictResolutionResult>(

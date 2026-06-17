@@ -44,12 +44,6 @@ interface ConfigProvider {
     fun getLlmGoogleApiKey(): String
     fun getLlmGoogleBaseUrl(): String
     fun getLlmGoogleModels(): Map<String, String>
-    fun getLlmDeepSeekApiKey(): String
-    fun getLlmDeepSeekBaseUrl(): String
-    fun getLlmDeepSeekModels(): Map<String, String>
-    fun getLlmMinimaxApiKey(): String
-    fun getLlmMinimaxBaseUrl(): String
-    fun getLlmMinimaxModels(): Map<String, String>
     fun getLlmOpenAIApiKey(): String
     fun getLlmOpenAIBaseUrl(): String
     fun getLlmOpenAIModels(): Map<String, String>
@@ -61,6 +55,7 @@ interface ConfigProvider {
     fun getLlmOpenRouterModels(): Map<String, String>
     fun getChoiceProvider(): String
     fun isLlmCapabilityEnabled(name: String): Boolean
+    fun isLlmCapabilityEnabled(tier: String, name: String): Boolean
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String
@@ -127,12 +122,6 @@ object ConfigHolder {
     fun getLlmGoogleApiKey(): String = provider.getLlmGoogleApiKey()
     fun getLlmGoogleBaseUrl(): String = provider.getLlmGoogleBaseUrl()
     fun getLlmGoogleModels(): Map<String, String> = provider.getLlmGoogleModels()
-    fun getLlmDeepSeekApiKey(): String = provider.getLlmDeepSeekApiKey()
-    fun getLlmDeepSeekBaseUrl(): String = provider.getLlmDeepSeekBaseUrl()
-    fun getLlmDeepSeekModels(): Map<String, String> = provider.getLlmDeepSeekModels()
-    fun getLlmMinimaxApiKey(): String = provider.getLlmMinimaxApiKey()
-    fun getLlmMinimaxBaseUrl(): String = provider.getLlmMinimaxBaseUrl()
-    fun getLlmMinimaxModels(): Map<String, String> = provider.getLlmMinimaxModels()
     fun getLlmOpenAIApiKey(): String = provider.getLlmOpenAIApiKey()
     fun getLlmOpenAIBaseUrl(): String = provider.getLlmOpenAIBaseUrl()
     fun getLlmOpenAIModels(): Map<String, String> = provider.getLlmOpenAIModels()
@@ -144,6 +133,7 @@ object ConfigHolder {
     fun getLlmOpenRouterModels(): Map<String, String> = provider.getLlmOpenRouterModels()
     fun getChoiceProvider(): String = provider.getChoiceProvider()
     fun isLlmCapabilityEnabled(name: String): Boolean = provider.isLlmCapabilityEnabled(name)
+    fun isLlmCapabilityEnabled(tier: String, name: String): Boolean = provider.isLlmCapabilityEnabled(tier, name)
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()

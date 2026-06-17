@@ -29,6 +29,7 @@ kotlin-logging = "8.0.02"
 ksp = "2.3.8"
 kotlinx-serialization-msgpack = "0.5.5"
 thumbnailator = "0.4.20"
+commons-pool2 = "2.11.1"
 
 [libraries]
 jobrunr = { module = "org.jobrunr:jobrunr", version.ref = "jobrunr" }
@@ -92,6 +93,7 @@ snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 kotlinx-serialization-msgpack = { module = "com.ensarsarajcic.kotlinx:serialization-msgpack", version.ref = "kotlinx-serialization-msgpack" }
 ksp-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 thumbnailator = { module = "net.coobird:thumbnailator", version.ref = "thumbnailator" }
+commons-pool2 = { module = "org.apache.commons:commons-pool2", version.ref = "commons-pool2" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

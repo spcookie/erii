@@ -5,6 +5,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.params.LLMParams
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.SerialName
@@ -61,7 +62,7 @@ class VolitionAgent {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         val messagesText = messages.joinToString("\n") { it.asLlmPrompt() }
 
-        val prompt = prompt("主动行为分析") {
+        val prompt = prompt("主动行为分析", LLMParams(maxTokens = 65536)) {
             system(
                 """
                 你是一名"群聊主动行为分析器"，用于判断我是否应该主动插话。
@@ -79,25 +80,34 @@ class VolitionAgent {
                 """.trimIndent()
             )
 
-            user(
-                """
-                【我的核心兴趣领域】
-                $botInterests
-                
-                【我的当前情绪】
-                mood: ${mood.name}
-                
-                【最近群聊消息】
-                以下是最近的群聊消息，按时间顺序排列：
-                $messagesText
-                """.trimIndent()
-            )
+            user {
+                text(
+                    """
+                    分析群聊主动行为。根据系统消息中的指示判断：是否存在外部刺激（关键词命中、热闹场景、间接提及、情绪共鸣），结合当前情绪状态决策是否应该主动发言，输出结构化JSON。
+
+                    数据如下：
+                    """.trimIndent()
+                )
+                text(
+                    """
+                    【我的核心兴趣领域】
+                    $botInterests
+
+                    【我的当前情绪】
+                    mood: ${mood.name}
+
+                    【最近群聊消息】
+                    以下是最近的群聊消息，按时间顺序排列：
+                    $messagesText
+                    """.trimIndent()
+                )
+            }
         }
 
         return try {
             val response = promptExecutor.executeStructured<StimulusAnalysis>(
                 prompt,
-                model = LLMProviderChoice.Flash,
+                model = LLMProviderChoice.Pro,
                 fixingParser = StructureFixingParser(
                     model = LLMProviderChoice.Lite,
                     retries = 2

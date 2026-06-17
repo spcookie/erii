@@ -4,6 +4,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.params.LLMParams
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import uesugi.common.LLMProviderChoice
@@ -48,7 +49,7 @@ class MemeAgent {
         return try {
             log.debug("调用 LLM 执行表情包分析...")
 
-            val userPromptObj = prompt("分析表情包") {
+            val userPromptObj = prompt("分析表情包", LLMParams(maxTokens = 65536)) {
                 system(
                     """
                     你是一名**表情包分析专家**。
@@ -62,19 +63,21 @@ class MemeAgent {
                     请直接输出 JSON，不要添加额外说明。
                     """.trimIndent()
                 )
-                user(
-                    """
+                user {
+                    text(
+                        """
                     表情包出现的上下文:
-                    $contextText
                     """.trimIndent()
-                )
+                    )
+                    text(contextText)
+                }
             }
 
             val promptExecutor: PromptExecutor by GlobalContext.get().inject()
 
             val result = promptExecutor.executeStructured<MemoAnalysis>(
                 prompt = userPromptObj,
-                model = LLMProviderChoice.Flash,
+                model = LLMProviderChoice.Pro,
                 fixingParser = StructureFixingParser(
                     model = LLMProviderChoice.Lite,
                     retries = 2
@@ -110,7 +113,7 @@ class MemeAgent {
         log.debug("转换搜索查询: $userQuery")
 
         return try {
-            val userPromptObj = prompt("转换搜索查询") {
+            val userPromptObj = prompt("转换搜索查询", LLMParams(maxTokens = 65536)) {
                 system(
                     """
                     你是一个搜索关键词转换器。
@@ -125,14 +128,17 @@ class MemeAgent {
                     直接输出关键词，用顿号分隔，不要有额外说明。
                     """.trimIndent()
                 )
-                user(userQuery)
+                user {
+                    text("转换以下搜索文本为表情包描述关键词：")
+                    text(userQuery)
+                }
             }
 
             val promptExecutor: PromptExecutor by GlobalContext.get().inject()
 
             val result = promptExecutor.execute(
                 prompt = userPromptObj,
-                model = LLMProviderChoice.Flash
+                model = LLMProviderChoice.Pro
             )
 
             val text = result.textContent()

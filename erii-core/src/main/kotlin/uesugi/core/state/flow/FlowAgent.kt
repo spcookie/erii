@@ -5,6 +5,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.params.LLMParams
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDateTime
@@ -160,7 +161,7 @@ class FlowAgent {
 
         val botInterests = BotManage.getBot(botMark).role.character
 
-        val prompt = prompt("心流分析") {
+        val prompt = prompt("心流分析", LLMParams(maxTokens = 65536)) {
             system(
                 """
                 你是一名"群聊对话状态分析器"，用于为 AI 机器人计算心流状态。
@@ -180,25 +181,34 @@ class FlowAgent {
                 """.trimIndent()
             )
 
-            user(
-                """
+            user {
+                text(
+                    """
+                    分析群聊心流状态。根据系统消息中的指示判断：对话是否围绕当前话题、是否命中核心兴趣、互动质量、群体共鸣、负面刺激和重复程度，输出结构化JSON。
+
+                    数据如下：
+                    """.trimIndent()
+                )
+                text(
+                    """
                     【当前话题（上一轮总结）】
                     $currentTopic
-                    
+
                     【机器人的核心兴趣领域】
                     $botInterests
-                    
+
                     【最近的群聊消息】
                     以下是最近的群聊消息，按时间顺序排列：
                     $messagesText
                     """.trimIndent()
-            )
+                )
+            }
         }
 
         try {
             val response = promptExecutor.executeStructured<FlowAnalysisResult>(
                 prompt,
-                model = LLMProviderChoice.Flash,
+                model = LLMProviderChoice.Pro,
                 fixingParser = StructureFixingParser(
                     model = LLMProviderChoice.Lite,
                     retries = 2
