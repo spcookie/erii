@@ -334,6 +334,13 @@ func (m *LeafEditorModel) buildForm() {
 			Placeholder(placeholder).
 			Value(&m.formValue).
 			Key("value"))
+
+	case tree.TypeObject:
+		fields = append(fields, huh.NewText().
+			Title(m.leaf.Title()).
+			Description(m.leaf.Description()).
+			Value(&m.formValue).
+			Key("value"))
 	}
 
 	if len(fields) > 0 {
@@ -532,6 +539,15 @@ func (m *LeafEditorModel) handleEnvKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *LeafEditorModel) saveValue() {
 	switch m.leaf.ValueType() {
+	case tree.TypeObject:
+		if m.formValue == "" && m.shouldApplyDefault() {
+			if obj, ok := m.leaf.ValueConfig().Default.(map[string]any); ok {
+				m.leaf.SetValue(obj)
+				m.leaf.SetNull(false)
+			}
+		} else {
+			m.leaf.SetValue(m.formValue)
+		}
 	case tree.TypeString, tree.TypeText:
 		// If was null and user entered non-empty value, clear null state
 		if m.isNullMark && m.formValue != "" {

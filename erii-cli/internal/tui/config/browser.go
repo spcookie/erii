@@ -144,32 +144,35 @@ func (i NodeItem) FilterValue() string { return i.Node.Title() }
 
 // BrowserModel is a generic config file browser using list + node tree.
 type BrowserModel struct {
-	Root           tree.ConfigNode
-	current        *tree.BranchNode
-	stack          []*tree.BranchNode
-	List           list.Model
-	width          int
-	height         int
-	Keys           BrowserKeyMap
-	help           help.Model
-	onEdit         func(leaf *tree.LeafNode, onSave func() tea.Cmd)
-	OnSaveFile     func(root tree.ConfigNode) error
-	title          string
-	pluginName     string
-	errMsg         string
-	adding         bool
-	addTitle       string
-	addDesc        string
-	addForm        *huh.Form
-	renaming       bool
-	renameValue    string
-	renameDesc     string
-	renameForm     *huh.Form
-	deleting       bool
-	deleteConfirm  bool
-	deleteForm     *huh.Form
-	editable       bool
-	newItemFactory func(title, desc string) tree.ConfigNode
+	Root            tree.ConfigNode
+	current         *tree.BranchNode
+	stack           []*tree.BranchNode
+	List            list.Model
+	width           int
+	height          int
+	Keys            BrowserKeyMap
+	help            help.Model
+	onEdit          func(leaf *tree.LeafNode, onSave func() tea.Cmd)
+	OnSaveFile      func(root tree.ConfigNode) error
+	title           string
+	pluginName      string
+	errMsg          string
+	adding          bool
+	addTitle        string
+	addDesc         string
+	addType         string
+	addForm         *huh.Form
+	objectCtxPath   string
+	objectCtxResult bool
+	renaming        bool
+	renameValue     string
+	renameDesc      string
+	renameForm      *huh.Form
+	deleting        bool
+	deleteConfirm   bool
+	deleteForm      *huh.Form
+	editable        bool
+	newItemFactory  func(title, desc string) tree.ConfigNode
 }
 
 func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.LeafNode, onSave func() tea.Cmd), OnSaveFile func(root tree.ConfigNode) error) *BrowserModel {
@@ -204,7 +207,31 @@ func (m *BrowserModel) WithPlugin(name string) *BrowserModel {
 }
 
 func (m *BrowserModel) canModify() bool {
-	return m.editable || tree.CanCopy(m.pluginName, m.currentPath())
+	return m.editable || tree.CanCopy(m.pluginName, m.currentPath()) || m.isObjectContext()
+}
+
+// isObjectContext checks if the current path is inside an object-typed config node.
+func (m *BrowserModel) isObjectContext() bool {
+	path := m.currentPath()
+	if path == m.objectCtxPath {
+		return m.objectCtxResult
+	}
+	m.objectCtxPath = path
+	// Walk up path ancestors looking for an object-typed value config.
+	for p := path; p != ""; {
+		vc := tree.GetValueConfig(m.pluginName, p)
+		if vc != nil && vc.Type == "object" {
+			m.objectCtxResult = true
+			return true
+		}
+		lastDot := strings.LastIndex(p, ".")
+		if lastDot < 0 {
+			break
+		}
+		p = p[:lastDot]
+	}
+	m.objectCtxResult = false
+	return false
 }
 
 func (m *BrowserModel) autoSave() {
@@ -317,21 +344,33 @@ func (m *BrowserModel) currentPath() string {
 	return strings.Join(parts, ".")
 }
 
+var objectValueTypes = []string{"number", "string", "boolean", "array", "object"}
+
 func (m *BrowserModel) buildAddForm() tea.Cmd {
 	w := m.formWidth()
+	fields := []huh.Field{
+		huh.NewInput().
+			Title("Title").
+			Placeholder("(empty)").
+			Value(&m.addTitle).
+			Key("title"),
+		huh.NewInput().
+			Title("Description").
+			Placeholder("(empty)").
+			Value(&m.addDesc).
+			Key("desc"),
+	}
+	if m.isObjectContext() {
+		fields = append(fields,
+			huh.NewSelect[string]().
+				Title("Type").
+				Options(huh.NewOptions(objectValueTypes...)...).
+				Value(&m.addType).
+				Key("type"),
+		)
+	}
 	m.addForm = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Title").
-				Placeholder("(empty)").
-				Value(&m.addTitle).
-				Key("title"),
-			huh.NewInput().
-				Title("Description").
-				Placeholder("(empty)").
-				Value(&m.addDesc).
-				Key("desc"),
-		),
+		huh.NewGroup(fields...),
 	).WithWidth(w).WithShowHelp(false)
 	return m.addForm.Init()
 }
@@ -393,7 +432,11 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.adding = false
 			m.addForm = nil
 			if title != "" {
-				m.current.AddChild(m.createNodeFromTemplate(title, desc))
+				if m.isObjectContext() {
+					m.current.AddChild(m.createObjectValueNode(title, desc, m.addType))
+				} else {
+					m.current.AddChild(m.createNodeFromTemplate(title, desc))
+				}
 				m.refreshList()
 				m.List.Select(len(m.current.Children()) - 1)
 				nodePath := m.currentPath()
@@ -543,6 +586,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.adding = true
 			m.addTitle = ""
 			m.addDesc = ""
+			m.addType = "number"
 			if m.current.IsArray() {
 				m.addTitle = fmt.Sprintf("[%d]", len(m.current.Children()))
 			}
@@ -638,6 +682,21 @@ func (m *BrowserModel) createNodeFromTemplate(title, desc string) tree.ConfigNod
 		}
 	}
 	return tree.NewBranch(title, desc)
+}
+
+func (m *BrowserModel) createObjectValueNode(title, desc, valueType string) tree.ConfigNode {
+	switch valueType {
+	case "object":
+		return tree.NewBranch(title, desc)
+	case "array":
+		return tree.NewLeaf(title, desc, tree.TypeArray, []string{})
+	case "boolean":
+		return tree.NewLeaf(title, desc, tree.TypeBool, false)
+	case "number":
+		return tree.NewLeaf(title, desc, tree.TypeNumber, float64(0))
+	default:
+		return tree.NewLeaf(title, desc, tree.TypeString, "")
+	}
 }
 
 func (m *BrowserModel) ShortHelp() []key.Binding {

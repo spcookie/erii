@@ -6,6 +6,7 @@ import com.typesafe.config.ConfigResolveOptions
 import com.typesafe.config.ConfigValueFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.config.*
+import kotlinx.serialization.json.*
 import uesugi.common.toolkit.BotConfig
 import uesugi.common.toolkit.BotGroupsOverride
 import uesugi.common.toolkit.ConfigProvider
@@ -123,6 +124,34 @@ class ConfigHolderImpl : ConfigProvider {
         } catch (_: Exception) {
             true
         }
+    }
+
+    override fun getLlmDefaultParams(): Map<String, Map<String, JsonElement>> {
+        return try {
+            val paramConfig = config.getConfig("llm.param")
+            paramConfig.root().keys.associateWith { tier ->
+                val t = paramConfig.getConfig(tier)
+                t.root().keys.associateWith { key ->
+                    t.getValue(key).let { v -> toJsonElement(v.unwrapped()) }
+                }
+            }
+        } catch (e: Exception) {
+            log.warn { "Failed to load llm default params: ${e.message}" }
+            emptyMap()
+        }
+    }
+
+    private fun toJsonElement(value: Any?): JsonElement = when (value) {
+        null -> JsonNull
+        is Number -> JsonPrimitive(value)
+        is String -> JsonPrimitive(value)
+        is Boolean -> JsonPrimitive(value)
+        is Map<*, *> -> JsonObject(value.entries.associate { (k, v) ->
+            k.toString() to toJsonElement(v)
+        })
+
+        is List<*> -> JsonArray(value.map { toJsonElement(it) })
+        else -> JsonPrimitive(value.toString())
     }
 
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
