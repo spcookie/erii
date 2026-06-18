@@ -117,3 +117,26 @@ data class GroupStatusViewModel(
     val basePath: String = "",
     val hourlyMsgCounts: List<HourlyMessageCount> = emptyList()
 )
+
+/**
+ * Token 消耗页面 ViewModel
+ */
+data class UsageViewModel(
+    val todayCacheHitInput: Long,
+    val todayCacheMissInput: Long,
+    val todayOutput: Long,
+    val todayCost: Double,
+    val priceUnit: String,
+    val totalCacheHitInput: Long,
+    val totalCacheMissInput: Long,
+    val totalOutput: Long,
+    val totalCost: Double,
+    val todayCacheHitRate: Double,
+    val sceneBars: List<uesugi.core.component.usage.TokenUsageChartPoint>,
+    val modelBars: List<uesugi.core.component.usage.TokenUsageChartPoint>,
+    val dailySeries: List<uesugi.core.component.usage.DailyTokenUsagePoint>,
+    val sceneBarsJson: String,
+    val modelBarsJson: String,
+    val dailySeriesJson: String,
+    val basePath: String = ""
+)

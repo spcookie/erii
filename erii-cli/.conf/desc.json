@@ -120,5 +120,19 @@
   "state-tuning.evolution.recent-range-hours": "Recent message window for vocabulary extraction in hours",
   "state-tuning.evolution.recent-message-limit": "Maximum recent messages used for vocabulary extraction",
   "state-tuning.evolution.active-limit": "Maximum active vocabulary entries returned by default",
-  "state-tuning.memory.stale-recall-days": "Days before valid facts that were not recalled are deleted"
+  "state-tuning.memory.stale-recall-days": "Days before valid facts that were not recalled are deleted",
+  "llm.usage-pricing": "LLM token usage pricing configuration",
+  "llm.usage-pricing.price-unit": "Price currency unit",
+  "llm.usage-pricing.lite": "Lite tier pricing per 1M tokens",
+  "llm.usage-pricing.lite.input-cache-hit": "Input cache hit price per 1M tokens (Lite)",
+  "llm.usage-pricing.lite.input-cache-miss": "Input cache miss price per 1M tokens (Lite)",
+  "llm.usage-pricing.lite.output": "Output price per 1M tokens (Lite)",
+  "llm.usage-pricing.flash": "Flash tier pricing per 1M tokens",
+  "llm.usage-pricing.flash.input-cache-hit": "Input cache hit price per 1M tokens (Flash)",
+  "llm.usage-pricing.flash.input-cache-miss": "Input cache miss price per 1M tokens (Flash)",
+  "llm.usage-pricing.flash.output": "Output price per 1M tokens (Flash)",
+  "llm.usage-pricing.pro": "Pro tier pricing per 1M tokens",
+  "llm.usage-pricing.pro.input-cache-hit": "Input cache hit price per 1M tokens (Pro)",
+  "llm.usage-pricing.pro.input-cache-miss": "Input cache miss price per 1M tokens (Pro)",
+  "llm.usage-pricing.pro.output": "Output price per 1M tokens (Pro)"
 }

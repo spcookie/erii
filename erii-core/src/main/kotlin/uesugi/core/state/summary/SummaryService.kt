@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
-import uesugi.core.state.memory.MemoryAgent
 import uesugi.core.state.memory.MemoryRepository
 
 /**
@@ -13,7 +12,8 @@ import uesugi.core.state.memory.MemoryRepository
 class SummaryService(
     private val memoryRepository: MemoryRepository,
     private val summaryRepository: SummaryRepository,
-    private val memoryAgent: MemoryAgent
+    private val memoryAgent: uesugi.core.state.memory.MemoryAgent,
+    private val summaryAgent: SummaryAgent
 ) {
 
     companion object {
@@ -55,7 +55,7 @@ class SummaryService(
             }
 
             // 3. 生成摘要
-            generateSummary(botMark, groupId, messages)
+            doGenerateSummary(botMark, groupId, messages)
 
             val maxHistoryId = histories.maxOf { it.id!! }
             withContext(Dispatchers.IO) {
@@ -72,10 +72,10 @@ class SummaryService(
     /**
      * 生成对话摘要
      */
-    private suspend fun generateSummary(
+    private suspend fun doGenerateSummary(
         botMark: String,
         groupId: String,
-        messages: List<MemoryAgent.MemoryMessage>
+        messages: List<uesugi.core.state.memory.MemoryAgent.MemoryMessage>
     ) {
         try {
             log.debug("开始生成对话摘要, scopeId=$groupId")
@@ -84,7 +84,7 @@ class SummaryService(
                 summaryRepository.getLatestSummary(botMark, groupId)
             }?.let(::buildPreviousSummaryContext)
 
-            val summary = memoryAgent.generateSummary(messages, groupId, previousSummaryContext)
+            val summary = summaryAgent.generateSummary(messages, groupId, previousSummaryContext)
 
             // 保存到数据库
             summaryRepository.saveSummary(

@@ -62,7 +62,7 @@ class VolitionAgent {
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
         val messagesText = messages.joinToString("\n") { it.asLlmPrompt() }
 
-        val prompt = prompt("主动行为分析", LLMParams(maxTokens = 65536)) {
+        val prompt = prompt("__volition_analysis__", LLMParams(maxTokens = 65536)) {
             system(
                 """
                 你是一名"群聊主动行为分析器"，用于判断我是否应该主动插话。

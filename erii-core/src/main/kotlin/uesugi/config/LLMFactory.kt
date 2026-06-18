@@ -8,9 +8,14 @@ import io.ktor.client.plugins.logging.*
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.component.llm.DefaultParamPromptExecutor
 import uesugi.core.component.llm.FixingPromptExecutor
+import uesugi.core.component.llm.TokenUsagePromptExecutor
+import uesugi.core.component.usage.TokenUsageRepository
 import kotlin.time.ExperimentalTime
 
-class LLMFactory(private val providers: List<LLMClientProvider>) {
+class LLMFactory(
+    private val providers: List<LLMClientProvider>,
+    private val tokenUsageRepository: TokenUsageRepository
+) {
 
     @OptIn(ExperimentalTime::class)
     fun promptExecutor(): PromptExecutor {
@@ -24,10 +29,11 @@ class LLMFactory(private val providers: List<LLMClientProvider>) {
             .associate { it.provider to it.createClient(baseClient) }
 
         val defaultParams = ConfigHolder.getLlmDefaultParams()
-        return DefaultParamPromptExecutor(
+        val executor = DefaultParamPromptExecutor(
             FixingPromptExecutor(MultiLLMPromptExecutor(llmClients)),
             defaultParams
         )
+        return TokenUsagePromptExecutor(executor, tokenUsageRepository)
     }
 
     fun getBaseClient(isDebug: Boolean): HttpClient = HttpClient {

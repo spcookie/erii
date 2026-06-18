@@ -49,7 +49,7 @@ internal suspend fun buildPrompt(context: Context): Prompt {
         }
     } else emptyMap()
 
-    return prompt("群聊机器人") {
+    return prompt("__bot_chat__") {
         system {
             markdown {
                 buildStableSystemPrompt(context)

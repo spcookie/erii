@@ -1,0 +1,159 @@
+﻿@import uesugi.routing.UsageViewModel
+
+@param vm: UsageViewModel
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Usage</title>
+    <link href="${vm.basePath}/css/cal-heatmap.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            width: 1280px;
+            min-height: 1500px;
+            background: #f6f7f9;
+            color: #1d2430;
+            font-family: Inter, "Microsoft YaHei", Arial, sans-serif;
+        }
+        .page { padding: 32px; }
+        .title { font-size: 30px; font-weight: 760; margin: 0 0 6px; letter-spacing: 0; }
+        .sub { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+        .metric, .panel {
+            background: #ffffff;
+            border: 1px solid #dde3ea;
+            border-radius: 8px;
+            box-shadow: 0 8px 22px rgba(20, 32, 50, .06);
+        }
+        .metric { padding: 18px; min-height: 102px; }
+        .metric .label { color: #64748b; font-size: 13px; margin-bottom: 10px; }
+        .metric .value { font-size: 25px; font-weight: 760; white-space: nowrap; }
+        .metric .hint { margin-top: 8px; color: #8a94a6; font-size: 12px; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+        .panel { padding: 18px; min-height: 360px; }
+        .panel.wide { grid-column: 1 / -1; min-height: 330px; }
+        .panel h2 { margin: 0 0 10px; font-size: 18px; font-weight: 720; }
+        .chart { width: 100%; height: 300px; }
+        #heatmap { margin-top: 18px; overflow: hidden; }
+        .legend {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .dot { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; }
+        .hit { background:#2f9e44; }
+        .miss { background:#3b82f6; }
+        .out { background:#f97316; }
+    </style>
+</head>
+<body>
+<main class="page">
+    <h1 class="title">Token Usage</h1>
+    <div class="sub">Lite / Flash / Pro token 消耗统计</div>
+    <section class="metrics">
+        <div class="metric"><div class="label">今日输入 · 缓存命中</div><div class="value" id="todayHit">${vm.todayCacheHitInput}</div><div class="hint">input cache hit</div></div>
+        <div class="metric"><div class="label">今日输入 · 未命中</div><div class="value" id="todayMiss">${vm.todayCacheMissInput}</div><div class="hint">input cache miss</div></div>
+        <div class="metric"><div class="label">今日输出</div><div class="value" id="todayOut">${vm.todayOutput}</div><div class="hint">output tokens</div></div>
+        <div class="metric"><div class="label">今日花费</div><div class="value" id="todayCost">${vm.todayCost} ${vm.priceUnit}</div><div class="hint" id="unit">${vm.priceUnit}</div></div>
+        <div class="metric"><div class="label">今日缓存命中率</div><div class="value" id="hitRate">${vm.todayCacheHitRate}%</div><div class="hint">hit / input</div></div>
+    </section>
+    <section class="grid">
+        <div class="panel">
+            <h2>场景 Token 消耗</h2>
+            <div class="legend"><span><i class="dot hit"></i>输入命中</span><span><i class="dot miss"></i>输入未命中</span><span><i class="dot out"></i>输出</span></div>
+            <div id="sceneBars" class="chart"></div>
+        </div>
+        <div class="panel">
+            <h2>模型 Token 消耗</h2>
+            <div class="legend"><span><i class="dot hit"></i>输入命中</span><span><i class="dot miss"></i>输入未命中</span><span><i class="dot out"></i>输出</span></div>
+            <div id="modelBars" class="chart"></div>
+        </div>
+    </section>
+    <section class="grid" style="margin-top: 18px;">
+        <div class="panel wide">
+            <h2>全部累计</h2>
+            <div class="metrics">
+                <div class="metric"><div class="label">累计输入命中</div><div class="value" id="totalHit">${vm.totalCacheHitInput}</div></div>
+                <div class="metric"><div class="label">累计输入未命中</div><div class="value" id="totalMiss">${vm.totalCacheMissInput}</div></div>
+                <div class="metric"><div class="label">累计输出</div><div class="value" id="totalOut">${vm.totalOutput}</div></div>
+                <div class="metric"><div class="label">累计花费</div><div class="value" id="totalCost">${vm.totalCost} ${vm.priceUnit}</div></div>
+                <div class="metric"><div class="label">累计总 Token</div><div class="value" id="totalTokens">${vm.totalCacheHitInput + vm.totalCacheMissInput + vm.totalOutput}</div></div>
+            </div>
+        </div>
+        <div class="panel wide">
+            <h2>每日 Token 平滑趋势</h2>
+            <div id="dailyLine" class="chart"></div>
+        </div>
+        <div class="panel wide">
+            <h2>每日消耗热力图</h2>
+            <div id="heatmap"></div>
+        </div>
+    </section>
+</main>
+<script src="${vm.basePath}/js/echarts.min.js"></script>
+<script src="${vm.basePath}/js/d3.v7.min.js"></script>
+<script src="${vm.basePath}/js/cal-heatmap.min.js"></script>
+<script>
+    var sceneBarsData = JSON.parse('${vm.sceneBarsJson}');
+    var modelBarsData = JSON.parse('${vm.modelBarsJson}');
+    var dailySeriesData = JSON.parse('${vm.dailySeriesJson}');
+
+    function barChart(id, rows) {
+        var chart = echarts.init(document.getElementById(id));
+        chart.setOption({
+            color: ['#2f9e44', '#3b82f6', '#f97316'],
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: 58, right: 18, top: 18, bottom: 70 },
+            xAxis: { type: 'category', data: rows.map(function(x) { return x.name; }), axisLabel: { rotate: 24, interval: 0 } },
+            yAxis: { type: 'value' },
+            series: [
+                { name: '输入命中', type: 'bar', stack: 'total', data: rows.map(function(x) { return x.cacheHitInput; }) },
+                { name: '输入未命中', type: 'bar', stack: 'total', data: rows.map(function(x) { return x.cacheMissInput; }) },
+                { name: '输出', type: 'bar', stack: 'total', data: rows.map(function(x) { return x.output; }) }
+            ]
+        });
+    }
+    barChart('sceneBars', sceneBarsData);
+    barChart('modelBars', modelBarsData);
+
+    var line = echarts.init(document.getElementById('dailyLine'));
+    line.setOption({
+        color: ['#2563eb'],
+        tooltip: { trigger: 'axis' },
+        grid: { left: 58, right: 18, top: 18, bottom: 44 },
+        xAxis: { type: 'category', data: dailySeriesData.map(function(x) { return x.date; }) },
+        yAxis: { type: 'value' },
+        series: [{ type: 'line', smooth: true, areaStyle: { opacity: .12 }, data: dailySeriesData.map(function(x) { return x.tokens; }) }]
+    });
+
+    var heatmapData = dailySeriesData.map(function(x) { return { date: x.date, value: x.tokens }; });
+    var start = dailySeriesData.length ? new Date(dailySeriesData[0].date) : new Date();
+    var cal = new CalHeatmap();
+    cal.paint({
+        itemSelector: '#heatmap',
+        range: 6,
+        date: { start: start },
+        domain: { type: 'month', gutter: 6, label: { text: 'MMM', textAlign: 'start', position: 'top' } },
+        subDomain: { type: 'ghDay', radius: 2, width: 14, height: 14, gutter: 3 },
+        data: { source: heatmapData, x: 'date', y: 'value' },
+        scale: { color: { type: 'threshold', range: ['#ebedf0', '#c7e9ff', '#73b7ff', '#2563eb', '#0f3a8a'], domain: [1, 10000, 50000, 100000] } }
+    });
+</script>
+</body>
+</html>

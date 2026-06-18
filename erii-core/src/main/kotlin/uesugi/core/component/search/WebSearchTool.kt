@@ -46,7 +46,7 @@ object WebSearchTool : ToolSet {
     private suspend fun rewriteQuery(originalQuery: String): SearchPlan {
         val promptExecutor by ref<PromptExecutor>()
 
-        val rewritePrompt = prompt("query-rewrite", LLMParams(maxTokens = 16384)) {
+        val rewritePrompt = prompt("__search_analysis__", LLMParams(maxTokens = 16384)) {
             system(
                 """
                 你是一个搜索查询优化专家。将用户的原始问题转化为 1-3 个高质量搜索引擎查询。

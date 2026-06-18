@@ -13,10 +13,7 @@ import io.ktor.server.resources.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import uesugi.common.toolkit.JSON
-import uesugi.routing.configureBotConfigManager
-import uesugi.routing.configureBotStatus
-import uesugi.routing.configureBotStatusManager
-import uesugi.routing.configureChatRoutes
+import uesugi.routing.*
 import java.nio.file.Path
 import gg.jte.ContentType as JteContentType
 
@@ -42,6 +39,7 @@ fun Application.configureRouting() {
         configureBotStatusManager()
         configureBotConfigManager()
         configureChatRoutes()
+        configureUsageRoutes()
         authenticate("basic") {
             staticResources("/", "assets")
         }
