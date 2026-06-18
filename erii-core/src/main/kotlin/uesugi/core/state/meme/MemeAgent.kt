@@ -4,6 +4,9 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
+import ai.koog.prompt.llm.LLMCapability
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.params.LLMParams
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
@@ -33,18 +36,26 @@ class MemeAgent {
      * 分析表情包内容
      *
      * @param contexts 表情包在群聊中出现的上下文列表
+     * @param imageBytes 表情包图片字节（可选，仅视觉模型使用）
+     * @param imageFormat 图片格式如 "png"、"gif" 等（可选）
      * @return 表情包分析结果
      */
     @OptIn(ExperimentalTime::class)
-    suspend fun analyzeMeme(contexts: List<String>): MemoAnalysis? {
+    suspend fun analyzeMeme(
+        contexts: List<String>,
+        imageBytes: ByteArray? = null,
+        imageFormat: String? = null
+    ): MemoAnalysis? {
         if (contexts.isEmpty()) {
             log.debug("上下文为空，无法分析表情包")
             return null
         }
 
         val contextText = contexts.joinToString("\n---\n")
+        val supportsVision = LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
+        val hasImage = supportsVision && imageBytes != null && imageFormat != null
 
-        log.debug("开始分析表情包, 上下文数量=${contexts.size}")
+        log.debug("开始分析表情包, 上下文数量=${contexts.size}, 视觉支持=$supportsVision, 有图片=$hasImage")
 
         return try {
             log.debug("调用 LLM 执行表情包分析...")
@@ -54,7 +65,7 @@ class MemeAgent {
                     """
                     你是一名**表情包分析专家**。
 
-                    任务：根据以下表情包在群聊中出现的上下文，分析表情包的：
+                    任务：根据以下表情包在群聊中出现的上下文${if (hasImage) "以及表情包图片本身" else ""}，分析表情包的：
 
                     1. `description`：用 1-2 句话描述这个表情包的内容/画面/含义
                     2. `purpose`：表情包的典型使用场景或用途（如"用于嘲讽"、"用于打招呼"、"用于表达无语"、"用于炫耀"等）
@@ -64,6 +75,15 @@ class MemeAgent {
                     """.trimIndent()
                 )
                 user {
+                    if (hasImage) {
+                        text("表情包图片:")
+                        image(
+                            AttachmentSource.Image(
+                                content = AttachmentContent.Binary.Bytes(imageBytes),
+                                format = imageFormat
+                            )
+                        )
+                    }
                     text(
                         """
                     表情包出现的上下文:
@@ -98,55 +118,4 @@ class MemeAgent {
         }
     }
 
-    /**
-     * 将用户输入的搜索文本转换为表情包描述
-     *
-     * @param userQuery 用户输入的搜索文本（如"搞笑的表情包"）
-     * @return 转换后的描述关键词
-     */
-    @OptIn(ExperimentalTime::class)
-    suspend fun transformSearchQuery(userQuery: String): String? {
-        if (userQuery.isBlank()) {
-            return null
-        }
-
-        log.debug("转换搜索查询: $userQuery")
-
-        return try {
-            val userPromptObj = prompt("转换搜索查询", LLMParams(maxTokens = 65536)) {
-                system(
-                    """
-                    你是一个搜索关键词转换器。
-
-                    任务：将用户输入的搜索文本转换为表情包描述关键词。
-
-                    例如：
-                    - 输入"搞笑的表情包" -> 输出"搞笑、幽默、逗趣"
-                    - 输入"可以用来嘲讽别人的" -> 输出"嘲讽、讽刺、挖苦"
-                    - 输入"表示无语" -> 输出"无语、无奈、汗"
-
-                    直接输出关键词，用顿号分隔，不要有额外说明。
-                    """.trimIndent()
-                )
-                user {
-                    text("转换以下搜索文本为表情包描述关键词：")
-                    text(userQuery)
-                }
-            }
-
-            val promptExecutor: PromptExecutor by GlobalContext.get().inject()
-
-            val result = promptExecutor.execute(
-                prompt = userPromptObj,
-                model = LLMProviderChoice.Pro
-            )
-
-            val text = result.textContent()
-            log.debug("查询转换结果: {}", text)
-            text
-        } catch (e: Exception) {
-            log.error("查询转换失败", e)
-            userQuery // 失败时返回原始查询
-        }
-    }
 }

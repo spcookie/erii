@@ -294,18 +294,25 @@ class MemeJob(
                     // 记录当前计数（用于更新 lastAnalyzedCount）
                     val currentSeenCount = memo.seenCount
 
+                    // 加载图片资源（用于视觉 LLM 分析 + 向量存储）
+                    val resource = runCatching {
+                        resourceService.getResource(memo.resourceId)?.apply {
+                            bytes = storage.get(this.url.toPath()).buffer().readByteArray()
+                        }
+                    }.getOrNull()
+                    val imageFormat = resource?.fileName?.substringAfterLast(".", "")
+                        ?.lowercase()?.takeIf { it.isNotEmpty() }
+
                     // 调用 LLM 分析
-                    val analysis = memeAgent.analyzeMeme(memo.contexts)
+                    val analysis = memeAgent.analyzeMeme(
+                        contexts = memo.contexts,
+                        imageBytes = resource?.bytes,
+                        imageFormat = imageFormat
+                    )
 
                     if (analysis != null) {
                         // 生成向量ID
                         val vectorId = vectorStoreFactory.generateVectorId(botMark, groupId, memo.id!!)
-
-                        val resource = resourceService.getResource(memo.resourceId)
-                            ?.apply {
-                                bytes = storage.get(this.url.toPath())
-                                    .buffer().readByteArray()
-                            }
 
                         // 更新向量存储
                         val updatedMemo = memo.copy(
