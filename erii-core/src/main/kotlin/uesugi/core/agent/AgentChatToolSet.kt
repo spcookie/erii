@@ -7,8 +7,11 @@ import uesugi.common.ChatToolSet
 import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.api.sendGroupMsg
 import uesugi.onebot.sdk.message.buildMessage
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.net.URL
 import java.util.*
+import javax.imageio.ImageIO
 
 class AgentChatToolSet(
     val client: OneBotClient,
@@ -18,6 +21,8 @@ class AgentChatToolSet(
 
     companion object {
         private val NUMBER_PATTERN = Regex("""(?<!\d)(\d{4,})(?!\d)""")
+        private val GIF87A = "GIF87a".toByteArray()
+        private val GIF89A = "GIF89a".toByteArray()
     }
 
     @ChatMessage
@@ -61,7 +66,8 @@ class AgentChatToolSet(
         try {
             val memo = context.meme(tag)
             if (memo != null) {
-                val base64 = Base64.getEncoder().encodeToString(memo.bytes)
+                val imageBytes = convertNonGifToGif(memo.bytes)
+                val base64 = Base64.getEncoder().encodeToString(imageBytes)
                 client.sendGroupMsg(groupId, buildMessage {
                     image("base64://$base64")
                 })
@@ -73,6 +79,38 @@ class AgentChatToolSet(
         }
 
         return "发送表情包消息成功"
+    }
+
+    private suspend fun convertNonGifToGif(bytes: ByteArray): ByteArray = withContext(Dispatchers.IO) {
+        if (bytes.isGif()) {
+            return@withContext bytes
+        }
+
+        val image = ByteArrayInputStream(bytes).use { ImageIO.read(it) }
+            ?: error("Unable to read non-GIF meme image")
+        val output = ByteArrayOutputStream()
+        val written = output.use { ImageIO.write(image, "gif", it) }
+        if (!written) {
+            error("GIF image encoding is not supported")
+        }
+        output.toByteArray()
+    }
+
+    private fun ByteArray.isGif(): Boolean {
+        return size >= GIF87A.size &&
+                (startsWith(GIF87A) || startsWith(GIF89A))
+    }
+
+    private fun ByteArray.startsWith(prefix: ByteArray): Boolean {
+        if (size < prefix.size) {
+            return false
+        }
+        for (index in prefix.indices) {
+            if (this[index] != prefix[index]) {
+                return false
+            }
+        }
+        return true
     }
 
     @ChatMessage
