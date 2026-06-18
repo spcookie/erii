@@ -2,6 +2,7 @@ package uesugi.core.state.emotion
 
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.EmotionalTendencies
@@ -153,6 +154,7 @@ class EmotionRepository {
                 this.emotion = emotion
                 this.mood = mood
                 this.behavior = behavior
+                this.updatedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }
             log.debug("群组 ${entity.groupId} 情绪状态已更新（衰减）")
         }

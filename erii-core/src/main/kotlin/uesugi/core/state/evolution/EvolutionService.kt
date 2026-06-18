@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryEntity
 import uesugi.common.data.HistoryTable
@@ -168,8 +169,8 @@ class EvolutionService {
                     (LearnedVocabTable.groupId eq groupId) and
                     (LearnedVocabTable.weight greaterEq ACTIVE_WEIGHT_THRESHOLD)
         }
+            .orderBy(LearnedVocabTable.weight to SortOrder.DESC)
             .limit(limit)
-            .sortedByDescending { it.weight }
             .toList()
 
         log.debug("获取活跃词汇, groupId=$groupId, 数量=${vocabs.size}")

@@ -1,16 +1,73 @@
 package uesugi.core.state.summary
 
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.common.data.HistoryEntity
+import uesugi.common.data.HistoryTable
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 /**
  * 摘要仓库 - 负责摘要相关的数据库操作
  */
 class SummaryRepository {
+    fun findGroupsNeedProcessing(botMark: String): List<String> = transaction {
+        val allGroupIds = HistoryTable
+            .select(HistoryTable.groupId)
+            .where { HistoryTable.botMark eq botMark }
+            .groupBy(HistoryTable.groupId)
+            .map { it[HistoryTable.groupId] }
+            .distinct()
+
+        allGroupIds.filter { groupId ->
+            val summaryState = SummaryStateEntity.find(
+                (SummaryStateTable.botMark eq botMark) and (SummaryStateTable.groupId eq groupId)
+            ).firstOrNull()
+
+            val lastProcessedId = summaryState?.lastProcessedHistoryId ?: 0
+            HistoryEntity.count(
+                (HistoryTable.botMark eq botMark) and
+                        (HistoryTable.groupId eq groupId) and
+                        (HistoryTable.id greater lastProcessedId)
+            ) > 0
+        }
+    }
+
+    fun getSummaryState(botMark: String, groupId: String): SummaryStateRecord? = transaction {
+        SummaryStateEntity.find(
+            (SummaryStateTable.botMark eq botMark) and (SummaryStateTable.groupId eq groupId)
+        ).firstOrNull()?.toRecord()
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun updateSummaryState(botMark: String, groupId: String, lastHistoryId: Int) {
+        transaction {
+            val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            val existing = SummaryStateEntity.find(
+                (SummaryStateTable.botMark eq botMark) and (SummaryStateTable.groupId eq groupId)
+            ).firstOrNull()
+
+            if (existing != null) {
+                existing.lastProcessedHistoryId = lastHistoryId
+                existing.lastProcessedAt = now
+            } else {
+                SummaryStateEntity.new {
+                    this.botMark = botMark
+                    this.groupId = groupId
+                    this.lastProcessedHistoryId = lastHistoryId
+                    this.lastProcessedAt = now
+                }
+            }
+        }
+    }
 
     /**
      * 保存对话摘要

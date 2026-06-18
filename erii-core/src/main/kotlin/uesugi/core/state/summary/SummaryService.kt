@@ -27,8 +27,8 @@ class SummaryService(
             log.debug("开始处理群组对话摘要, groupId=$groupId")
 
             // 1. 获取需要处理的历史消息
-            val memoryState = memoryRepository.getMemoryState(botMark, groupId)
-            val lastId = memoryState?.lastProcessedHistoryId ?: 0
+            val summaryState = summaryRepository.getSummaryState(botMark, groupId)
+            val lastId = summaryState?.lastProcessedHistoryId ?: 0
 
             val histories = withContext(Dispatchers.IO) {
                 memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, 200)
@@ -54,6 +54,11 @@ class SummaryService(
 
             // 3. 生成摘要
             generateSummary(botMark, groupId, messages)
+
+            val maxHistoryId = histories.maxOf { it.id!! }
+            withContext(Dispatchers.IO) {
+                summaryRepository.updateSummaryState(botMark, groupId, maxHistoryId)
+            }
 
             log.debug("群组 $groupId 对话摘要生成完成")
 

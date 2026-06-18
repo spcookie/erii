@@ -14,6 +14,7 @@ import uesugi.core.state.meme.MemeData.MemeTable
 import uesugi.core.state.memory.FactsTable
 import uesugi.core.state.memory.MemoryStateTable
 import uesugi.core.state.memory.UserProfileTable
+import uesugi.core.state.summary.SummaryStateTable
 import uesugi.core.state.summary.SummaryTable
 import uesugi.core.state.volition.VolitionStateTable
 
@@ -26,6 +27,7 @@ fun migration(database: Database) {
             FactsTable,
             UserProfileTable,
             SummaryTable,
+            SummaryStateTable,
             MemoryStateTable,
             LearnedVocabTable,
             FlowStateTable,
@@ -44,6 +46,7 @@ private fun init(database: Database) {
             FactsTable,
             UserProfileTable,
             SummaryTable,
+            SummaryStateTable,
             MemoryStateTable,
             LearnedVocabTable,
             FlowStateTable,

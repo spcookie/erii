@@ -37,6 +37,14 @@ object SummaryTable : IntIdTable("memory_summary") {
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
 }
 
+object SummaryStateTable : IntIdTable("summary_state") {
+    val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)
+    val groupId = varchar("group_id", length = DEFAULT_LENGTH)
+    val lastProcessedHistoryId = integer("last_processed_history_id").default(0)
+    val lastProcessedAt = datetime("last_processed_at")
+        .defaultExpression(CurrentDateTime)
+}
+
 /**
  * 对话摘要实体
  */
@@ -52,6 +60,15 @@ class SummaryEntity(id: EntityID<Int>) : IntEntity(id) {
     var participantCount by SummaryTable.participantCount
     var messageCount by SummaryTable.messageCount
     var createdAt by SummaryTable.createdAt
+}
+
+class SummaryStateEntity(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<SummaryStateEntity>(SummaryStateTable)
+
+    var botMark by SummaryStateTable.botMark
+    var groupId by SummaryStateTable.groupId
+    var lastProcessedHistoryId by SummaryStateTable.lastProcessedHistoryId
+    var lastProcessedAt by SummaryStateTable.lastProcessedAt
 }
 
 /**
@@ -71,6 +88,15 @@ data class SummaryRecord(
     val createdAt: LocalDateTime
 )
 
+@Serializable
+data class SummaryStateRecord(
+    val id: Int,
+    val botMark: String,
+    val groupId: String,
+    val lastProcessedHistoryId: Int,
+    val lastProcessedAt: LocalDateTime
+)
+
 /**
  * 实体转换为记录
  */
@@ -85,4 +111,12 @@ fun SummaryEntity.toRecord(): SummaryRecord = SummaryRecord(
     participantCount = participantCount,
     messageCount = messageCount,
     createdAt = createdAt
+)
+
+fun SummaryStateEntity.toRecord(): SummaryStateRecord = SummaryStateRecord(
+    id = id.value,
+    botMark = botMark,
+    groupId = groupId,
+    lastProcessedHistoryId = lastProcessedHistoryId,
+    lastProcessedAt = lastProcessedAt
 )

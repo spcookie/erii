@@ -235,9 +235,10 @@ class MemeRepository {
             }.map { it.toRecord() }
                 .filter { memo ->
                     // seenCount 是 3 的倍数 且 大于上次分析的计数
-                    val isMultipleOf3 = memo.seenCount % ANALYZE_THRESHOLD == 0
-                    val needsReanalysis = memo.seenCount > memo.lastAnalyzedCount
-                    isMultipleOf3 && needsReanalysis
+                    val neverAnalyzed = memo.lastAnalyzedCount <= 0
+                    val reachedInitialThreshold = memo.seenCount >= ANALYZE_THRESHOLD
+                    val doubledSinceLastAnalysis = memo.seenCount >= memo.lastAnalyzedCount * 2
+                    reachedInitialThreshold && (neverAnalyzed || doubledSinceLastAnalysis)
                 }
         }
     }

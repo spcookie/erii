@@ -44,6 +44,10 @@ data class VolitionState(
     fun decayFatigue(amount: Double) {
         fatigue = (fatigue - amount).coerceIn(0.0, 100.0)
     }
+
+    fun decayStimulus(amount: Double) {
+        stimulus = (stimulus - amount).coerceIn(0.0, 100.0)
+    }
 }
 
 class VolitionGauge(
@@ -72,6 +76,7 @@ class VolitionGauge(
             while (isActive) {
                 delay(decayIntervalMs.milliseconds)
                 decayFatigue()
+                decayStimulus()
             }
         }
 
@@ -211,6 +216,11 @@ class VolitionGauge(
     fun decayFatigue() {
         val decayRate = if (arousal < 0.2) 2.0 else 1.0
         state.decayFatigue(decayRate)
+    }
+
+    fun decayStimulus() {
+        val decayRate = if (flowValue > 70) 1.0 else 3.0
+        state.decayStimulus(decayRate)
     }
 
     fun shouldSpeak(): Boolean {

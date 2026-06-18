@@ -1,8 +1,8 @@
 package uesugi.core.state.memory
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
@@ -65,20 +65,27 @@ class MemoryService(
             val messagesByUser = messages.groupBy { it.userId }
 
             // 4. 并发处理
-            coroutineScope {
+            val processedSuccessfully = coroutineScope {
                 // 4.1 用户画像和偏好 (按用户)
-                launch {
-                    for ((userId, userMessages) in messagesByUser) {
-                        if (userId != botMark) {
+                val profileJob = async {
+                    messagesByUser
+                        .filterKeys { it != botMark }
+                        .all { (userId, userMessages) ->
                             processUserProfile(botMark, groupId, userId, userMessages)
                         }
-                    }
                 }
 
                 // 4.2 事实记忆提取
-                launch {
+                val factsJob = async {
                     organizeFacts(botMark, groupId, messages)
                 }
+
+                profileJob.await() && factsJob.await()
+            }
+
+            if (!processedSuccessfully) {
+                log.warn("Memory processing partially failed, keeping cursor for retry, groupId=$groupId")
+                return
             }
 
             // 5. 更新记忆处理状态
@@ -105,14 +112,16 @@ class MemoryService(
         botMark: String,
         groupId: String,
         messages: List<MemoryAgent.MemoryMessage>
-    ) {
+    ): Boolean {
         try {
             log.debug("开始整理事实记忆, groupId=$groupId, message count=${messages.size}")
             memoryAgent.organize(botMark, groupId, messages)
 
             log.info("Fact memory sorting completed, botId=$botMark, groupId=$groupId")
+            return true
         } catch (e: Exception) {
             log.error("Failed to organize fact memory, groupId=$groupId", e)
+            return false
         }
     }
 
@@ -124,7 +133,7 @@ class MemoryService(
         groupId: String,
         userId: String,
         messages: List<MemoryAgent.MemoryMessage>
-    ) {
+    ): Boolean {
         try {
             log.debug("开始处理用户画像, groupId=$groupId, userId=$userId")
 
@@ -139,9 +148,11 @@ class MemoryService(
                 memoryRepository.updateUserProfile(botMark, groupId, userId, analysis.profile, analysis.preferences)
                 log.info("User portrait has been updated, botId=$botMark, groupId=$groupId, userId=$userId")
             }
+            return true
 
         } catch (e: Exception) {
             log.error("Failed to process user portrait, groupId=$groupId, userId=$userId", e)
+            return false
         }
     }
 
@@ -163,6 +174,7 @@ class MemoryService(
                 .reversed()
                 .filter { fact ->
                     fact.subjects.split(",")
+                        .map { it.trim() }
                         .any { subjects.contains(it) }
                 }
             val groupFacts = FactsEntity.find {

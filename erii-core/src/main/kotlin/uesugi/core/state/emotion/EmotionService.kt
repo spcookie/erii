@@ -194,9 +194,9 @@ class EmotionService(
 
         // 确定保留等级（消息越多，旧情绪保留越少）
         val retention = when {
-            historyEntities.size > 150 -> Retention.HIGH
+            historyEntities.size > 150 -> Retention.LOW
             historyEntities.size > 80 -> Retention.MEDIUM
-            else -> Retention.LOW
+            else -> Retention.HIGH
         }
 
         // 计算新的情绪和心情

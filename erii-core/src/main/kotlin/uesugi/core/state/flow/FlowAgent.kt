@@ -236,7 +236,7 @@ class FlowAgent {
                         CoreInterestEvent(
                             botMark,
                             groupId,
-                            result.interestMatch.score
+                            (result.interestMatch.score / 50.0).coerceIn(0.0, 1.0)
                         )
                     )
 
@@ -258,27 +258,26 @@ class FlowAgent {
                 }
             }
 
-        result.flowSuggestions.shouldDrain
-            .distinct()
-            .forEach { eventType ->
-                when (eventType) {
-                    DrainEventType.TopicInterrupt -> EventBus.postAsync(TopicInterruptEvent(botMark, groupId))
-                    DrainEventType.Negative -> EventBus.postAsync(NegativeEvent(botMark, groupId))
-                    DrainEventType.RepeatTopic -> EventBus.postAsync(RepeatTopicEvent(botMark, groupId))
-                    DrainEventType.LowActivity -> EventBus.postAsync(LowActivityEvent(botMark, groupId))
-                }
-            }
-
+        val drainEvents = result.flowSuggestions.shouldDrain.toMutableSet()
         if (!result.topicAnalysis.isOnTopic && result.topicAnalysis.topicDriftLevel > 0.6) {
-            EventBus.postAsync(TopicInterruptEvent(botMark, groupId))
+            drainEvents.add(DrainEventType.TopicInterrupt)
         }
 
         if (result.negativeSignals.exists) {
-            EventBus.postAsync(NegativeEvent(botMark, groupId))
+            drainEvents.add(DrainEventType.Negative)
         }
 
         if (result.repetition.exists && result.repetition.confidence > 0.7) {
-            EventBus.postAsync(RepeatTopicEvent(botMark, groupId))
+            drainEvents.add(DrainEventType.RepeatTopic)
+        }
+
+        drainEvents.forEach { eventType ->
+            when (eventType) {
+                DrainEventType.TopicInterrupt -> EventBus.postAsync(TopicInterruptEvent(botMark, groupId))
+                DrainEventType.Negative -> EventBus.postAsync(NegativeEvent(botMark, groupId))
+                DrainEventType.RepeatTopic -> EventBus.postAsync(RepeatTopicEvent(botMark, groupId))
+                DrainEventType.LowActivity -> EventBus.postAsync(LowActivityEvent(botMark, groupId))
+            }
         }
     }
 

@@ -89,7 +89,8 @@ class EvolutionJob(
             val recentMessages = evolutionService.getMostActiveMessages(botMark, groupId, 500, range)
 
             if (recentMessages.isEmpty()) {
-                log.warn("Group $groupId has no recent messages, skip processing")
+                log.warn("Group $groupId has no recent messages, only decay old words")
+                evolutionService.decayOldWords(botMark, groupId, emptyList())
                 return
             }
 

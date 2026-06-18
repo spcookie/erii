@@ -7,7 +7,6 @@ import kotlinx.datetime.toLocalDateTime
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.toolkit.logger
-import uesugi.core.state.memory.MemoryRepository
 import uesugi.core.state.summary.SummaryJob.Companion.SUMMARY_RETENTION_DAYS
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
@@ -20,7 +19,6 @@ import kotlin.time.ExperimentalTime
  */
 class SummaryJob(
     val jobScheduler: JobScheduler,
-    private val memoryRepository: MemoryRepository,
     private val summaryService: SummaryService,
     private val summaryRepository: SummaryRepository
 ) {
@@ -66,7 +64,7 @@ class SummaryJob(
 
                         // 查找需要处理的群组
                         val groups = withContext(Dispatchers.IO) {
-                            memoryRepository.findGroupsNeedProcessing(currentBotId)
+                            summaryRepository.findGroupsNeedProcessing(currentBotId)
                         }
 
                         log.debug("摘要任务发现 ${groups.size} 个群组需要处理")
