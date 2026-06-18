@@ -4,6 +4,8 @@ package uesugi.routing
 
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.PAD
+import uesugi.core.component.usage.DailyTokenUsagePoint
+import uesugi.core.component.usage.TokenUsageChartPoint
 import uesugi.core.message.history.HourlyMessageCount
 import uesugi.core.state.emotion.Aggressiveness
 import uesugi.core.state.emotion.EmojiLevel
@@ -132,9 +134,9 @@ data class UsageViewModel(
     val totalOutput: Long,
     val totalCost: Double,
     val todayCacheHitRate: Double,
-    val sceneBars: List<uesugi.core.component.usage.TokenUsageChartPoint>,
-    val modelBars: List<uesugi.core.component.usage.TokenUsageChartPoint>,
-    val dailySeries: List<uesugi.core.component.usage.DailyTokenUsagePoint>,
+    val sceneBars: List<TokenUsageChartPoint>,
+    val modelBars: List<TokenUsageChartPoint>,
+    val dailySeries: List<DailyTokenUsagePoint>,
     val sceneBarsJson: String,
     val modelBarsJson: String,
     val dailySeriesJson: String,
