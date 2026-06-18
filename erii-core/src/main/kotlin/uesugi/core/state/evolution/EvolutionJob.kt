@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.common.BotManage
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -53,7 +54,11 @@ class EvolutionJob(
                         log.debug("发现 ${groups.size} 个活跃群组需要处理")
 
                         for (groupId in groups) {
-                            processGroupEvolution(currentBotId, groupId, 1.hours)
+                            processGroupEvolution(
+                                currentBotId,
+                                groupId,
+                                ConfigHolder.getStateTuning().evolution.recentRangeHours.hours
+                            )
                         }
                     }
 
@@ -86,7 +91,12 @@ class EvolutionJob(
 
         try {
             // 步骤1: 捕获最近的消息
-            val recentMessages = evolutionService.getMostActiveMessages(botMark, groupId, 500, range)
+            val recentMessages = evolutionService.getMostActiveMessages(
+                botMark,
+                groupId,
+                ConfigHolder.getStateTuning().evolution.recentMessageLimit,
+                range
+            )
 
             if (recentMessages.isEmpty()) {
                 log.warn("Group $groupId has no recent messages, only decay old words")

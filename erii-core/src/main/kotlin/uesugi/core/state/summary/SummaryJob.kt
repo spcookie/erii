@@ -6,8 +6,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
-import uesugi.core.state.summary.SummaryJob.Companion.SUMMARY_RETENTION_DAYS
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
@@ -25,7 +25,6 @@ class SummaryJob(
 
     companion object {
         private val log = logger()
-        private const val SUMMARY_RETENTION_DAYS = 7L
     }
 
     private val mutex = Mutex()
@@ -105,7 +104,7 @@ class SummaryJob(
             if (cleanupMutex.tryLock()) {
                 try {
                     val cutoff = Clock.System.now()
-                        .minus(SUMMARY_RETENTION_DAYS.days)
+                        .minus(ConfigHolder.getStateTuning().summary.retentionDays.days)
                         .toLocalDateTime(TimeZone.currentSystemDefault())
                     log.debug("摘要清理任务开始执行, cutoff={}", cutoff)
 

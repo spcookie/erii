@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.state.summary.SummaryEntity
 import uesugi.core.state.summary.SummaryTable
@@ -32,11 +33,12 @@ class MemoryService(
 
         try {
             // 1. 获取需要处理的历史消息
+            val tuning = ConfigHolder.getStateTuning().memory
             val memoryState = memoryRepository.getMemoryState(botMark, groupId)
             val lastId = memoryState?.lastProcessedHistoryId ?: 0
 
             val histories = withContext(Dispatchers.IO) {
-                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, 400)
+                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, tuning.batchLimit)
             }
 
             if (histories.isEmpty()) {
@@ -44,7 +46,7 @@ class MemoryService(
                 return
             }
 
-            if (histories.size < 30) {
+            if (histories.size < tuning.minMessages) {
                 log.debug("群组 $groupId 消息数量不足 30 条，跳过记忆处理")
                 return
             }

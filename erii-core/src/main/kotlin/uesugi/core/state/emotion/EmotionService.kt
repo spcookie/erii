@@ -6,6 +6,8 @@ import uesugi.common.BotManage
 import uesugi.common.EventBus
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.PAD
+import uesugi.common.toolkit.ConfigHolder
+import uesugi.common.toolkit.EmotionTuningConfig
 import uesugi.common.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -91,16 +93,15 @@ object BehaviorMapper {
 class BehaviorAnalysis(
     private val currentEmotion: PAD?,
     private val currentMood: PAD?,
-    private val baseLine: EmotionalTendencies? = null
+    private val baseLine: EmotionalTendencies? = null,
+    private val tuning: EmotionTuningConfig = EmotionTuningConfig()
 ) {
-
-    companion object {
-        private const val y = 0.25
-        private const val MOOD_RETENTION = 0.95
-    }
-
     fun decideEmotion(currentStimulus: Stimulus, retention: Retention): Emotion {
-        val r = retention.value
+        val r = when (retention) {
+            Retention.HIGH -> tuning.emotionRetentionHigh
+            Retention.MEDIUM -> tuning.emotionRetentionMedium
+            Retention.LOW -> tuning.emotionRetentionLow
+        }
         val oldEmotion = currentEmotion
         return if (oldEmotion == null) {
             if (baseLine != null) baseLine.pad * r + currentStimulus * (1 - r) else currentStimulus
@@ -111,11 +112,13 @@ class BehaviorAnalysis(
 
     fun decideMood(emotion: Emotion): Mood {
         val oldMood = currentMood
+        val retention = tuning.moodRetention
+        val influence = tuning.moodEmotionInfluence
         return if (oldMood == null) {
-            if (baseLine != null) baseLine.pad * MOOD_RETENTION + emotion * y * (1 - MOOD_RETENTION)
-            else emotion * y
+            if (baseLine != null) baseLine.pad * retention + emotion * influence * (1 - retention)
+            else emotion * influence
         } else {
-            oldMood * MOOD_RETENTION + emotion * y * (1 - MOOD_RETENTION)
+            oldMood * retention + emotion * influence * (1 - retention)
         }
     }
 
@@ -142,6 +145,7 @@ class EmotionService(
     ) {
         val bot = BotManage.getBot(currentBotId)
         val baseLine = bot.role.emoticon
+        val tuning = ConfigHolder.getStateTuning().emotion
 
         // 获取当前情绪状态和新消息
         val emotionEntity = emotionRepository.getLatestEmotion(currentBotId, groupId)
@@ -189,7 +193,8 @@ class EmotionService(
         val behaviorAnalysis = BehaviorAnalysis(
             currentEmotion = decayedEmotion,
             currentMood = decayedMood,
-            baseLine = baseLine
+            baseLine = baseLine,
+            tuning = tuning
         )
 
         // 确定保留等级（消息越多，旧情绪保留越少）
@@ -250,7 +255,8 @@ class EmotionService(
         val behaviorAnalysis = BehaviorAnalysis(
             currentEmotion = emotion,
             currentMood = mood,
-            baseLine = baseLine
+            baseLine = baseLine,
+            tuning = ConfigHolder.getStateTuning().emotion
         )
         val behaviorProfile = behaviorAnalysis.decideBehavior(emotion, mood, applyEmotion = applyEmotion)
 

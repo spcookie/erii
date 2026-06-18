@@ -9,6 +9,7 @@ import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.HistoryEntity
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.PAD
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import kotlin.math.exp
 import kotlin.math.ln
@@ -23,10 +24,6 @@ class EmotionRepository {
     companion object {
         private val log = logger()
         private const val MAX_EMOTION_HISTORY_PER_GROUP = 100
-        private const val EMOTION_HALF_LIFE_SECONDS = 600
-        private const val MOOD_HALF_LIFE_SECONDS = 3600
-        private val EMOTION_LAMBDA = ln(2.0) / EMOTION_HALF_LIFE_SECONDS
-        private val MOOD_LAMBDA = ln(2.0) / MOOD_HALF_LIFE_SECONDS
     }
 
     /**
@@ -182,7 +179,9 @@ class EmotionRepository {
      * 情绪衰减计算
      */
     fun calculateDecayEmotion(emotion: PAD, deltaSeconds: Long): PAD {
-        val factor = exp(-EMOTION_LAMBDA * deltaSeconds)
+        val halfLife = ConfigHolder.getStateTuning().emotion.emotionHalfLifeSeconds.coerceAtLeast(1)
+        val lambda = ln(2.0) / halfLife
+        val factor = exp(-lambda * deltaSeconds)
         return emotion * factor
     }
 
@@ -190,7 +189,9 @@ class EmotionRepository {
      * 心情衰减计算
      */
     fun calculateDecayMood(mood: PAD, baseline: PAD, deltaSeconds: Long): PAD {
-        val factor = exp(-MOOD_LAMBDA * deltaSeconds)
+        val halfLife = ConfigHolder.getStateTuning().emotion.moodHalfLifeSeconds.coerceAtLeast(1)
+        val lambda = ln(2.0) / halfLife
+        val factor = exp(-lambda * deltaSeconds)
 
         return PAD(
             p = baseline.p + (mood.p - baseline.p) * factor,

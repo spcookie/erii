@@ -20,6 +20,7 @@ import org.koin.core.context.GlobalContext
 import uesugi.common.BotManage
 import uesugi.common.EventBus
 import uesugi.common.LLMProviderChoice
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
 import kotlin.time.ExperimentalTime
@@ -228,6 +229,7 @@ class FlowAgent {
     }
 
     private fun triggerFlowEvents(result: FlowAnalysisResult, botMark: String, groupId: String) {
+        val tuning = ConfigHolder.getStateTuning().flow
         result.flowSuggestions.shouldCharge
             .distinct()
             .forEach { eventType ->
@@ -248,7 +250,9 @@ class FlowAgent {
                         )
                     )
 
-                    ChargeEventType.DeepReply -> EventBus.postAsync(DeepReplyEvent(botMark, groupId))
+                    ChargeEventType.DeepReply -> EventBus.postAsync(
+                        DeepReplyEvent(botMark, groupId, tuning.deepReplyBaseCharge)
+                    )
                     ChargeEventType.ContinuousInteraction -> EventBus.postAsync(
                         ContinuousInteractionEvent(
                             botMark,
@@ -273,10 +277,22 @@ class FlowAgent {
 
         drainEvents.forEach { eventType ->
             when (eventType) {
-                DrainEventType.TopicInterrupt -> EventBus.postAsync(TopicInterruptEvent(botMark, groupId))
-                DrainEventType.Negative -> EventBus.postAsync(NegativeEvent(botMark, groupId))
-                DrainEventType.RepeatTopic -> EventBus.postAsync(RepeatTopicEvent(botMark, groupId))
-                DrainEventType.LowActivity -> EventBus.postAsync(LowActivityEvent(botMark, groupId))
+                DrainEventType.TopicInterrupt -> EventBus.postAsync(
+                    TopicInterruptEvent(botMark, groupId, tuning.topicInterruptPenalty)
+                )
+
+                DrainEventType.Negative -> EventBus.postAsync(NegativeEvent(botMark, groupId, tuning.negativePenalty))
+                DrainEventType.RepeatTopic -> EventBus.postAsync(
+                    RepeatTopicEvent(botMark, groupId, tuning.repeatTopicPenalty)
+                )
+
+                DrainEventType.LowActivity -> EventBus.postAsync(
+                    LowActivityEvent(
+                        botMark,
+                        groupId,
+                        tuning.lowActivityPenalty
+                    )
+                )
             }
         }
     }

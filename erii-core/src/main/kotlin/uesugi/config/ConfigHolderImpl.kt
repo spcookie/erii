@@ -7,10 +7,7 @@ import com.typesafe.config.ConfigValueFactory
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.config.*
 import kotlinx.serialization.json.*
-import uesugi.common.toolkit.BotConfig
-import uesugi.common.toolkit.BotGroupsOverride
-import uesugi.common.toolkit.ConfigProvider
-import uesugi.common.toolkit.GroupConfig
+import uesugi.common.toolkit.*
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
@@ -286,6 +283,214 @@ class ConfigHolderImpl : ConfigProvider {
         val groupConfig = botConfig.groups[groupId] ?: return emptyList()
         return groupConfig.admins
     }
+
+    override fun getStateTuning(): StateTuningConfig {
+        val d = StateTuningConfig()
+        return StateTuningConfig(
+            emotion = EmotionTuningConfig(
+                emotionRetentionHigh = getDoubleOrDefault(
+                    "state-tuning.emotion.emotion-retention-high",
+                    d.emotion.emotionRetentionHigh
+                ),
+                emotionRetentionMedium = getDoubleOrDefault(
+                    "state-tuning.emotion.emotion-retention-medium",
+                    d.emotion.emotionRetentionMedium
+                ),
+                emotionRetentionLow = getDoubleOrDefault(
+                    "state-tuning.emotion.emotion-retention-low",
+                    d.emotion.emotionRetentionLow
+                ),
+                moodRetention = getDoubleOrDefault("state-tuning.emotion.mood-retention", d.emotion.moodRetention),
+                moodEmotionInfluence = getDoubleOrDefault(
+                    "state-tuning.emotion.mood-emotion-influence",
+                    d.emotion.moodEmotionInfluence
+                ),
+                emotionHalfLifeSeconds = getLongOrDefault(
+                    "state-tuning.emotion.emotion-half-life-seconds",
+                    d.emotion.emotionHalfLifeSeconds
+                ),
+                moodHalfLifeSeconds = getLongOrDefault(
+                    "state-tuning.emotion.mood-half-life-seconds",
+                    d.emotion.moodHalfLifeSeconds
+                )
+            ),
+            flow = FlowTuningConfig(
+                minRatioOfDesire = getDoubleOrDefault("state-tuning.flow.min-ratio-of-desire", d.flow.minRatioOfDesire),
+                minValueMin = getDoubleOrDefault("state-tuning.flow.min-value-min", d.flow.minValueMin),
+                minValueMax = getDoubleOrDefault("state-tuning.flow.min-value-max", d.flow.minValueMax),
+                decayNormalPerMinute = getDoubleOrDefault(
+                    "state-tuning.flow.decay-normal-per-minute",
+                    d.flow.decayNormalPerMinute
+                ),
+                decayNegativePerMinute = getDoubleOrDefault(
+                    "state-tuning.flow.decay-negative-per-minute",
+                    d.flow.decayNegativePerMinute
+                ),
+                coreInterestBaseCharge = getDoubleOrDefault(
+                    "state-tuning.flow.core-interest-base-charge",
+                    d.flow.coreInterestBaseCharge
+                ),
+                continuousInteractionBaseCharge = getDoubleOrDefault(
+                    "state-tuning.flow.continuous-interaction-base-charge",
+                    d.flow.continuousInteractionBaseCharge
+                ),
+                deepReplyBaseCharge = getDoubleOrDefault(
+                    "state-tuning.flow.deep-reply-base-charge",
+                    d.flow.deepReplyBaseCharge
+                ),
+                groupResonanceBaseCharge = getDoubleOrDefault(
+                    "state-tuning.flow.group-resonance-base-charge",
+                    d.flow.groupResonanceBaseCharge
+                ),
+                negativePenalty = getDoubleOrDefault("state-tuning.flow.negative-penalty", d.flow.negativePenalty),
+                topicInterruptPenalty = getDoubleOrDefault(
+                    "state-tuning.flow.topic-interrupt-penalty",
+                    d.flow.topicInterruptPenalty
+                ),
+                repeatTopicPenalty = getDoubleOrDefault(
+                    "state-tuning.flow.repeat-topic-penalty",
+                    d.flow.repeatTopicPenalty
+                ),
+                lowActivityPenalty = getDoubleOrDefault(
+                    "state-tuning.flow.low-activity-penalty",
+                    d.flow.lowActivityPenalty
+                ),
+                gettingBetterThreshold = getDoubleOrDefault(
+                    "state-tuning.flow.getting-better-threshold",
+                    d.flow.gettingBetterThreshold
+                ),
+                burstThreshold = getDoubleOrDefault("state-tuning.flow.burst-threshold", d.flow.burstThreshold)
+            ),
+            volition = VolitionTuningConfig(
+                baseDesireDefault = getDoubleOrDefault(
+                    "state-tuning.volition.base-desire-default",
+                    d.volition.baseDesireDefault
+                ),
+                keywordHitMaxStimulus = getDoubleOrDefault(
+                    "state-tuning.volition.keyword-hit-max-stimulus",
+                    d.volition.keywordHitMaxStimulus
+                ),
+                busyGroupStimulus = getDoubleOrDefault(
+                    "state-tuning.volition.busy-group-stimulus",
+                    d.volition.busyGroupStimulus
+                ),
+                indirectMentionStimulus = getDoubleOrDefault(
+                    "state-tuning.volition.indirect-mention-stimulus",
+                    d.volition.indirectMentionStimulus
+                ),
+                emotionalResonanceStimulus = getDoubleOrDefault(
+                    "state-tuning.volition.emotional-resonance-stimulus",
+                    d.volition.emotionalResonanceStimulus
+                ),
+                resetStimulusAmount = getDoubleOrDefault(
+                    "state-tuning.volition.reset-stimulus-amount",
+                    d.volition.resetStimulusAmount
+                ),
+                fatigueOnSpeak = getDoubleOrDefault(
+                    "state-tuning.volition.fatigue-on-speak",
+                    d.volition.fatigueOnSpeak
+                ),
+                fatigueDecayLowArousal = getDoubleOrDefault(
+                    "state-tuning.volition.fatigue-decay-low-arousal",
+                    d.volition.fatigueDecayLowArousal
+                ),
+                fatigueDecayNormal = getDoubleOrDefault(
+                    "state-tuning.volition.fatigue-decay-normal",
+                    d.volition.fatigueDecayNormal
+                ),
+                stimulusDecayNormal = getDoubleOrDefault(
+                    "state-tuning.volition.stimulus-decay-normal",
+                    d.volition.stimulusDecayNormal
+                ),
+                stimulusDecayHighFlow = getDoubleOrDefault(
+                    "state-tuning.volition.stimulus-decay-high-flow",
+                    d.volition.stimulusDecayHighFlow
+                ),
+                normalSpeakThreshold = getDoubleOrDefault(
+                    "state-tuning.volition.normal-speak-threshold",
+                    d.volition.normalSpeakThreshold
+                ),
+                highFlowSpeakThreshold = getDoubleOrDefault(
+                    "state-tuning.volition.high-flow-speak-threshold",
+                    d.volition.highFlowSpeakThreshold
+                ),
+                highFlowThreshold = getDoubleOrDefault(
+                    "state-tuning.volition.high-flow-threshold",
+                    d.volition.highFlowThreshold
+                ),
+                arousalImpulseWeight = getDoubleOrDefault(
+                    "state-tuning.volition.arousal-impulse-weight",
+                    d.volition.arousalImpulseWeight
+                ),
+                negativePleasurePenaltyWeight = getDoubleOrDefault(
+                    "state-tuning.volition.negative-pleasure-penalty-weight",
+                    d.volition.negativePleasurePenaltyWeight
+                ),
+                flowBonusStart = getDoubleOrDefault(
+                    "state-tuning.volition.flow-bonus-start",
+                    d.volition.flowBonusStart
+                ),
+                flowBonusWeight = getDoubleOrDefault(
+                    "state-tuning.volition.flow-bonus-weight",
+                    d.volition.flowBonusWeight
+                )
+            ),
+            memory = MemoryTuningConfig(
+                batchLimit = getIntOrDefault("state-tuning.memory.batch-limit", d.memory.batchLimit),
+                minMessages = getIntOrDefault("state-tuning.memory.min-messages", d.memory.minMessages)
+            ),
+            summary = SummaryTuningConfig(
+                batchLimit = getIntOrDefault("state-tuning.summary.batch-limit", d.summary.batchLimit),
+                minMessages = getIntOrDefault("state-tuning.summary.min-messages", d.summary.minMessages),
+                retentionDays = getLongOrDefault("state-tuning.summary.retention-days", d.summary.retentionDays)
+            ),
+            meme = MemeTuningConfig(
+                analyzeThreshold = getIntOrDefault("state-tuning.meme.analyze-threshold", d.meme.analyzeThreshold),
+                maxContexts = getIntOrDefault("state-tuning.meme.max-contexts", d.meme.maxContexts),
+                cleanupDays = getIntOrDefault("state-tuning.meme.cleanup-days", d.meme.cleanupDays),
+                lowHeatSeenThreshold = getIntOrDefault(
+                    "state-tuning.meme.low-heat-seen-threshold",
+                    d.meme.lowHeatSeenThreshold
+                )
+            ),
+            evolution = EvolutionTuningConfig(
+                defaultWeight = getIntOrDefault("state-tuning.evolution.default-weight", d.evolution.defaultWeight),
+                activeWeightThreshold = getIntOrDefault(
+                    "state-tuning.evolution.active-weight-threshold",
+                    d.evolution.activeWeightThreshold
+                ),
+                minWeightThreshold = getIntOrDefault(
+                    "state-tuning.evolution.min-weight-threshold",
+                    d.evolution.minWeightThreshold
+                ),
+                increaseOnUse = getIntOrDefault("state-tuning.evolution.increase-on-use", d.evolution.increaseOnUse),
+                decayPerCycle = getIntOrDefault("state-tuning.evolution.decay-per-cycle", d.evolution.decayPerCycle),
+                decreaseOnNegative = getIntOrDefault(
+                    "state-tuning.evolution.decrease-on-negative",
+                    d.evolution.decreaseOnNegative
+                ),
+                staleDays = getIntOrDefault("state-tuning.evolution.stale-days", d.evolution.staleDays),
+                recentRangeHours = getLongOrDefault(
+                    "state-tuning.evolution.recent-range-hours",
+                    d.evolution.recentRangeHours
+                ),
+                recentMessageLimit = getIntOrDefault(
+                    "state-tuning.evolution.recent-message-limit",
+                    d.evolution.recentMessageLimit
+                ),
+                activeLimit = getIntOrDefault("state-tuning.evolution.active-limit", d.evolution.activeLimit)
+            )
+        )
+    }
+
+    private fun getDoubleOrDefault(path: String, default: Double): Double =
+        if (config.hasPath(path)) config.getDouble(path) else default
+
+    private fun getIntOrDefault(path: String, default: Int): Int =
+        if (config.hasPath(path)) config.getInt(path) else default
+
+    private fun getLongOrDefault(path: String, default: Long): Long =
+        if (config.hasPath(path)) config.getLong(path) else default
 
     override fun getPlaywrightUrl(): String = config.getString("browser.playwright-url")
 

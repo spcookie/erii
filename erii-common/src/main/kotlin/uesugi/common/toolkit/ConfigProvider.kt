@@ -37,6 +37,188 @@ data class BotConfig(
 )
 
 /**
+ * 状态系统调参总配置。
+ *
+ * 用于集中控制情绪、心流、冲动值、记忆整理、摘要、表情包和热词进化等状态模块的数值策略。
+ */
+data class StateTuningConfig(
+    /** 情绪与 mood 的更新、保留和时间衰减配置。 */
+    val emotion: EmotionTuningConfig = EmotionTuningConfig(),
+    /** 心流值的下限、增长、扣减、衰减和状态阈值配置。 */
+    val flow: FlowTuningConfig = FlowTuningConfig(),
+    /** 主动发言冲动值的基础欲望、刺激、疲劳、阈值和权重配置。 */
+    val volition: VolitionTuningConfig = VolitionTuningConfig(),
+    /** 事实记忆和用户画像整理的批量与触发门槛配置。 */
+    val memory: MemoryTuningConfig = MemoryTuningConfig(),
+    /** 聊天摘要整理的批量、触发门槛和保留时间配置。 */
+    val summary: SummaryTuningConfig = SummaryTuningConfig(),
+    /** 表情包收集、分析和清理的阈值配置。 */
+    val meme: MemeTuningConfig = MemeTuningConfig(),
+    /** 热词权重增长、衰减、淘汰和活跃词表输出配置。 */
+    val evolution: EvolutionTuningConfig = EvolutionTuningConfig()
+)
+
+/**
+ * 情绪系统调参配置。
+ */
+data class EmotionTuningConfig(
+    /** 高保留强度下，旧情绪在单次更新中保留的比例；越大越稳定，越小越容易被新情绪覆盖。 */
+    val emotionRetentionHigh: Double = 0.85,
+    /** 中保留强度下，旧情绪在单次更新中保留的比例。 */
+    val emotionRetentionMedium: Double = 0.7,
+    /** 低保留强度下，旧情绪在单次更新中保留的比例；用于强烈新事件快速改写当前情绪。 */
+    val emotionRetentionLow: Double = 0.5,
+    /** mood 在单次更新中保留历史值的比例；越大 mood 越平滑，越小变化越灵敏。 */
+    val moodRetention: Double = 0.92,
+    /** 当前情绪对 mood 的影响权重；越大 mood 越容易跟随最近情绪变化。 */
+    val moodEmotionInfluence: Double = 0.5,
+    /** 当前情绪随时间自然衰减的半衰期，单位秒。 */
+    val emotionHalfLifeSeconds: Long = 600,
+    /** mood 随时间自然衰减的半衰期，单位秒。 */
+    val moodHalfLifeSeconds: Long = 3600
+)
+
+/**
+ * 心流系统调参配置。
+ */
+data class FlowTuningConfig(
+    /** 心流最低值相对基础欲望值的比例，用于避免高欲望群组心流过低。 */
+    val minRatioOfDesire: Double = 0.3,
+    /** 心流最低值的硬下限。 */
+    val minValueMin: Double = 1.0,
+    /** 心流最低值的硬上限。 */
+    val minValueMax: Double = 20.0,
+    /** 普通状态下心流每分钟自然衰减量。 */
+    val decayNormalPerMinute: Double = 0.3,
+    /** 负面心流状态下每分钟额外衰减量。 */
+    val decayNegativePerMinute: Double = 1.5,
+    /** 命中核心兴趣事件时增加的基础心流值。 */
+    val coreInterestBaseCharge: Double = 20.0,
+    /** 连续互动事件时增加的基础心流值。 */
+    val continuousInteractionBaseCharge: Double = 10.0,
+    /** 深度回复事件时增加的基础心流值。 */
+    val deepReplyBaseCharge: Double = 5.0,
+    /** 群体共鸣事件时增加的基础心流值。 */
+    val groupResonanceBaseCharge: Double = 10.0,
+    /** 负面反馈事件扣减的心流值。 */
+    val negativePenalty: Double = 40.0,
+    /** 话题被打断时扣减的心流值。 */
+    val topicInterruptPenalty: Double = 30.0,
+    /** 重复话题时扣减的心流值。 */
+    val repeatTopicPenalty: Double = 10.0,
+    /** 群活跃度低时扣减的心流值。 */
+    val lowActivityPenalty: Double = 5.0,
+    /** 心流进入变好状态的阈值。 */
+    val gettingBetterThreshold: Double = 30.0,
+    /** 心流进入爆发状态的阈值。 */
+    val burstThreshold: Double = 70.0
+)
+
+/**
+ * 主动发言冲动值调参配置。
+ */
+data class VolitionTuningConfig(
+    /** 群组未配置 desire 时使用的默认基础欲望值。 */
+    val baseDesireDefault: Double = 15.0,
+    /** 关键词命中可提供的最大刺激值，实际值会乘以关键词强度。 */
+    val keywordHitMaxStimulus: Double = 30.0,
+    /** 群聊繁忙时增加的刺激值。 */
+    val busyGroupStimulus: Double = 10.0,
+    /** 间接提及时增加的刺激值。 */
+    val indirectMentionStimulus: Double = 25.0,
+    /** 情绪共鸣时增加的刺激值。 */
+    val emotionalResonanceStimulus: Double = 15.0,
+    /** 周期性重置或补充时增加的刺激值。 */
+    val resetStimulusAmount: Double = 15.0,
+    /** 主动发言后增加的疲劳值，用于抑制连续主动说话。 */
+    val fatigueOnSpeak: Double = 40.0,
+    /** 低唤醒状态下每个衰减周期减少的疲劳值。 */
+    val fatigueDecayLowArousal: Double = 2.0,
+    /** 普通状态下每个衰减周期减少的疲劳值。 */
+    val fatigueDecayNormal: Double = 1.0,
+    /** 普通状态下每个衰减周期减少的刺激值。 */
+    val stimulusDecayNormal: Double = 3.0,
+    /** 高心流状态下每个衰减周期减少的刺激值；通常比普通状态更慢。 */
+    val stimulusDecayHighFlow: Double = 1.0,
+    /** 普通心流下触发主动发言的冲动值阈值。 */
+    val normalSpeakThreshold: Double = 65.0,
+    /** 高心流下触发主动发言的冲动值阈值。 */
+    val highFlowSpeakThreshold: Double = 50.0,
+    /** 判定为高心流的心流阈值。 */
+    val highFlowThreshold: Double = 70.0,
+    /** 情绪唤醒度对冲动值的加权系数。 */
+    val arousalImpulseWeight: Double = 30.0,
+    /** 负面愉悦度对冲动值的惩罚权重。 */
+    val negativePleasurePenaltyWeight: Double = 20.0,
+    /** 心流奖励开始生效的起点阈值。 */
+    val flowBonusStart: Double = 70.0,
+    /** 超过心流奖励起点后，每点心流转化为冲动加成的权重。 */
+    val flowBonusWeight: Double = 1.0
+)
+
+/**
+ * 记忆整理调参配置。
+ */
+data class MemoryTuningConfig(
+    /** 单次事实记忆和用户画像整理最多读取的消息数量。 */
+    val batchLimit: Int = 400,
+    /** 累计未整理消息达到该数量后才触发记忆整理。 */
+    val minMessages: Int = 30
+)
+
+/**
+ * 摘要整理调参配置。
+ */
+data class SummaryTuningConfig(
+    /** 单次摘要整理最多读取的消息数量。 */
+    val batchLimit: Int = 200,
+    /** 累计未摘要消息达到该数量后才触发摘要整理。 */
+    val minMessages: Int = 30,
+    /** 摘要状态和相关历史保留天数。 */
+    val retentionDays: Long = 7
+)
+
+/**
+ * 表情包收集与分析调参配置。
+ */
+data class MemeTuningConfig(
+    /** 表情包累计出现达到该次数后进入分析或复查流程。 */
+    val analyzeThreshold: Int = 3,
+    /** 单个表情包最多保留的上下文数量。 */
+    val maxContexts: Int = 400,
+    /** 清理低热度或过期表情包时使用的保留天数。 */
+    val cleanupDays: Int = 7,
+    /** 低热度表情包需要达到该出现次数后才保留，否则可能被清理。 */
+    val lowHeatSeenThreshold: Int = 3
+)
+
+/**
+ * 热词进化调参配置。
+ */
+data class EvolutionTuningConfig(
+    /** 新热词创建时的默认权重。 */
+    val defaultWeight: Int = 50,
+    /** 进入活跃词表需要达到的最低权重。 */
+    val activeWeightThreshold: Int = 50,
+    /** 热词低于该权重时会被淘汰或不再继续保留。 */
+    val minWeightThreshold: Int = 20,
+    /** 热词每次被正向使用时增加的权重。 */
+    val increaseOnUse: Int = 10,
+    /** 每个进化衰减周期减少的权重。 */
+    val decayPerCycle: Int = 10,
+    /** 热词收到负面反馈时减少的权重。 */
+    val decreaseOnNegative: Int = 50,
+    /** 热词超过该天数未使用后视为陈旧并参与衰减。 */
+    val staleDays: Int = 3,
+    /** 热词挖掘时读取最近消息的时间窗口，单位小时。 */
+    val recentRangeHours: Long = 1,
+    /** 热词挖掘时读取最近消息的最大数量。 */
+    val recentMessageLimit: Int = 500,
+    /** 默认输出到活跃词表的最大热词数量。 */
+    val activeLimit: Int = 10
+)
+
+/**
  * 配置提供者接口
  * 定义所有配置读取方法的契约
  */
@@ -80,6 +262,9 @@ interface ConfigProvider {
     fun getOnebotToken(): String
     fun getOnebotBots(): Map<String, BotConfig>
     fun getAdmins(botConfigKey: String, groupId: String): List<String>
+
+    // ===== State tuning =====
+    fun getStateTuning(): StateTuningConfig
 
     // ===== Web =====
     fun getPlaywrightUrl(): String
@@ -159,6 +344,9 @@ object ConfigHolder {
     fun getOnebotToken(): String = provider.getOnebotToken()
     fun getOnebotBots(): Map<String, BotConfig> = provider.getOnebotBots()
     fun getAdmins(botConfigKey: String, groupId: String): List<String> = provider.getAdmins(botConfigKey, groupId)
+
+    // ===== State tuning =====
+    fun getStateTuning(): StateTuningConfig = provider.getStateTuning()
 
     // ===== Web =====
     fun getPlaywrightUrl(): String = provider.getPlaywrightUrl()

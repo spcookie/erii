@@ -354,7 +354,9 @@ class MemeJob(
             if (mutex.tryLock()) {
                 try {
                     log.debug("表情包清理任务开始执行")
-                    val count = memeService.cleanupLowHeatMemes(daysAgo = 7)
+                    val count = memeService.cleanupLowHeatMemes(
+                        daysAgo = ConfigHolder.getStateTuning().meme.cleanupDays
+                    )
                     log.info("Completed the emoticon cleanup task: cleaned up {} low-popularity emoticons", count)
                 } catch (e: Exception) {
                     log.error("Emoticon cleanup task failed", e)

@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.MessageType
 import uesugi.common.data.ResourceTable
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.state.meme.MemeData.MemeEntity
 import uesugi.core.state.meme.MemeData.MemeRecord
@@ -18,7 +19,6 @@ import uesugi.core.state.meme.MemeData.MemeScanStateRecord
 import uesugi.core.state.meme.MemeData.MemeScanStateTable
 import uesugi.core.state.meme.MemeData.MemeTable
 import uesugi.core.state.meme.MemeData.toRecord
-import uesugi.core.state.meme.MemeRepository.Companion.ANALYZE_THRESHOLD
 import kotlin.time.Clock.System
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
@@ -37,8 +37,6 @@ class MemeRepository {
     private val json = Json { ignoreUnknownKeys = true }
 
     companion object {
-        const val ANALYZE_THRESHOLD = 3 // 累计出现3次开始分析
-        const val MAX_CONTEXTS = 400 // 最大上下文条数
         private val log = logger()
     }
 
@@ -99,7 +97,7 @@ class MemeRepository {
                 if (!context.isNullOrBlank() && context !in existingContexts) {
                     existingContexts.add(context)
                     // 限制最大400条，保留最新的
-                    if (existingContexts.size > MAX_CONTEXTS) {
+                    if (existingContexts.size > ConfigHolder.getStateTuning().meme.maxContexts) {
                         existingContexts.removeAt(0)
                     }
                 }
@@ -228,15 +226,16 @@ class MemeRepository {
      */
     fun getPendingAnalysisMemes(botId: String, groupId: String): List<MemeRecord> {
         return transaction {
+            val analyzeThreshold = ConfigHolder.getStateTuning().meme.analyzeThreshold
             MemeEntity.find {
                 (MemeTable.botMark eq botId) and
                         (MemeTable.groupId eq groupId) and
-                        (MemeTable.seenCount greaterEq ANALYZE_THRESHOLD)
+                        (MemeTable.seenCount greaterEq analyzeThreshold)
             }.map { it.toRecord() }
                 .filter { memo ->
                     // seenCount 是 3 的倍数 且 大于上次分析的计数
                     val neverAnalyzed = memo.lastAnalyzedCount <= 0
-                    val reachedInitialThreshold = memo.seenCount >= ANALYZE_THRESHOLD
+                    val reachedInitialThreshold = memo.seenCount >= analyzeThreshold
                     val doubledSinceLastAnalysis = memo.seenCount >= memo.lastAnalyzedCount * 2
                     reachedInitialThreshold && (neverAnalyzed || doubledSinceLastAnalysis)
                 }
@@ -252,18 +251,19 @@ class MemeRepository {
      */
     fun getAnalyzedMemes(botId: String, groupId: String): List<MemeRecord> {
         return transaction {
+            val analyzeThreshold = ConfigHolder.getStateTuning().meme.analyzeThreshold
             val query = if (groupId.isBlank()) {
                 // 获取所有群组的已分析表情包
                 MemeEntity.find {
                     (MemeTable.botMark eq botId) and
-                            (MemeTable.lastAnalyzedCount greaterEq ANALYZE_THRESHOLD)
+                            (MemeTable.lastAnalyzedCount greaterEq analyzeThreshold)
                 }
             } else {
                 // 获取指定群组的已分析表情包
                 MemeEntity.find {
                     (MemeTable.botMark eq botId) and
                             (MemeTable.groupId eq groupId) and
-                            (MemeTable.lastAnalyzedCount greaterEq ANALYZE_THRESHOLD)
+                            (MemeTable.lastAnalyzedCount greaterEq analyzeThreshold)
                 }
             }
             query.map { it.toRecord() }
@@ -329,7 +329,7 @@ class MemeRepository {
      *
      * 低热度判定（同时满足）：
      * - updatedAt < daysAgo 天前（一段时间内没有新的出现）
-     * - seenCount < [ANALYZE_THRESHOLD]（从未达到分析阈值，仍为噪声）
+     * - seenCount < configured low-heat threshold（从未达到分析阈值，仍为噪声）
      *
      * @param daysAgo 距今天数（默认 7 天）
      * @return 已删除的表情包记录列表（用于后续清理向量存储等关联资源）
@@ -348,10 +348,11 @@ class MemeRepository {
             val cutoff = System.now()
                 .minus(daysAgo.days)
                 .toLocalDateTime(TimeZone.currentSystemDefault())
+            val lowHeatSeenThreshold = ConfigHolder.getStateTuning().meme.lowHeatSeenThreshold
 
             val targets = MemeEntity.find {
                 (MemeTable.updatedAt less cutoff) and
-                        (MemeTable.seenCount less ANALYZE_THRESHOLD)
+                        (MemeTable.seenCount less lowHeatSeenThreshold)
             }.toList()
 
             val records = targets.map { it.toRecord() }
@@ -360,7 +361,7 @@ class MemeRepository {
             if (records.isNotEmpty()) {
                 log.info(
                     "Clean up low-popularity emojis: {} ({} not updated in days and seenCount < {})",
-                    records.size, daysAgo, ANALYZE_THRESHOLD
+                    records.size, daysAgo, lowHeatSeenThreshold
                 )
             }
             records

@@ -70,10 +70,10 @@ typealias Stimulus = PAD
 typealias Emotion = PAD
 typealias Mood = PAD
 
-enum class Retention(val value: Double) {
-    HIGH(0.85),
-    MEDIUM(0.7),
-    LOW(0.5)
+enum class Retention {
+    HIGH,
+    MEDIUM,
+    LOW
 }
 
 

@@ -7,6 +7,8 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.EventBus
 import uesugi.common.data.EmotionalTendencies
+import uesugi.common.toolkit.ConfigHolder
+import uesugi.common.toolkit.FlowTuningConfig
 import uesugi.common.toolkit.logger
 import uesugi.core.state.emotion.EmotionChangeEvent
 import java.util.concurrent.ConcurrentHashMap
@@ -34,6 +36,7 @@ class FlowGauge(
     private val botMark: String,
     private val groupId: String,
     private val minFlow: Double = 5.0,
+    private val tuning: FlowTuningConfig = FlowTuningConfig(),
     private val decayIntervalMs: Long = 1000 * 60L,
     private val persistIntervalMs: Long = 1000 * 20L
 ) {
@@ -112,10 +115,20 @@ class FlowGauge(
             }
 
             when (event) {
-                is CoreInterestEvent -> this.addEvent(baseCharge = 20.0, interest = event.interest)
-                is ContinuousInteractionEvent -> this.addEvent(baseCharge = 10.0, momentum = event.momentum)
+                is CoreInterestEvent -> this.addEvent(
+                    baseCharge = tuning.coreInterestBaseCharge,
+                    interest = event.interest
+                )
+
+                is ContinuousInteractionEvent -> this.addEvent(
+                    baseCharge = tuning.continuousInteractionBaseCharge,
+                    momentum = event.momentum
+                )
                 is DeepReplyEvent -> this.addEvent(baseCharge = event.baseCharge)
-                is GroupResonanceEvent -> this.addEvent(baseCharge = 10.0, globalArousal = event.globalArousal)
+                is GroupResonanceEvent -> this.addEvent(
+                    baseCharge = tuning.groupResonanceBaseCharge,
+                    globalArousal = event.globalArousal
+                )
 
                 is NegativeEvent -> this.drainEvent(baseDrain = event.penalty, isNegative = true)
                 is TopicInterruptEvent -> this.drainEvent(baseDrain = event.penalty)
@@ -164,14 +177,14 @@ class FlowGauge(
 
     fun decayFlow() {
         if (state.value <= minFlow) return
-        val drainAmount = if (pleasure < -0.3) 1.5 else 0.3
+        val drainAmount = if (pleasure < -0.3) tuning.decayNegativePerMinute else tuning.decayNormalPerMinute
         state.drain(minOf(drainAmount, state.value - minFlow), botMark, groupId)
     }
 
     fun mapToState(): FlowMeterState {
         return when {
-            state.value < 30 -> FlowMeterState.STANDBY
-            state.value < 70 -> FlowMeterState.GETTING_BETTER
+            state.value < tuning.gettingBetterThreshold -> FlowMeterState.STANDBY
+            state.value < tuning.burstThreshold -> FlowMeterState.GETTING_BETTER
             else -> FlowMeterState.FLOW_BURST
         }
     }
@@ -200,9 +213,10 @@ class FlowGaugeManager {
     fun getOrCreate(botMark: String, groupId: String, mood: EmotionalTendencies, baseDesire: Double = 15.0): FlowGauge {
         val key = "$botMark:$groupId"
         return gauges.getOrPut(key) {
-            val minFlow = (baseDesire * 0.3).coerceIn(1.0, 20.0)
+            val tuning = ConfigHolder.getStateTuning().flow
+            val minFlow = (baseDesire * tuning.minRatioOfDesire).coerceIn(tuning.minValueMin, tuning.minValueMax)
             log.debug("创建新的FlowGauge实例, botId=$botMark, groupId=$groupId, minFlow=$minFlow")
-            FlowGauge(mood, botMark, groupId, minFlow)
+            FlowGauge(mood, botMark, groupId, minFlow, tuning)
         }
     }
 

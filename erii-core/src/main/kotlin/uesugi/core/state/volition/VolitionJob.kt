@@ -147,25 +147,32 @@ class VolitionJob(
         val botInterests = BotManage.getBot(botMark).role.character
 
         val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
+        val tuning = ConfigHolder.getStateTuning().volition
 
         log.info("Impulsive value analysis completed, botId=$botMark, groupId=$groupId, $result")
 
-        EventBus.postAsync(ResetStimulusEvent(botMark, groupId))
+        EventBus.postAsync(ResetStimulusEvent(botMark, groupId, tuning.resetStimulusAmount))
 
         if (result.keywordHit) {
-            EventBus.postAsync(KeywordHitEvent(botMark, groupId, result.keywordStrength * 30))
+            EventBus.postAsync(
+                KeywordHitEvent(
+                    botMark,
+                    groupId,
+                    result.keywordStrength.coerceIn(0.0, 1.0) * tuning.keywordHitMaxStimulus
+                )
+            )
         }
 
         if (result.isBusy) {
-            EventBus.postAsync(BusyGroupEvent(botMark, groupId))
+            EventBus.postAsync(BusyGroupEvent(botMark, groupId, tuning.busyGroupStimulus))
         }
 
         if (result.indirectMention) {
-            EventBus.postAsync(IndirectMentionEvent(botMark, groupId))
+            EventBus.postAsync(IndirectMentionEvent(botMark, groupId, tuning.indirectMentionStimulus))
         }
 
         if (result.emotionalResonance) {
-            EventBus.postAsync(EmotionalResonanceEvent(botMark, groupId))
+            EventBus.postAsync(EmotionalResonanceEvent(botMark, groupId, tuning.emotionalResonanceStimulus))
         }
     }
 

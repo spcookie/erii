@@ -14,6 +14,7 @@ import uesugi.common.event.PSFeature.GRAB
 import uesugi.common.event.PSFeature.IGNORE_INTERRUPT
 import uesugi.common.event.ProactiveSpeakEvent
 import uesugi.common.toolkit.ConfigHolder
+import uesugi.common.toolkit.VolitionTuningConfig
 import uesugi.common.toolkit.logger
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.state.emotion.EmotionChangeEvent
@@ -55,6 +56,7 @@ class VolitionGauge(
     private val botMark: String,
     private val groupId: String,
     private val baseDesire: Double = 15.0,
+    private val tuning: VolitionTuningConfig = VolitionTuningConfig(),
     private val decayIntervalMs: Long = 1000 * 60L,
     private val persistIntervalMs: Long = 1000 * 60L
 ) {
@@ -102,7 +104,7 @@ class VolitionGauge(
                         )
                     )
 
-                    gauge.addFatigue(40.0)
+                    gauge.addFatigue(tuning.fatigueOnSpeak)
                     gauge.state.lastActiveTime = System.currentTimeMillis()
                 }
             }
@@ -189,8 +191,11 @@ class VolitionGauge(
     }
 
     fun calculateImpulse(): Double {
-        val emotionModifier = arousal * 30 - maxOf(0.0, -pleasure * 20)
-        val flowBonus = if (flowValue > 70) (flowValue - 70) * 1.0 else 0.0
+        val emotionModifier = arousal * tuning.arousalImpulseWeight -
+                maxOf(0.0, -pleasure * tuning.negativePleasurePenaltyWeight)
+        val flowBonus = if (flowValue > tuning.flowBonusStart) {
+            (flowValue - tuning.flowBonusStart) * tuning.flowBonusWeight
+        } else 0.0
 
         val stimulus = state.stimulus
         val impulse = (baseDesire.coerceIn(0.0, 100.0) + stimulus + emotionModifier + flowBonus) - state.fatigue
@@ -214,19 +219,24 @@ class VolitionGauge(
     }
 
     fun decayFatigue() {
-        val decayRate = if (arousal < 0.2) 2.0 else 1.0
+        val decayRate = if (arousal < 0.2) tuning.fatigueDecayLowArousal else tuning.fatigueDecayNormal
         state.decayFatigue(decayRate)
     }
 
     fun decayStimulus() {
-        val decayRate = if (flowValue > 70) 1.0 else 3.0
+        val decayRate =
+            if (flowValue > tuning.highFlowThreshold) tuning.stimulusDecayHighFlow else tuning.stimulusDecayNormal
         state.decayStimulus(decayRate)
     }
 
     fun shouldSpeak(): Boolean {
         val impulse = calculateImpulse()
 
-        val threshold = if (flowValue > 70) 50.0 else 65.0
+        val threshold = if (flowValue > tuning.highFlowThreshold) {
+            tuning.highFlowSpeakThreshold
+        } else {
+            tuning.normalSpeakThreshold
+        }
 
         return impulse > threshold
     }
@@ -254,10 +264,11 @@ class VolitionGaugeManager {
             log.debug("创建新的VolitionGauge实例, botId=$botMark, groupId=$groupId")
             val configKey = BotManage.getConfigKey(botMark)
             val onebotBots = ConfigHolder.getOnebotBots()
+            val tuning = ConfigHolder.getStateTuning().volition
             val desire = onebotBots[configKey]?.let {
                 it.groups[groupId]?.desire
-            } ?: 15.0
-            VolitionGauge(mood, botMark, groupId, desire)
+            } ?: tuning.baseDesireDefault
+            VolitionGauge(mood, botMark, groupId, desire, tuning)
         }
     }
 

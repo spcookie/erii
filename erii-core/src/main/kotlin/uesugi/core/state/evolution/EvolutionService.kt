@@ -2,15 +2,12 @@ package uesugi.core.state.evolution
 
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.greaterEq
-import org.jetbrains.exposed.v1.core.neq
-import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryEntity
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.MessageType
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -25,13 +22,6 @@ import kotlin.time.ExperimentalTime
 class EvolutionService {
     companion object {
         private val log = logger()
-
-        private const val MIN_WEIGHT_THRESHOLD = 20
-        private const val ACTIVE_WEIGHT_THRESHOLD = 50
-        private const val WEIGHT_DECAY_PER_DAY = 10
-        private const val WEIGHT_INCREASE_ON_USE = 10
-        private const val WEIGHT_DECREASE_ON_NEGATIVE = 50
-        private const val DEFAULT_WEIGHT = 50
 
         private const val MIN_MESSAGE_LENGTH = 2
     }
@@ -121,12 +111,13 @@ class EvolutionService {
                     (LearnedVocabTable.word eq slangWord.word)
         }.firstOrNull()
 
+        val tuning = ConfigHolder.getStateTuning().evolution
         val entity = if (existing != null) {
             existing.apply {
                 type = slangWord.type
                 meaning = slangWord.meaning
                 example = slangWord.example
-                this.weight = weight?.coerceIn(0, 100) ?: ((this.weight + WEIGHT_INCREASE_ON_USE).coerceAtMost(100))
+                this.weight = weight?.coerceIn(0, 100) ?: ((this.weight + tuning.increaseOnUse).coerceAtMost(100))
                 lastSeen = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }
             log.debug("更新词汇成功, word=${slangWord.word}, newWeight=${existing.weight}, groupId=$groupId")
@@ -139,7 +130,7 @@ class EvolutionService {
                 type = slangWord.type
                 meaning = slangWord.meaning
                 example = slangWord.example
-                this.weight = weight?.coerceIn(0, 100) ?: DEFAULT_WEIGHT
+                this.weight = weight?.coerceIn(0, 100) ?: tuning.defaultWeight
                 lastSeen = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             }
         }
@@ -162,15 +153,17 @@ class EvolutionService {
     fun getActiveVocabulary(
         botMark: String,
         groupId: String,
-        limit: Int = 10
+        limit: Int = -1
     ): List<LearnedVocabEntity> = transaction {
+        val tuning = ConfigHolder.getStateTuning().evolution
+        val effectiveLimit = if (limit > 0) limit else tuning.activeLimit
         val vocabs = LearnedVocabEntity.find {
             (LearnedVocabTable.botMark eq botMark) and
                     (LearnedVocabTable.groupId eq groupId) and
-                    (LearnedVocabTable.weight greaterEq ACTIVE_WEIGHT_THRESHOLD)
+                    (LearnedVocabTable.weight greaterEq tuning.activeWeightThreshold)
         }
             .orderBy(LearnedVocabTable.weight to SortOrder.DESC)
-            .limit(limit)
+            .limit(effectiveLimit)
             .toList()
 
         log.debug("获取活跃词汇, groupId=$groupId, 数量=${vocabs.size}")
@@ -223,7 +216,9 @@ class EvolutionService {
         groupId: String,
         recentMessages: List<String>
     ) = transaction {
-        val threeDaysAgo = Clock.System.now().minus(3.days).toLocalDateTime(TimeZone.currentSystemDefault())
+        val tuning = ConfigHolder.getStateTuning().evolution
+        val staleCutoff =
+            Clock.System.now().minus(tuning.staleDays.days).toLocalDateTime(TimeZone.currentSystemDefault())
 
         log.debug("开始执行词汇热度衰减, groupId=$groupId")
 
@@ -238,18 +233,18 @@ class EvolutionService {
             val wordUsedRecently = recentMessages.any { it.contains(vocab.word, ignoreCase = true) }
 
             if (wordUsedRecently) {
-                vocab.weight = (vocab.weight + WEIGHT_INCREASE_ON_USE).coerceAtMost(100)
+                vocab.weight = (vocab.weight + tuning.increaseOnUse).coerceAtMost(100)
                 vocab.lastSeen = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                 reinforcedCount++
                 log.debug("词汇仍在使用，热度增加, word=${vocab.word}, newWeight=${vocab.weight}")
-            } else if (vocab.lastSeen < threeDaysAgo) {
+            } else if (vocab.lastSeen < staleCutoff) {
                 val oldWeight = vocab.weight
-                vocab.weight = (vocab.weight - WEIGHT_DECAY_PER_DAY).coerceAtLeast(0)
+                vocab.weight = (vocab.weight - tuning.decayPerCycle).coerceAtLeast(0)
                 decayedCount++
                 log.debug("词汇未使用，热度衰减, word=${vocab.word}, oldWeight=$oldWeight, newWeight=${vocab.weight}")
             }
 
-            if (vocab.weight < MIN_WEIGHT_THRESHOLD) {
+            if (vocab.weight < tuning.minWeightThreshold) {
                 log.debug("词汇热度过低，执行遗忘, word=${vocab.word}, weight=${vocab.weight}")
                 vocab.delete()
                 deletedCount++
@@ -273,12 +268,13 @@ class EvolutionService {
         groupId: String,
         word: String
     ) = transaction {
+        val tuning = ConfigHolder.getStateTuning().evolution
         LearnedVocabEntity.find {
             (LearnedVocabTable.botMark eq botMark) and
                     (LearnedVocabTable.groupId eq groupId) and
                     (LearnedVocabTable.word eq word)
         }.firstOrNull()?.apply {
-            weight = (weight + WEIGHT_INCREASE_ON_USE).coerceAtMost(100)
+            weight = (weight + tuning.increaseOnUse).coerceAtMost(100)
             log.debug("增加词汇热度（正向反馈）, word=$word, newWeight=$weight, groupId=$groupId")
         }
     }
@@ -321,15 +317,16 @@ class EvolutionService {
         groupId: String,
         word: String
     ) = transaction {
+        val tuning = ConfigHolder.getStateTuning().evolution
         LearnedVocabEntity.find {
             (LearnedVocabTable.botMark eq botMark) and
                     (LearnedVocabTable.groupId eq groupId) and
                     (LearnedVocabTable.word eq word)
         }.firstOrNull()?.apply {
-            weight = (weight - WEIGHT_DECREASE_ON_NEGATIVE).coerceAtLeast(0)
+            weight = (weight - tuning.decreaseOnNegative).coerceAtLeast(0)
             log.debug("降低词汇热度（负面反馈）, word=$word, newWeight=$weight, groupId=$groupId")
 
-            if (weight < MIN_WEIGHT_THRESHOLD) {
+            if (weight < tuning.minWeightThreshold) {
                 log.debug("词汇因负面反馈被遗忘, word=$word, groupId=$groupId")
                 delete()
             }

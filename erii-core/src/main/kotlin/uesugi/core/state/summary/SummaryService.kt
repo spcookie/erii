@@ -2,6 +2,7 @@ package uesugi.core.state.summary
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.state.memory.MemoryAgent
 import uesugi.core.state.memory.MemoryRepository
@@ -27,11 +28,12 @@ class SummaryService(
             log.debug("开始处理群组对话摘要, groupId=$groupId")
 
             // 1. 获取需要处理的历史消息
+            val tuning = ConfigHolder.getStateTuning().summary
             val summaryState = summaryRepository.getSummaryState(botMark, groupId)
             val lastId = summaryState?.lastProcessedHistoryId ?: 0
 
             val histories = withContext(Dispatchers.IO) {
-                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, 200)
+                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, tuning.batchLimit)
             }
 
             if (histories.isEmpty()) {
@@ -39,7 +41,7 @@ class SummaryService(
                 return
             }
 
-            if (histories.size < 30) {
+            if (histories.size < tuning.minMessages) {
                 log.debug("群组 $groupId 消息数量不足 30 条，跳过摘要生成")
                 return
             }
