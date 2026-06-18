@@ -344,5 +344,241 @@
   "vision.url": {
     "type": "string",
     "default": ""
+  },
+  "state-tuning.emotion.emotion-retention-high": {
+    "type": "number",
+    "default": 0.85
+  },
+  "state-tuning.emotion.emotion-retention-medium": {
+    "type": "number",
+    "default": 0.7
+  },
+  "state-tuning.emotion.emotion-retention-low": {
+    "type": "number",
+    "default": 0.5
+  },
+  "state-tuning.emotion.mood-retention": {
+    "type": "number",
+    "default": 0.92
+  },
+  "state-tuning.emotion.mood-emotion-influence": {
+    "type": "number",
+    "default": 0.5
+  },
+  "state-tuning.emotion.emotion-half-life-seconds": {
+    "type": "number",
+    "default": 600
+  },
+  "state-tuning.emotion.mood-half-life-seconds": {
+    "type": "number",
+    "default": 3600
+  },
+  "state-tuning.flow.min-ratio-of-desire": {
+    "type": "number",
+    "default": 0.3
+  },
+  "state-tuning.flow.min-value-min": {
+    "type": "number",
+    "default": 1
+  },
+  "state-tuning.flow.min-value-max": {
+    "type": "number",
+    "default": 20
+  },
+  "state-tuning.flow.decay-normal-per-minute": {
+    "type": "number",
+    "default": 0.3
+  },
+  "state-tuning.flow.decay-negative-per-minute": {
+    "type": "number",
+    "default": 1.5
+  },
+  "state-tuning.flow.core-interest-base-charge": {
+    "type": "number",
+    "default": 20
+  },
+  "state-tuning.flow.continuous-interaction-base-charge": {
+    "type": "number",
+    "default": 10
+  },
+  "state-tuning.flow.deep-reply-base-charge": {
+    "type": "number",
+    "default": 5
+  },
+  "state-tuning.flow.group-resonance-base-charge": {
+    "type": "number",
+    "default": 10
+  },
+  "state-tuning.flow.negative-penalty": {
+    "type": "number",
+    "default": 40
+  },
+  "state-tuning.flow.topic-interrupt-penalty": {
+    "type": "number",
+    "default": 30
+  },
+  "state-tuning.flow.repeat-topic-penalty": {
+    "type": "number",
+    "default": 10
+  },
+  "state-tuning.flow.low-activity-penalty": {
+    "type": "number",
+    "default": 5
+  },
+  "state-tuning.flow.getting-better-threshold": {
+    "type": "number",
+    "default": 30
+  },
+  "state-tuning.flow.burst-threshold": {
+    "type": "number",
+    "default": 70
+  },
+  "state-tuning.volition.base-desire-default": {
+    "type": "number",
+    "default": 15
+  },
+  "state-tuning.volition.keyword-hit-max-stimulus": {
+    "type": "number",
+    "default": 30
+  },
+  "state-tuning.volition.busy-group-stimulus": {
+    "type": "number",
+    "default": 10
+  },
+  "state-tuning.volition.indirect-mention-stimulus": {
+    "type": "number",
+    "default": 25
+  },
+  "state-tuning.volition.emotional-resonance-stimulus": {
+    "type": "number",
+    "default": 15
+  },
+  "state-tuning.volition.reset-stimulus-amount": {
+    "type": "number",
+    "default": 15
+  },
+  "state-tuning.volition.fatigue-on-speak": {
+    "type": "number",
+    "default": 40
+  },
+  "state-tuning.volition.fatigue-decay-low-arousal": {
+    "type": "number",
+    "default": 2
+  },
+  "state-tuning.volition.fatigue-decay-normal": {
+    "type": "number",
+    "default": 1
+  },
+  "state-tuning.volition.stimulus-decay-normal": {
+    "type": "number",
+    "default": 3
+  },
+  "state-tuning.volition.stimulus-decay-high-flow": {
+    "type": "number",
+    "default": 1
+  },
+  "state-tuning.volition.normal-speak-threshold": {
+    "type": "number",
+    "default": 65
+  },
+  "state-tuning.volition.high-flow-speak-threshold": {
+    "type": "number",
+    "default": 50
+  },
+  "state-tuning.volition.high-flow-threshold": {
+    "type": "number",
+    "default": 70
+  },
+  "state-tuning.volition.arousal-impulse-weight": {
+    "type": "number",
+    "default": 30
+  },
+  "state-tuning.volition.negative-pleasure-penalty-weight": {
+    "type": "number",
+    "default": 20
+  },
+  "state-tuning.volition.flow-bonus-start": {
+    "type": "number",
+    "default": 70
+  },
+  "state-tuning.volition.flow-bonus-weight": {
+    "type": "number",
+    "default": 1
+  },
+  "state-tuning.memory.batch-limit": {
+    "type": "number",
+    "default": 400
+  },
+  "state-tuning.memory.min-messages": {
+    "type": "number",
+    "default": 30
+  },
+  "state-tuning.summary.batch-limit": {
+    "type": "number",
+    "default": 200
+  },
+  "state-tuning.summary.min-messages": {
+    "type": "number",
+    "default": 30
+  },
+  "state-tuning.summary.retention-days": {
+    "type": "number",
+    "default": 7
+  },
+  "state-tuning.meme.analyze-threshold": {
+    "type": "number",
+    "default": 3
+  },
+  "state-tuning.meme.max-contexts": {
+    "type": "number",
+    "default": 400
+  },
+  "state-tuning.meme.cleanup-days": {
+    "type": "number",
+    "default": 7
+  },
+  "state-tuning.meme.low-heat-seen-threshold": {
+    "type": "number",
+    "default": 3
+  },
+  "state-tuning.evolution.default-weight": {
+    "type": "number",
+    "default": 50
+  },
+  "state-tuning.evolution.active-weight-threshold": {
+    "type": "number",
+    "default": 50
+  },
+  "state-tuning.evolution.min-weight-threshold": {
+    "type": "number",
+    "default": 20
+  },
+  "state-tuning.evolution.increase-on-use": {
+    "type": "number",
+    "default": 10
+  },
+  "state-tuning.evolution.decay-per-cycle": {
+    "type": "number",
+    "default": 10
+  },
+  "state-tuning.evolution.decrease-on-negative": {
+    "type": "number",
+    "default": 50
+  },
+  "state-tuning.evolution.stale-days": {
+    "type": "number",
+    "default": 3
+  },
+  "state-tuning.evolution.recent-range-hours": {
+    "type": "number",
+    "default": 1
+  },
+  "state-tuning.evolution.recent-message-limit": {
+    "type": "number",
+    "default": 500
+  },
+  "state-tuning.evolution.active-limit": {
+    "type": "number",
+    "default": 10
   }
 }
