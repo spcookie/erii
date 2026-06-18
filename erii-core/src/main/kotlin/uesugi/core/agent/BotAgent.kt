@@ -307,7 +307,7 @@ object BotAgent {
                         val aiAgent = AIAgentService(
                             promptExecutor = promptExecutor,
                             agentConfig = AIAgentConfig(
-                                prompt = prompt("empty") {},
+                                prompt = prompt("__other__") {},
                                 model = LLMProviderChoice.Flash,
                                 maxAgentIterations = 50,
                             ),

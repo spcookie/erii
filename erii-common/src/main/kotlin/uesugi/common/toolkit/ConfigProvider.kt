@@ -163,7 +163,9 @@ data class MemoryTuningConfig(
     /** 单次事实记忆和用户画像整理最多读取的消息数量。 */
     val batchLimit: Int = 400,
     /** 累计未整理消息达到该数量后才触发记忆整理。 */
-    val minMessages: Int = 30
+    val minMessages: Int = 30,
+    /** 有效事实记忆超过该天数未被 getFactsWithVector 召回后，会被夜间清理任务删除。 */
+    val staleRecallDays: Long = 90
 )
 
 /**

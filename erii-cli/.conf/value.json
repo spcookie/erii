@@ -580,5 +580,49 @@
   "state-tuning.evolution.active-limit": {
     "type": "number",
     "default": 10
+  },
+  "state-tuning.memory.stale-recall-days": {
+    "type": "number",
+    "default": 90
+  },
+  "llm.usage-pricing.price-unit": {
+    "type": "string",
+    "default": "USD"
+  },
+  "llm.usage-pricing.lite.input-cache-hit": {
+    "type": "number",
+    "default": 0.01875
+  },
+  "llm.usage-pricing.lite.input-cache-miss": {
+    "type": "number",
+    "default": 0.075
+  },
+  "llm.usage-pricing.lite.output": {
+    "type": "number",
+    "default": 0.3
+  },
+  "llm.usage-pricing.flash.input-cache-hit": {
+    "type": "number",
+    "default": 0.025
+  },
+  "llm.usage-pricing.flash.input-cache-miss": {
+    "type": "number",
+    "default": 0.1
+  },
+  "llm.usage-pricing.flash.output": {
+    "type": "number",
+    "default": 0.4
+  },
+  "llm.usage-pricing.pro.input-cache-hit": {
+    "type": "number",
+    "default": 0.3125
+  },
+  "llm.usage-pricing.pro.input-cache-miss": {
+    "type": "number",
+    "default": 1.25
+  },
+  "llm.usage-pricing.pro.output": {
+    "type": "number",
+    "default": 10.0
   }
 }

@@ -18,6 +18,7 @@ import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.component.storage.VectorStore
+import uesugi.core.component.usage.TokenUsageRepository
 import uesugi.core.cron.CronService
 import uesugi.core.cron.cronModule
 import uesugi.core.message.messageModule
@@ -86,6 +87,7 @@ val gatewayModule = module {
 
 
 val infrastructureModule = module {
+    single { TokenUsageRepository() }
     single {
         LLMFactory(
             listOf(
@@ -93,7 +95,8 @@ val infrastructureModule = module {
                 OpenAIClientProvider(),
                 AnthropicClientProvider(),
                 OpenRouterClientProvider()
-            )
+            ),
+            get()
         ).promptExecutor()
     }
 }

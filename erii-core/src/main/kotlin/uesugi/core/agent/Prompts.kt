@@ -17,7 +17,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import okio.Path.Companion.toPath
 import okio.buffer
-import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import uesugi.common.BotManage
 import uesugi.common.LLMProviderChoice
 import uesugi.common.data.HistoryRecord
@@ -31,7 +30,6 @@ import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.memory.FactsEntity
 import uesugi.core.state.memory.UserProfileEntity
 import uesugi.core.state.summary.SummaryEntity
-import java.util.*
 import kotlin.time.Clock
 
 internal suspend fun buildPrompt(context: Context): Prompt {
@@ -51,27 +49,30 @@ internal suspend fun buildPrompt(context: Context): Prompt {
         }
     } else emptyMap()
 
-    return prompt("群聊机器人") {
+    return prompt("__bot_chat__") {
         system {
             markdown {
-                text(context.botRole.personality(context.currentBotId))
-                buildConstraintRulePrompt()
-                buildRulesPrompt(transient.rules)
-                transient.admins.ifNotEmpty {
-                    buildAdminInfoPrompt(transient.admins)
-                    buildRuleAwarenessPrompt()
-                }
-                buildMemeAwarenessPrompt(transient.memes)
+                buildStableSystemPrompt(context)
+            }
+        }
+        system {
+            markdown {
+                buildLowFrequencySystemPrompt(transient)
+            }
+        }
+        system {
+            markdown {
+                buildMemoryContextPrompt(transient)
+            }
+        }
+        system {
+            markdown {
                 buildConstraintsPrompt(constraints)
-                buildVocabularyPrompt(transient.vocabulary)
-                buildUserProfilesPrompt(transient.userProfiles)
-                buildFactsPrompt(transient.facts)
-                buildSummaryPrompt(transient.summary)
-                buildMetadataPrompt()
             }
         }
         user {
             markdown {
+                buildMetadataPrompt()
                 if (transient.histories.isNotEmpty()) {
                     header(2, "最近群聊记录")
                     line { text("按时间顺序排列的群聊消息如下。") }
@@ -92,7 +93,7 @@ internal suspend fun buildPrompt(context: Context): Prompt {
             val isBot = context.currentBotId == history.userId
 
             if (isBot) {
-                val call = buildBotToolCall(history, generateToolCallId())
+                val call = buildBotToolCall(history, generateToolCallId(history))
                 if (call != null) {
                     assistant {
                         toolCall(call)
@@ -131,8 +132,10 @@ internal suspend fun buildPrompt(context: Context): Prompt {
     }
 }
 
-private fun generateToolCallId(): String {
-    return "toolu_" + UUID.randomUUID().toString().replace("-", "").take(22)
+private fun generateToolCallId(history: HistoryRecord): String {
+    val stableSource = "${history.id}:${history.userId}:${history.createdAt}"
+    val suffix = stableSource.hashCode().toUInt().toString(16).padStart(8, '0')
+    return "toolu_history_${history.id}_$suffix"
 }
 
 private fun buildBotToolCall(history: HistoryRecord, callId: String): MessagePart.Tool.Call? {
@@ -186,6 +189,39 @@ private fun extractImageFormat(fileName: String): String {
     return fileName.substringAfterLast(".", "")
         .lowercase()
         .takeIf { it.isNotEmpty() } ?: "png"
+}
+
+private fun MarkdownContentBuilder.buildStableSystemPrompt(context: Context) {
+    text(context.botRole.personality(context.currentBotId))
+    buildConstraintRulePrompt()
+    buildMemeUsageGuidancePrompt()
+}
+
+private fun MarkdownContentBuilder.buildLowFrequencySystemPrompt(transient: Context.Transient) {
+    buildRulesPrompt(transient.rules.sortedBy { it.fileName })
+    val admins = transient.admins.distinct().sorted()
+    if (admins.isNotEmpty()) {
+        buildAdminInfoPrompt(admins)
+        buildRuleAwarenessPrompt()
+    }
+}
+
+private fun MarkdownContentBuilder.buildMemoryContextPrompt(transient: Context.Transient) {
+    buildMemeInventoryPrompt(transient.memes)
+    buildVocabularyPrompt(
+        transient.vocabulary.sortedWith(
+            compareByDescending<LearnedVocabEntity> { it.weight }
+                .thenBy { it.word }
+        )
+    )
+    buildUserProfilesPrompt(transient.userProfiles.sortedBy { it.userId })
+    buildFactsPrompt(
+        transient.facts.sortedWith(
+            compareBy<FactsEntity> { it.id.value }
+                .thenBy { it.keyword }
+        )
+    )
+    buildSummaryPrompt(transient.summary)
 }
 
 fun MarkdownContentBuilder.buildMetadataPrompt() {
@@ -354,12 +390,16 @@ fun MarkdownContentBuilder.buildRuleAwarenessPrompt() {
     }
 }
 
-fun MarkdownContentBuilder.buildMemeAwarenessPrompt(memes: Int) {
-    h2("表情包感知")
-    line { text("你可以使用 `send_meme` 工具发送表情包来活跃气氛、表达情绪或回应群友。") }
-    line { text("当前可以发送的表情包数量：$memes") }
+fun MarkdownContentBuilder.buildMemeUsageGuidancePrompt() {
+    h2("表情包使用原则")
+    line { text("你可以使用 `sendMeme` 工具发送表情包来活跃气氛、表达情绪或回应群友。") }
     line { text("适当使用表情包能让对话更生动自然，建议在合适的时机积极使用。") }
     line { text("例如：回应吐槽时、表达开心时、接梗时、缓和气氛时都可以发。") }
+}
+
+fun MarkdownContentBuilder.buildMemeInventoryPrompt(memes: Int) {
+    h2("表情包库存")
+    line { text("当前可以发送的表情包数量：$memes") }
 }
 
 fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {

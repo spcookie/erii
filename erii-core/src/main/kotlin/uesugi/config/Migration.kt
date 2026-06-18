@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.ResourceTable
+import uesugi.core.component.usage.TokenUsageTable
 import uesugi.core.state.emotion.EmotionTable
 import uesugi.core.state.evolution.LearnedVocabTable
 import uesugi.core.state.flow.FlowStateTable
@@ -31,7 +32,8 @@ fun migration(database: Database) {
             MemoryStateTable,
             LearnedVocabTable,
             FlowStateTable,
-            VolitionStateTable
+            VolitionStateTable,
+            TokenUsageTable
         )
         execInBatch(migration)
     }
@@ -53,6 +55,7 @@ private fun init(database: Database) {
             VolitionStateTable,
             MemeTable,
             MemeScanStateTable,
+            TokenUsageTable,
             inBatch = true
         )
     }

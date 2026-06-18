@@ -318,6 +318,41 @@ class MemoryRepository {
         FactsTable.update({ FactsTable.id eq id }) { it[FactsTable.vectorId] = vectorId }
     }
 
+    /** 标记事实记忆最近一次被召回的时间。 */
+    @OptIn(ExperimentalTime::class)
+    fun markFactsRecalled(ids: Collection<Int>) {
+        if (ids.isEmpty()) return
+        transaction {
+            val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            FactsTable.update({ FactsTable.id inList ids.toList() }) {
+                it[FactsTable.lastRecalledAt] = now
+            }
+        }
+    }
+
+    /** 物理删除已经失效的事实记忆，并返回被删除记录用于清理向量。 */
+    fun deleteExpiredFacts(): List<FactsRecord> = transaction {
+        val expiredFacts = FactsEntity.find {
+            FactsTable.validTo.isNotNull() and (FactsTable.validTo less CurrentDateTime)
+        }.map { it.toRecord() }
+        expiredFacts.forEach { fact -> FactsEntity.findById(fact.id)?.delete() }
+        expiredFacts
+    }
+
+    /** 物理删除长期未被召回的有效事实记忆，并返回被删除记录用于清理向量。 */
+    fun deleteStaleUnrecalledFacts(cutoff: kotlinx.datetime.LocalDateTime): List<FactsRecord> = transaction {
+        val staleFacts = FactsEntity.find {
+            (FactsTable.validFrom lessEq CurrentDateTime) and
+                    (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime)) and
+                    (
+                            ((FactsTable.lastRecalledAt.isNull()) and (FactsTable.createdAt less cutoff)) or
+                                    (FactsTable.lastRecalledAt less cutoff)
+                            )
+        }.map { it.toRecord() }
+        staleFacts.forEach { fact -> FactsEntity.findById(fact.id)?.delete() }
+        staleFacts
+    }
+
     /** 物理删除用户画像 */
     fun deleteUserProfile(botMark: String, groupId: String, userId: String): Boolean = transaction {
         val entity = UserProfileEntity.find {

@@ -4,6 +4,8 @@ package uesugi.routing
 
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.PAD
+import uesugi.core.component.usage.DailyTokenUsagePoint
+import uesugi.core.component.usage.TokenUsageChartPoint
 import uesugi.core.message.history.HourlyMessageCount
 import uesugi.core.state.emotion.Aggressiveness
 import uesugi.core.state.emotion.EmojiLevel
@@ -116,4 +118,27 @@ data class GroupStatusViewModel(
     val currentTime: String,
     val basePath: String = "",
     val hourlyMsgCounts: List<HourlyMessageCount> = emptyList()
+)
+
+/**
+ * Token 消耗页面 ViewModel
+ */
+data class UsageViewModel(
+    val todayCacheHitInput: Long,
+    val todayCacheMissInput: Long,
+    val todayOutput: Long,
+    val todayCost: Double,
+    val priceUnit: String,
+    val totalCacheHitInput: Long,
+    val totalCacheMissInput: Long,
+    val totalOutput: Long,
+    val totalCost: Double,
+    val todayCacheHitRate: Double,
+    val sceneBars: List<TokenUsageChartPoint>,
+    val modelBars: List<TokenUsageChartPoint>,
+    val dailySeries: List<DailyTokenUsagePoint>,
+    val sceneBarsJson: String,
+    val modelBarsJson: String,
+    val dailySeriesJson: String,
+    val basePath: String = ""
 )

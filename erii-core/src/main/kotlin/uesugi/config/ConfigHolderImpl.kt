@@ -437,7 +437,8 @@ class ConfigHolderImpl : ConfigProvider {
             ),
             memory = MemoryTuningConfig(
                 batchLimit = getIntOrDefault("state-tuning.memory.batch-limit", d.memory.batchLimit),
-                minMessages = getIntOrDefault("state-tuning.memory.min-messages", d.memory.minMessages)
+                minMessages = getIntOrDefault("state-tuning.memory.min-messages", d.memory.minMessages),
+                staleRecallDays = getLongOrDefault("state-tuning.memory.stale-recall-days", d.memory.staleRecallDays)
             ),
             summary = SummaryTuningConfig(
                 batchLimit = getIntOrDefault("state-tuning.summary.batch-limit", d.summary.batchLimit),

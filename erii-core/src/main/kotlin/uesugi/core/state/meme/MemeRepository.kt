@@ -5,6 +5,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import uesugi.common.data.HistoryTable
@@ -202,15 +203,20 @@ class MemeRepository {
      */
     fun getAllMemos(botId: String, groupId: String, offset: Int = 0, limit: Int = 0): Pair<List<MemeRecord>, Int> {
         return transaction {
-            val baseQuery = MemeEntity.find {
+            val condition =
                 (MemeTable.botMark eq botId) and (MemeTable.groupId eq groupId)
-            }
+            val baseQuery = MemeEntity.find { condition }
             val total = baseQuery.count().toInt()
-            val items = if (limit > 0) {
-                baseQuery.limit(limit).map { it.toRecord() }.drop(offset)
+            val query = MemeTable
+                .selectAll()
+                .where { condition }
+                .orderBy(MemeTable.createdAt to SortOrder.DESC)
+            val pageQuery = if (limit > 0) {
+                query.limit(limit).offset(offset.toLong())
             } else {
-                baseQuery.map { it.toRecord() }
+                query.offset(offset.toLong())
             }
+            val items = MemeEntity.wrapRows(pageQuery).map { it.toRecord() }
             items to total
         }
     }

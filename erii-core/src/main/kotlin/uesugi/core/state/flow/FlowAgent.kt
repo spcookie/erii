@@ -162,7 +162,7 @@ class FlowAgent {
 
         val botInterests = BotManage.getBot(botMark).role.character
 
-        val prompt = prompt("心流分析", LLMParams(maxTokens = 65536)) {
+        val prompt = prompt("__flow_analysis__", LLMParams(maxTokens = 65536)) {
             system(
                 """
                 你是一名"群聊对话状态分析器"，用于为 AI 机器人计算心流状态。

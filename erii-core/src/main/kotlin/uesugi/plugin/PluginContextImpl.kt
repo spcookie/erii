@@ -1,6 +1,13 @@
 package uesugi.plugin
 
+import ai.koog.agents.core.tools.ToolDescriptor
+import ai.koog.prompt.Prompt
+import ai.koog.prompt.dsl.ModerationResult
 import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.LLMChoice
+import ai.koog.prompt.message.Message
+import ai.koog.prompt.streaming.StreamFrame
 import io.ktor.client.*
 import kotlinx.coroutines.*
 import uesugi.common.BotManage
@@ -9,7 +16,6 @@ import uesugi.common.toolkit.logger
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.spi.*
-import uesugi.spi.asContextElement
 
 class PluginContextImpl(
     override val defined: PluginDef,
@@ -20,7 +26,7 @@ class PluginContextImpl(
     override val config: PluginConfig,
     override val database: Database,
     override val scheduler: Scheduler,
-    override val llm: PromptExecutor,
+    llm: PromptExecutor,
     override val http: HttpClient,
     override val server: Server,
     val httpProxy: HttpClient
@@ -36,6 +42,12 @@ class PluginContextImpl(
         })
 
     private lateinit var job: Job
+
+    override val llm: PromptExecutor = if (defined.name.startsWith("builtin_", ignoreCase = true)) {
+        llm
+    } else {
+        PluginPromptExecutor(defined.name, llm)
+    }
 
     private val handlers = mutableListOf<Handler>()
     private val toolsets = mutableListOf<MetaToolSetCreator>()
@@ -88,4 +100,49 @@ class PluginContextImpl(
         }
     }
 
+}
+
+private class PluginPromptExecutor(
+    private val pluginName: String,
+    private val delegate: PromptExecutor
+) : PromptExecutor() {
+
+    override suspend fun execute(
+        prompt: Prompt,
+        model: LLModel,
+        tools: List<ToolDescriptor>
+    ): Message.Assistant {
+        return delegate.execute(markPluginPrompt(prompt), model, tools)
+    }
+
+    override fun executeStreaming(
+        prompt: Prompt,
+        model: LLModel,
+        tools: List<ToolDescriptor>
+    ): kotlinx.coroutines.flow.Flow<StreamFrame> {
+        return delegate.executeStreaming(markPluginPrompt(prompt), model, tools)
+    }
+
+    override suspend fun executeMultipleChoices(
+        prompt: Prompt,
+        model: LLModel,
+        tools: List<ToolDescriptor>
+    ): LLMChoice {
+        return delegate.executeMultipleChoices(markPluginPrompt(prompt), model, tools)
+    }
+
+    override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult {
+        return delegate.moderate(markPluginPrompt(prompt), model)
+    }
+
+    override fun close() {
+        delegate.close()
+    }
+
+    private fun markPluginPrompt(prompt: Prompt): Prompt {
+        return prompt.copy(id = "__plugin_${pluginName.sanitizePromptId()}|${prompt.id}__")
+    }
+
+    private fun String.sanitizePromptId(): String =
+        lowercase().replace(Regex("[^a-z0-9_]+"), "_").trim('_').ifBlank { "unknown" }
 }

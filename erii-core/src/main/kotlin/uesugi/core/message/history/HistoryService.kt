@@ -3,6 +3,7 @@ package uesugi.core.message.history
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.*
 import kotlin.time.*
@@ -66,14 +67,20 @@ class HistoryService {
         limit: Int = 500
     ): Pair<List<HistoryRecord>, Int> {
         return transaction {
-            val baseQuery = HistoryEntity.find {
+            val condition =
                 (HistoryTable.botMark eq botMark) and (HistoryTable.groupId eq groupId)
-            }
+            val baseQuery = HistoryEntity.find { condition }
             val total = baseQuery.count().toInt()
-            val items = baseQuery
+            val query = HistoryTable
+                .selectAll()
+                .where { condition }
                 .orderBy(HistoryTable.createdAt to SortOrder.DESC)
-                .limit(limit)
-                .toList()
+            val pageQuery = if (limit > 0) {
+                query.limit(limit).offset(offset.toLong())
+            } else {
+                query.offset(offset.toLong())
+            }
+            val items = HistoryEntity.wrapRows(pageQuery)
                 .map { it.toRecord() }
             items to total
         }

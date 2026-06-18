@@ -70,19 +70,6 @@ class MemoryAgent(
     )
 
     /**
-     * 摘要总结结果
-     */
-    @Serializable
-    data class SummaryAnalysis(
-        val timeRange: String,         // 时间范围
-        val content: String,           // 摘要内容
-        val keyPoints: List<String>,   // 关键要点
-        val emotionalTone: String,     // 情感基调
-        val participantIds: List<String>, // 参与者ID
-        val messageCount: Int          // 消息数量
-    )
-
-    /**
      * 批量执行影响的事实集合（内部使用）
      */
     private data class AffectedFacts(
@@ -188,103 +175,6 @@ class MemoryAgent(
 
         return result.getOrThrow().data.also {
             log.debug("User profile analysis completed, userId=${it.userId}")
-        }
-    }
-
-    // ==================== 对话摘要 ====================
-
-    /**
-     * 生成对话摘要
-     */
-    @OptIn(ExperimentalTime::class)
-    suspend fun generateSummary(
-        messages: List<MemoryMessage>,
-        groupId: String,
-        previousSummaryContext: String? = null
-    ): SummaryAnalysis {
-        log.debug("Start generating summary, groupId=$groupId, message count=${messages.size}")
-
-        val prompt = prompt("生成对话摘要", LLMParams(maxTokens = 65536)) {
-            system(
-                """
-                # Role
-                你是一名专业的社群对话分析师，拥有极强的信息归纳与上下文理解能力。
-
-                # Workflow
-                请按照以下步骤处理输入的群聊记录：
-                1. **数据清洗**：剔除无意义的语气词、重复刷屏、系统消息。
-                2. **话题聚类**：识别对话中并行发生的多个话题（如有），聚焦于最核心的主题。
-                3. **因果分析**：识别对话的触发点（Trigger）和最终结论（Resolution）。
-                4. **承接上文**：若提供了上一段摘要，请将其作为背景参考，关注本段对话相较前一段的延续、转折或新增主题，避免重复总结已被覆盖的内容。
-                5. **生成输出**：基于上述分析，生成符合要求的JSON。
-
-                # Output Fields Spec
-                1. **timeRange**: 精确覆盖首尾消息的时间，格式 "yyyy-MM-dd HH:mm"。
-                2. **content**:
-                   - 必须包含：讨论背景、核心冲突/观点、达成的一致或遗留问题。
-                   - 风格：简练、商务、非口语化。字数控制在150字左右。
-                3. **keyPoints**:
-                   - 提取3-5个"信息胶囊"。
-                   - 格式示例："需求变更：确认将登录页改为蓝色主题"。
-                   - 避免泛泛而谈（如"讨论了需求"是无效的，要写明"讨论了什么需求"）。
-                4. **emotionalTone**: 准确判断整体氛围（如：焦虑、欢快、激烈争论、按部就班）。
-                5. **participantIds**: 参与有效发言的用户ID列表（去重）。
-                6. **messageCount**: 原始消息总数。
-
-                # Output Format
-                【重要】请仅输出**一个**纯JSON字符串，不包含任何其他文字、解释或标记。
-                """.trimIndent()
-            )
-
-            val msg = messages.joinToString("\n") { it.asLlmPrompt() }
-            val startTime = messages.firstOrNull()?.time?.format(DateTimeFormat) ?: "unknown"
-            val endTime = messages.lastOrNull()?.time?.format(DateTimeFormat) ?: "unknown"
-
-            val previousBlock = previousSummaryContext
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    """
-                    上一段摘要(供承接参考，不要重复总结其中已覆盖的内容):
-                    $it
-
-                    """.trimIndent()
-                }
-                ?: ""
-
-            user {
-                text(
-                    """
-                    根据以下群聊记录生成对话摘要。请遵循系统消息中的分析步骤，对消息进行数据清洗、话题聚类和因果分析，输出结构化JSON。
-
-                    数据如下：
-                    """.trimIndent()
-                )
-                text(
-                    """
-                    ${previousBlock}时间范围: $startTime ~ $endTime
-
-                    历史消息:
-                    $msg
-
-                    请生成对话摘要。
-                    """.trimIndent()
-                )
-            }
-        }
-
-        val promptExecutor by ref<PromptExecutor>()
-
-        val result = promptExecutor.executeStructured<SummaryAnalysis>(
-            prompt = prompt,
-            model = LLMProviderChoice.Pro,
-            fixingParser = StructureFixingParser(
-                model = LLMProviderChoice.Lite,
-                retries = 2
-            )
-        )
-
-        return result.getOrThrow().data.also {
-            log.debug("Summary generation completed, groupId=$groupId")
         }
     }
 
@@ -418,6 +308,17 @@ class MemoryAgent(
                 """.trimIndent()
             )
 
+            system(
+                """
+                # 过时记忆识别补充规则
+                如果消息明确表达“不是了、已经不、改成、换成、搬到、离开、辞职、分手、结婚、毕业、取消、废弃”等状态变化，
+                也要提取成事实候选。此类候选用于后续冲突解决，不要因为它是否定句就忽略。
+
+                对于状态变化，优先提取“当前新状态”的事实；如果只有旧状态被否定但没有新状态，也要提取能表达旧事实失效的候选，
+                让冲突解决阶段有机会把已有记忆标记为 DELETE。
+                """.trimIndent()
+            )
+
             val msgText = messages.joinToString("\n") { it.asLlmPrompt() }
 
             user {
@@ -488,6 +389,18 @@ class MemoryAgent(
 
                 ## 输出格式
                 只输出一个 JSON 对象，包含 decisions 数组。不要输出任何其他文字。
+                """.trimIndent()
+            )
+
+            system(
+                """
+                # DELETE / UPDATE 优先级补充
+                你的目标不是只追加新记忆，而是维护一组当前仍然真实的记忆。
+                当新事实与已有事实描述同一主体的同一属性，但值、状态、地点、关系、职业、偏好、计划已经变化时：
+                - 必须优先选择 UPDATE，并填写 existingFactId 与 newFact。
+                - 如果新消息只是否定旧事实、但没有给出新值，选择 DELETE，并填写 existingFactId。
+                - 不要把“用户不住北京了”这类内容作为一条长期负面新事实直接 ADD；应让旧的“住北京”失效。
+                - 对同一主体同一属性，避免同时保留旧值和新值。
                 """.trimIndent()
             )
 

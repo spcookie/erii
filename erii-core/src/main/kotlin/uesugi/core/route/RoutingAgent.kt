@@ -28,7 +28,7 @@ object RoutingAgent {
         val summaryEntity = memoryService.getSummary(botId, groupId)
         val latestHistory = historyService.getLatestHistory(botId, groupId, 50, 24.hours)
 
-        val prompt = prompt("RoutingAgent", LLMParams(maxTokens = 16384)) {
+        val prompt = prompt("__other__", LLMParams(maxTokens = 16384)) {
             system {
                 markdown {
                     h1("你是一个【消息路由判定器】，负责根据用户的输入内容，判断应当使用哪一条处理规则。")

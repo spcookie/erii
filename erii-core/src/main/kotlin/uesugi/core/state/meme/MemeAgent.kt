@@ -60,7 +60,7 @@ class MemeAgent {
         return try {
             log.debug("调用 LLM 执行表情包分析...")
 
-            val userPromptObj = prompt("分析表情包", LLMParams(maxTokens = 65536)) {
+            val userPromptObj = prompt("__meme_analysis__", LLMParams(maxTokens = 65536)) {
                 system(
                     """
                     你是一名**表情包分析专家**。
