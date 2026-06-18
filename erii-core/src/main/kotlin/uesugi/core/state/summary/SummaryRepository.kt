@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryEntity
 import uesugi.common.data.HistoryTable
@@ -102,15 +103,20 @@ class SummaryRepository {
         offset: Int = 0,
         limit: Int = 0
     ): Pair<List<SummaryRecord>, Int> = transaction {
-        val baseQuery = SummaryEntity.find {
+        val condition =
             (SummaryTable.botMark eq botMark) and (SummaryTable.groupId eq groupId)
-        }
+        val baseQuery = SummaryEntity.find { condition }
         val total = baseQuery.count().toInt()
-        val items = if (limit > 0) {
-            baseQuery.orderBy(SummaryTable.createdAt to SortOrder.DESC).limit(limit)
+        val query = SummaryTable
+            .selectAll()
+            .where { condition }
+            .orderBy(SummaryTable.createdAt to SortOrder.DESC)
+        val pageQuery = if (limit > 0) {
+            query.limit(limit).offset(offset.toLong())
         } else {
-            baseQuery.orderBy(SummaryTable.createdAt to SortOrder.DESC)
-        }.map { it.toRecord() }
+            query.offset(offset.toLong())
+        }
+        val items = SummaryEntity.wrapRows(pageQuery).map { it.toRecord() }
         items to total
     }
 

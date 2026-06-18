@@ -3,6 +3,7 @@ package uesugi.core.state.evolution
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryEntity
 import uesugi.common.data.HistoryTable
@@ -183,16 +184,25 @@ class EvolutionService {
         offset: Int = 0,
         limit: Int = 0
     ): Pair<List<LearnedVocabEntity>, Int> = transaction {
-        val baseQuery = LearnedVocabEntity.find {
+        val condition =
             (LearnedVocabTable.botMark eq botMark) and
                     (LearnedVocabTable.groupId eq groupId)
-        }
+        val baseQuery = LearnedVocabEntity.find { condition }
         val total = baseQuery.count().toInt()
-        val items = if (limit > 0) {
-            baseQuery.limit(limit)
+        val query = LearnedVocabTable
+            .selectAll()
+            .where { condition }
+            .orderBy(
+                LearnedVocabTable.weight to SortOrder.DESC,
+                LearnedVocabTable.lastSeen to SortOrder.DESC,
+                LearnedVocabTable.word to SortOrder.ASC
+            )
+        val pageQuery = if (limit > 0) {
+            query.limit(limit).offset(offset.toLong())
         } else {
-            baseQuery
-        }.toList()
+            query.offset(offset.toLong())
+        }
+        val items = LearnedVocabEntity.wrapRows(pageQuery).toList()
 
         log.debug("获取所有词汇, groupId=$groupId, 数量=${items.size}")
         items to total

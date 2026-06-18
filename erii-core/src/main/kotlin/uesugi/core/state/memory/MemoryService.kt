@@ -8,6 +8,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
@@ -284,24 +285,23 @@ class MemoryService(
         limit: Int = 0
     ): Pair<List<FactsEntity>, Int> {
         return transaction {
-            val baseQuery = FactsEntity.find {
+            val condition =
                 (FactsTable.botMark eq botMark) and
                         (FactsTable.groupId eq groupId) and
                         (FactsTable.validFrom lessEq CurrentDateTime) and
                         (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-            }
+            val baseQuery = FactsEntity.find { condition }
             val total = baseQuery.count().toInt()
-            val items = if (limit > 0) {
-                baseQuery.orderBy(FactsTable.createdAt to SortOrder.DESC)
-                    .limit(limit, offset.toLong())
-                    .reversed()
-                    .toList()
+            val query = FactsTable
+                .selectAll()
+                .where { condition }
+                .orderBy(FactsTable.createdAt to SortOrder.DESC)
+            val pageQuery = if (limit > 0) {
+                query.limit(limit).offset(offset.toLong())
             } else {
-                baseQuery.orderBy(FactsTable.createdAt to SortOrder.DESC)
-                    .drop(offset)
-                    .reversed()
-                    .toList()
+                query.offset(offset.toLong())
             }
+            val items = FactsEntity.wrapRows(pageQuery).reversed().toList()
             items to total
         }
     }
@@ -339,22 +339,21 @@ class MemoryService(
         limit: Int = 0
     ): Pair<List<UserProfileEntity>, Int> {
         return transaction {
-            val baseQuery = UserProfileEntity.find {
+            val condition =
                 (UserProfileTable.botMark eq botMark) and
                         (UserProfileTable.groupId eq groupId)
-            }
+            val baseQuery = UserProfileEntity.find { condition }
             val total = baseQuery.count().toInt()
-            val items = if (limit > 0) {
-                baseQuery.orderBy(UserProfileTable.createdAt to SortOrder.DESC)
-                    .limit(limit, offset.toLong())
-                    .reversed()
-                    .toList()
+            val query = UserProfileTable
+                .selectAll()
+                .where { condition }
+                .orderBy(UserProfileTable.createdAt to SortOrder.DESC)
+            val pageQuery = if (limit > 0) {
+                query.limit(limit).offset(offset.toLong())
             } else {
-                baseQuery.orderBy(UserProfileTable.createdAt to SortOrder.DESC)
-                    .drop(offset)
-                    .reversed()
-                    .toList()
+                query.offset(offset.toLong())
             }
+            val items = UserProfileEntity.wrapRows(pageQuery).reversed().toList()
             items to total
         }
     }

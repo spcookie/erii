@@ -3,6 +3,7 @@ package uesugi.core.message.resource
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.*
 
@@ -35,14 +36,20 @@ class ResourceService {
         limit: Int = 500
     ): Pair<List<ResourceRecord>, Int> {
         return transaction {
-            val baseQuery = ResourceEntity.find {
+            val condition =
                 (ResourceTable.botMark eq botMark) and (ResourceTable.groupId eq groupId)
-            }
+            val baseQuery = ResourceEntity.find { condition }
             val total = baseQuery.count().toInt()
-            val items = baseQuery
+            val query = ResourceTable
+                .selectAll()
+                .where { condition }
                 .orderBy(ResourceTable.createdAt to SortOrder.DESC)
-                .limit(limit)
-                .toList()
+            val pageQuery = if (limit > 0) {
+                query.limit(limit).offset(offset.toLong())
+            } else {
+                query.offset(offset.toLong())
+            }
+            val items = ResourceEntity.wrapRows(pageQuery)
                 .map { it.toRecord() }
             items to total
         }

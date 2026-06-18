@@ -97,7 +97,7 @@ class CronStore {
         val ids = getAllTaskIds(botId, groupId)
         val sortedIds = ids.sorted()
         val total = sortedIds.size
-        val pageIds = if (limit > 0) sortedIds.drop(offset).take(limit) else sortedIds
+        val pageIds = if (limit > 0) sortedIds.drop(offset).take(limit) else sortedIds.drop(offset)
         val items = pageIds.mapNotNull { id -> getTask(botId, groupId, id) }
         return items to total
     }
