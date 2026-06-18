@@ -174,6 +174,20 @@
     "type": "boolean",
     "default": true
   },
+  "llm.param": {
+    "type": "object",
+    "default": {
+      "lite": {
+        "maxTokens": 4096
+      },
+      "flash": {
+        "maxTokens": 8192
+      },
+      "pro": {
+        "maxTokens": 16384
+      }
+    }
+  },
   "llm.providers.google.api-key": {
     "type": "string",
     "nullable": true,

@@ -52,7 +52,7 @@ class FixingPromptExecutor(
     }
 
     private fun ensureTokens(prompt: Prompt): Prompt {
-        if (prompt.id != "structure-fixing" || prompt.params.maxTokens != null) return prompt
+        if (prompt.id != "structure-fixing") return prompt
         return prompt.copy(params = prompt.params.copy(maxTokens = fixingMaxTokens))
     }
 }

@@ -1,6 +1,7 @@
 package uesugi.common.toolkit
 
 import com.typesafe.config.Config
+import kotlinx.serialization.json.JsonElement
 import kotlin.reflect.KClass
 
 /**
@@ -56,6 +57,7 @@ interface ConfigProvider {
     fun getChoiceProvider(): String
     fun isLlmCapabilityEnabled(name: String): Boolean
     fun isLlmCapabilityEnabled(tier: String, name: String): Boolean
+    fun getLlmDefaultParams(): Map<String, Map<String, JsonElement>>
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String
@@ -134,6 +136,7 @@ object ConfigHolder {
     fun getChoiceProvider(): String = provider.getChoiceProvider()
     fun isLlmCapabilityEnabled(name: String): Boolean = provider.isLlmCapabilityEnabled(name)
     fun isLlmCapabilityEnabled(tier: String, name: String): Boolean = provider.isLlmCapabilityEnabled(tier, name)
+    fun getLlmDefaultParams(): Map<String, Map<String, JsonElement>> = provider.getLlmDefaultParams()
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()
