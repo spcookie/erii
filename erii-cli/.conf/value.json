@@ -580,5 +580,9 @@
   "state-tuning.evolution.active-limit": {
     "type": "number",
     "default": 10
+  },
+  "state-tuning.memory.stale-recall-days": {
+    "type": "number",
+    "default": 90
   }
 }

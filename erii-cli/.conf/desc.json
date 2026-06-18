@@ -119,5 +119,6 @@
   "state-tuning.evolution.stale-days": "Days without use before a word is considered stale",
   "state-tuning.evolution.recent-range-hours": "Recent message window for vocabulary extraction in hours",
   "state-tuning.evolution.recent-message-limit": "Maximum recent messages used for vocabulary extraction",
-  "state-tuning.evolution.active-limit": "Maximum active vocabulary entries returned by default"
+  "state-tuning.evolution.active-limit": "Maximum active vocabulary entries returned by default",
+  "state-tuning.memory.stale-recall-days": "Days before valid facts that were not recalled are deleted"
 }

@@ -4,6 +4,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -11,6 +13,9 @@ import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.state.summary.SummaryEntity
 import uesugi.core.state.summary.SummaryTable
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.ExperimentalTime
 
 /**
  * 记忆服务 - 负责记忆处理的业务逻辑
@@ -201,7 +206,10 @@ class MemoryService(
     ): List<FactsEntity> {
         val dbFacts = getFacts(botMark, groupId, subjects, limit)
 
-        if (query.isBlank()) return dbFacts
+        if (query.isBlank()) {
+            markFactsRecalled(dbFacts)
+            return dbFacts
+        }
 
         val vectorResults = try {
             factVectorStore.search(query, groupId, botMark, limit)
@@ -230,7 +238,43 @@ class MemoryService(
             }
         }
 
-        return dbFacts + newVectorFacts
+        val recalledFacts = dbFacts + newVectorFacts
+        markFactsRecalled(recalledFacts)
+        return recalledFacts
+    }
+
+    private suspend fun markFactsRecalled(facts: List<FactsEntity>) {
+        val ids = facts.map { it.id.value }.distinct()
+        if (ids.isEmpty()) return
+        withContext(Dispatchers.IO) {
+            memoryRepository.markFactsRecalled(ids)
+        }
+    }
+
+    fun deleteExpiredFacts(): Int {
+        val deletedFacts = memoryRepository.deleteExpiredFacts()
+        deleteVectors(deletedFacts)
+        log.info("Expired fact memory cleanup completed, deleted=${deletedFacts.size}")
+        return deletedFacts.size
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun deleteStaleUnrecalledFacts(staleRecallDays: Long): Int {
+        val cutoff = Clock.System.now()
+            .minus(staleRecallDays.days)
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+        val deletedFacts = memoryRepository.deleteStaleUnrecalledFacts(cutoff)
+        deleteVectors(deletedFacts)
+        log.info("Stale unrecalled fact memory cleanup completed, days=$staleRecallDays, deleted=${deletedFacts.size}")
+        return deletedFacts.size
+    }
+
+    private fun deleteVectors(facts: List<FactsRecord>) {
+        facts.forEach { fact ->
+            fact.vectorId?.let { vectorId ->
+                factVectorStore.deleteVector(vectorId, fact.botMark, fact.groupId)
+            }
+        }
     }
 
     fun getAllFactsByGroup(
@@ -249,11 +293,12 @@ class MemoryService(
             val total = baseQuery.count().toInt()
             val items = if (limit > 0) {
                 baseQuery.orderBy(FactsTable.createdAt to SortOrder.DESC)
-                    .limit(limit)
+                    .limit(limit, offset.toLong())
                     .reversed()
                     .toList()
             } else {
                 baseQuery.orderBy(FactsTable.createdAt to SortOrder.DESC)
+                    .drop(offset)
                     .reversed()
                     .toList()
             }
@@ -301,11 +346,12 @@ class MemoryService(
             val total = baseQuery.count().toInt()
             val items = if (limit > 0) {
                 baseQuery.orderBy(UserProfileTable.createdAt to SortOrder.DESC)
-                    .limit(limit)
+                    .limit(limit, offset.toLong())
                     .reversed()
                     .toList()
             } else {
                 baseQuery.orderBy(UserProfileTable.createdAt to SortOrder.DESC)
+                    .drop(offset)
                     .reversed()
                     .toList()
             }

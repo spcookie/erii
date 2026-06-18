@@ -42,6 +42,7 @@ object FactsTable : IntIdTable("memory_facts") {
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
     val validFrom = datetime("valid_from").defaultExpression(CurrentDateTime)
     val validTo = datetime("valid_to").nullable()
+    val lastRecalledAt = datetime("last_recalled_at").nullable()
     val vectorId = varchar("vector_id", length = 64).nullable()
 }
 
@@ -89,6 +90,7 @@ class FactsEntity(id: EntityID<Int>) : IntEntity(id) {
     var createdAt by FactsTable.createdAt
     var validFrom by FactsTable.validFrom
     var validTo by FactsTable.validTo
+    var lastRecalledAt by FactsTable.lastRecalledAt
     var vectorId by FactsTable.vectorId
 }
 
@@ -108,6 +110,7 @@ data class FactsRecord(
     val createdAt: LocalDateTime,
     val validFrom: LocalDateTime,
     val validTo: LocalDateTime?,
+    val lastRecalledAt: LocalDateTime? = null,
     val vectorId: String? = null
 )
 
@@ -218,5 +221,6 @@ fun FactsEntity.toRecord(): FactsRecord = FactsRecord(
     createdAt = createdAt,
     validFrom = validFrom,
     validTo = validTo,
+    lastRecalledAt = lastRecalledAt,
     vectorId = vectorId
 )
