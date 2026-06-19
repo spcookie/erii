@@ -26,6 +26,7 @@ import uesugi.common.LLMProviderChoice
 import uesugi.common.event.*
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
+import uesugi.core.component.usage.UsageContext
 import kotlin.reflect.full.hasAnnotation
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
@@ -233,181 +234,184 @@ object BotAgent {
             )
             try {
                 val job = scope.launch {
-                    var error: Throwable? = null
-                    try {
-                        EventBus.postSync(
-                            AgentCallStartEvent(
-                                event.botId,
-                                event.groupId,
-                                event.echo
+                    UsageContext.withUsage(event.botId, event.groupId) {
+                        var error: Throwable? = null
+                        try {
+                            EventBus.postSync(
+                                AgentCallStartEvent(
+                                    event.botId,
+                                    event.groupId,
+                                    event.echo
+                                )
                             )
-                        )
 
-                        statesLock.withLock {
-                            states[key] = BotGroupState(event.feature, null)
-                        }
-
-                        var calledAnyTool: Boolean
-                        var calledChatTool = false
-                        var chatMessageToolNames = emptySet<String>()
-                        var rateLimited: Boolean
-                        val chatRateLimiter = ChatMessageRateLimiter()
-
-                        val context = buildContext(event)
-
-                        fun toolShortName(fullName: String): String = fullName.substringAfterLast(".")
-                        fun isChatTool(toolName: String): Boolean = toolName in chatMessageToolNames
-                        fun onToolCall(toolCall: MessagePart.Tool.Call): Boolean {
-                            if (isChatTool(toolShortName(toolCall.tool))) {
-                                if (!chatRateLimiter.tryAcquire()) {
-                                    rateLimited = true
-                                    log.warn(
-                                        "Bot Chat tool rate-limited: tool={}, group={}",
-                                        toolShortName(toolCall.tool), key.groupId
-                                    )
-                                    return false
-                                }
-                                calledChatTool = true
+                            statesLock.withLock {
+                                states[key] = BotGroupState(event.feature, null)
                             }
-                            calledAnyTool = true
-                            return true
-                        }
 
-                        val strategy = strategy<String, String>("chat") {
-                            val nodeSendInput by nodeLLMRequest()
-                            val nodeExecuteTool by nodeExecuteTools()
-                            val nodeSendToolResult by nodeLLMSendToolResults()
+                            var calledAnyTool: Boolean
+                            var calledChatTool = false
+                            var chatMessageToolNames = emptySet<String>()
+                            var rateLimited: Boolean
+                            val chatRateLimiter = ChatMessageRateLimiter()
 
-                            edge(nodeStart forwardTo nodeSendInput)
-                            edge(nodeSendInput forwardTo nodeFinish onTextMessage { true })
-                            edge(nodeSendInput forwardTo nodeExecuteTool onToolCalls (::onToolCall))
-                            edge(
-                                nodeExecuteTool forwardTo nodeFinish
-                                        onCondition { results -> results.toolResults.all { it.resultObject == null } }
-                                        transformed { "" }
-                            )
-                            edge(nodeExecuteTool forwardTo nodeSendToolResult)
-                            edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCalls (::onToolCall))
-                            edge(nodeSendToolResult forwardTo nodeFinish onTextMessage { true })
-                            edge(
-                                nodeSendToolResult forwardTo nodeFinish
-                                        onCondition { msg ->
-                                    msg.parts.any { it is MessagePart.Reasoning } &&
-                                            msg.parts.none { it is MessagePart.Text || it is MessagePart.Tool.Call }
-                                }
-                                        transformed { msg ->
-                                    msg.parts.filterIsInstance<MessagePart.Reasoning>()
-                                        .joinToString("\n") { it.content.joinToString("\n") }
-                                }
-                            )
-                        }
+                            val context = buildContext(event)
 
-                        val promptExecutor by ref<PromptExecutor>()
-
-                        val aiAgent = AIAgentService(
-                            promptExecutor = promptExecutor,
-                            agentConfig = AIAgentConfig(
-                                prompt = prompt("__other__") {},
-                                model = LLMProviderChoice.Flash,
-                                maxAgentIterations = 50,
-                            ),
-                            strategy = strategy
-                        ) {
-                            handleEvents(event)
-                        }
-
-                        val roundAgentRun: suspend (ProactiveSpeakEvent, ToolRegistry?) -> Unit = { evt, reg ->
-                            agentRun(aiAgent, context, evt, reg)
-                        }
-
-                        val multimodal = isMultimodalProvider()
-
-                        suspend fun runWithRetry(targetEvent: ProactiveSpeakEvent) {
-                            rateLimited = false
-                            chatRateLimiter.reset()
-                            val registry = with(buildToolEnv(targetEvent, context, multimodal)) { buildToolRegistry() }
-                            chatMessageToolNames = registry.tools
-                                .filterIsInstance<ToolFromCallable<*>>()
-                                .filter { it.callable.hasAnnotation<ChatMessage>() }
-                                .map { it.name.substringAfterLast(".") }
-                                .toSet()
-
-                            val baseInput = targetEvent.input ?: DEFAULT_INPUT
-                            repeat(3) { attempt ->
-                                calledAnyTool = false
-                                calledChatTool = false
-                                val runInput = buildString {
-                                    append(if (attempt == 0) baseInput else "$baseInput\n\n$RETRY_HINT")
-                                    if (rateLimited) {
-                                        appendLine()
-                                        appendLine()
-                                        append(chatRateLimitHint)
+                            fun toolShortName(fullName: String): String = fullName.substringAfterLast(".")
+                            fun isChatTool(toolName: String): Boolean = toolName in chatMessageToolNames
+                            fun onToolCall(toolCall: MessagePart.Tool.Call): Boolean {
+                                if (isChatTool(toolShortName(toolCall.tool))) {
+                                    if (!chatRateLimiter.tryAcquire()) {
+                                        rateLimited = true
+                                        log.warn(
+                                            "Bot Chat tool rate-limited: tool={}, group={}",
+                                            toolShortName(toolCall.tool), key.groupId
+                                        )
+                                        return false
                                     }
+                                    calledChatTool = true
                                 }
-                                if (attempt == 0) {
-                                    log.info("Bot Agent run for group={}", targetEvent.groupId)
-                                } else {
-                                    log.info(
-                                        "Bot Agent run retry {}/2 for group={}",
-                                        attempt,
-                                        targetEvent.groupId
-                                    )
-                                }
-                                roundAgentRun(targetEvent.copy(input = runInput), registry)
-                                if (calledAnyTool) {
-                                    if (calledChatTool) {
-                                        log.info("Bot Chat tool called, done")
+                                calledAnyTool = true
+                                return true
+                            }
+
+                            val strategy = strategy<String, String>("chat") {
+                                val nodeSendInput by nodeLLMRequest()
+                                val nodeExecuteTool by nodeExecuteTools()
+                                val nodeSendToolResult by nodeLLMSendToolResults()
+
+                                edge(nodeStart forwardTo nodeSendInput)
+                                edge(nodeSendInput forwardTo nodeFinish onTextMessage { true })
+                                edge(nodeSendInput forwardTo nodeExecuteTool onToolCalls (::onToolCall))
+                                edge(
+                                    nodeExecuteTool forwardTo nodeFinish
+                                            onCondition { results -> results.toolResults.all { it.resultObject == null } }
+                                            transformed { "" }
+                                )
+                                edge(nodeExecuteTool forwardTo nodeSendToolResult)
+                                edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCalls (::onToolCall))
+                                edge(nodeSendToolResult forwardTo nodeFinish onTextMessage { true })
+                                edge(
+                                    nodeSendToolResult forwardTo nodeFinish
+                                            onCondition { msg ->
+                                        msg.parts.any { it is MessagePart.Reasoning } &&
+                                                msg.parts.none { it is MessagePart.Text || it is MessagePart.Tool.Call }
+                                    }
+                                            transformed { msg ->
+                                        msg.parts.filterIsInstance<MessagePart.Reasoning>()
+                                            .joinToString("\n") { it.content.joinToString("\n") }
+                                    }
+                                )
+                            }
+
+                            val promptExecutor by ref<PromptExecutor>()
+
+                            val aiAgent = AIAgentService(
+                                promptExecutor = promptExecutor,
+                                agentConfig = AIAgentConfig(
+                                    prompt = prompt("__other__") {},
+                                    model = LLMProviderChoice.Flash,
+                                    maxAgentIterations = 50,
+                                ),
+                                strategy = strategy
+                            ) {
+                                handleEvents(event)
+                            }
+
+                            val roundAgentRun: suspend (ProactiveSpeakEvent, ToolRegistry?) -> Unit = { evt, reg ->
+                                agentRun(aiAgent, context, evt, reg)
+                            }
+
+                            val multimodal = isMultimodalProvider()
+
+                            suspend fun runWithRetry(targetEvent: ProactiveSpeakEvent) {
+                                rateLimited = false
+                                chatRateLimiter.reset()
+                                val registry =
+                                    with(buildToolEnv(targetEvent, context, multimodal)) { buildToolRegistry() }
+                                chatMessageToolNames = registry.tools
+                                    .filterIsInstance<ToolFromCallable<*>>()
+                                    .filter { it.callable.hasAnnotation<ChatMessage>() }
+                                    .map { it.name.substringAfterLast(".") }
+                                    .toSet()
+
+                                val baseInput = targetEvent.input ?: DEFAULT_INPUT
+                                repeat(3) { attempt ->
+                                    calledAnyTool = false
+                                    calledChatTool = false
+                                    val runInput = buildString {
+                                        append(if (attempt == 0) baseInput else "$baseInput\n\n$RETRY_HINT")
+                                        if (rateLimited) {
+                                            appendLine()
+                                            appendLine()
+                                            append(chatRateLimitHint)
+                                        }
+                                    }
+                                    if (attempt == 0) {
+                                        log.info("Bot Agent run for group={}", targetEvent.groupId)
                                     } else {
-                                        log.info("Bot Non-chat tool called, done")
+                                        log.info(
+                                            "Bot Agent run retry {}/2 for group={}",
+                                            attempt,
+                                            targetEvent.groupId
+                                        )
                                     }
-                                    return
-                                }
-                                if (attempt < 2) {
-                                    log.warn("Bot No tool called, will retry")
-                                }
-                            }
-                            log.warn("Bot No tool called after 3 attempts, will fallback")
-                        }
-
-                        runWithRetry(event)
-                        if (!calledChatTool) {
-                            log.warn("Bot No chat tool called for event={}, sending fallback", event.groupId)
-                            sendFallback(event, context)
-                        }
-
-                        while (true) {
-                            val newEvent = MessageAwaiter(context)
-                                .apply {
-                                    fare()
-                                }.use { awaiter ->
-                                    select {
-                                        awaiter.onChatUrgentContinue { it.getOrNull() }
-                                        awaiter.onReceiveMessageContinue { it.getOrNull() }
-                                        onTimeout(5.minutes) { null }
+                                    roundAgentRun(targetEvent.copy(input = runInput), registry)
+                                    if (calledAnyTool) {
+                                        if (calledChatTool) {
+                                            log.info("Bot Chat tool called, done")
+                                        } else {
+                                            log.info("Bot Non-chat tool called, done")
+                                        }
+                                        return
+                                    }
+                                    if (attempt < 2) {
+                                        log.warn("Bot No tool called, will retry")
                                     }
                                 }
-
-                            if (newEvent == null) {
-                                break
+                                log.warn("Bot No tool called after 3 attempts, will fallback")
                             }
 
-                            runWithRetry(newEvent)
+                            runWithRetry(event)
                             if (!calledChatTool) {
-                                sendFallback(newEvent, context)
+                                log.warn("Bot No chat tool called for event={}, sending fallback", event.groupId)
+                                sendFallback(event, context)
                             }
-                        }
-                    } catch (e: Exception) {
-                        error = e
-                        throw e
-                    } finally {
-                        EventBus.postSync(
-                            AgentCallCompleteEvent(
-                                error,
-                                event.botId,
-                                event.groupId,
-                                event.echo
+
+                            while (true) {
+                                val newEvent = MessageAwaiter(context)
+                                    .apply {
+                                        fare()
+                                    }.use { awaiter ->
+                                        select {
+                                            awaiter.onChatUrgentContinue { it.getOrNull() }
+                                            awaiter.onReceiveMessageContinue { it.getOrNull() }
+                                            onTimeout(5.minutes) { null }
+                                        }
+                                    }
+
+                                if (newEvent == null) {
+                                    break
+                                }
+
+                                runWithRetry(newEvent)
+                                if (!calledChatTool) {
+                                    sendFallback(newEvent, context)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            error = e
+                            throw e
+                        } finally {
+                            EventBus.postSync(
+                                AgentCallCompleteEvent(
+                                    error,
+                                    event.botId,
+                                    event.groupId,
+                                    event.echo
+                                )
                             )
-                        )
+                        }
                     }
                 }
 

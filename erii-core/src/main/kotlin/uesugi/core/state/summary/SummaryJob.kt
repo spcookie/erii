@@ -8,6 +8,7 @@ import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.component.usage.UsageContext
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
@@ -73,7 +74,9 @@ class SummaryJob(
                             for (groupId in groups) {
                                 launch(Dispatchers.IO) {
                                     try {
-                                        summaryService.processSummaryForGroup(currentBotId, groupId)
+                                        UsageContext.withUsage(currentBotId, groupId) {
+                                            summaryService.processSummaryForGroup(currentBotId, groupId)
+                                        }
                                     } catch (e: Exception) {
                                         log.error("Failed to generate a summary for a group $groupId", e)
                                     }

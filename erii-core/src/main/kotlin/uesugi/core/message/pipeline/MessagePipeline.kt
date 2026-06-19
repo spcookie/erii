@@ -15,6 +15,7 @@ import uesugi.common.message.CommandUtil
 import uesugi.common.message.MessageContext
 import uesugi.common.toolkit.logger
 import uesugi.core.component.storage.ObjectStorage
+import uesugi.core.component.usage.UsageContext
 import uesugi.core.message.history.HistorySavedEvent
 import uesugi.core.message.history.HistoryService
 import uesugi.core.message.resource.ResourceService
@@ -125,18 +126,20 @@ class MessagePipeline(
 
         if (parsed.isAtBot) {
             scope.launch {
-                log.info("Robot [$roleName(${context.botId})] is @, triggering active speech")
-                val route = RoutingAgent.route(context.botId, context.groupId, parsed.content)
-                log.info("Routing results: {}", route.name)
-                EventBus.postAsync(
-                    RouteCallEvent(
-                        botId = context.botId,
-                        groupId = context.groupId,
-                        senderId = context.senderId,
-                        input = "你被群友 ${context.senderNick}(${context.senderId}) @了，内容：${parsed.content}",
-                        hit = route
+                UsageContext.withUsage(context.botId, context.groupId) {
+                    log.info("Robot [$roleName(${context.botId})] is @, triggering active speech")
+                    val route = RoutingAgent.route(context.botId, context.groupId, parsed.content)
+                    log.info("Routing results: {}", route.name)
+                    EventBus.postAsync(
+                        RouteCallEvent(
+                            botId = context.botId,
+                            groupId = context.groupId,
+                            senderId = context.senderId,
+                            input = "你被群友 ${context.senderNick}(${context.senderId}) @了，内容：${parsed.content}",
+                            hit = route
+                        )
                     )
-                )
+                }
             }
         } else if (CommandUtil.isCommand(parsed.content)) {
             val command = CommandUtil.parseCommand(parsed.content)!!

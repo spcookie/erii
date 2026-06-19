@@ -125,6 +125,10 @@ data class GroupStatusViewModel(
  * Token 消耗页面 ViewModel
  */
 data class UsageViewModel(
+    val botId: String? = null,
+    val botName: String? = null,
+    val groupId: String? = null,
+    val groupName: String? = null,
     val todayCacheHitInput: Long,
     val todayCacheMissInput: Long,
     val todayOutput: Long,
@@ -143,6 +147,9 @@ data class UsageViewModel(
     val dailySeriesJson: String,
     val basePath: String = ""
 ) {
+    val hasScopeMeta: Boolean
+        get() = !botId.isNullOrBlank() && !groupId.isNullOrBlank() && !groupName.isNullOrBlank()
+
     fun formatTokens(value: Long): String = compactNumber(value)
 }
 

@@ -9,6 +9,7 @@ import ai.koog.prompt.message.LLMChoice
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onEach
 import uesugi.core.component.usage.TokenUsageRepository
 
 class TokenUsagePromptExecutor(
@@ -32,6 +33,19 @@ class TokenUsagePromptExecutor(
         tools: List<ToolDescriptor>
     ): Flow<StreamFrame> {
         return delegate.executeStreaming(prompt, model, tools)
+            .onEach { frame ->
+                if (frame is StreamFrame.End) {
+                    repository.record(
+                        prompt = prompt,
+                        model = model,
+                        response = Message.Assistant(
+                            content = "",
+                            metaInfo = frame.metaInfo,
+                            finishReason = frame.finishReason
+                        )
+                    )
+                }
+            }
     }
 
     override suspend fun executeMultipleChoices(

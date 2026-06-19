@@ -14,6 +14,8 @@ object TokenUsageTable : IntIdTable("llm_token_usage") {
 
     val promptId = varchar("prompt_id", DEFAULT_LENGTH)
     val scene = varchar("scene", DEFAULT_LENGTH)
+    val botId = varchar("bot_id", DEFAULT_LENGTH).nullable()
+    val groupId = varchar("group_id", DEFAULT_LENGTH).nullable()
     val tier = varchar("tier", 32)
     val modelId = varchar("model_id", DEFAULT_LENGTH)
     val provider = varchar("provider", DEFAULT_LENGTH)
@@ -34,6 +36,8 @@ class TokenUsageEntity(id: EntityID<Int>) : IntEntity(id) {
 
     var promptId by TokenUsageTable.promptId
     var scene by TokenUsageTable.scene
+    var botId by TokenUsageTable.botId
+    var groupId by TokenUsageTable.groupId
     var tier by TokenUsageTable.tier
     var modelId by TokenUsageTable.modelId
     var provider by TokenUsageTable.provider
@@ -53,6 +57,8 @@ data class TokenUsageRecord(
     val id: Int,
     val promptId: String,
     val scene: String,
+    val botId: String?,
+    val groupId: String?,
     val tier: String,
     val modelId: String,
     val provider: String,
@@ -72,6 +78,8 @@ fun TokenUsageEntity.toRecord(): TokenUsageRecord = TokenUsageRecord(
     id = id.value,
     promptId = promptId,
     scene = scene,
+    botId = botId,
+    groupId = groupId,
     tier = tier,
     modelId = modelId,
     provider = provider,

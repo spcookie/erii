@@ -6,6 +6,7 @@ import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.component.usage.UsageContext
 
 /**
  * 记忆任务 - 定时调度记忆处理
@@ -73,7 +74,9 @@ class MemoryJob(
                             for (groupId in groups) {
                                 launch(Dispatchers.IO) {
                                     try {
-                                        memoryService.processGroupMemory(currentBotId, groupId)
+                                        UsageContext.withUsage(currentBotId, groupId) {
+                                            memoryService.processGroupMemory(currentBotId, groupId)
+                                        }
                                     } catch (e: Exception) {
                                         log.error("处理群组 $groupId 记忆失败", e)
                                     }

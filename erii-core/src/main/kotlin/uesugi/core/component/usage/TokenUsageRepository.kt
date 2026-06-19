@@ -71,10 +71,14 @@ class TokenUsageRepository {
             pricing = pricing
         )
 
+        val usageIdentity = UsageContext.current()
+
         transaction {
             TokenUsageEntity.new {
                 promptId = prompt.id
                 scene = prompt.id
+                botId = usageIdentity?.botId
+                groupId = usageIdentity?.groupId
                 this.tier = tier
                 modelId = meta.modelId ?: model.id
                 provider = model.provider.id
@@ -91,9 +95,12 @@ class TokenUsageRepository {
         }
     }
 
-    fun summary(): TokenUsageSummary {
+    fun summary(botId: String? = null, groupId: String? = null): TokenUsageSummary {
         val records = transaction {
             TokenUsageEntity.all().map { it.toRecord() }
+        }.filter {
+            (botId == null || it.botId == botId) &&
+                    (groupId == null || it.groupId == groupId)
         }
         val today = todayKey()
         val todayRecords = records.filter { it.createdAt.date.toString() == today }
@@ -212,12 +219,15 @@ class TokenUsageRepository {
     private fun todayKey(): String =
         Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
 
-    private fun resolveTier(model: LLModel): String = when (model) {
-        LLMProviderChoice.Lite -> "lite"
-        LLMProviderChoice.Flash -> "flash"
-        LLMProviderChoice.Pro -> "pro"
+    private fun resolveTier(model: LLModel): String = when {
+        model.matchesConfiguredTier { LLMProviderChoice.Lite } -> "lite"
+        model.matchesConfiguredTier { LLMProviderChoice.Flash } -> "flash"
+        model.matchesConfiguredTier { LLMProviderChoice.Pro } -> "pro"
         else -> model.id
     }
+
+    private fun LLModel.matchesConfiguredTier(tier: () -> LLModel): Boolean =
+        runCatching { this == tier() }.getOrDefault(false)
 
     private fun displayTier(tier: String): String = tier.replaceFirstChar { it.uppercase() }
 
@@ -235,7 +245,7 @@ class TokenUsageRepository {
     }
 
     private fun configString(path: String): String? =
-        SystemConfigHolder.config.propertyOrNull(path)?.getString()
+        runCatching { SystemConfigHolder.config.propertyOrNull(path)?.getString() }.getOrNull()
 
     private fun configDouble(path: String): Double? =
         configString(path)?.toDoubleOrNull()

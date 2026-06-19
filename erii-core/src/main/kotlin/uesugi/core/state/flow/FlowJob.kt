@@ -9,6 +9,7 @@ import org.koin.core.context.GlobalContext
 import uesugi.common.BotManage
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.component.usage.UsageContext
 import kotlin.time.ExperimentalTime
 
 class FlowJob(
@@ -56,7 +57,9 @@ class FlowJob(
 
                         for (groupId in groups) {
                             ensureFlowGaugeExists(currentBotId, groupId)
-                            processGroupFlow(currentBotId, groupId)
+                            UsageContext.withUsage(currentBotId, groupId) {
+                                processGroupFlow(currentBotId, groupId)
+                            }
                         }
                     }
 

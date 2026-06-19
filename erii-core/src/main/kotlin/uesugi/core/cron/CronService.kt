@@ -7,6 +7,7 @@ import uesugi.common.BotManage
 import uesugi.common.EventBus
 import uesugi.common.event.PSFeature
 import uesugi.common.message.CommandUtil
+import uesugi.core.component.usage.UsageContext
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.core.route.RoutingAgent
@@ -93,7 +94,9 @@ class CronService(private val jobScheduler: JobScheduler) {
     private suspend fun fireTaskTrigger(task: CronTask) {
         when (task.triggerType) {
             TriggerType.ROUTING -> {
-                val rule = RoutingAgent.route(task.botId, task.groupId, task.content)
+                val rule = UsageContext.withUsage(task.botId, task.groupId) {
+                    RoutingAgent.route(task.botId, task.groupId, task.content)
+                }
                 EventBus.postAsync(
                     RouteCallEvent(
                         botId = task.botId,

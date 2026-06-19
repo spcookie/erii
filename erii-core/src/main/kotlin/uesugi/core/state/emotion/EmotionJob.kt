@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
 import uesugi.common.toolkit.logger
+import uesugi.core.component.usage.UsageContext
 
 /**
  * 情绪任务 - 定时调度情绪分析和衰减
@@ -66,7 +67,9 @@ class EmotionJob(
                         // 2. 对每个群组执行情绪分析（单群失败不影响其他群）
                         for (group in groups) {
                             try {
-                                emotionService.analyzeGroupEmotion(currentBotId, group)
+                                UsageContext.withUsage(currentBotId, group) {
+                                    emotionService.analyzeGroupEmotion(currentBotId, group)
+                                }
                             } catch (e: Exception) {
                                 log.error("Emotional analysis failed, botId=$currentBotId, group=$group", e)
                             }

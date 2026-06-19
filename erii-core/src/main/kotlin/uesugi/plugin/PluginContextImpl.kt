@@ -13,6 +13,7 @@ import kotlinx.coroutines.*
 import uesugi.common.BotManage
 import uesugi.common.EventBus
 import uesugi.common.toolkit.logger
+import uesugi.core.component.usage.UsageContext
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.spi.*
@@ -66,22 +67,24 @@ class PluginContextImpl(
     override fun open() {
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             scope.launch {
-                for (rk in defined.routeKeys) {
-                    if (event hit rk.key) {
-                        val meta = MetaImpl(
-                            botId = event.botId,
-                            groupId = event.groupId,
-                            roledBot = BotManage.getBot(event.botId),
-                            input = event.input,
-                            senderId = event.senderId,
-                            echo = event.echo
-                        )
-                        for (handler in handlers) {
-                            withContext(meta.asContextElement()) {
-                                handler(meta)
+                UsageContext.withUsage(event.botId, event.groupId) {
+                    for (rk in defined.routeKeys) {
+                        if (event hit rk.key) {
+                            val meta = MetaImpl(
+                                botId = event.botId,
+                                groupId = event.groupId,
+                                roledBot = BotManage.getBot(event.botId),
+                                input = event.input,
+                                senderId = event.senderId,
+                                echo = event.echo
+                            )
+                            for (handler in handlers) {
+                                withContext(meta.asContextElement()) {
+                                    handler(meta)
+                                }
                             }
+                            break
                         }
-                        break
                     }
                 }
             }

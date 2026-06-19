@@ -14,6 +14,7 @@ import uesugi.common.data.MessageType
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.storage.ObjectStorage
+import uesugi.core.component.usage.UsageContext
 import uesugi.core.message.resource.ResourceService
 
 /**
@@ -253,7 +254,9 @@ class MemeJob(
                         val groups = ConfigHolder.getEffectiveEnableGroups(configKey)
                         log.debug("需要提取的群组: ${groups.size} 个")
                         for (groupId in groups) {
-                            processGroupExtraction(botId, groupId)
+                            UsageContext.withUsage(botId, groupId) {
+                                processGroupExtraction(botId, groupId)
+                            }
                         }
                     }
 

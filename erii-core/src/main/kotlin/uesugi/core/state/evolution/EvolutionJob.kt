@@ -6,6 +6,7 @@ import org.jobrunr.scheduling.BackgroundJob
 import uesugi.common.BotManage
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.component.usage.UsageContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
@@ -54,11 +55,13 @@ class EvolutionJob(
                         log.debug("发现 ${groups.size} 个活跃群组需要处理")
 
                         for (groupId in groups) {
-                            processGroupEvolution(
-                                currentBotId,
-                                groupId,
-                                ConfigHolder.getStateTuning().evolution.recentRangeHours.hours
-                            )
+                            UsageContext.withUsage(currentBotId, groupId) {
+                                processGroupEvolution(
+                                    currentBotId,
+                                    groupId,
+                                    ConfigHolder.getStateTuning().evolution.recentRangeHours.hours
+                                )
+                            }
                         }
                     }
 

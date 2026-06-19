@@ -1,4 +1,4 @@
-﻿@import uesugi.routing.UsageViewModel
+@import uesugi.routing.UsageViewModel
 
 @param vm: UsageViewModel
 
@@ -130,6 +130,72 @@
             text-align: right;
             color: var(--grey-3);
             font-size: 12px;
+            justify-content: flex-end;
+        }
+
+        .scope-meta {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 14px;
+            color: var(--grey-3);
+            font-size: 12px;
+        }
+
+        .scope-meta .scope-name {
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        .scope-meta .scope-id {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .scope-meta .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--grey-3);
+            opacity: 0.7;
+        }
+
+        .icon {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            vertical-align: -3px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex: 0 0 auto;
+        }
+
+        .kpi-label,
+        .ledger-label,
+        .section-title,
+        .chart-title,
+        .header-meta,
+        .scope-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-title .icon,
+        .ledger-label .icon,
+        .kpi-label .icon {
+            color: var(--grey-3);
+        }
+
+        .kpi.accent .kpi-label .icon {
+            color: var(--accent-on);
         }
 
         /* Section */
@@ -262,89 +328,202 @@
         <div>
             <p class="subtitle">Token Consumption Report</p>
             <h1 class="title">Token <span class="accent">Usage</span></h1>
+            @if(vm.hasScopeMeta)
+                <div class="scope-meta">
+                    <span class="scope-name">${vm.groupName}</span>
+                    <span class="dot"></span>
+                    <span>${vm.botName}</span>
+                    <span class="dot"></span>
+                    <span class="scope-id"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8V4H8"/><path
+                                    d="M12 4h4"/><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 13h.01"/><path
+                                    d="M15 13h.01"/><path d="M9 17h6"/></svg>${vm.botId}</span>
+                    <span class="dot"></span>
+                    <span class="scope-id"><svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle
+                                    cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path
+                                    d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M2 21v-2a4 4 0 0 1 3-3.87"/><path
+                                    d="M8 3.13a4 4 0 0 0 0 7.75"/></svg>${vm.groupId}</span>
+                </div>
+            @endif
         </div>
         <div class="header-meta">
-            Lite / Flash / Pro · ${vm.priceUnit}
+            <svg class="icon" viewBox="0 0 24 24">
+                <path d="M4 19V5"/>
+                <path d="M4 19h16"/>
+                <path d="m8 15 3-4 3 2 5-7"/>
+            </svg>
+            <span>Lite / Flash / Pro · ${vm.priceUnit}</span>
         </div>
     </header>
 
     <section class="kpi-grid">
         <div class="kpi">
-            <div class="kpi-label">输入 · 缓存命中</div>
+            <div class="kpi-label">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <path d="m7 10 5 5 5-5"/>
+                    <path d="M12 15V3"/>
+                </svg>
+                <span>输入 · 缓存命中</span></div>
             <div class="kpi-value">${vm.formatTokens(vm.todayCacheHitInput)}</div>
             <div class="kpi-hint">INPUT CACHE HIT</div>
         </div>
         <div class="kpi">
-            <div class="kpi-label">输入 · 未命中</div>
+            <div class="kpi-label">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M12 3v12"/>
+                    <path d="m7 10 5 5 5-5"/>
+                    <path d="M4 19h16"/>
+                </svg>
+                <span>输入 · 未命中</span></div>
             <div class="kpi-value">${vm.formatTokens(vm.todayCacheMissInput)}</div>
             <div class="kpi-hint">INPUT CACHE MISS</div>
         </div>
         <div class="kpi">
-            <div class="kpi-label">输出</div>
+            <div class="kpi-label">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M12 21V9"/>
+                    <path d="m7 14 5-5 5 5"/>
+                    <path d="M4 5h16"/>
+                </svg>
+                <span>输出</span></div>
             <div class="kpi-value">${vm.formatTokens(vm.todayOutput)}</div>
             <div class="kpi-hint">OUTPUT TOKENS</div>
         </div>
         <div class="kpi accent">
-            <div class="kpi-label">花费</div>
+            <div class="kpi-label">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M12 2v20"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                <span>花费</span></div>
             <div class="kpi-value">${vm.todayCost}</div>
             <div class="kpi-hint">${vm.priceUnit}</div>
         </div>
         <div class="kpi">
-            <div class="kpi-label">缓存命中率</div>
+            <div class="kpi-label">
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M20 6 9 17l-5-5"/>
+                </svg>
+                <span>缓存命中率</span></div>
             <div class="kpi-value">${vm.todayCacheHitRate}%</div>
             <div class="kpi-hint">HIT / INPUT</div>
         </div>
     </section>
 
     <section class="section">
-        <h2 class="section-title">累计消耗 · Accumulated</h2>
+        <h2 class="section-title">
+            <svg class="icon" viewBox="0 0 24 24">
+                <path d="M4 19V5"/>
+                <path d="M4 19h16"/>
+                <path d="M8 17V9"/>
+                <path d="M12 17V5"/>
+                <path d="M16 17v-6"/>
+            </svg>
+            <span>累计消耗 · Accumulated</span></h2>
         <div class="ledger">
             <div class="ledger-cell">
-                <div class="ledger-label">累计输入命中</div>
+                <div class="ledger-label">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M20 6 9 17l-5-5"/>
+                    </svg>
+                    <span>累计输入命中</span></div>
                 <div class="ledger-value">${vm.formatTokens(vm.totalCacheHitInput)}</div>
             </div>
             <div class="ledger-cell">
-                <div class="ledger-label">累计输入未命中</div>
+                <div class="ledger-label">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 3v12"/>
+                        <path d="m7 10 5 5 5-5"/>
+                    </svg>
+                    <span>累计输入未命中</span></div>
                 <div class="ledger-value">${vm.formatTokens(vm.totalCacheMissInput)}</div>
             </div>
             <div class="ledger-cell">
-                <div class="ledger-label">累计输出</div>
+                <div class="ledger-label">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 21V9"/>
+                        <path d="m7 14 5-5 5 5"/>
+                    </svg>
+                    <span>累计输出</span></div>
                 <div class="ledger-value">${vm.formatTokens(vm.totalOutput)}</div>
             </div>
             <div class="ledger-cell">
-                <div class="ledger-label">累计花费</div>
+                <div class="ledger-label">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 2v20"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    <span>累计花费</span></div>
                 <div class="ledger-value">${vm.totalCost}</div>
             </div>
             <div class="ledger-cell">
-                <div class="ledger-label">累计总 Token</div>
+                <div class="ledger-label">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 3v18"/>
+                        <path d="M3 12h18"/>
+                        <path d="M5 5l14 14"/>
+                        <path d="m19 5-14 14"/>
+                    </svg>
+                    <span>累计总 Token</span></div>
                 <div class="ledger-value">${vm.formatTokens(vm.totalCacheHitInput + vm.totalCacheMissInput + vm.totalOutput)}</div>
             </div>
         </div>
     </section>
 
     <section class="section">
-        <h2 class="section-title">消耗分布 · Distribution</h2>
+        <h2 class="section-title">
+            <svg class="icon" viewBox="0 0 24 24">
+                <path d="M3 3v18h18"/>
+                <path d="M7 16h3"/>
+                <path d="M7 11h8"/>
+                <path d="M7 6h12"/>
+            </svg>
+            <span>消耗分布 · Distribution</span></h2>
         <div class="charts-grid">
             <div class="chart-panel">
-                <h3 class="chart-title">场景 Token 消耗</h3>
+                <h3 class="chart-title">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 3 3 8l9 5 9-5-9-5Z"/>
+                        <path d="m3 16 9 5 9-5"/>
+                        <path d="m3 12 9 5 9-5"/>
+                    </svg>
+                    <span>场景 Token 消耗</span></h3>
                 <div id="sceneBars" class="chart"></div>
             </div>
             <div class="chart-panel">
-                <h3 class="chart-title">模型 Token 消耗</h3>
+                <h3 class="chart-title">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 2a10 10 0 1 0 10 10"/>
+                        <path d="M12 6v6l4 2"/>
+                        <path d="M19 3v5h-5"/>
+                    </svg>
+                    <span>模型 Token 消耗</span></h3>
                 <div id="modelBars" class="chart"></div>
             </div>
         </div>
     </section>
 
     <section class="section">
-        <h2 class="section-title">周趋势 · Weekly Trend</h2>
+        <h2 class="section-title">
+            <svg class="icon" viewBox="0 0 24 24">
+                <path d="m3 17 6-6 4 4 8-8"/>
+                <path d="M14 7h7v7"/>
+            </svg>
+            <span>周趋势 · Weekly Trend</span></h2>
         <div class="panel">
             <div id="dailyLine" class="chart-wide"></div>
         </div>
     </section>
 
     <section class="section">
-        <h2 class="section-title">消耗热力图 · Heatmap</h2>
+        <h2 class="section-title">
+            <svg class="icon" viewBox="0 0 24 24">
+                <path d="M3 3h7v7H3z"/>
+                <path d="M14 3h7v7h-7z"/>
+                <path d="M3 14h7v7H3z"/>
+                <path d="M14 14h7v7h-7z"/>
+            </svg>
+            <span>消耗热力图 · Heatmap</span></h2>
         <div class="panel">
             <div class="heatmap-viewport">
                 <div id="heatmap"></div>
@@ -369,7 +548,7 @@
     var sceneBarsData = JSON.parse('${vm.sceneBarsJson}');
     var modelBarsData = JSON.parse('${vm.modelBarsJson}');
     var dailySeriesData = JSON.parse('${vm.dailySeriesJson}');
-    var dailyTrendData = dailySeriesData.slice(-7);
+    var dailyTrendData = createWeeklyTrendData(dailySeriesData);
     var sceneOrder = ['聊天', '搜索', '插件', '记忆', '摘要', '情绪', '心流', '冲动', '偏好', '进化', '表情包', '路由', '其他'];
 
     var palette = {
@@ -417,6 +596,37 @@
         var parts = value.split('-');
         if (parts.length < 3) return value;
         return parts[1] + '/' + parts[2];
+    }
+
+    function formatDateKey(date) {
+        var year = date.getFullYear();
+        var month = String(date.getMonth() + 1).padStart(2, '0');
+        var day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    function addDays(date, days) {
+        var result = new Date(date);
+        result.setDate(result.getDate() + days);
+        return result;
+    }
+
+    function createWeeklyTrendData(rows) {
+        if (rows.length > 0) {
+            return rows.slice(-7);
+        }
+        var end = new Date();
+        var result = [];
+        for (var i = 6; i >= 0; i--) {
+            result.push({date: formatDateKey(addDays(end, -i)), tokens: 0, cost: 0});
+        }
+        return result;
+    }
+
+    function hasTokens(rows) {
+        return rows.some(function (x) {
+            return x.tokens > 0;
+        });
     }
 
     function sortSceneRows(rows) {
@@ -592,6 +802,7 @@
 
     verticalBarChart('modelBars', modelBarsData);
 
+    var weeklyTrendHasTokens = hasTokens(dailyTrendData);
     var line = echarts.init(document.getElementById('dailyLine'));
     line.setOption({
         color: [palette.hit],
@@ -614,9 +825,43 @@
         },
         yAxis: {
             type: 'value',
+            min: 0,
+            max: weeklyTrendHasTokens ? null : 1,
             splitLine: {lineStyle: {color: '#f0f0ee'}},
             axisLabel: {color: '#737373', fontSize: 11, formatter: compactNumber}
         },
+        graphic: weeklyTrendHasTokens ? [] : [
+            {
+                type: 'group',
+                left: 'center',
+                top: 'middle',
+                silent: true,
+                children: [
+                    {
+                        type: 'circle',
+                        shape: {cx: 0, cy: -18, r: 20},
+                        style: {fill: 'rgba(197,232,3,0.16)', stroke: '#C5E803', lineWidth: 1}
+                    },
+                    {
+                        type: 'path',
+                        shape: {pathData: 'M -8 -18 L -2 -12 L 9 -25', x: 0, y: 0, width: 18, height: 14},
+                        style: {stroke: '#0a0a0a', fill: 'none', lineWidth: 2}
+                    },
+                    {
+                        type: 'text',
+                        left: 'center',
+                        top: 14,
+                        style: {
+                            text: '暂无 Token 消耗',
+                            fill: '#737373',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            textAlign: 'center'
+                        }
+                    }
+                ]
+            }
+        ],
         series: [{
             type: 'line',
             smooth: true,
@@ -635,74 +880,92 @@
         }]
     });
 
-    if (dailySeriesData.length > 0) {
-        var heatmapData = dailySeriesData.map(function (x) {
-            return {date: x.date, value: x.tokens};
+    var heatmapEndDate = dailySeriesData.length > 0
+        ? new Date(dailySeriesData[dailySeriesData.length - 1].date)
+        : new Date();
+    var startDate = new Date(heatmapEndDate.getFullYear(), heatmapEndDate.getMonth() - 5, 1);
+    var heatmapDataEndDate = new Date(startDate.getFullYear(), startDate.getMonth() + 6, 0);
+    var heatmapData = createHeatmapData(startDate, heatmapDataEndDate, dailySeriesData);
+    var heatmapGutter = 3;
+    var heatmapDomainGutter = 18;
+    var heatmapSize = calculateHeatmapSquareSize(startDate, 6);
+
+    function createHeatmapData(start, end, rows) {
+        var valuesByDate = {};
+        rows.forEach(function (x) {
+            valuesByDate[x.date] = x.tokens;
         });
-        var endDate = new Date(dailySeriesData[dailySeriesData.length - 1].date);
-        var startDate = new Date(endDate);
-        startDate.setMonth(startDate.getMonth() - 5);
-        var heatmapGutter = 3;
-        var heatmapDomainGutter = 18;
-        var heatmapSize = calculateHeatmapSquareSize(startDate, 6);
 
-        function startOfWeek(date) {
-            var d = new Date(date);
-            d.setDate(d.getDate() - d.getDay());
-            return d;
+        var result = [];
+        var cursor = new Date(start);
+        cursor.setHours(0, 0, 0, 0);
+        var last = new Date(end);
+        last.setHours(0, 0, 0, 0);
+
+        while (cursor <= last) {
+            var key = formatDateKey(cursor);
+            result.push({date: key, value: valuesByDate[key] || 0});
+            cursor = addDays(cursor, 1);
+        }
+        return result;
+    }
+
+    function startOfWeek(date) {
+        var d = new Date(date);
+        d.setDate(d.getDate() - d.getDay());
+        return d;
+    }
+
+    function endOfWeek(date) {
+        var d = new Date(date);
+        d.setDate(d.getDate() + (6 - d.getDay()));
+        return d;
+    }
+
+    function heatmapWeeksInMonth(date) {
+        var firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+        var lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        var firstWeek = startOfWeek(firstDay);
+        var lastWeek = endOfWeek(lastDay);
+
+        if (firstDay.getDay() > 4) {
+            firstWeek.setDate(firstWeek.getDate() + 7);
+        }
+        if (lastDay.getDay() < 4) {
+            lastWeek.setDate(lastWeek.getDate() - 7);
         }
 
-        function endOfWeek(date) {
-            var d = new Date(date);
-            d.setDate(d.getDate() + (6 - d.getDay()));
-            return d;
+        var weekMs = 7 * 24 * 60 * 60 * 1000;
+        return Math.max(4, Math.round((lastWeek - firstWeek) / weekMs) + 1);
+    }
+
+    function heatmapVisibleWeekCount(start, range) {
+        var total = 0;
+        for (var i = 0; i < range; i++) {
+            total += heatmapWeeksInMonth(new Date(start.getFullYear(), start.getMonth() + i, 1));
         }
+        return total;
+    }
 
-        function heatmapWeeksInMonth(date) {
-            var firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-            var lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-            var firstWeek = startOfWeek(firstDay);
-            var lastWeek = endOfWeek(lastDay);
+    function calculateHeatmapSquareSize(start, range) {
+        var viewport = document.querySelector('.heatmap-viewport');
+        var availableWidth = viewport ? viewport.clientWidth : 1100;
+        var weekCount = heatmapVisibleWeekCount(start, range);
+        var gutterWidth = Math.max(0, weekCount - range) * heatmapGutter + Math.max(0, range - 1) * heatmapDomainGutter;
+        var size = Math.floor((availableWidth - gutterWidth) / weekCount);
+        return Math.max(14, Math.min(48, size));
+    }
 
-            if (firstDay.getDay() > 4) {
-                firstWeek.setDate(firstWeek.getDate() + 7);
-            }
-            if (lastDay.getDay() < 4) {
-                lastWeek.setDate(lastWeek.getDate() - 7);
-            }
+    var heatmapHeight = heatmapSize * 7 + heatmapGutter * 6 + 38;
+    document.querySelector('.heatmap-viewport').style.minHeight = heatmapHeight + 'px';
+    document.getElementById('heatmap').style.minHeight = heatmapHeight + 'px';
 
-            var weekMs = 7 * 24 * 60 * 60 * 1000;
-            return Math.max(4, Math.round((lastWeek - firstWeek) / weekMs) + 1);
-        }
-
-        function heatmapVisibleWeekCount(start, range) {
-            var total = 0;
-            for (var i = 0; i < range; i++) {
-                total += heatmapWeeksInMonth(new Date(start.getFullYear(), start.getMonth() + i, 1));
-            }
-            return total;
-        }
-
-        function calculateHeatmapSquareSize(start, range) {
-            var viewport = document.querySelector('.heatmap-viewport');
-            var availableWidth = viewport ? viewport.clientWidth : 1100;
-            var weekCount = heatmapVisibleWeekCount(start, range);
-            var gutterWidth = Math.max(0, weekCount - range) * heatmapGutter + Math.max(0, range - 1) * heatmapDomainGutter;
-            var size = Math.floor((availableWidth - gutterWidth) / weekCount);
-            return Math.max(14, Math.min(48, size));
-        }
-
-        var heatmapHeight = heatmapSize * 7 + heatmapGutter * 6 + 38;
-        document.querySelector('.heatmap-viewport').style.minHeight = heatmapHeight + 'px';
-        document.getElementById('heatmap').style.minHeight = heatmapHeight + 'px';
-
-        var cal = new CalHeatmap();
-        cal.paint({
+    var cal = new CalHeatmap();
+    cal.paint({
             itemSelector: '#heatmap',
             range: 6,
             date: {
-                start: startDate,
-                highlight: [new Date()]
+                start: startDate
             },
             domain: {
                 type: 'month',
@@ -726,7 +989,6 @@
                 }
             }
         });
-    }
 </script>
 </body>
 </html>

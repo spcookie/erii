@@ -10,6 +10,7 @@ import uesugi.common.EventBus
 import uesugi.common.event.InterruptionMode
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.component.usage.UsageContext
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
@@ -66,7 +67,9 @@ class VolitionJob(
 
                         for (groupId in groups) {
                             ensureVolitionGaugeExists(currentBotId, groupId)
-                            processGroupVolition(currentBotId, groupId)
+                            UsageContext.withUsage(currentBotId, groupId) {
+                                processGroupVolition(currentBotId, groupId)
+                            }
                         }
                     }
 
