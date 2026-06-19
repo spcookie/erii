@@ -39,6 +39,7 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
                 width = 1200,
                 quality = 100,
                 type = BrowserScraper.ScreenshotType.JPEG,
+                waitForNetworkIdle = true,
                 username = username,
                 password = password
             )

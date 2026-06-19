@@ -20,12 +20,16 @@
             --accent-on: #0a0a0a;
         }
 
-        * { box-sizing: border-box; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
 
         html, body {
             margin: 0;
             padding: 0;
-            width: 1280px;
+            width: 100%;
             min-height: 1800px;
             background: var(--paper);
             color: var(--ink);
@@ -35,7 +39,10 @@
         }
 
         .page {
-            padding: 48px 56px;
+            width: 100%;
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 48px;
         }
 
         /* Header */
@@ -194,6 +201,10 @@
             color: var(--grey-3);
         }
 
+        .ledger-label .icon {
+            margin-top: -2px;
+        }
+
         .kpi.accent .kpi-label .icon {
             color: var(--accent-on);
         }
@@ -317,6 +328,26 @@
             height: 14px;
         }
 
+        .swatch.level-0 {
+            background: #f0f0ee;
+        }
+
+        .swatch.level-1 {
+            background: #e1f0a3;
+        }
+
+        .swatch.level-2 {
+            background: #C5E803;
+        }
+
+        .swatch.level-3 {
+            background: #9fc100;
+        }
+
+        .swatch.level-4 {
+            background: #6b8f00;
+        }
+
         .heatmap-legend span {
             margin: 0 2px;
         }
@@ -334,23 +365,14 @@
                     <span class="dot"></span>
                     <span>${vm.botName}</span>
                     <span class="dot"></span>
-                    <span class="scope-id"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8V4H8"/><path
-                                    d="M12 4h4"/><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 13h.01"/><path
-                                    d="M15 13h.01"/><path d="M9 17h6"/></svg>${vm.botId}</span>
+                    <span class="scope-id"><i data-lucide="bot" class="icon"></i>${vm.botId}</span>
                     <span class="dot"></span>
-                    <span class="scope-id"><svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-8 0v2"/><circle
-                                    cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path
-                                    d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M2 21v-2a4 4 0 0 1 3-3.87"/><path
-                                    d="M8 3.13a4 4 0 0 0 0 7.75"/></svg>${vm.groupId}</span>
+                    <span class="scope-id"><i data-lucide="users" class="icon"></i>${vm.groupId}</span>
                 </div>
             @endif
         </div>
         <div class="header-meta">
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M4 19V5"/>
-                <path d="M4 19h16"/>
-                <path d="m8 15 3-4 3 2 5-7"/>
-            </svg>
+            <i data-lucide="line-chart" class="icon"></i>
             <span>Lite / Flash / Pro · ${vm.priceUnit}</span>
         </div>
     </header>
@@ -358,52 +380,35 @@
     <section class="kpi-grid">
         <div class="kpi">
             <div class="kpi-label">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <path d="m7 10 5 5 5-5"/>
-                    <path d="M12 15V3"/>
-                </svg>
+                <i data-lucide="download" class="icon"></i>
                 <span>输入 · 缓存命中</span></div>
             <div class="kpi-value">${vm.formatTokens(vm.todayCacheHitInput)}</div>
             <div class="kpi-hint">INPUT CACHE HIT</div>
         </div>
         <div class="kpi">
             <div class="kpi-label">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <path d="M12 3v12"/>
-                    <path d="m7 10 5 5 5-5"/>
-                    <path d="M4 19h16"/>
-                </svg>
+                <i data-lucide="arrow-down-to-line" class="icon"></i>
                 <span>输入 · 未命中</span></div>
             <div class="kpi-value">${vm.formatTokens(vm.todayCacheMissInput)}</div>
             <div class="kpi-hint">INPUT CACHE MISS</div>
         </div>
         <div class="kpi">
             <div class="kpi-label">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <path d="M12 21V9"/>
-                    <path d="m7 14 5-5 5 5"/>
-                    <path d="M4 5h16"/>
-                </svg>
+                <i data-lucide="upload" class="icon"></i>
                 <span>输出</span></div>
             <div class="kpi-value">${vm.formatTokens(vm.todayOutput)}</div>
             <div class="kpi-hint">OUTPUT TOKENS</div>
         </div>
         <div class="kpi accent">
             <div class="kpi-label">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <path d="M12 2v20"/>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
-                </svg>
+                <i data-lucide="dollar-sign" class="icon"></i>
                 <span>花费</span></div>
             <div class="kpi-value">${vm.todayCost}</div>
             <div class="kpi-hint">${vm.priceUnit}</div>
         </div>
         <div class="kpi">
             <div class="kpi-label">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <path d="M20 6 9 17l-5-5"/>
-                </svg>
+                <i data-lucide="check" class="icon"></i>
                 <span>缓存命中率</span></div>
             <div class="kpi-value">${vm.todayCacheHitRate}%</div>
             <div class="kpi-hint">HIT / INPUT</div>
@@ -412,58 +417,36 @@
 
     <section class="section">
         <h2 class="section-title">
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M4 19V5"/>
-                <path d="M4 19h16"/>
-                <path d="M8 17V9"/>
-                <path d="M12 17V5"/>
-                <path d="M16 17v-6"/>
-            </svg>
+            <i data-lucide="bar-chart-3" class="icon"></i>
             <span>累计消耗 · Accumulated</span></h2>
         <div class="ledger">
             <div class="ledger-cell">
                 <div class="ledger-label">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M20 6 9 17l-5-5"/>
-                    </svg>
+                    <i data-lucide="check" class="icon"></i>
                     <span>累计输入命中</span></div>
                 <div class="ledger-value">${vm.formatTokens(vm.totalCacheHitInput)}</div>
             </div>
             <div class="ledger-cell">
                 <div class="ledger-label">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M12 3v12"/>
-                        <path d="m7 10 5 5 5-5"/>
-                    </svg>
+                    <i data-lucide="arrow-down-to-line" class="icon"></i>
                     <span>累计输入未命中</span></div>
                 <div class="ledger-value">${vm.formatTokens(vm.totalCacheMissInput)}</div>
             </div>
             <div class="ledger-cell">
                 <div class="ledger-label">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M12 21V9"/>
-                        <path d="m7 14 5-5 5 5"/>
-                    </svg>
+                    <i data-lucide="upload" class="icon"></i>
                     <span>累计输出</span></div>
                 <div class="ledger-value">${vm.formatTokens(vm.totalOutput)}</div>
             </div>
             <div class="ledger-cell">
                 <div class="ledger-label">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M12 2v20"/>
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
+                    <i data-lucide="dollar-sign" class="icon"></i>
                     <span>累计花费</span></div>
-                <div class="ledger-value">${vm.totalCost}</div>
+                <div class="ledger-value">${vm.currencySymbol()}${vm.totalCost}</div>
             </div>
             <div class="ledger-cell">
                 <div class="ledger-label">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M12 3v18"/>
-                        <path d="M3 12h18"/>
-                        <path d="M5 5l14 14"/>
-                        <path d="m19 5-14 14"/>
-                    </svg>
+                    <i data-lucide="hash" class="icon"></i>
                     <span>累计总 Token</span></div>
                 <div class="ledger-value">${vm.formatTokens(vm.totalCacheHitInput + vm.totalCacheMissInput + vm.totalOutput)}</div>
             </div>
@@ -472,69 +455,48 @@
 
     <section class="section">
         <h2 class="section-title">
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M3 3v18h18"/>
-                <path d="M7 16h3"/>
-                <path d="M7 11h8"/>
-                <path d="M7 6h12"/>
-            </svg>
+            <i data-lucide="bar-chart-horizontal" class="icon"></i>
             <span>消耗分布 · Distribution</span></h2>
         <div class="charts-grid">
-            <div class="chart-panel">
+            <article class="chart-panel">
                 <h3 class="chart-title">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M12 3 3 8l9 5 9-5-9-5Z"/>
-                        <path d="m3 16 9 5 9-5"/>
-                        <path d="m3 12 9 5 9-5"/>
-                    </svg>
+                    <i data-lucide="layers" class="icon"></i>
                     <span>场景 Token 消耗</span></h3>
-                <div id="sceneBars" class="chart"></div>
-            </div>
-            <div class="chart-panel">
+                <div id="sceneBars" class="chart" role="img" aria-label="场景 Token 消耗图"></div>
+            </article>
+            <article class="chart-panel">
                 <h3 class="chart-title">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <path d="M12 2a10 10 0 1 0 10 10"/>
-                        <path d="M12 6v6l4 2"/>
-                        <path d="M19 3v5h-5"/>
-                    </svg>
+                    <i data-lucide="clock" class="icon"></i>
                     <span>模型 Token 消耗</span></h3>
-                <div id="modelBars" class="chart"></div>
-            </div>
+                <div id="modelBars" class="chart" role="img" aria-label="模型 Token 消耗图"></div>
+            </article>
         </div>
     </section>
 
     <section class="section">
         <h2 class="section-title">
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="m3 17 6-6 4 4 8-8"/>
-                <path d="M14 7h7v7"/>
-            </svg>
+            <i data-lucide="trending-up" class="icon"></i>
             <span>周趋势 · Weekly Trend</span></h2>
         <div class="panel">
-            <div id="dailyLine" class="chart-wide"></div>
+            <div id="dailyLine" class="chart-wide" role="img" aria-label="周 Token 消耗趋势图"></div>
         </div>
     </section>
 
     <section class="section">
         <h2 class="section-title">
-            <svg class="icon" viewBox="0 0 24 24">
-                <path d="M3 3h7v7H3z"/>
-                <path d="M14 3h7v7h-7z"/>
-                <path d="M3 14h7v7H3z"/>
-                <path d="M14 14h7v7h-7z"/>
-            </svg>
+            <i data-lucide="layout-grid" class="icon"></i>
             <span>消耗热力图 · Heatmap</span></h2>
         <div class="panel">
             <div class="heatmap-viewport">
-                <div id="heatmap"></div>
+                <div id="heatmap" role="img" aria-label="Token 消耗热力图"></div>
             </div>
             <div class="heatmap-legend">
                 <span>少</span>
-                <div class="swatch" style="background:#f0f0ee"></div>
-                <div class="swatch" style="background:#e1f0a3"></div>
-                <div class="swatch" style="background:#C5E803"></div>
-                <div class="swatch" style="background:#9fc100"></div>
-                <div class="swatch" style="background:#6b8f00"></div>
+                <div class="swatch level-0"></div>
+                <div class="swatch level-1"></div>
+                <div class="swatch level-2"></div>
+                <div class="swatch level-3"></div>
+                <div class="swatch level-4"></div>
                 <span>多</span>
             </div>
         </div>
@@ -544,14 +506,14 @@
 <script src="${vm.basePath}/js/echarts.min.js"></script>
 <script src="${vm.basePath}/js/d3.v7.min.js"></script>
 <script src="${vm.basePath}/js/cal-heatmap.min.js"></script>
+<script src="${vm.basePath}/js/lucide.min.js"></script>
 <script>
-    var sceneBarsData = JSON.parse('${vm.sceneBarsJson}');
-    var modelBarsData = JSON.parse('${vm.modelBarsJson}');
-    var dailySeriesData = JSON.parse('${vm.dailySeriesJson}');
-    var dailyTrendData = createWeeklyTrendData(dailySeriesData);
-    var sceneOrder = ['聊天', '搜索', '插件', '记忆', '摘要', '情绪', '心流', '冲动', '偏好', '进化', '表情包', '路由', '其他'];
+    const sceneBarsData = JSON.parse('${vm.sceneBarsJson}');
+    const modelBarsData = JSON.parse('${vm.modelBarsJson}');
+    const dailySeriesData = JSON.parse('${vm.dailySeriesJson}');
+    const sceneOrder = ['聊天', '搜索', '插件', '记忆', '摘要', '情绪', '心流', '冲动', '偏好', '热词', '表情', '路由', '其他'];
 
-    var palette = {
+    const palette = {
         hit: '#C5E803',
         miss: '#0a0a0a',
         out: '#737373',
@@ -562,98 +524,90 @@
 
     function compactNumber(value) {
         if (value == null || value < 1000) return value == null ? '' : value.toString();
-        var suffixes = ['', 'k', 'm', 'b'];
-        var i = 0;
-        var num = value;
+        const suffixes = ['', 'k', 'm', 'b'];
+        let i = 0;
+        let num = value;
         while (num >= 1000 && i < suffixes.length - 1) {
             num /= 1000;
             i++;
         }
-        var s = num.toFixed(1);
+        let s = num.toFixed(1);
         s = s.replace(/\.0+$/, '');
         return s + suffixes[i];
     }
 
-    function chartRowTotal(row) {
-        return row.cacheHitInput + row.cacheMissInput + row.output;
-    }
+    const chartRowTotal = ({cacheHitInput, cacheMissInput, output}) => cacheHitInput + cacheMissInput + output;
 
-    function chartTotalLabel(rows, position) {
-        return {
-            show: true,
-            position: position || 'top',
-            color: palette.ink,
-            fontSize: 11,
-            fontWeight: 500,
-            formatter: function (params) {
-                return compactNumber(chartRowTotal(rows[params.dataIndex]));
-            }
-        };
-    }
+    const chartTotalLabel = (rows, position = 'top') => ({
+        show: true,
+        position,
+        color: palette.ink,
+        fontSize: 11,
+        fontWeight: 500,
+        formatter: ({dataIndex}) => compactNumber(chartRowTotal(rows[dataIndex]))
+    });
 
     function formatMonthDay(value) {
         if (!value) return '';
-        var parts = value.split('-');
+        const parts = value.split('-');
         if (parts.length < 3) return value;
         return parts[1] + '/' + parts[2];
     }
 
     function formatDateKey(date) {
-        var year = date.getFullYear();
-        var month = String(date.getMonth() + 1).padStart(2, '0');
-        var day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
         return year + '-' + month + '-' + day;
     }
 
     function addDays(date, days) {
-        var result = new Date(date);
+        const result = new Date(date);
         result.setDate(result.getDate() + days);
         return result;
     }
 
-    function createWeeklyTrendData(rows) {
+    const createWeeklyTrendData = (rows) => {
         if (rows.length > 0) {
             return rows.slice(-7);
         }
-        var end = new Date();
-        var result = [];
-        for (var i = 6; i >= 0; i--) {
+        const end = new Date();
+        const result = [];
+        for (let i = 6; i >= 0; i--) {
             result.push({date: formatDateKey(addDays(end, -i)), tokens: 0, cost: 0});
         }
         return result;
-    }
+    };
+
+    const dailyTrendData = createWeeklyTrendData(dailySeriesData);
 
     function hasTokens(rows) {
-        return rows.some(function (x) {
-            return x.tokens > 0;
-        });
+        return rows.some(({tokens}) => tokens > 0);
     }
 
     function sortSceneRows(rows) {
-        var index = {};
-        sceneOrder.forEach(function (name, i) {
+        const index = {};
+        sceneOrder.forEach((name, i) => {
             index[name] = i;
         });
-        return rows.slice().sort(function (a, b) {
-            var ai = index[a.name] == null ? sceneOrder.length : index[a.name];
-            var bi = index[b.name] == null ? sceneOrder.length : index[b.name];
+        return rows.slice().sort((a, b) => {
+            const ai = index[a.name] == null ? sceneOrder.length : index[a.name];
+            const bi = index[b.name] == null ? sceneOrder.length : index[b.name];
             if (ai !== bi) return ai - bi;
-            var at = a.cacheHitInput + a.cacheMissInput + a.output;
-            var bt = b.cacheHitInput + b.cacheMissInput + b.output;
+            const at = chartRowTotal(a);
+            const bt = chartRowTotal(b);
             return bt - at;
         });
     }
 
     function horizontalBarChart(id, rows) {
-        var names = rows.map(function (x) {
-            return x.name;
-        });
-        var container = document.getElementById(id);
-        var rowHeight = 28;
-        var height = Math.max(240, rows.length * rowHeight + 80);
+        const names = rows.map(({name}) => name);
+        const container = document.getElementById(id);
+        const rowHeight = 28;
+        const height = Math.max(240, rows.length * rowHeight + 80);
         container.style.height = height + 'px';
 
-        var chart = echarts.init(container);
+        const chart = echarts.init(container);
         chart.setOption({
             color: [palette.hit, palette.miss, palette.out],
             tooltip: {
@@ -698,18 +652,14 @@
                     type: 'bar',
                     stack: 'total',
                     barWidth: '50%',
-                    data: rows.map(function (x) {
-                        return x.cacheHitInput;
-                    })
+                    data: rows.map(({cacheHitInput}) => cacheHitInput)
                 },
                 {
                     name: '输入未命中',
                     type: 'bar',
                     stack: 'total',
                     barWidth: '50%',
-                    data: rows.map(function (x) {
-                        return x.cacheMissInput;
-                    })
+                    data: rows.map(({cacheMissInput}) => cacheMissInput)
                 },
                 {
                     name: '输出',
@@ -717,25 +667,21 @@
                     stack: 'total',
                     barWidth: '50%',
                     label: chartTotalLabel(rows, 'right'),
-                    data: rows.map(function (x) {
-                        return x.output;
-                    })
+                    data: rows.map(({output}) => output)
                 }
             ]
         });
         return chart;
     }
 
-    var sceneChart = horizontalBarChart('sceneBars', sortSceneRows(sceneBarsData));
+    const sceneChart = horizontalBarChart('sceneBars', sortSceneRows(sceneBarsData));
     document.getElementById('modelBars').style.height = document.getElementById('sceneBars').style.height;
 
     function verticalBarChart(id, rows) {
-        var names = rows.map(function (x) {
-            return x.name;
-        });
-        var container = document.getElementById(id);
+        const names = rows.map(({name}) => name);
+        const container = document.getElementById(id);
 
-        var chart = echarts.init(container);
+        const chart = echarts.init(container);
         chart.setOption({
             color: [palette.hit, palette.miss, palette.out],
             tooltip: {
@@ -772,18 +718,14 @@
                     type: 'bar',
                     stack: 'total',
                     barWidth: '40%',
-                    data: rows.map(function (x) {
-                        return x.cacheHitInput;
-                    })
+                    data: rows.map(({cacheHitInput}) => cacheHitInput)
                 },
                 {
                     name: '输入未命中',
                     type: 'bar',
                     stack: 'total',
                     barWidth: '40%',
-                    data: rows.map(function (x) {
-                        return x.cacheMissInput;
-                    })
+                    data: rows.map(({cacheMissInput}) => cacheMissInput)
                 },
                 {
                     name: '输出',
@@ -791,9 +733,7 @@
                     stack: 'total',
                     barWidth: '40%',
                     label: chartTotalLabel(rows),
-                    data: rows.map(function (x) {
-                        return x.output;
-                    })
+                    data: rows.map(({output}) => output)
                 }
             ]
         });
@@ -802,8 +742,8 @@
 
     verticalBarChart('modelBars', modelBarsData);
 
-    var weeklyTrendHasTokens = hasTokens(dailyTrendData);
-    var line = echarts.init(document.getElementById('dailyLine'));
+    const weeklyTrendHasTokens = hasTokens(dailyTrendData);
+    const line = echarts.init(document.getElementById('dailyLine'));
     line.setOption({
         color: [palette.hit],
         tooltip: {
@@ -816,9 +756,7 @@
         grid: {left: 58, right: 24, top: 42, bottom: 44},
         xAxis: {
             type: 'category',
-            data: dailyTrendData.map(function (x) {
-                return x.date;
-            }),
+            data: dailyTrendData.map(({date}) => date),
             axisLine: {lineStyle: {color: palette.grey}},
             axisLabel: {color: '#737373', fontSize: 12, formatter: formatMonthDay},
             axisTick: {show: false}
@@ -870,63 +808,59 @@
             lineStyle: {width: 2, color: palette.hit},
             areaStyle: {color: 'rgba(197,232,3,0.12)'},
             label: {
-                show: true, position: 'top', formatter: function (params) {
-                    return compactNumber(params.value);
-                }
+                show: true,
+                position: 'top',
+                formatter: ({value}) => compactNumber(value)
             },
-            data: dailyTrendData.map(function (x) {
-                return x.tokens;
-            })
+            data: dailyTrendData.map(({tokens}) => tokens)
         }]
     });
 
-    var heatmapEndDate = dailySeriesData.length > 0
+    const heatmapEndDate = dailySeriesData.length > 0
         ? new Date(dailySeriesData[dailySeriesData.length - 1].date)
         : new Date();
-    var startDate = new Date(heatmapEndDate.getFullYear(), heatmapEndDate.getMonth() - 5, 1);
-    var heatmapDataEndDate = new Date(startDate.getFullYear(), startDate.getMonth() + 6, 0);
-    var heatmapData = createHeatmapData(startDate, heatmapDataEndDate, dailySeriesData);
-    var heatmapGutter = 3;
-    var heatmapDomainGutter = 18;
-    var heatmapSize = calculateHeatmapSquareSize(startDate, 6);
+    const startDate = new Date(heatmapEndDate.getFullYear(), heatmapEndDate.getMonth() - 5, 1);
+    const heatmapDataEndDate = new Date(startDate.getFullYear(), startDate.getMonth() + 6, 0);
+    const heatmapGutter = 3;
+    const heatmapDomainGutter = heatmapGutter;
 
-    function createHeatmapData(start, end, rows) {
-        var valuesByDate = {};
-        rows.forEach(function (x) {
-            valuesByDate[x.date] = x.tokens;
+    const createHeatmapData = (start, end, rows) => {
+        const valuesByDate = {};
+        rows.forEach(({date, tokens}) => {
+            valuesByDate[date] = tokens;
         });
 
-        var result = [];
-        var cursor = new Date(start);
+        const result = [];
+        let cursor = new Date(start);
         cursor.setHours(0, 0, 0, 0);
-        var last = new Date(end);
+        const last = new Date(end);
         last.setHours(0, 0, 0, 0);
 
         while (cursor <= last) {
-            var key = formatDateKey(cursor);
+            const key = formatDateKey(cursor);
             result.push({date: key, value: valuesByDate[key] || 0});
             cursor = addDays(cursor, 1);
         }
         return result;
-    }
+    };
 
     function startOfWeek(date) {
-        var d = new Date(date);
+        const d = new Date(date);
         d.setDate(d.getDate() - d.getDay());
         return d;
     }
 
     function endOfWeek(date) {
-        var d = new Date(date);
+        const d = new Date(date);
         d.setDate(d.getDate() + (6 - d.getDay()));
         return d;
     }
 
     function heatmapWeeksInMonth(date) {
-        var firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-        var lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-        var firstWeek = startOfWeek(firstDay);
-        var lastWeek = endOfWeek(lastDay);
+        const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+        const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        const firstWeek = startOfWeek(firstDay);
+        const lastWeek = endOfWeek(lastDay);
 
         if (firstDay.getDay() > 4) {
             firstWeek.setDate(firstWeek.getDate() + 7);
@@ -935,32 +869,34 @@
             lastWeek.setDate(lastWeek.getDate() - 7);
         }
 
-        var weekMs = 7 * 24 * 60 * 60 * 1000;
+        const weekMs = 7 * 24 * 60 * 60 * 1000;
         return Math.max(4, Math.round((lastWeek - firstWeek) / weekMs) + 1);
     }
 
     function heatmapVisibleWeekCount(start, range) {
-        var total = 0;
-        for (var i = 0; i < range; i++) {
+        let total = 0;
+        for (let i = 0; i < range; i++) {
             total += heatmapWeeksInMonth(new Date(start.getFullYear(), start.getMonth() + i, 1));
         }
         return total;
     }
 
     function calculateHeatmapSquareSize(start, range) {
-        var viewport = document.querySelector('.heatmap-viewport');
-        var availableWidth = viewport ? viewport.clientWidth : 1100;
-        var weekCount = heatmapVisibleWeekCount(start, range);
-        var gutterWidth = Math.max(0, weekCount - range) * heatmapGutter + Math.max(0, range - 1) * heatmapDomainGutter;
-        var size = Math.floor((availableWidth - gutterWidth) / weekCount);
+        const viewport = document.querySelector('.heatmap-viewport');
+        const availableWidth = viewport ? viewport.clientWidth : 1100;
+        const weekCount = heatmapVisibleWeekCount(start, range);
+        const gutterWidth = Math.max(0, weekCount - range) * heatmapGutter + Math.max(0, range - 1) * heatmapDomainGutter;
+        const size = Math.floor((availableWidth - gutterWidth) / weekCount);
         return Math.max(14, Math.min(48, size));
     }
 
-    var heatmapHeight = heatmapSize * 7 + heatmapGutter * 6 + 38;
+    const heatmapData = createHeatmapData(startDate, heatmapDataEndDate, dailySeriesData);
+    const heatmapSize = calculateHeatmapSquareSize(startDate, 6);
+    const heatmapHeight = heatmapSize * 7 + heatmapGutter * 6 + 38;
     document.querySelector('.heatmap-viewport').style.minHeight = heatmapHeight + 'px';
     document.getElementById('heatmap').style.minHeight = heatmapHeight + 'px';
 
-    var cal = new CalHeatmap();
+    const cal = new CalHeatmap();
     cal.paint({
             itemSelector: '#heatmap',
             range: 6,
@@ -971,8 +907,8 @@
                 type: 'month',
                 gutter: heatmapDomainGutter,
                 label: {
-                    text: function (ts) {
-                        var d = new Date(ts);
+                    text: (ts) => {
+                        const d = new Date(ts);
                         return (d.getMonth() + 1) + '月';
                     },
                     textAlign: 'start',
@@ -989,6 +925,8 @@
                 }
             }
         });
+
+    lucide.createIcons();
 </script>
 </body>
 </html>

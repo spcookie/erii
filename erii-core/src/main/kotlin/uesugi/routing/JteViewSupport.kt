@@ -151,6 +151,15 @@ data class UsageViewModel(
         get() = !botId.isNullOrBlank() && !groupId.isNullOrBlank() && !groupName.isNullOrBlank()
 
     fun formatTokens(value: Long): String = compactNumber(value)
+
+    fun currencySymbol(): String = when (priceUnit.uppercase()) {
+        "USD" -> "$"
+        "CNY", "RMB" -> "¥"
+        "EUR" -> "€"
+        "JPY" -> "¥"
+        "GBP" -> "£"
+        else -> priceUnit
+    }
 }
 
 private fun compactNumber(value: Long): String {

@@ -1,22 +1,18 @@
 package uesugi.plugin.builtin.usage
 
 import io.ktor.server.config.*
-import org.koin.core.context.GlobalContext
 import org.pf4j.Extension
 import uesugi.common.toolkit.BrowserScraper
 import uesugi.common.toolkit.BrowserScraperHolder
 import uesugi.common.toolkit.ConfigHolder
-import uesugi.core.component.usage.TokenUsageRepository
 import uesugi.onebot.sdk.client.api.getGroupList
 import uesugi.onebot.sdk.client.api.sendGroupMsg
 import uesugi.onebot.sdk.message.buildMessage
 import uesugi.plugin.builtin.Builtin
 import uesugi.plugin.builtin.BuiltinExtension
-import uesugi.routing.UsageViewCache
-import uesugi.routing.UsageViewModel
-import uesugi.routing.buildUsageViewModel
 import uesugi.server.SystemConfigHolder
 import uesugi.spi.*
+import java.net.URLEncoder
 import java.util.*
 
 @Extension(points = [AgentExtension::class])
@@ -29,20 +25,16 @@ class Usage : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, BuiltinExtensi
         get() = "usage"
 
     override fun onLoad(context: PluginContext) {
-        val repository by GlobalContext.get().inject<TokenUsageRepository>()
-
         context.chain { meta ->
-            val summary = repository.summary(botId = meta.botId, groupId = meta.groupId)
-            renderUsage(
-                meta,
-                buildUsageViewModel(
-                    summary = summary,
-                    botId = meta.botId,
-                    botName = meta.roledBot.role.name,
-                    groupId = meta.groupId,
-                    groupName = resolveGroupName(meta)
-                )
-            )
+            val groupName = resolveGroupName(meta)
+            val url = buildString {
+                append("http://${externalHost}:${port}/usage")
+                append("?botId=${meta.botId}")
+                append("&groupId=${meta.groupId}")
+                append("&botName=${URLEncoder.encode(meta.roledBot.role.name, "UTF-8")}")
+                append("&groupName=${URLEncoder.encode(groupName, "UTF-8")}")
+            }
+            renderUsage(meta, url)
         }
     }
 }
@@ -57,14 +49,24 @@ class UsageAll : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, BuiltinExte
         get() = "usage-all"
 
     override fun onLoad(context: PluginContext) {
-        val repository by GlobalContext.get().inject<TokenUsageRepository>()
-
         context.chain { meta ->
-            val summary = repository.summary()
-            renderUsage(meta, buildUsageViewModel(summary))
+            val url = "http://${externalHost}:${port}/usage"
+            renderUsage(meta, url)
         }
     }
 }
+
+private val externalHost: String
+    get() = ConfigHolder.getBrowserExternalHost()
+
+private val port: Int
+    get() = SystemConfigHolder.config.property("ktor.deployment.port").getAs()
+
+private val username: String
+    get() = SystemConfigHolder.config.property("security.username").getString()
+
+private val password: String
+    get() = SystemConfigHolder.config.property("security.password").getString()
 
 private suspend fun resolveGroupName(meta: Meta): String {
     return runCatching {
@@ -74,28 +76,18 @@ private suspend fun resolveGroupName(meta: Meta): String {
     }.getOrNull() ?: meta.groupId
 }
 
-private suspend fun renderUsage(meta: Meta, viewModel: UsageViewModel) {
+private suspend fun renderUsage(meta: Meta, url: String) {
     val browserScraper = BrowserScraperHolder.getInstance()
-    val externalHost = ConfigHolder.getBrowserExternalHost()
-    val port: Int = SystemConfigHolder.config.property("ktor.deployment.port").getAs()
-    val username = SystemConfigHolder.config.property("security.username").getString()
-    val password = SystemConfigHolder.config.property("security.password").getString()
-
-    val id = UsageViewCache.put(viewModel)
-    val bytes = try {
-        browserScraper.takeFullScreenshot(
-            url = "http://${externalHost}:${port}/usage/$id",
-            width = 1280,
-            height = 1500,
-            quality = 100,
-            type = BrowserScraper.ScreenshotType.JPEG,
-            waitForNetworkIdle = true,
-            username = username,
-            password = password
-        )
-    } finally {
-        UsageViewCache.take(id)
-    }
+    val bytes = browserScraper.takeFullScreenshot(
+        url = url,
+        width = 1280,
+        height = 1500,
+        quality = 100,
+        type = BrowserScraper.ScreenshotType.JPEG,
+        waitForNetworkIdle = true,
+        username = username,
+        password = password
+    )
     val base64 = Base64.getEncoder().encodeToString(bytes)
     meta.roledBot.refBot.sendGroupMsg(
         meta.groupId.toLong(),

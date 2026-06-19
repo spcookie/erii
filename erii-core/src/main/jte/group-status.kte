@@ -294,9 +294,6 @@
             margin-bottom: var(--sp-4);
         }
 
-        .pad-grid-3 .pg {
-        }
-
         .pad-grid-3 .pg .pg-head {
             display: flex;
             justify-content: space-between;
@@ -346,6 +343,8 @@
             position: absolute;
             top: 0;
             bottom: 0;
+            left: var(--fill-start);
+            width: var(--fill-size);
             transition: width 0.4s var(--ease-prod, cubic-bezier(.2, 0, .38, .9)),
             left 0.4s var(--ease-prod, cubic-bezier(.2, 0, .38, .9));
         }
@@ -391,9 +390,6 @@
         }
 
         /* ---- Flow ---- */
-        .flow-block {
-        }
-
         .flow-block .fl-top {
             display: flex;
             justify-content: space-between;
@@ -430,6 +426,7 @@
             gap: 6px;
             padding: 6px 12px;
             border: 1px solid var(--grey-2);
+            color: var(--state-color);
         }
 
         .flow-block .fl-right .fl-num {
@@ -448,6 +445,8 @@
 
         .flow-block .fl-fill {
             height: 100%;
+            width: var(--fill-size);
+            background: var(--state-color);
             transition: width 0.4s ease;
         }
 
@@ -458,6 +457,14 @@
             height: 14px;
             background: var(--grey-3);
             transform: translateX(-50%);
+        }
+
+        .flow-block .fl-marker.low {
+            left: 30%;
+        }
+
+        .flow-block .fl-marker.high {
+            left: 70%;
         }
 
         .flow-block .fl-legend {
@@ -492,21 +499,16 @@
             gap: var(--sp-8);
         }
 
-        .state-grid-2 .sg-left {
-        }
-
-        .state-grid-2 .sg-right {
-        }
-
         /* ---- Volition ---- */
-        .vol-block {
-        }
-
         .vol-block .vl-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: var(--sp-7);
+        }
+
+        .vol-block .vl-top.compact {
+            margin-bottom: var(--sp-4);
         }
 
         .vol-block .vl-top .vl-label {
@@ -549,7 +551,8 @@
             gap: var(--sp-9);
         }
 
-        .vol-block .vl-split .vs {
+        .vol-block .vl-split.compact {
+            gap: var(--sp-6);
         }
 
         .vol-block .vl-split .vs .vs-head {
@@ -586,6 +589,7 @@
 
         .vol-block .vl-split .vs .vs-fill {
             height: 100%;
+            width: var(--fill-size);
             transition: width 0.4s ease;
         }
 
@@ -625,6 +629,15 @@
             color: var(--grey-3);
             text-align: center;
             letter-spacing: 0.08em;
+        }
+
+        .message-chart {
+            width: 100%;
+            height: 260px;
+        }
+
+        .section.summary-section {
+            margin-bottom: var(--sp-7);
         }
 
         /* ---- End ---- */
@@ -691,12 +704,12 @@
 </head>
 <body>
 
-<div class="accent-stripe"></div>
+<div class="accent-stripe" aria-hidden="true"></div>
 
-<div class="page">
+<main class="page">
 
     <!-- ===== HEADER ===== -->
-    <div class="header">
+    <header class="header">
         <div class="report-label">Bot · Group Status Report</div>
         <h1 class="report-title">${vm.groupName}</h1>
         <div class="meta-row">
@@ -708,40 +721,40 @@
             <span class="dot"></span>
             <span>${vm.currentTime}</span>
         </div>
-    </div>
+    </header>
 
     <!-- ===== KPI: 5 Cards ===== -->
-    <div class="kpi-grid kpi-grid-5">
-        <div class="kpi-card">
+    <section class="kpi-grid kpi-grid-5" aria-label="群状态概览">
+        <article class="kpi-card">
             <span class="kpi-label">Plugins</span>
             <span class="kpi-num">${vm.pluginStats.plugins.size}</span>
             <span class="kpi-note">个已加载 · ${vm.pluginStats.totalExtensions} 个拓展</span>
-        </div>
-        <div class="kpi-card">
+        </article>
+        <article class="kpi-card">
             <span class="kpi-label">Facts</span>
             <span class="kpi-num">${vm.groupStatus.factSize}</span>
             <span class="kpi-note">条事实记忆</span>
-        </div>
-        <div class="kpi-card">
+        </article>
+        <article class="kpi-card">
             <span class="kpi-label">User Profiles</span>
             <span class="kpi-num">${vm.groupStatus.userProfileSize}</span>
             <span class="kpi-note">个用户档案</span>
-        </div>
-        <div class="kpi-card">
+        </article>
+        <article class="kpi-card">
             <span class="kpi-label">Memes</span>
             <span class="kpi-num">${vm.groupStatus.memeSize}</span>
             <span class="kpi-note">表情包 · ${vm.groupStatus.analyzedMemeSize} 已分析</span>
-        </div>
-        <div class="kpi-card">
+        </article>
+        <article class="kpi-card">
             <span class="kpi-label">Vocabulary</span>
             <span class="kpi-num">${vm.groupStatus.vocabularies.size}</span>
             <span class="kpi-note">个学习词汇</span>
-        </div>
-    </div>
+        </article>
+    </section>
 
     @if(vm.groupStatus.behaviorProfile != null && vm.groupStatus.pad != null)
         <!-- ===== EMOTION ===== -->
-        <div class="section">
+        <section class="section">
             <div class="sec-rule"></div>
             <div class="sec-head">
                 <span class="sec-num">01</span>
@@ -769,7 +782,7 @@
                         <div class="pg-track">
                             <div class="pg-zero"></div>
                             <div class="pg-fill p"
-                                 style="left: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.p / 4.0 * 50.0)}%; width: ${kotlin.math.abs(vm.groupStatus.pad!!.p) / 4.0 * 50.0}%;"></div>
+                                 style="--fill-start: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.p / 4.0 * 50.0)}%; --fill-size: ${kotlin.math.abs(vm.groupStatus.pad!!.p) / 4.0 * 50.0}%;"></div>
                         </div>
                         <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
                     </div>
@@ -781,7 +794,7 @@
                         <div class="pg-track">
                             <div class="pg-zero"></div>
                             <div class="pg-fill a"
-                                 style="left: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.a / 4.0 * 50.0)}%; width: ${kotlin.math.abs(vm.groupStatus.pad!!.a) / 4.0 * 50.0}%;"></div>
+                                 style="--fill-start: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.a / 4.0 * 50.0)}%; --fill-size: ${kotlin.math.abs(vm.groupStatus.pad!!.a) / 4.0 * 50.0}%;"></div>
                         </div>
                         <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
                     </div>
@@ -793,7 +806,7 @@
                         <div class="pg-track">
                             <div class="pg-zero"></div>
                             <div class="pg-fill d"
-                                 style="left: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.d / 4.0 * 50.0)}%; width: ${kotlin.math.abs(vm.groupStatus.pad!!.d) / 4.0 * 50.0}%;"></div>
+                                 style="--fill-start: ${50.0 + kotlin.math.min(0.0, vm.groupStatus.pad!!.d / 4.0 * 50.0)}%; --fill-size: ${kotlin.math.abs(vm.groupStatus.pad!!.d) / 4.0 * 50.0}%;"></div>
                         </div>
                         <div class="pg-scale"><span>-4</span><span>0</span><span>+4</span></div>
                     </div>
@@ -814,20 +827,20 @@
                     </span>
                 </div>
             </div>
-        </div>
+        </section>
     @else
-        <div class="section">
+        <section class="section">
             <div class="sec-rule"></div>
             <div class="sec-head">
                 <span class="sec-num">01</span>
                 <span>情绪状态</span>
             </div>
             <div class="empty-note">暂无情绪数据</div>
-        </div>
+        </section>
     @endif
 
     <!-- ===== FLOW & VOLITION ===== -->
-    <div class="section">
+    <section class="section">
         <div class="sec-rule"></div>
         <div class="sec-head">
             <span class="sec-num">02</span>
@@ -841,7 +854,8 @@
                         <div class="fl-top">
                             <span class="fl-label"><i data-lucide="disc"></i> 心流投入度</span>
                             <div class="fl-right">
-                                <span class="fl-state" style="color: ${vm.groupStatus.flowState.state.info().color}">
+                                <span class="fl-state"
+                                      style="--state-color: ${vm.groupStatus.flowState.state.info().color}">
                                     <i data-lucide="${vm.groupStatus.flowState.state.info().icon}"></i>
                                     ${vm.groupStatus.flowState.state.info().name}
                                 </span>
@@ -850,9 +864,9 @@
                         </div>
                         <div class="fl-track">
                             <div class="fl-fill"
-                                 style="width: ${vm.groupStatus.flowState.meter}%; background: ${vm.groupStatus.flowState.state.info().color}"></div>
-                            <div class="fl-marker" style="left: 30%"></div>
-                            <div class="fl-marker" style="left: 70%"></div>
+                                 style="--fill-size: ${vm.groupStatus.flowState.meter}%; --state-color: ${vm.groupStatus.flowState.state.info().color}"></div>
+                            <div class="fl-marker low"></div>
+                            <div class="fl-marker high"></div>
                         </div>
                         <div class="fl-legend">
                             <span><span class="flg-num">0</span><span class="flg-tag">待机</span></span>
@@ -864,7 +878,7 @@
                 </div>
                 <div class="sg-right">
                     <div class="vol-block">
-                        <div class="vl-top" style="margin-bottom: var(--sp-4);">
+                        <div class="vl-top compact">
                             <span class="vl-label"><i data-lucide="brain"></i> 冲动值累积</span>
                             @if(vm.groupStatus.volitionState.shouldSpeak)
                                 <span class="vl-badge on">
@@ -876,7 +890,7 @@
                             </span>
                             @endif
                         </div>
-                        <div class="vl-split" style="gap: var(--sp-6);">
+                        <div class="vl-split compact">
                             <div class="vs">
                                 <div class="vs-head">
                                     <span class="vs-label"><i data-lucide="zap"></i> Stimulus</span>
@@ -884,7 +898,7 @@
                                 </div>
                                 <div class="vs-track">
                                     <div class="vs-fill stimulus"
-                                         style="width: ${vm.groupStatus.volitionState.stimulus}%"></div>
+                                         style="--fill-size: ${vm.groupStatus.volitionState.stimulus}%"></div>
                                 </div>
                                 <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
                             </div>
@@ -895,7 +909,7 @@
                                 </div>
                                 <div class="vs-track">
                                     <div class="vs-fill fatigue"
-                                         style="width: ${vm.groupStatus.volitionState.fatigue}%"></div>
+                                         style="--fill-size: ${vm.groupStatus.volitionState.fatigue}%"></div>
                                 </div>
                                 <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
                             </div>
@@ -904,10 +918,10 @@
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
     <!-- ===== CHART: 12-Hour Message Activity ===== -->
-    <div class="section">
+    <section class="section">
         <div class="sec-rule"></div>
         <div class="sec-head">
             <span class="sec-num">03</span>
@@ -915,13 +929,13 @@
         </div>
 
         <div class="grey-panel tight">
-            <div id="msg-chart" style="width: 100%; height: 260px;"></div>
+            <div id="msg-chart" class="message-chart" role="img" aria-label="群消息与机器人消息趋势图"></div>
         </div>
-    </div>
+    </section>
 
     @if(vm.groupStatus.summary != null)
         <!-- ===== SUMMARY ===== -->
-        <div class="section" style="margin-bottom: var(--sp-7);">
+        <section class="section summary-section">
             <div class="sec-rule"></div>
             <div class="sec-head">
                 <span class="sec-num">04</span>
@@ -931,34 +945,37 @@
             <div class="summary-callout">
                 ${vm.groupStatus.summary}
             </div>
-        </div>
+        </section>
     @endif
 
     <!-- ===== END ===== -->
-    <div class="end-rule"></div>
-    <div class="end-note">Bot · ${vm.botName} · ${vm.currentTime}</div>
+    <footer class="report-footer">
+        <div class="end-rule"></div>
+        <div class="end-note">Bot · ${vm.botName} · ${vm.currentTime}</div>
+    </footer>
 
-</div>
+</main>
 
 <script src="${vm.basePath}/js/lucide.min.js"></script>
-<script>lucide.createIcons();</script>
 <script src="${vm.basePath}/js/echarts.min.js"></script>
 <script>
-    (function () {
-        var chartDom = document.getElementById('msg-chart');
-        if (!chartDom) return;
-        var myChart = echarts.init(chartDom);
+    (() => {
+        lucide.createIcons();
 
-        var hours = [];
-        var botData = [];
-        var groupData = [];
+        const chartDom = document.getElementById('msg-chart');
+        if (!chartDom) return;
+        const myChart = echarts.init(chartDom);
+
+        const hours = [];
+        const botData = [];
+        const groupData = [];
         @for(count in vm.hourlyMsgCounts)
         hours.push('${count.hourLabel}');
         botData.push(${count.botCount});
         groupData.push(${count.groupCount});
         @endfor
 
-        var option = {
+        const option = {
             grid: {
                 left: 48,
                 right: 24,
@@ -1056,9 +1073,7 @@
 
         myChart.setOption(option);
 
-        window.addEventListener('resize', function () {
-            myChart.resize();
-        });
+        window.addEventListener('resize', () => myChart.resize());
     })();
 </script>
 </body>

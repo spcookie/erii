@@ -125,8 +125,8 @@ class TokenUsageRepository {
             "偏好",
             "记忆",
             "摘要",
-            "进化",
-            "表情包",
+            "热词",
+            "表情",
             "其他"
         )
         val knownTiers = setOf("Lite", "Flash", "Pro")
@@ -266,8 +266,8 @@ class TokenUsageRepository {
             "memory_conflict_resolve" -> "记忆"
 
             "memory_summary" -> "摘要"
-            "evolution_slang_extract" -> "进化"
-            "meme_analysis" -> "表情包"
+            "evolution_slang_extract" -> "热词"
+            "meme_analysis" -> "表情"
             else -> "其他"
         }
     }
