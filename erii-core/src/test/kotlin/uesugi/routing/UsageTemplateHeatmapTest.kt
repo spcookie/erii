@@ -12,12 +12,14 @@ class UsageTemplateHeatmapTest {
         val template = Path.of("src/main/jte/usage-template.kte").readText()
 
         assertTrue(template.contains("class=\"heatmap-viewport\""))
-        assertTrue(template.contains("var heatmapData = createHeatmapData(startDate, heatmapDataEndDate, dailySeriesData);"))
-        assertTrue(template.contains("var heatmapSize = calculateHeatmapSquareSize(startDate, 6);"))
+        assertTrue(template.contains("const heatmapData = createHeatmapData(startDate, heatmapDataEndDate, dailySeriesData);"))
+        assertTrue(template.contains("const heatmapSize = calculateHeatmapSquareSize(startDate, 6);"))
         assertTrue(template.contains("subDomain: {type: 'ghDay', width: heatmapSize, height: heatmapSize, gutter: heatmapGutter"))
         assertTrue(template.contains("Math.min(48, size)"))
-        assertTrue(template.contains("function createHeatmapData(start, end, rows)"))
+        assertTrue(template.contains("const createHeatmapData = (start, end, rows) =>"))
         assertTrue(template.contains("result.push({date: key, value: valuesByDate[key] || 0});"))
+        assertTrue(template.contains("const heatmapDomainGutter = heatmapGutter;"))
+        assertTrue(template.contains("gutter: heatmapDomainGutter"))
         assertFalse(template.contains("subDomain: { type: 'day', width: 23, height: 14"))
         assertFalse(template.contains("if (dailySeriesData.length > 0)"))
         assertFalse(template.contains("highlight: [new Date()]"))
@@ -27,23 +29,19 @@ class UsageTemplateHeatmapTest {
     fun `daily trend only renders the latest week`() {
         val template = Path.of("src/main/jte/usage-template.kte").readText()
 
-        assertTrue(template.contains("var dailyTrendData = createWeeklyTrendData(dailySeriesData);"))
-        assertTrue(template.contains("function createWeeklyTrendData(rows)"))
+        assertTrue(template.contains("const dailyTrendData = createWeeklyTrendData(dailySeriesData);"))
+        assertTrue(template.contains("const createWeeklyTrendData = (rows) =>"))
         assertTrue(template.contains("return rows.slice(-7);"))
         assertTrue(template.contains("result.push({date: formatDateKey(addDays(end, -i)), tokens: 0, cost: 0});"))
         assertTrue(
-            Regex("data: dailyTrendData\\.map\\(function \\(x\\) \\{\\s+return x\\.date;\\s+}\\)").containsMatchIn(
-                template
-            )
+            template.contains("data: dailyTrendData.map(({date}) => date)")
         )
         assertTrue(template.contains("showSymbol: true"))
         assertTrue(
-            Regex("data: dailyTrendData\\.map\\(function \\(x\\) \\{\\s+return x\\.tokens;\\s+}\\)").containsMatchIn(
-                template
-            )
+            template.contains("data: dailyTrendData.map(({tokens}) => tokens)")
         )
         assertTrue(template.contains("formatter: formatMonthDay"))
-        assertTrue(template.contains("var weeklyTrendHasTokens = hasTokens(dailyTrendData);"))
+        assertTrue(template.contains("const weeklyTrendHasTokens = hasTokens(dailyTrendData);"))
         assertTrue(template.contains("text: '暂无 Token 消耗'"))
     }
 
@@ -78,8 +76,8 @@ class UsageTemplateHeatmapTest {
         assertTrue(template.contains("消耗分布 · Distribution"))
         assertTrue(template.contains("周趋势 · Weekly Trend"))
         assertTrue(template.contains("消耗热力图 · Heatmap"))
-        assertTrue(template.contains("var sceneOrder = ['聊天', '搜索', '插件', '记忆', '摘要', '情绪', '心流', '冲动', '偏好', '进化', '表情包', '路由', '其他'];"))
-        assertTrue(template.contains("var sceneChart = horizontalBarChart('sceneBars', sortSceneRows(sceneBarsData));"))
+        assertTrue(template.contains("const sceneOrder = ['聊天', '搜索', '插件', '记忆', '摘要', '情绪', '心流', '冲动', '偏好', '热词', '表情', '路由', '其他'];"))
+        assertTrue(template.contains("const sceneChart = horizontalBarChart('sceneBars', sortSceneRows(sceneBarsData));"))
         assertTrue(
             Regex(
                 "legend: \\{\\s+data: \\['输入命中', '输入未命中', '输出'],\\s+orient: 'vertical',\\s+left: 0,\\s+top: 'middle',",
@@ -98,13 +96,13 @@ class UsageTemplateHeatmapTest {
     fun `charts annotate bars and line points with compact token values`() {
         val template = Path.of("src/main/jte/usage-template.kte").readText()
 
-        assertTrue(template.contains("var suffixes = ['', 'k', 'm', 'b'];"))
-        assertTrue(template.contains("function chartRowTotal(row)"))
-        assertTrue(template.contains("function chartTotalLabel(rows, position)"))
+        assertTrue(template.contains("const suffixes = ['', 'k', 'm', 'b'];"))
+        assertTrue(template.contains("const chartRowTotal ="))
+        assertTrue(template.contains("const chartTotalLabel ="))
         assertTrue(template.contains("label: chartTotalLabel(rows)"))
         assertTrue(
             Regex(
-                "label: \\{\\s+show: true,\\s+position: 'top',\\s+formatter: function \\(params\\) \\{\\s+return compactNumber\\(params.value\\);\\s+}\\s+}",
+                "label: \\{\\s+show: true,\\s+position: 'top',\\s+formatter: \\(\\{value}\\) => compactNumber\\(value\\)\\s+}",
                 RegexOption.DOT_MATCHES_ALL
             ).containsMatchIn(template)
         )
@@ -112,5 +110,33 @@ class UsageTemplateHeatmapTest {
         assertFalse(template.contains("id=\"modelTokenTotal\""))
         assertFalse(template.contains("id=\"weeklyTokenTotal\""))
         assertFalse(template.contains("id=\"heatmapTokenTotal\""))
+    }
+
+    @Test
+    fun `usage template uses modern source structure without changing chart hooks`() {
+        val template = Path.of("src/main/jte/usage-template.kte").readText()
+
+        assertFalse(Regex("(?m)^\\s*var\\s").containsMatchIn(template))
+        assertFalse(template.contains("function ("))
+        assertTrue(template.contains("<article class=\"chart-panel\">"))
+        assertTrue(template.contains("role=\"img\" aria-label=\"场景 Token 消耗图\""))
+        assertTrue(template.contains("role=\"img\" aria-label=\"模型 Token 消耗图\""))
+        assertTrue(template.contains("role=\"img\" aria-label=\"周 Token 消耗趋势图\""))
+        assertTrue(template.contains("role=\"img\" aria-label=\"Token 消耗热力图\""))
+        assertFalse(template.contains("<script>lucide.createIcons();</script>"))
+        assertFalse(template.contains("style=\"background:"))
+    }
+
+    @Test
+    fun `usage report matches group status content width without shrinking its canvas`() {
+        val template = Path.of("src/main/jte/usage-template.kte").readText()
+        val usageCommand = Path.of("src/main/kotlin/uesugi/plugin/builtin/usage/Usage.kt").readText()
+
+        assertFalse(template.contains("width: 1280px;"))
+        assertTrue(template.contains("max-width: 1120px;"))
+        assertTrue(template.contains("margin: 0 auto;"))
+        assertTrue(template.contains("padding: 48px;"))
+        assertTrue(usageCommand.contains("width = 1280,"))
+        assertFalse(usageCommand.contains("width = 1200,"))
     }
 }

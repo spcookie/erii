@@ -52,10 +52,10 @@ class UsageContextBoundaryTest {
     }
 
     @Test
-    fun `usage command queries current bot and group`() {
+    fun `usage route queries with bot and group params`() {
         assertContains(
-            "src/main/kotlin/uesugi/plugin/builtin/usage/Usage.kt",
-            "repository.summary(botId = meta.botId, groupId = meta.groupId)"
+            "src/main/kotlin/uesugi/routing/UsageRoutes.kt",
+            "tokenUsageRepository.summary(botId = botId, groupId = groupId)"
         )
     }
 

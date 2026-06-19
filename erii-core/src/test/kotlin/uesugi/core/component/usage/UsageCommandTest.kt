@@ -3,7 +3,6 @@ package uesugi.core.component.usage
 import java.nio.file.Path
 import kotlin.io.path.readText
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class UsageCommandTest {
@@ -13,11 +12,12 @@ class UsageCommandTest {
 
         assertTrue(source.contains("class Usage :"))
         assertTrue(source.contains("get() = \"usage\""))
-        assertTrue(source.contains("repository.summary(botId = meta.botId, groupId = meta.groupId)"))
-        assertTrue(source.contains("botId = meta.botId"))
-        assertTrue(source.contains("botName = meta.roledBot.role.name"))
-        assertTrue(source.contains("groupId = meta.groupId"))
-        assertTrue(source.contains("groupName = resolveGroupName(meta)"))
+        assertTrue(source.contains("resolveGroupName(meta)"))
+        assertTrue(source.contains("URLEncoder.encode(meta.roledBot.role.name, \"UTF-8\")"))
+        assertTrue(source.contains("URLEncoder.encode(groupName, \"UTF-8\")"))
+        assertTrue(source.contains("append(\"?botId=\${meta.botId}\")"))
+        assertTrue(source.contains("append(\"&groupId=\${meta.groupId}\")"))
+        assertTrue(source.contains("renderUsage(meta, url)"))
     }
 
     @Test
@@ -26,8 +26,7 @@ class UsageCommandTest {
 
         assertTrue(source.contains("class UsageAll :"))
         assertTrue(source.contains("get() = \"usage-all\""))
-        assertTrue(source.contains("repository.summary()"))
-        assertTrue(source.contains("buildUsageViewModel(summary)"))
-        assertFalse(source.contains("repository.summary(botId = null, groupId = null)"))
+        assertTrue(source.contains("http://\${externalHost}:\${port}/usage\""))
+        assertTrue(source.contains("renderUsage(meta, url)"))
     }
 }
