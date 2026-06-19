@@ -27,6 +27,10 @@ object HistoryTable : IntIdTable("chat_history") {
     val resourceId = optReference("resource_id", ResourceTable)
 
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
+
+    init {
+        index(false, resourceId)
+    }
 }
 
 

@@ -131,6 +131,14 @@ tasks.jar {
     })
 }
 
+tasks.run {
+    dependsOn(tasks.precompileJte)
+}
+
+tasks.test {
+    dependsOn(tasks.precompileJte)
+}
+
 tasks.shadowJar {
     isZip64 = true
 }

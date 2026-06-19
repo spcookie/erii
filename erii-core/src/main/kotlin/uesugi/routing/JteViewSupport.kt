@@ -13,6 +13,7 @@ import uesugi.core.state.emotion.Tone
 import uesugi.core.state.flow.FlowMeterState
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 
@@ -141,4 +142,19 @@ data class UsageViewModel(
     val modelBarsJson: String,
     val dailySeriesJson: String,
     val basePath: String = ""
-)
+) {
+    fun formatTokens(value: Long): String = compactNumber(value)
+}
+
+private fun compactNumber(value: Long): String {
+    if (value < 1_000) return value.toString()
+    val suffixes = listOf("", "K", "M", "B", "T")
+    var magnitude = 0
+    var num = value.toDouble()
+    while (num >= 1_000 && magnitude < suffixes.lastIndex) {
+        num /= 1_000
+        magnitude++
+    }
+    val formatted = String.format(Locale.US, "%.1f", num).removeSuffix(".0")
+    return "$formatted${suffixes[magnitude]}"
+}

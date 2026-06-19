@@ -1,5 +1,7 @@
 package uesugi.config
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -19,6 +21,8 @@ import uesugi.core.state.summary.SummaryStateTable
 import uesugi.core.state.summary.SummaryTable
 import uesugi.core.state.volition.VolitionStateTable
 
+private val log = KotlinLogging.logger {}
+
 fun migration(database: Database) {
     transaction(database) {
         val migration = MigrationUtils.statementsRequiredForDatabaseMigration(
@@ -35,7 +39,21 @@ fun migration(database: Database) {
             VolitionStateTable,
             TokenUsageTable
         )
-        execInBatch(migration)
+        migration.forEach { statement ->
+            try {
+                exec(statement)
+            } catch (e: ExposedSQLException) {
+                val message = e.cause?.message ?: e.message ?: ""
+                // H2 90085: 索引属于某个约束，不能直接删除（例如外键自动创建的索引）
+                if (statement.trimStart().startsWith("DROP INDEX", ignoreCase = true) &&
+                    (message.contains("belongs to constraint") || message.contains("90085"))
+                ) {
+                    log.warn(e) { "跳过无法删除的约束索引: $statement" }
+                } else {
+                    throw e
+                }
+            }
+        }
     }
 }
 

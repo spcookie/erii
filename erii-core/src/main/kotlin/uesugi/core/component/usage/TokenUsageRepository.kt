@@ -3,8 +3,8 @@ package uesugi.core.component.usage
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.datetime.*
 import kotlinx.serialization.json.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.LLMProviderChoice
@@ -20,14 +20,47 @@ data class TokenPricing(
     val unit: String
 )
 
+internal object TokenUsageCacheHitKeys {
+    val PREFERRED_NAMES = setOf(
+        "cached_tokens",
+        "cache_read_input_tokens",
+        "cached_input_tokens",
+        "input_cached_tokens",
+        "prompt_cache_hit_tokens",
+        "cache_hit_tokens",
+        "cache_read_tokens",
+        "cached_content_token_count",
+        "cache_hit"
+    )
+
+    fun matchesPreferred(key: String): Boolean =
+        normalizeKey(key) in PREFERRED_NAMES
+
+    fun matchesFallback(key: String): Boolean {
+        val normalized = normalizeKey(key)
+        return "cache" in normalized &&
+                ("hit" in normalized || "read" in normalized || "cached" in normalized || "content" in normalized)
+    }
+
+    private fun normalizeKey(key: String): String =
+        key.replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
+            .replace('-', '_')
+            .lowercase()
+}
+
 class TokenUsageRepository {
+
+    private val logger = KotlinLogging.logger {}
 
     fun record(prompt: Prompt, model: LLModel, response: Message.Assistant) {
         val meta = response.metaInfo
         val inputTokens = meta.inputTokensCount?.toLong() ?: return
         val outputTokens = meta.outputTokensCount?.toLong() ?: 0L
-        val totalTokens = meta.totalTokensCount?.toLong() ?: inputTokens + outputTokens
-        val cacheHitTokens = extractCacheHitTokens(meta.metadata ?: JsonObject(emptyMap())).coerceIn(0, inputTokens)
+        val totalTokens = meta.totalTokensCount?.toLong() ?: (inputTokens + outputTokens)
+        val combinedMetadata = JsonObject(
+            (meta.metadata ?: JsonObject(emptyMap())).toMap() + (response.rawResponse ?: JsonObject(emptyMap())).toMap()
+        )
+        val cacheHitTokens = extractCacheHitTokens(combinedMetadata).coerceIn(0, inputTokens)
         val cacheMissTokens = (inputTokens - cacheHitTokens).coerceAtLeast(0)
         val tier = resolveTier(model)
         val pricing = pricingFor(tier)
@@ -41,7 +74,7 @@ class TokenUsageRepository {
         transaction {
             TokenUsageEntity.new {
                 promptId = prompt.id
-                scene = sceneFor(prompt.id)
+                scene = prompt.id
                 this.tier = tier
                 modelId = meta.modelId ?: model.id
                 provider = model.provider.id
@@ -74,6 +107,24 @@ class TokenUsageRepository {
         val todayInput = todayRecords.cacheHit() + todayRecords.cacheMiss()
         val cacheHitRate = if (todayInput == 0L) 0.0 else todayRecords.cacheHit().toDouble() / todayInput * 100.0
 
+        val knownScenes = setOf(
+            "插件",
+            "路由",
+            "聊天",
+            "搜索",
+            "情绪",
+            "心流",
+            "冲动",
+            "偏好",
+            "记忆",
+            "摘要",
+            "进化",
+            "表情包",
+            "其他"
+        )
+        val knownTiers = setOf("Lite", "Flash", "Pro")
+        val tierOrder = mapOf("lite" to 0, "flash" to 1, "pro" to 2)
+
         return TokenUsageSummary(
             todayCacheHitInput = todayRecords.cacheHit(),
             todayCacheMissInput = todayRecords.cacheMiss(),
@@ -85,8 +136,10 @@ class TokenUsageRepository {
             totalOutput = records.output(),
             totalCost = roundMoney(records.cost()),
             todayCacheHitRate = round(cacheHitRate * 100) / 100,
-            sceneBars = todayRecords.groupBars { it.scene },
-            modelBars = todayRecords.groupBars { displayModel(it) },
+            sceneBars = todayRecords.groupBars { resolveScene(it.scene) }.fillKeys(knownScenes),
+            modelBars = todayRecords.groupBars { displayTier(it.tier) }
+                .fillKeys(knownTiers)
+                .sortedBy { tierOrder[it.name.lowercase()] ?: 3 },
             dailySeries = records
                 .groupBy { it.createdAt.date.toString() }
                 .map { (date, items) ->
@@ -97,6 +150,7 @@ class TokenUsageRepository {
                     )
                 }
                 .sortedBy { it.date }
+                .fillDailyGaps()
         )
     }
 
@@ -112,8 +166,34 @@ class TokenUsageRepository {
             }
             .sortedByDescending { it.cacheHitInput + it.cacheMissInput + it.output }
 
-    private fun displayModel(record: TokenUsageRecord): String =
-        "${record.tier} / ${record.modelId}"
+    private fun List<TokenUsageChartPoint>.fillKeys(keys: Set<String>): List<TokenUsageChartPoint> {
+        val existing = associateBy { it.name }
+        val zeros = keys.asSequence()
+            .filterNot { it in existing }
+            .sorted()
+            .map { TokenUsageChartPoint(it, 0, 0, 0) }
+        return this + zeros
+    }
+
+    private fun List<DailyTokenUsagePoint>.fillDailyGaps(): List<DailyTokenUsagePoint> {
+        if (isEmpty()) return this
+        val existing = associateBy { it.date }
+        val start = LocalDate.parse(first().date)
+        val end = LocalDate.parse(last().date)
+        val result = mutableListOf<DailyTokenUsagePoint>()
+        var date = start
+        while (date <= end) {
+            val key = date.toString()
+            result.add(existing[key] ?: DailyTokenUsagePoint(key, 0, 0.0))
+            date = date.plus(DatePeriod(days = 1))
+        }
+        return result
+    }
+
+    private fun normalizePromptId(promptId: String): String =
+        promptId.removeSurrounding("__")
+
+    private fun resolveScene(scene: String): String = sceneFor(scene)
 
     private fun cost(
         cacheHitTokens: Long,
@@ -139,6 +219,8 @@ class TokenUsageRepository {
         else -> model.id
     }
 
+    private fun displayTier(tier: String): String = tier.replaceFirstChar { it.uppercase() }
+
     private fun pricingFor(tier: String): TokenPricing {
         val root = "llm.usage-pricing"
         val unit = configString("$root.price-unit") ?: "USD"
@@ -160,36 +242,44 @@ class TokenUsageRepository {
 
     private fun sceneFor(promptId: String): String {
         if (!promptId.startsWith("__") || !promptId.endsWith("__")) return "其他"
-        val id = promptId.removeSurrounding("__")
+        val id = normalizePromptId(promptId)
         if (id.startsWith("plugin_")) return "插件"
         return when (id) {
-            "bot_chat" -> "BotAgent"
-            "search_analysis" -> "搜索分析"
-            "emotion_analysis",
-            "flow_analysis",
-            "volition_analysis",
-            "memory_user_profile",
-            "memory_summary",
+            "route" -> "路由"
+            "bot_chat" -> "聊天"
+            "search_analysis" -> "搜索"
+            "emotion_analysis" -> "情绪"
+            "flow_analysis" -> "心流"
+            "volition_analysis" -> "冲动"
+            "memory_user_profile" -> "偏好"
             "memory_fact_extract",
-            "memory_conflict_resolve",
-            "evolution_slang_extract",
-            "meme_analysis",
-            "meme_query_transform" -> "状态分析"
+            "memory_conflict_resolve" -> "记忆"
 
+            "memory_summary" -> "摘要"
+            "evolution_slang_extract" -> "进化"
+            "meme_analysis" -> "表情包"
             else -> "其他"
         }
     }
 
     private fun extractCacheHitTokens(metadata: JsonObject): Long {
-        val preferredNames = setOf(
-            "cached_tokens",
-            "cache_read_input_tokens",
-            "cached_input_tokens",
-            "input_cached_tokens",
-            "prompt_cache_hit_tokens",
-            "cache_hit_tokens"
-        )
-        return findLong(metadata) { key -> key.lowercase() in preferredNames } ?: 0L
+        val exact = findLong(metadata, TokenUsageCacheHitKeys::matchesPreferred)
+        if (exact != null) return exact
+
+        val fallback = findLong(metadata, TokenUsageCacheHitKeys::matchesFallback)
+        if (fallback != null) {
+            logger.debug { "Detected cache hit tokens via fallback: $fallback" }
+            return fallback
+        }
+
+        logger.debug { "No cache hit tokens found; metadata keys: ${collectKeys(metadata)}" }
+        return 0L
+    }
+
+    private fun collectKeys(element: JsonElement): List<String> = when (element) {
+        is JsonObject -> element.entries.flatMap { (key, value) -> listOf(key) + collectKeys(value) }
+        is JsonArray -> element.flatMap { collectKeys(it) }
+        else -> emptyList()
     }
 
     private fun findLong(element: JsonElement, keyMatch: (String) -> Boolean): Long? {

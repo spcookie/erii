@@ -8,6 +8,7 @@ import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.LLMChoice
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
+import kotlinx.coroutines.flow.Flow
 import uesugi.core.component.usage.TokenUsageRepository
 
 class TokenUsagePromptExecutor(
@@ -29,7 +30,7 @@ class TokenUsagePromptExecutor(
         prompt: Prompt,
         model: LLModel,
         tools: List<ToolDescriptor>
-    ): kotlinx.coroutines.flow.Flow<StreamFrame> {
+    ): Flow<StreamFrame> {
         return delegate.executeStreaming(prompt, model, tools)
     }
 
@@ -52,10 +53,8 @@ class TokenUsagePromptExecutor(
     }
 
     private fun recordChoices(prompt: Prompt, model: LLModel, response: LLMChoice) {
-        if (response is Iterable<*>) {
-            response.filterIsInstance<Message.Assistant>().forEach {
-                repository.record(prompt, model, it)
-            }
+        response.forEach {
+            repository.record(prompt, model, it)
         }
     }
 }

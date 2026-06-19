@@ -10,102 +10,358 @@
     <title>Token Usage</title>
     <link href="${vm.basePath}/css/cal-heatmap.css" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            width: 1280px;
-            min-height: 1500px;
-            background: #f6f7f9;
-            color: #1d2430;
-            font-family: Inter, "Microsoft YaHei", Arial, sans-serif;
+        :root {
+            --paper: #fafaf8;
+            --ink: #0a0a0a;
+            --grey-1: #f0f0ee;
+            --grey-2: #d4d4d2;
+            --grey-3: #737373;
+            --accent: #C5E803;
+            --accent-on: #0a0a0a;
         }
-        .page { padding: 32px; }
-        .title { font-size: 30px; font-weight: 760; margin: 0 0 6px; letter-spacing: 0; }
-        .sub { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
-        .metrics {
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 1280px;
+            min-height: 1800px;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: Inter, Helvetica, "Noto Sans SC", "Microsoft YaHei", Arial, sans-serif;
+            font-weight: 400;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page {
+            padding: 48px 56px;
+        }
+
+        /* Header */
+        .header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: end;
+            gap: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--grey-2);
+            margin-bottom: 40px;
+        }
+
+        .title {
+            font-size: 56px;
+            font-weight: 200;
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+            margin: 0;
+        }
+
+        .title .accent {
+            display: inline-block;
+            background: var(--accent);
+            color: var(--accent-on);
+            padding: 0 12px;
+            font-weight: 300;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--grey-3);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin: 0 0 6px;
+        }
+
+        /* KPI Grid */
+        .kpi-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 14px;
-            margin-bottom: 18px;
+            gap: 16px;
+            margin-bottom: 48px;
         }
-        .metric, .panel {
-            background: #ffffff;
-            border: 1px solid #dde3ea;
-            border-radius: 8px;
-            box-shadow: 0 8px 22px rgba(20, 32, 50, .06);
+
+        .kpi {
+            background: var(--paper);
+            border: 1px solid var(--grey-2);
+            padding: 24px;
+            position: relative;
         }
-        .metric { padding: 18px; min-height: 102px; }
-        .metric .label { color: #64748b; font-size: 13px; margin-bottom: 10px; }
-        .metric .value { font-size: 25px; font-weight: 760; white-space: nowrap; }
-        .metric .hint { margin-top: 8px; color: #8a94a6; font-size: 12px; }
-        .grid {
+
+        .kpi.accent {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--accent-on);
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--grey-3);
+            margin-bottom: 16px;
+        }
+
+        .kpi.accent .kpi-label {
+            color: var(--accent-on);
+            opacity: 0.7;
+        }
+
+        .kpi-value {
+            font-size: 34px;
+            font-weight: 200;
+            line-height: 1;
+            margin-bottom: 8px;
+            white-space: nowrap;
+        }
+
+        .kpi-hint {
+            font-size: 12px;
+            color: var(--grey-3);
+        }
+
+        .kpi.accent .kpi-hint {
+            color: var(--accent-on);
+            opacity: 0.7;
+        }
+
+        .header-meta {
+            text-align: right;
+            color: var(--grey-3);
+            font-size: 12px;
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 48px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin: 0 0 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--grey-2);
+        }
+
+        /* Total ledger */
+        .ledger {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1px;
+            background: var(--grey-2);
+            border: 1px solid var(--grey-2);
+        }
+
+        .ledger-cell {
+            background: var(--paper);
+            padding: 22px 18px;
+            text-align: center;
+        }
+
+        .ledger-label {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--grey-3);
+            margin-bottom: 12px;
+        }
+
+        .ledger-value {
+            font-size: 28px;
+            font-weight: 200;
+            line-height: 1;
+        }
+
+        /* Charts grid */
+        .charts-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 18px;
+            gap: 24px;
+            margin-bottom: 48px;
+            align-items: start;
         }
-        .panel { padding: 18px; min-height: 360px; }
-        .panel.wide { grid-column: 1 / -1; min-height: 330px; }
-        .panel h2 { margin: 0 0 10px; font-size: 18px; font-weight: 720; }
-        .chart { width: 100%; height: 300px; }
-        #heatmap { margin-top: 18px; overflow: hidden; }
-        .legend {
+
+        .chart-panel {
+            background: var(--paper);
+            border: 1px solid var(--grey-2);
+            padding: 24px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 300;
+            margin-bottom: 20px;
+        }
+
+        .chart {
+            width: 100%;
+            min-height: 240px;
+        }
+
+        .chart-wide {
+            width: 100%;
+            height: 340px;
+        }
+
+        /* Full width panel */
+        .panel {
+            background: var(--paper);
+            border: 1px solid var(--grey-2);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .panel:last-child {
+            margin-bottom: 0;
+        }
+
+        .heatmap-viewport {
             display: flex;
-            gap: 18px;
-            align-items: center;
-            color: #64748b;
-            font-size: 13px;
-            margin-bottom: 8px;
+            justify-content: center;
+            width: 100%;
+            max-width: 100%;
+            min-height: 250px;
+            margin: 0 auto;
+            overflow: hidden;
         }
-        .dot { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; }
-        .hit { background:#2f9e44; }
-        .miss { background:#3b82f6; }
-        .out { background:#f97316; }
+
+        #heatmap {
+            width: max-content;
+            min-height: 250px;
+            overflow: visible;
+        }
+
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            margin-top: 12px;
+            font-size: 11px;
+            color: var(--grey-3);
+        }
+
+        .heatmap-legend .swatch {
+            width: 14px;
+            height: 14px;
+        }
+
+        .heatmap-legend span {
+            margin: 0 2px;
+        }
     </style>
 </head>
 <body>
 <main class="page">
-    <h1 class="title">Token Usage</h1>
-    <div class="sub">Lite / Flash / Pro token 消耗统计</div>
-    <section class="metrics">
-        <div class="metric"><div class="label">今日输入 · 缓存命中</div><div class="value" id="todayHit">${vm.todayCacheHitInput}</div><div class="hint">input cache hit</div></div>
-        <div class="metric"><div class="label">今日输入 · 未命中</div><div class="value" id="todayMiss">${vm.todayCacheMissInput}</div><div class="hint">input cache miss</div></div>
-        <div class="metric"><div class="label">今日输出</div><div class="value" id="todayOut">${vm.todayOutput}</div><div class="hint">output tokens</div></div>
-        <div class="metric"><div class="label">今日花费</div><div class="value" id="todayCost">${vm.todayCost} ${vm.priceUnit}</div><div class="hint" id="unit">${vm.priceUnit}</div></div>
-        <div class="metric"><div class="label">今日缓存命中率</div><div class="value" id="hitRate">${vm.todayCacheHitRate}%</div><div class="hint">hit / input</div></div>
-    </section>
-    <section class="grid">
-        <div class="panel">
-            <h2>场景 Token 消耗</h2>
-            <div class="legend"><span><i class="dot hit"></i>输入命中</span><span><i class="dot miss"></i>输入未命中</span><span><i class="dot out"></i>输出</span></div>
-            <div id="sceneBars" class="chart"></div>
+    <header class="header">
+        <div>
+            <p class="subtitle">Token Consumption Report</p>
+            <h1 class="title">Token <span class="accent">Usage</span></h1>
         </div>
-        <div class="panel">
-            <h2>模型 Token 消耗</h2>
-            <div class="legend"><span><i class="dot hit"></i>输入命中</span><span><i class="dot miss"></i>输入未命中</span><span><i class="dot out"></i>输出</span></div>
-            <div id="modelBars" class="chart"></div>
+        <div class="header-meta">
+            Lite / Flash / Pro · ${vm.priceUnit}
+        </div>
+    </header>
+
+    <section class="kpi-grid">
+        <div class="kpi">
+            <div class="kpi-label">输入 · 缓存命中</div>
+            <div class="kpi-value">${vm.formatTokens(vm.todayCacheHitInput)}</div>
+            <div class="kpi-hint">INPUT CACHE HIT</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">输入 · 未命中</div>
+            <div class="kpi-value">${vm.formatTokens(vm.todayCacheMissInput)}</div>
+            <div class="kpi-hint">INPUT CACHE MISS</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">输出</div>
+            <div class="kpi-value">${vm.formatTokens(vm.todayOutput)}</div>
+            <div class="kpi-hint">OUTPUT TOKENS</div>
+        </div>
+        <div class="kpi accent">
+            <div class="kpi-label">花费</div>
+            <div class="kpi-value">${vm.todayCost}</div>
+            <div class="kpi-hint">${vm.priceUnit}</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">缓存命中率</div>
+            <div class="kpi-value">${vm.todayCacheHitRate}%</div>
+            <div class="kpi-hint">HIT / INPUT</div>
         </div>
     </section>
-    <section class="grid" style="margin-top: 18px;">
-        <div class="panel wide">
-            <h2>全部累计</h2>
-            <div class="metrics">
-                <div class="metric"><div class="label">累计输入命中</div><div class="value" id="totalHit">${vm.totalCacheHitInput}</div></div>
-                <div class="metric"><div class="label">累计输入未命中</div><div class="value" id="totalMiss">${vm.totalCacheMissInput}</div></div>
-                <div class="metric"><div class="label">累计输出</div><div class="value" id="totalOut">${vm.totalOutput}</div></div>
-                <div class="metric"><div class="label">累计花费</div><div class="value" id="totalCost">${vm.totalCost} ${vm.priceUnit}</div></div>
-                <div class="metric"><div class="label">累计总 Token</div><div class="value" id="totalTokens">${vm.totalCacheHitInput + vm.totalCacheMissInput + vm.totalOutput}</div></div>
+
+    <section class="section">
+        <h2 class="section-title">累计消耗 · Accumulated</h2>
+        <div class="ledger">
+            <div class="ledger-cell">
+                <div class="ledger-label">累计输入命中</div>
+                <div class="ledger-value">${vm.formatTokens(vm.totalCacheHitInput)}</div>
+            </div>
+            <div class="ledger-cell">
+                <div class="ledger-label">累计输入未命中</div>
+                <div class="ledger-value">${vm.formatTokens(vm.totalCacheMissInput)}</div>
+            </div>
+            <div class="ledger-cell">
+                <div class="ledger-label">累计输出</div>
+                <div class="ledger-value">${vm.formatTokens(vm.totalOutput)}</div>
+            </div>
+            <div class="ledger-cell">
+                <div class="ledger-label">累计花费</div>
+                <div class="ledger-value">${vm.totalCost}</div>
+            </div>
+            <div class="ledger-cell">
+                <div class="ledger-label">累计总 Token</div>
+                <div class="ledger-value">${vm.formatTokens(vm.totalCacheHitInput + vm.totalCacheMissInput + vm.totalOutput)}</div>
             </div>
         </div>
-        <div class="panel wide">
-            <h2>每日 Token 平滑趋势</h2>
-            <div id="dailyLine" class="chart"></div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">消耗分布 · Distribution</h2>
+        <div class="charts-grid">
+            <div class="chart-panel">
+                <h3 class="chart-title">场景 Token 消耗</h3>
+                <div id="sceneBars" class="chart"></div>
+            </div>
+            <div class="chart-panel">
+                <h3 class="chart-title">模型 Token 消耗</h3>
+                <div id="modelBars" class="chart"></div>
+            </div>
         </div>
-        <div class="panel wide">
-            <h2>每日消耗热力图</h2>
-            <div id="heatmap"></div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">周趋势 · Weekly Trend</h2>
+        <div class="panel">
+            <div id="dailyLine" class="chart-wide"></div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">消耗热力图 · Heatmap</h2>
+        <div class="panel">
+            <div class="heatmap-viewport">
+                <div id="heatmap"></div>
+            </div>
+            <div class="heatmap-legend">
+                <span>少</span>
+                <div class="swatch" style="background:#f0f0ee"></div>
+                <div class="swatch" style="background:#e1f0a3"></div>
+                <div class="swatch" style="background:#C5E803"></div>
+                <div class="swatch" style="background:#9fc100"></div>
+                <div class="swatch" style="background:#6b8f00"></div>
+                <span>多</span>
+            </div>
         </div>
     </section>
 </main>
+
 <script src="${vm.basePath}/js/echarts.min.js"></script>
 <script src="${vm.basePath}/js/d3.v7.min.js"></script>
 <script src="${vm.basePath}/js/cal-heatmap.min.js"></script>
@@ -113,47 +369,364 @@
     var sceneBarsData = JSON.parse('${vm.sceneBarsJson}');
     var modelBarsData = JSON.parse('${vm.modelBarsJson}');
     var dailySeriesData = JSON.parse('${vm.dailySeriesJson}');
+    var dailyTrendData = dailySeriesData.slice(-7);
+    var sceneOrder = ['聊天', '搜索', '插件', '记忆', '摘要', '情绪', '心流', '冲动', '偏好', '进化', '表情包', '路由', '其他'];
 
-    function barChart(id, rows) {
-        var chart = echarts.init(document.getElementById(id));
-        chart.setOption({
-            color: ['#2f9e44', '#3b82f6', '#f97316'],
-            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-            grid: { left: 58, right: 18, top: 18, bottom: 70 },
-            xAxis: { type: 'category', data: rows.map(function(x) { return x.name; }), axisLabel: { rotate: 24, interval: 0 } },
-            yAxis: { type: 'value' },
-            series: [
-                { name: '输入命中', type: 'bar', stack: 'total', data: rows.map(function(x) { return x.cacheHitInput; }) },
-                { name: '输入未命中', type: 'bar', stack: 'total', data: rows.map(function(x) { return x.cacheMissInput; }) },
-                { name: '输出', type: 'bar', stack: 'total', data: rows.map(function(x) { return x.output; }) }
-            ]
+    var palette = {
+        hit: '#C5E803',
+        miss: '#0a0a0a',
+        out: '#737373',
+        ink: '#0a0a0a',
+        grey: '#d4d4d2',
+        paper: '#fafaf8'
+    };
+
+    function compactNumber(value) {
+        if (value == null || value < 1000) return value == null ? '' : value.toString();
+        var suffixes = ['', 'k', 'm', 'b'];
+        var i = 0;
+        var num = value;
+        while (num >= 1000 && i < suffixes.length - 1) {
+            num /= 1000;
+            i++;
+        }
+        var s = num.toFixed(1);
+        s = s.replace(/\.0+$/, '');
+        return s + suffixes[i];
+    }
+
+    function chartRowTotal(row) {
+        return row.cacheHitInput + row.cacheMissInput + row.output;
+    }
+
+    function chartTotalLabel(rows, position) {
+        return {
+            show: true,
+            position: position || 'top',
+            color: palette.ink,
+            fontSize: 11,
+            fontWeight: 500,
+            formatter: function (params) {
+                return compactNumber(chartRowTotal(rows[params.dataIndex]));
+            }
+        };
+    }
+
+    function formatMonthDay(value) {
+        if (!value) return '';
+        var parts = value.split('-');
+        if (parts.length < 3) return value;
+        return parts[1] + '/' + parts[2];
+    }
+
+    function sortSceneRows(rows) {
+        var index = {};
+        sceneOrder.forEach(function (name, i) {
+            index[name] = i;
+        });
+        return rows.slice().sort(function (a, b) {
+            var ai = index[a.name] == null ? sceneOrder.length : index[a.name];
+            var bi = index[b.name] == null ? sceneOrder.length : index[b.name];
+            if (ai !== bi) return ai - bi;
+            var at = a.cacheHitInput + a.cacheMissInput + a.output;
+            var bt = b.cacheHitInput + b.cacheMissInput + b.output;
+            return bt - at;
         });
     }
-    barChart('sceneBars', sceneBarsData);
-    barChart('modelBars', modelBarsData);
+
+    function horizontalBarChart(id, rows) {
+        var names = rows.map(function (x) {
+            return x.name;
+        });
+        var container = document.getElementById(id);
+        var rowHeight = 28;
+        var height = Math.max(240, rows.length * rowHeight + 80);
+        container.style.height = height + 'px';
+
+        var chart = echarts.init(container);
+        chart.setOption({
+            color: [palette.hit, palette.miss, palette.out],
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {type: 'shadow'},
+                backgroundColor: palette.paper,
+                borderColor: palette.grey,
+                textStyle: {color: palette.ink, fontSize: 13},
+                valueFormatter: compactNumber
+            },
+            legend: {
+                data: ['输入命中', '输入未命中', '输出'],
+                orient: 'vertical',
+                left: 0,
+                top: 'middle',
+                itemWidth: 14,
+                itemHeight: 14,
+                textStyle: {color: '#737373', fontSize: 12}
+            },
+            grid: {left: 150, right: 38, top: 8, bottom: 24},
+            xAxis: {
+                type: 'value',
+                splitLine: {lineStyle: {color: '#f0f0ee'}},
+                axisLabel: {color: '#737373', fontSize: 11, formatter: compactNumber}
+            },
+            yAxis: {
+                type: 'category',
+                data: names,
+                inverse: true,
+                axisLine: {lineStyle: {color: palette.grey}},
+                axisLabel: {
+                    color: '#737373',
+                    fontSize: 12,
+                    width: 72,
+                    overflow: 'truncate'
+                },
+                axisTick: {show: false}
+            },
+            series: [
+                {
+                    name: '输入命中',
+                    type: 'bar',
+                    stack: 'total',
+                    barWidth: '50%',
+                    data: rows.map(function (x) {
+                        return x.cacheHitInput;
+                    })
+                },
+                {
+                    name: '输入未命中',
+                    type: 'bar',
+                    stack: 'total',
+                    barWidth: '50%',
+                    data: rows.map(function (x) {
+                        return x.cacheMissInput;
+                    })
+                },
+                {
+                    name: '输出',
+                    type: 'bar',
+                    stack: 'total',
+                    barWidth: '50%',
+                    label: chartTotalLabel(rows, 'right'),
+                    data: rows.map(function (x) {
+                        return x.output;
+                    })
+                }
+            ]
+        });
+        return chart;
+    }
+
+    var sceneChart = horizontalBarChart('sceneBars', sortSceneRows(sceneBarsData));
+    document.getElementById('modelBars').style.height = document.getElementById('sceneBars').style.height;
+
+    function verticalBarChart(id, rows) {
+        var names = rows.map(function (x) {
+            return x.name;
+        });
+        var container = document.getElementById(id);
+
+        var chart = echarts.init(container);
+        chart.setOption({
+            color: [palette.hit, palette.miss, palette.out],
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {type: 'shadow'},
+                backgroundColor: palette.paper,
+                borderColor: palette.grey,
+                textStyle: {color: palette.ink, fontSize: 13},
+                valueFormatter: compactNumber
+            },
+            legend: {
+                data: ['输入命中', '输入未命中', '输出'],
+                bottom: 0,
+                itemWidth: 14,
+                itemHeight: 14,
+                textStyle: {color: '#737373', fontSize: 12}
+            },
+            grid: {left: 48, right: 24, top: 42, bottom: 40},
+            xAxis: {
+                type: 'category',
+                data: names,
+                axisLine: {lineStyle: {color: palette.grey}},
+                axisLabel: {color: '#737373', fontSize: 12},
+                axisTick: {show: false}
+            },
+            yAxis: {
+                type: 'value',
+                splitLine: {lineStyle: {color: '#f0f0ee'}},
+                axisLabel: {color: '#737373', fontSize: 11, formatter: compactNumber}
+            },
+            series: [
+                {
+                    name: '输入命中',
+                    type: 'bar',
+                    stack: 'total',
+                    barWidth: '40%',
+                    data: rows.map(function (x) {
+                        return x.cacheHitInput;
+                    })
+                },
+                {
+                    name: '输入未命中',
+                    type: 'bar',
+                    stack: 'total',
+                    barWidth: '40%',
+                    data: rows.map(function (x) {
+                        return x.cacheMissInput;
+                    })
+                },
+                {
+                    name: '输出',
+                    type: 'bar',
+                    stack: 'total',
+                    barWidth: '40%',
+                    label: chartTotalLabel(rows),
+                    data: rows.map(function (x) {
+                        return x.output;
+                    })
+                }
+            ]
+        });
+        return chart;
+    }
+
+    verticalBarChart('modelBars', modelBarsData);
 
     var line = echarts.init(document.getElementById('dailyLine'));
     line.setOption({
-        color: ['#2563eb'],
-        tooltip: { trigger: 'axis' },
-        grid: { left: 58, right: 18, top: 18, bottom: 44 },
-        xAxis: { type: 'category', data: dailySeriesData.map(function(x) { return x.date; }) },
-        yAxis: { type: 'value' },
-        series: [{ type: 'line', smooth: true, areaStyle: { opacity: .12 }, data: dailySeriesData.map(function(x) { return x.tokens; }) }]
+        color: [palette.hit],
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: palette.paper,
+            borderColor: palette.grey,
+            textStyle: {color: palette.ink, fontSize: 13},
+            valueFormatter: compactNumber
+        },
+        grid: {left: 58, right: 24, top: 42, bottom: 44},
+        xAxis: {
+            type: 'category',
+            data: dailyTrendData.map(function (x) {
+                return x.date;
+            }),
+            axisLine: {lineStyle: {color: palette.grey}},
+            axisLabel: {color: '#737373', fontSize: 12, formatter: formatMonthDay},
+            axisTick: {show: false}
+        },
+        yAxis: {
+            type: 'value',
+            splitLine: {lineStyle: {color: '#f0f0ee'}},
+            axisLabel: {color: '#737373', fontSize: 11, formatter: compactNumber}
+        },
+        series: [{
+            type: 'line',
+            smooth: true,
+            showSymbol: true,
+            connectNulls: true,
+            lineStyle: {width: 2, color: palette.hit},
+            areaStyle: {color: 'rgba(197,232,3,0.12)'},
+            label: {
+                show: true, position: 'top', formatter: function (params) {
+                    return compactNumber(params.value);
+                }
+            },
+            data: dailyTrendData.map(function (x) {
+                return x.tokens;
+            })
+        }]
     });
 
-    var heatmapData = dailySeriesData.map(function(x) { return { date: x.date, value: x.tokens }; });
-    var start = dailySeriesData.length ? new Date(dailySeriesData[0].date) : new Date();
-    var cal = new CalHeatmap();
-    cal.paint({
-        itemSelector: '#heatmap',
-        range: 6,
-        date: { start: start },
-        domain: { type: 'month', gutter: 6, label: { text: 'MMM', textAlign: 'start', position: 'top' } },
-        subDomain: { type: 'ghDay', radius: 2, width: 14, height: 14, gutter: 3 },
-        data: { source: heatmapData, x: 'date', y: 'value' },
-        scale: { color: { type: 'threshold', range: ['#ebedf0', '#c7e9ff', '#73b7ff', '#2563eb', '#0f3a8a'], domain: [1, 10000, 50000, 100000] } }
-    });
+    if (dailySeriesData.length > 0) {
+        var heatmapData = dailySeriesData.map(function (x) {
+            return {date: x.date, value: x.tokens};
+        });
+        var endDate = new Date(dailySeriesData[dailySeriesData.length - 1].date);
+        var startDate = new Date(endDate);
+        startDate.setMonth(startDate.getMonth() - 5);
+        var heatmapGutter = 3;
+        var heatmapDomainGutter = 18;
+        var heatmapSize = calculateHeatmapSquareSize(startDate, 6);
+
+        function startOfWeek(date) {
+            var d = new Date(date);
+            d.setDate(d.getDate() - d.getDay());
+            return d;
+        }
+
+        function endOfWeek(date) {
+            var d = new Date(date);
+            d.setDate(d.getDate() + (6 - d.getDay()));
+            return d;
+        }
+
+        function heatmapWeeksInMonth(date) {
+            var firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+            var lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+            var firstWeek = startOfWeek(firstDay);
+            var lastWeek = endOfWeek(lastDay);
+
+            if (firstDay.getDay() > 4) {
+                firstWeek.setDate(firstWeek.getDate() + 7);
+            }
+            if (lastDay.getDay() < 4) {
+                lastWeek.setDate(lastWeek.getDate() - 7);
+            }
+
+            var weekMs = 7 * 24 * 60 * 60 * 1000;
+            return Math.max(4, Math.round((lastWeek - firstWeek) / weekMs) + 1);
+        }
+
+        function heatmapVisibleWeekCount(start, range) {
+            var total = 0;
+            for (var i = 0; i < range; i++) {
+                total += heatmapWeeksInMonth(new Date(start.getFullYear(), start.getMonth() + i, 1));
+            }
+            return total;
+        }
+
+        function calculateHeatmapSquareSize(start, range) {
+            var viewport = document.querySelector('.heatmap-viewport');
+            var availableWidth = viewport ? viewport.clientWidth : 1100;
+            var weekCount = heatmapVisibleWeekCount(start, range);
+            var gutterWidth = Math.max(0, weekCount - range) * heatmapGutter + Math.max(0, range - 1) * heatmapDomainGutter;
+            var size = Math.floor((availableWidth - gutterWidth) / weekCount);
+            return Math.max(14, Math.min(48, size));
+        }
+
+        var heatmapHeight = heatmapSize * 7 + heatmapGutter * 6 + 38;
+        document.querySelector('.heatmap-viewport').style.minHeight = heatmapHeight + 'px';
+        document.getElementById('heatmap').style.minHeight = heatmapHeight + 'px';
+
+        var cal = new CalHeatmap();
+        cal.paint({
+            itemSelector: '#heatmap',
+            range: 6,
+            date: {
+                start: startDate,
+                highlight: [new Date()]
+            },
+            domain: {
+                type: 'month',
+                gutter: heatmapDomainGutter,
+                label: {
+                    text: function (ts) {
+                        var d = new Date(ts);
+                        return (d.getMonth() + 1) + '月';
+                    },
+                    textAlign: 'start',
+                    position: 'top'
+                }
+            },
+            subDomain: {type: 'ghDay', width: heatmapSize, height: heatmapSize, gutter: heatmapGutter},
+            data: {source: heatmapData, x: 'date', y: 'value'},
+            scale: {
+                color: {
+                    type: 'threshold',
+                    range: ['#f0f0ee', '#e1f0a3', '#C5E803', '#9fc100', '#6b8f00'],
+                    domain: [1, 10000, 50000, 100000]
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>
