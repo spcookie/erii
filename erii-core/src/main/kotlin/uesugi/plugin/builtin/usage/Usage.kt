@@ -10,10 +10,12 @@ import uesugi.onebot.sdk.client.api.sendGroupMsg
 import uesugi.onebot.sdk.message.buildMessage
 import uesugi.plugin.builtin.Builtin
 import uesugi.plugin.builtin.BuiltinExtension
+import uesugi.plugin.builtin.CommandQueue
 import uesugi.server.SystemConfigHolder
 import uesugi.spi.*
 import java.net.URLEncoder
 import java.util.*
+import kotlin.time.Duration.Companion.seconds
 
 @Extension(points = [AgentExtension::class])
 class Usage : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, BuiltinExtension {
@@ -26,15 +28,17 @@ class Usage : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, BuiltinExtensi
 
     override fun onLoad(context: PluginContext) {
         context.chain { meta ->
-            val groupName = resolveGroupName(meta)
-            val url = buildString {
-                append("http://${externalHost}:${port}/usage")
-                append("?botId=${meta.botId}")
-                append("&groupId=${meta.groupId}")
-                append("&botName=${URLEncoder.encode(meta.roledBot.role.name, "UTF-8")}")
-                append("&groupName=${URLEncoder.encode(groupName, "UTF-8")}")
-            }
-            renderUsage(meta, url)
+            CommandQueue.serial("${meta.botId}:${meta.groupId}", timeout = 20.seconds) {
+                val groupName = resolveGroupName(meta)
+                val url = buildString {
+                    append("http://${externalHost}:${port}/usage")
+                    append("?botId=${meta.botId}")
+                    append("&groupId=${meta.groupId}")
+                    append("&botName=${URLEncoder.encode(meta.roledBot.role.name, "UTF-8")}")
+                    append("&groupName=${URLEncoder.encode(groupName, "UTF-8")}")
+                }
+                renderUsage(meta, url)
+            } ?: return@chain
         }
     }
 }
@@ -50,8 +54,10 @@ class UsageAll : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, BuiltinExte
 
     override fun onLoad(context: PluginContext) {
         context.chain { meta ->
-            val url = "http://${externalHost}:${port}/usage"
-            renderUsage(meta, url)
+            CommandQueue.serialDedup(meta.groupId) {
+                val url = "http://${externalHost}:${port}/usage"
+                renderUsage(meta, url)
+            } ?: return@chain
         }
     }
 }

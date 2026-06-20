@@ -9,12 +9,14 @@ import uesugi.onebot.sdk.client.api.sendGroupMsg
 import uesugi.onebot.sdk.message.buildMessage
 import uesugi.plugin.builtin.Builtin
 import uesugi.plugin.builtin.BuiltinExtension
+import uesugi.plugin.builtin.CommandQueue
 import uesugi.server.SystemConfigHolder
 import uesugi.spi.AgentExtension
 import uesugi.spi.ArgParserHolder
 import uesugi.spi.CmdExtension
 import uesugi.spi.PluginContext
 import java.util.*
+import kotlin.time.Duration.Companion.seconds
 
 @Extension(points = [AgentExtension::class])
 class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, BuiltinExtension {
@@ -34,20 +36,22 @@ class RenderingStatus : CmdExtension<Unit, ArgParserHolder.Empty, Builtin>, Buil
         val password = SystemConfigHolder.config.property("security.password").getString()
 
         context.chain { meta ->
-            val bytes = browserScraper.takeFullScreenshot(
-                url = "http://${externalHost}:${port}/view/${meta.botId}/${meta.groupId}",
-                width = 1200,
-                quality = 100,
-                type = BrowserScraper.ScreenshotType.JPEG,
-                waitForNetworkIdle = true,
-                username = username,
-                password = password
-            )
-            val base64 = Base64.getEncoder().encodeToString(bytes)
-            meta.roledBot.refBot.sendGroupMsg(
-                meta.groupId.toLong(),
-                buildMessage { image("base64://$base64") }
-            )
+            CommandQueue.serial("${meta.botId}:${meta.groupId}", timeout = 20.seconds) {
+                val bytes = browserScraper.takeFullScreenshot(
+                    url = "http://${externalHost}:${port}/view/${meta.botId}/${meta.groupId}",
+                    width = 1200,
+                    quality = 100,
+                    type = BrowserScraper.ScreenshotType.JPEG,
+                    waitForNetworkIdle = true,
+                    username = username,
+                    password = password
+                )
+                val base64 = Base64.getEncoder().encodeToString(bytes)
+                meta.roledBot.refBot.sendGroupMsg(
+                    meta.groupId.toLong(),
+                    buildMessage { image("base64://$base64") }
+                )
+            } ?: return@chain
         }
     }
 
