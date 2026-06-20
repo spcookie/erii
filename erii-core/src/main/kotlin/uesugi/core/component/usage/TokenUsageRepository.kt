@@ -6,6 +6,8 @@ import ai.koog.prompt.message.Message
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.datetime.*
 import kotlinx.serialization.json.*
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.LLMProviderChoice
 import uesugi.server.SystemConfigHolder
@@ -97,14 +99,21 @@ class TokenUsageRepository {
 
     fun summary(botId: String? = null, groupId: String? = null): TokenUsageSummary {
         val records = transaction {
-            TokenUsageEntity.all().map { it.toRecord() }
-        }.filter {
-            (botId == null || it.botId == botId) &&
-                    (groupId == null || it.groupId == groupId)
+            val conditions = listOfNotNull(
+                botId?.let { TokenUsageTable.botId eq it },
+                groupId?.let { TokenUsageTable.groupId eq it }
+            )
+            if (conditions.isNotEmpty()) {
+                TokenUsageEntity.find { conditions.reduce { a, b -> a and b } }.map { it.toRecord() }
+            } else {
+                TokenUsageEntity.all().map { it.toRecord() }
+            }
         }
         val today = todayKey()
         val todayRecords = records.filter { it.createdAt.date.toString() == today }
-        val unit = (todayRecords.firstOrNull() ?: records.lastOrNull())?.priceUnit ?: "USD"
+        val unit = configString("llm.usage-pricing.price-unit")
+            ?: (todayRecords.firstOrNull() ?: records.lastOrNull())?.priceUnit
+            ?: "USD"
 
         fun List<TokenUsageRecord>.cacheHit() = sumOf { it.inputCacheHitTokens }
         fun List<TokenUsageRecord>.cacheMiss() = sumOf { it.inputCacheMissTokens }
