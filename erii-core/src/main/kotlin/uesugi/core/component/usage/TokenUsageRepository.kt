@@ -10,7 +10,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.LLMProviderChoice
-import uesugi.server.SystemConfigHolder
+import uesugi.common.toolkit.ConfigHolder
 import kotlin.math.round
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -254,7 +254,7 @@ class TokenUsageRepository {
     }
 
     private fun configString(path: String): String? =
-        runCatching { SystemConfigHolder.config.propertyOrNull(path)?.getString() }.getOrNull()
+        runCatching { ConfigHolder.getString(path) }.getOrNull()
 
     private fun configDouble(path: String): Double? =
         configString(path)?.toDoubleOrNull()

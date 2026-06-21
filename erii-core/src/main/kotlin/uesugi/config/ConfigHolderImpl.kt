@@ -509,6 +509,9 @@ class ConfigHolderImpl : ConfigProvider {
     private fun getLongOrDefault(path: String, default: Long): Long =
         if (config.hasPath(path)) config.getLong(path) else default
 
+    override fun getString(path: String): String? =
+        if (config.hasPath(path)) config.getString(path) else null
+
     override fun getPlaywrightUrl(): String = config.getString("browser.playwright-url")
 
     override fun getBrowserDownload(): Boolean = config.getBoolean("browser.download")

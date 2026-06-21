@@ -19,5 +19,10 @@
   "vision.provider": [
     "none",
     "minimax"
+  ],
+  "state-tuning.dispatch.profile": [
+    "REALTIME",
+    "BALANCED",
+    "ECONOMY"
   ]
 }

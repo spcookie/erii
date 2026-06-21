@@ -309,6 +309,9 @@ interface ConfigProvider {
     fun getDisabledPlugins(botKey: String): List<String>?
     fun isPluginEnabled(botKey: String, pluginName: String): Boolean
 
+    // ===== 通用配置读取 =====
+    fun getString(path: String): String?
+
     // ===== 刷新缓存 =====
     fun refresh()
 }
@@ -392,6 +395,9 @@ object ConfigHolder {
     fun getEnabledPlugins(botKey: String): List<String>? = provider.getEnabledPlugins(botKey)
     fun getDisabledPlugins(botKey: String): List<String>? = provider.getDisabledPlugins(botKey)
     fun isPluginEnabled(botKey: String, pluginName: String): Boolean = provider.isPluginEnabled(botKey, pluginName)
+
+    // ===== 通用配置读取 =====
+    fun getString(path: String): String? = provider.getString(path)
 
     // ===== 刷新缓存 =====
     fun refresh() = provider.refresh()
