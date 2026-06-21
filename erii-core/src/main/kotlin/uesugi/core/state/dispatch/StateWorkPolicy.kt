@@ -44,18 +44,13 @@ fun StateTriggerProfile.policies(): Map<StateWorkKind, StateWorkPolicy> {
     }
     val realtimeWait = when (this) {
         StateTriggerProfile.REALTIME -> 1.minutes
-        StateTriggerProfile.BALANCED -> 3.minutes
-        StateTriggerProfile.ECONOMY -> 5.minutes
+        StateTriggerProfile.BALANCED -> 5.minutes
+        StateTriggerProfile.ECONOMY -> 10.minutes
     }
     val knowledgeWait = when (this) {
         StateTriggerProfile.REALTIME -> 5.minutes
         StateTriggerProfile.BALANCED -> 15.minutes
         StateTriggerProfile.ECONOMY -> 30.minutes
-    }
-    val emotionMinimum = when (this) {
-        StateTriggerProfile.REALTIME -> 11
-        StateTriggerProfile.BALANCED -> 20
-        StateTriggerProfile.ECONOMY -> 30
     }
     val realtimeMinimum = when (this) {
         StateTriggerProfile.REALTIME -> 20
@@ -93,7 +88,7 @@ fun StateTriggerProfile.policies(): Map<StateWorkKind, StateWorkPolicy> {
             BacklogMode.LATEST_WINDOW,
             debounce,
             realtimeWait,
-            emotionMinimum,
+            realtimeMinimum,
             200
         ),
         StateWorkKind.FLOW to StateWorkPolicy(BacklogMode.LATEST_WINDOW, debounce, realtimeWait, realtimeMinimum, 100),

@@ -170,20 +170,23 @@ class EmotionRepository {
         val instant = entity.updatedAt.toInstant(tz)
         val seconds = (now - instant).inWholeSeconds.coerceAtLeast(0)
         return if (seconds > minSeconds) {
-            calculateDecayEmotion(entity.emotion, seconds) to calculateDecayMood(entity.mood, baseline, seconds)
+            calculateDecayEmotion(entity.emotion, baseline, seconds) to calculateDecayMood(
+                entity.mood,
+                baseline,
+                seconds
+            )
         } else {
             entity.emotion to entity.mood
         }
     }
 
     /**
-     * 情绪衰减计算
+     * 情绪衰减计算，向 baseline 回弹
      */
-    fun calculateDecayEmotion(emotion: PAD, deltaSeconds: Long): PAD {
+    fun calculateDecayEmotion(emotion: PAD, baseline: PAD, deltaSeconds: Long): PAD {
         val halfLife = ConfigHolder.getStateTuning().emotion.emotionHalfLifeSeconds.coerceAtLeast(1)
-        val lambda = ln(2.0) / halfLife
-        val factor = exp(-lambda * deltaSeconds)
-        return emotion * factor
+        val factor = decayFactor(halfLife, deltaSeconds)
+        return decayToward(emotion, baseline, factor)
     }
 
     /**
@@ -191,13 +194,18 @@ class EmotionRepository {
      */
     fun calculateDecayMood(mood: PAD, baseline: PAD, deltaSeconds: Long): PAD {
         val halfLife = ConfigHolder.getStateTuning().emotion.moodHalfLifeSeconds.coerceAtLeast(1)
-        val lambda = ln(2.0) / halfLife
-        val factor = exp(-lambda * deltaSeconds)
-
-        return PAD(
-            p = baseline.p + (mood.p - baseline.p) * factor,
-            a = baseline.a + (mood.a - baseline.a) * factor,
-            d = baseline.d + (mood.d - baseline.d) * factor
-        )
+        val factor = decayFactor(halfLife, deltaSeconds)
+        return decayToward(mood, baseline, factor)
     }
+
+    private fun decayFactor(halfLifeSeconds: Long, deltaSeconds: Long): Double {
+        val lambda = ln(2.0) / halfLifeSeconds
+        return exp(-lambda * deltaSeconds)
+    }
+
+    private fun decayToward(current: PAD, target: PAD, factor: Double): PAD = PAD(
+        p = target.p + (current.p - target.p) * factor,
+        a = target.a + (current.a - target.a) * factor,
+        d = target.d + (current.d - target.d) * factor
+    )
 }
