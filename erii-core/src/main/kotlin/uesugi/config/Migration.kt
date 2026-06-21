@@ -10,6 +10,7 @@ import uesugi.common.data.HistoryTable
 import uesugi.common.data.ResourceTable
 import uesugi.core.component.usage.TokenUsageTable
 import uesugi.core.state.emotion.EmotionTable
+import uesugi.core.state.evolution.EvolutionStateTable
 import uesugi.core.state.evolution.LearnedVocabTable
 import uesugi.core.state.flow.FlowStateTable
 import uesugi.core.state.meme.MemeData.MemeScanStateTable
@@ -35,6 +36,7 @@ fun migration(database: Database) {
             SummaryStateTable,
             MemoryStateTable,
             LearnedVocabTable,
+            EvolutionStateTable,
             FlowStateTable,
             VolitionStateTable,
             TokenUsageTable
@@ -69,6 +71,7 @@ private fun init(database: Database) {
             SummaryStateTable,
             MemoryStateTable,
             LearnedVocabTable,
+            EvolutionStateTable,
             FlowStateTable,
             VolitionStateTable,
             MemeTable,

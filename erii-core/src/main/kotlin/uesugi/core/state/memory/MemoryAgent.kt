@@ -7,7 +7,6 @@ import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
 import ai.koog.prompt.params.LLMParams
 import kotlinx.coroutines.*
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
 import uesugi.common.LLMProviderChoice
@@ -43,19 +42,6 @@ class MemoryAgent(
     // ==================== 数据模型 ====================
 
     /**
-     * 历史消息数据模型
-     */
-    data class MemoryMessage(
-        val id: Int,
-        val userId: String,
-        val groupId: String,
-        val time: LocalDateTime,
-        val content: String
-    ) {
-        fun asLlmPrompt() = "[ID:$id $userId ${time.format(DateTimeFormat)}] $content"
-    }
-
-    /**
      * 用户画像分析结果
      */
     @Serializable
@@ -87,7 +73,7 @@ class MemoryAgent(
      */
     @OptIn(ExperimentalTime::class)
     suspend fun analyzeUserProfile(
-        messages: List<MemoryMessage>,
+        messages: List<HistoryRecord>,
         userProfileEntity: UserProfileRecord?
     ): UserProfileAnalysis {
         log.debug("Start analyzing user profile, userId=${messages.firstOrNull()?.userId}, message count=${messages.size}")
@@ -178,25 +164,6 @@ class MemoryAgent(
         }
     }
 
-    // ==================== 消息转换 ====================
-
-    /**
-     * 转换历史实体为内存消息
-     */
-    fun convertToMemoryMessages(histories: List<HistoryRecord>): List<MemoryMessage> {
-        return histories.mapNotNull { history ->
-            history.content?.let {
-                MemoryMessage(
-                    id = history.id!!,
-                    userId = history.userId,
-                    groupId = history.groupId,
-                    time = history.createdAt,
-                    content = it
-                )
-            }
-        }
-    }
-
     // ==================== 记忆整理核心流程 ====================
 
     /**
@@ -211,7 +178,7 @@ class MemoryAgent(
     suspend fun organize(
         botMark: String,
         groupId: String,
-        messages: List<MemoryMessage>
+        messages: List<HistoryRecord>
     ) {
         if (messages.isEmpty()) return
 
@@ -273,7 +240,7 @@ class MemoryAgent(
     // ==================== Step 1: 事实提取 ====================
 
     @OptIn(ExperimentalTime::class)
-    private suspend fun extractFacts(messages: List<MemoryMessage>): FactExtractionResult {
+    private suspend fun extractFacts(messages: List<HistoryRecord>): FactExtractionResult {
         val prompt = prompt("__memory_fact_extract__", LLMParams(maxTokens = 65536)) {
             system(
                 """
@@ -542,3 +509,6 @@ class MemoryAgent(
         }
     }
 }
+
+internal fun HistoryRecord.asLlmPrompt(): String =
+    "[ID:${id ?: 0} $userId ${createdAt.format(DateTimeFormat)}] ${content ?: ""}"

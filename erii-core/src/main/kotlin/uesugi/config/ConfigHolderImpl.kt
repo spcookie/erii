@@ -286,7 +286,23 @@ class ConfigHolderImpl : ConfigProvider {
 
     override fun getStateTuning(): StateTuningConfig {
         val d = StateTuningConfig()
+        val profileValue = if (config.hasPath("state-tuning.dispatch.profile")) {
+            config.getString("state-tuning.dispatch.profile")
+        } else {
+            null
+        }
+        val dispatchProfile = StateTriggerProfile.parse(profileValue)
+        if (profileValue != null && !StateTriggerProfile.entries.any {
+                it.name.equals(profileValue.trim(), ignoreCase = true)
+            }
+        ) {
+            log.warn { "Invalid state trigger profile '$profileValue', falling back to ECONOMY" }
+        }
         return StateTuningConfig(
+            dispatch = StateDispatchTuningConfig(
+                profile = dispatchProfile,
+                maxConcurrency = getIntOrDefault("state-tuning.dispatch.max-concurrency", d.dispatch.maxConcurrency)
+            ),
             emotion = EmotionTuningConfig(
                 emotionRetentionHigh = getDoubleOrDefault(
                     "state-tuning.emotion.emotion-retention-high",

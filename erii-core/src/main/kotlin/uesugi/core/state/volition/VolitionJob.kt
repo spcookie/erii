@@ -1,16 +1,17 @@
 package uesugi.core.state.volition
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.*
-import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.common.BotManage
 import uesugi.common.EventBus
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.MessageType
 import uesugi.common.event.InterruptionMode
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.state.dispatch.*
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
@@ -18,16 +19,15 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 class VolitionJob(
-    val jobScheduler: JobScheduler,
     private val volitionAgent: VolitionAgent,
     private val volitionRepository: VolitionRepository
-) {
+) : StateWorkProcessor {
+
+    override val kind = StateWorkKind.VOLITION
 
     companion object {
         private val log = logger()
     }
-
-    private val mutex = Mutex()
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -39,49 +39,30 @@ class VolitionJob(
                 ensureVolitionGaugeExists(bot, group)
             }
         }
-        jobScheduler.scheduleRecurrently(
-            "volition-job",
-            "* * * * *",
-            ::doVolitionAnalysis
-        )
-        log.info("Proactive task timer has been started, with an execution cycle of every minute")
+        log.info("Volition event processor initialized")
 
         startDailyTasks()
         startSilentMonitor()
     }
 
-    @OptIn(ExperimentalTime::class)
-    fun doVolitionAnalysis() {
-        runBlocking {
-            if (mutex.tryLock()) {
-                try {
-                    log.debug("主动意愿任务开始执行")
-                    for (currentBotId in BotManage.getAllBotIds()) {
-                        log.debug("开始处理主动意愿: currentBotId=$currentBotId")
+    override fun accepts(record: HistoryRecord): Boolean = record.messageType == MessageType.TEXT
 
-                        val groups = withContext(Dispatchers.IO) {
-                            volitionRepository.findGroupsNeedProcessing(currentBotId)
-                        }
-
-                        log.debug("主动意愿任务发现 ${groups.size} 个群组需要处理")
-
-                        for (groupId in groups) {
-                            ensureVolitionGaugeExists(currentBotId, groupId)
-                            UsageContext.withUsage(currentBotId, groupId) {
-                                processGroupVolition(currentBotId, groupId)
-                            }
-                        }
-                    }
-
-                    log.debug("主动意愿任务执行完成")
-                } catch (e: Exception) {
-                    log.error("主动意愿任务执行失败", e)
-                } finally {
-                    mutex.unlock()
-                }
-            } else {
-                log.debug("主动意愿任务正在执行中, 跳过本次调度")
+    override fun pendingKeys(): Set<StateWorkKey> = buildSet {
+        for (botId in BotManage.getAllBotIds()) {
+            volitionRepository.findGroupsNeedProcessing(botId).forEach { groupId ->
+                add(StateWorkKey(botId, groupId, kind))
             }
+        }
+    }
+
+    override suspend fun process(
+        key: StateWorkKey,
+        policy: StateWorkPolicy,
+        force: Boolean
+    ): StateWorkResult {
+        ensureVolitionGaugeExists(key.botId, key.groupId)
+        return UsageContext.withUsage(key.botId, key.groupId) {
+            processGroupVolition(key.botId, key.groupId, policy, force)
         }
     }
 
@@ -91,20 +72,26 @@ class VolitionJob(
     }
 
     @OptIn(ExperimentalTime::class)
-    private suspend fun processGroupVolition(botMark: String, groupId: String) {
+    private suspend fun processGroupVolition(
+        botMark: String,
+        groupId: String,
+        policy: StateWorkPolicy,
+        force: Boolean
+    ): StateWorkResult {
         log.debug("开始处理群组主动意愿, groupId=$groupId")
 
         try {
-            val volitionState = volitionRepository.getVolitionState(botMark, groupId)
+            val volitionState = withContext(Dispatchers.IO) {
+                volitionRepository.getVolitionState(botMark, groupId)
+            }
             val lastId = volitionState?.lastProcessedHistoryId ?: 0
 
             val histories = withContext(Dispatchers.IO) {
-                volitionRepository.getHistoriesToProcess(botMark, groupId, lastId, 100)
+                volitionRepository.getLatestHistoriesToProcess(botMark, groupId, lastId, policy.batchLimit)
             }
 
-            if (histories.size < 20) {
-                log.debug("群组 $groupId 新消息不足 20 条, 跳过处理主动意愿分析")
-                return
+            if (histories.isEmpty() || (!force && histories.size < policy.minMessages)) {
+                return StateWorkResult(0, lastId, hasMore = false)
             }
 
             log.debug("群组 $groupId 获取到 ${histories.size} 条新消息")
@@ -123,19 +110,25 @@ class VolitionJob(
             if (messages.isEmpty()) {
                 log.debug("群组 $groupId 消息转换后为空, 跳过处理")
                 val maxHistoryId = histories.maxOf { it.id.value }
-                volitionRepository.updateVolitionState(botMark, groupId, maxHistoryId)
-                return
+                withContext(Dispatchers.IO) {
+                    volitionRepository.updateVolitionState(botMark, groupId, maxHistoryId)
+                }
+                return StateWorkResult(histories.size, maxHistoryId, hasMore = false)
             }
 
             analyze(botMark, groupId, messages)
 
             val maxHistoryId = histories.maxOf { it.id.value }
-            volitionRepository.updateVolitionState(botMark, groupId, maxHistoryId)
+            withContext(Dispatchers.IO) {
+                volitionRepository.updateVolitionState(botMark, groupId, maxHistoryId)
+            }
 
             log.debug("群组 $groupId 主动意愿处理完成, 最大 historyId=$maxHistoryId")
+            return StateWorkResult(histories.size, maxHistoryId, hasMore = false)
 
         } catch (e: Exception) {
             log.error("Processing group $groupId voluntary request failed", e)
+            throw e
         }
     }
 

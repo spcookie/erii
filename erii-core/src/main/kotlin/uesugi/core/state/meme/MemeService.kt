@@ -267,6 +267,10 @@ class MemeService(
         }
     }
 
+    fun latestHistoryId(botMark: String, groupId: String): Int? {
+        return repository.latestHistoryId(botMark, groupId)
+    }
+
     /**
      * 获取扫描状态
      *

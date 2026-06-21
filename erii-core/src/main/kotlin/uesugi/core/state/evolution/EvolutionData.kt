@@ -42,6 +42,42 @@ object LearnedVocabTable : IntIdTable("learned_vocab") {
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
 }
 
+object EvolutionStateTable : IntIdTable("evolution_state") {
+    val botMark = varchar("bot_mark", length = DEFAULT_LENGTH)
+    val groupId = varchar("group_id", length = DEFAULT_LENGTH)
+    val lastProcessedHistoryId = integer("last_processed_history_id").default(0)
+    val lastProcessedAt = datetime("last_processed_at").defaultExpression(CurrentDateTime)
+
+    init {
+        uniqueIndex(botMark, groupId)
+    }
+}
+
+class EvolutionStateEntity(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<EvolutionStateEntity>(EvolutionStateTable)
+
+    var botMark by EvolutionStateTable.botMark
+    var groupId by EvolutionStateTable.groupId
+    var lastProcessedHistoryId by EvolutionStateTable.lastProcessedHistoryId
+    var lastProcessedAt by EvolutionStateTable.lastProcessedAt
+}
+
+data class EvolutionStateRecord(
+    val botMark: String,
+    val groupId: String,
+    val lastProcessedHistoryId: Int,
+    val lastProcessedAt: LocalDateTime
+)
+
+fun EvolutionStateEntity.toStateRecord() = EvolutionStateRecord(
+    botMark = botMark,
+    groupId = groupId,
+    lastProcessedHistoryId = lastProcessedHistoryId,
+    lastProcessedAt = lastProcessedAt
+)
+
+data class EvolutionHistoryMessage(val id: Int, val content: String)
+
 /**
  * 学习词汇实体
  */

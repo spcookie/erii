@@ -1,5 +1,7 @@
 package uesugi.core.state.emotion
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import uesugi.common.BotManage
@@ -142,34 +144,45 @@ class EmotionService(
     suspend fun analyzeGroupEmotion(
         currentBotId: String,
         groupId: String,
-    ) {
+        batchLimit: Int = 200,
+        minimumMessages: Int = 11,
+        force: Boolean = false
+    ): Int? {
         val bot = BotManage.getBot(currentBotId)
         val baseLine = bot.role.emoticon
         val tuning = ConfigHolder.getStateTuning().emotion
 
         // 获取当前情绪状态和新消息
-        val emotionEntity = emotionRepository.getLatestEmotion(currentBotId, groupId)
+        val emotionEntity = withContext(Dispatchers.IO) {
+            emotionRepository.getLatestEmotion(currentBotId, groupId)
+        }
 
         val lastProcessedId = emotionEntity?.historyMessageProcessed ?: 0
 
         // 获取上下文消息
         val contextHistories = if (lastProcessedId > 0) {
-            emotionRepository.getContextMessages(currentBotId, groupId, lastProcessedId, 100)
+            withContext(Dispatchers.IO) {
+                emotionRepository.getContextMessages(currentBotId, groupId, lastProcessedId, 100)
+            }
         } else {
             emptyList()
         }
 
         // 获取新消息
-        val historyEntities = emotionRepository.getNewMessages(currentBotId, groupId, lastProcessedId, 200)
+        val historyEntities = withContext(Dispatchers.IO) {
+            emotionRepository.getLatestNewMessages(currentBotId, groupId, lastProcessedId, batchLimit)
+        }
 
         // 检查消息数量
-        if (historyEntities.isEmpty() || historyEntities.size <= 10) {
-            return
+        if (historyEntities.isEmpty() || (!force && historyEntities.size < minimumMessages)) {
+            return null
         }
 
         // 对旧情绪状态进行时间衰减（analyze 路径也要考虑两次分析之间的时间差）
         val (decayedEmotion, decayedMood) = if (emotionEntity != null) {
-            emotionRepository.decayEntity(emotionEntity, baseLine.pad, minSeconds = 60)
+            withContext(Dispatchers.IO) {
+                emotionRepository.decayEntity(emotionEntity, baseLine.pad, minSeconds = 60)
+            }
         } else {
             null to null
         }
@@ -213,21 +226,24 @@ class EmotionService(
 
         // 保存情绪状态
         val maxHistoryId = historyEntities.maxOf { it.id.value }
-        emotionRepository.saveEmotion(
-            botMark = currentBotId,
-            groupId = groupId,
-            emotionalTendency = behaviorProfile.emotion,
-            stimulus = stimulus,
-            emotion = emotion,
-            mood = mood,
-            behavior = behaviorProfile,
-            historyMessageProcessed = maxHistoryId
-        )
+        withContext(Dispatchers.IO) {
+            emotionRepository.saveEmotion(
+                botMark = currentBotId,
+                groupId = groupId,
+                emotionalTendency = behaviorProfile.emotion,
+                stimulus = stimulus,
+                emotion = emotion,
+                mood = mood,
+                behavior = behaviorProfile,
+                historyMessageProcessed = maxHistoryId
+            )
+        }
 
         log.info("Saved emotion for group $groupId with emotion $emotion, mood $mood and behavior $behaviorProfile")
 
         // 发送事件
         EventBus.postAsync(EmotionChangeEvent(currentBotId, groupId, emotion))
+        return maxHistoryId
     }
 
     /**
@@ -235,17 +251,19 @@ class EmotionService(
      * 衰减时更新现有记录（不创建新记录），使 createdAt 保持为上次 analyze 的时间
      */
     @OptIn(ExperimentalTime::class)
-    fun decayGroupEmotion(
+    suspend fun decayGroupEmotion(
         currentBotId: String,
         groupId: String
     ) {
-        val currentEmotionEntity = emotionRepository.getLatestEmotion(currentBotId, groupId) ?: return
+        val currentEmotionEntity = withContext(Dispatchers.IO) {
+            emotionRepository.getLatestEmotion(currentBotId, groupId)
+        } ?: return
         val baseLine = BotManage.getBot(currentBotId).role.emoticon
 
         // 计算衰减（使用封装方法）
-        val (emotion, mood) = emotionRepository.decayEntity(
-            currentEmotionEntity, baseLine.pad, minSeconds = 0
-        )
+        val (emotion, mood) = withContext(Dispatchers.IO) {
+            emotionRepository.decayEntity(currentEmotionEntity, baseLine.pad, minSeconds = 0)
+        }
 
         // 计算行为（使用衰减后的 emotion/mood，不再重复计算）
         val tz = TimeZone.currentSystemDefault()
@@ -261,14 +279,16 @@ class EmotionService(
         val behaviorProfile = behaviorAnalysis.decideBehavior(emotion, mood, applyEmotion = applyEmotion)
 
         // 更新现有记录（不创建新记录），stimulus 归零表示当前无外部刺激
-        emotionRepository.updateEmotion(
-            entity = currentEmotionEntity,
-            emotionalTendency = behaviorProfile.emotion,
-            stimulus = PAD.ZERO,
-            emotion = emotion,
-            mood = mood,
-            behavior = behaviorProfile
-        )
+        withContext(Dispatchers.IO) {
+            emotionRepository.updateEmotion(
+                entity = currentEmotionEntity,
+                emotionalTendency = behaviorProfile.emotion,
+                stimulus = PAD.ZERO,
+                emotion = emotion,
+                mood = mood,
+                behavior = behaviorProfile
+            )
+        }
 
         // 发送事件
         EventBus.postAsync(EmotionChangeEvent(currentBotId, groupId, mood))

@@ -10,8 +10,10 @@ import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.state.dispatch.StateWorkResult
 import uesugi.core.state.summary.SummaryEntity
 import uesugi.core.state.summary.SummaryTable
 import kotlin.time.Clock
@@ -34,39 +36,57 @@ class MemoryService(
     /**
      * 处理单个群组的记忆
      */
-    suspend fun processGroupMemory(botMark: String, groupId: String) {
+    suspend fun processGroupMemory(
+        botMark: String,
+        groupId: String,
+        batchLimit: Int = ConfigHolder.getStateTuning().memory.batchLimit,
+        minimumMessages: Int = ConfigHolder.getStateTuning().memory.minMessages,
+        force: Boolean = false
+    ): StateWorkResult {
         log.debug("开始处理群组记忆, groupId=$groupId")
 
         try {
             // 1. 获取需要处理的历史消息
-            val tuning = ConfigHolder.getStateTuning().memory
-            val memoryState = memoryRepository.getMemoryState(botMark, groupId)
-            val lastId = memoryState?.lastProcessedHistoryId ?: 0
+            val memoryState = withContext(Dispatchers.IO) {
+                memoryRepository.getMemoryState(botMark, groupId)
+            }
+            if (memoryState == null) {
+                val latestId = withContext(Dispatchers.IO) {
+                    memoryRepository.latestHistoryId(botMark, groupId)
+                } ?: return StateWorkResult(0, 0, false)
+                withContext(Dispatchers.IO) {
+                    memoryRepository.updateMemoryState(botMark, groupId, latestId)
+                }
+                return StateWorkResult(0, latestId, false)
+            }
+            val lastId = memoryState.lastProcessedHistoryId
 
             val histories = withContext(Dispatchers.IO) {
-                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, tuning.batchLimit)
+                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, batchLimit)
             }
 
             if (histories.isEmpty()) {
                 log.debug("群组 $groupId 没有新消息需要处理")
-                return
+                return StateWorkResult(0, lastId, hasMore = false)
             }
 
-            if (histories.size < tuning.minMessages) {
-                log.debug("群组 $groupId 消息数量不足 30 条，跳过记忆处理")
-                return
+            if (!force && histories.size < minimumMessages) {
+                log.debug("群组 $groupId 消息数量不足 $minimumMessages 条，等待更多消息")
+                return StateWorkResult(0, lastId, hasMore = false)
             }
 
             log.debug("群组 $groupId 获取到 ${histories.size} 条新消息")
 
-            // 2. 转换为记忆消息
-            val messages = memoryAgent.convertToMemoryMessages(histories)
+            // 2. 过滤空内容消息
+            val messages = histories.filter { !it.content.isNullOrBlank() }
 
             if (messages.isEmpty()) {
-                log.debug("群组 $groupId 消息转换后为空,跳过处理")
+                log.debug("群组 $groupId 过滤后无有效消息,跳过处理")
                 val maxHistoryId = histories.maxOf { it.id!! }
-                memoryRepository.updateMemoryState(botMark, groupId, maxHistoryId)
-                return
+                withContext(Dispatchers.IO) {
+                    memoryRepository.updateMemoryState(botMark, groupId, maxHistoryId)
+                }
+                return StateWorkResult(histories.size, maxHistoryId, histories.size == batchLimit)
             }
 
             // 3. 按用户分组
@@ -93,17 +113,21 @@ class MemoryService(
 
             if (!processedSuccessfully) {
                 log.warn("Memory processing partially failed, keeping cursor for retry, groupId=$groupId")
-                return
+                error("Memory processing partially failed for group $groupId")
             }
 
             // 5. 更新记忆处理状态
             val maxHistoryId = histories.maxOf { it.id!! }
-            memoryRepository.updateMemoryState(botMark, groupId, maxHistoryId)
+            withContext(Dispatchers.IO) {
+                memoryRepository.updateMemoryState(botMark, groupId, maxHistoryId)
+            }
 
             log.debug("群组 $groupId 记忆处理完成, 最大 historyId=$maxHistoryId")
+            return StateWorkResult(histories.size, maxHistoryId, histories.size == batchLimit)
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 记忆失败", e)
+            throw e
         }
     }
 
@@ -119,7 +143,7 @@ class MemoryService(
     private suspend fun organizeFacts(
         botMark: String,
         groupId: String,
-        messages: List<MemoryAgent.MemoryMessage>
+        messages: List<HistoryRecord>
     ): Boolean {
         try {
             log.debug("开始整理事实记忆, groupId=$groupId, message count=${messages.size}")
@@ -140,7 +164,7 @@ class MemoryService(
         botMark: String,
         groupId: String,
         userId: String,
-        messages: List<MemoryAgent.MemoryMessage>
+        messages: List<HistoryRecord>
     ): Boolean {
         try {
             log.debug("开始处理用户画像, groupId=$groupId, userId=$userId")

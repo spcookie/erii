@@ -1,15 +1,20 @@
 package uesugi.core.state.memory
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.MessageType
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.state.dispatch.*
 
 /**
- * 记忆任务 - 定时调度记忆处理
+ * 记忆任务 - 事件驱动记忆处理与定时清理
  *
  * 仅负责调度和组合逻辑，业务逻辑封装在 MemoryService 中
  */
@@ -17,7 +22,9 @@ class MemoryJob(
     val jobScheduler: JobScheduler,
     private val memoryRepository: MemoryRepository,
     private val memoryService: MemoryService
-) {
+) : StateWorkProcessor {
+
+    override val kind = StateWorkKind.MEMORY
 
     companion object {
         private val log = logger()
@@ -26,15 +33,9 @@ class MemoryJob(
     private val mutex = Mutex()
 
     /**
-     * 开启定时触发
-     * 每 5 分钟执行一次记忆处理
+     * 开启每日记忆清理任务。
      */
     fun openTimingTriggerSignal() {
-        jobScheduler.scheduleRecurrently(
-            "memory-job",
-            "0,30 * * * *",  // 每小时的 0 和 30 分
-            ::doMemoryProcessing
-        )
         jobScheduler.scheduleRecurrently(
             "memory-expired-cleanup-job",
             "0 2 * * *",
@@ -45,56 +46,31 @@ class MemoryJob(
             "30 2 * * *",
             ::doStaleRecalledMemoryCleanup
         )
-        log.info("Memory task timer started, execution cycle: every 30 minutes")
+        log.info("Memory event processor and cleanup timers initialized")
     }
 
-    /**
-     * 执行记忆处理
-     * 调度逻辑：遍历所有机器人和群组，调用 Service 处理
-     * 支持群组并发处理
-     */
-    fun doMemoryProcessing() {
-        runBlocking {
-            if (mutex.tryLock()) {
-                try {
-                    log.debug("记忆任务开始执行")
+    override fun accepts(record: HistoryRecord): Boolean = record.messageType == MessageType.TEXT
 
-                    for (currentBotId in BotManage.getAllBotIds()) {
-                        log.debug("开始处理机器人 $currentBotId 的记忆")
-
-                        // 查找需要处理的群组
-                        val groups = withContext(Dispatchers.IO) {
-                            memoryRepository.findGroupsNeedProcessing(currentBotId)
-                        }
-
-                        log.debug("记忆任务发现 ${groups.size} 个群组需要处理")
-
-                        // 使用 coroutineScope 并发处理各群组
-                        coroutineScope {
-                            for (groupId in groups) {
-                                launch(Dispatchers.IO) {
-                                    try {
-                                        UsageContext.withUsage(currentBotId, groupId) {
-                                            memoryService.processGroupMemory(currentBotId, groupId)
-                                        }
-                                    } catch (e: Exception) {
-                                        log.error("处理群组 $groupId 记忆失败", e)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    log.debug("记忆任务执行完成")
-                } catch (e: Exception) {
-                    log.error("记忆任务执行失败", e)
-                } finally {
-                    mutex.unlock()
-                }
-            } else {
-                log.debug("记忆任务正在执行中, 跳过本次调度")
+    override fun pendingKeys(): Set<StateWorkKey> = buildSet {
+        for (botId in BotManage.getAllBotIds()) {
+            memoryRepository.findGroupsNeedProcessing(botId).forEach { groupId ->
+                add(StateWorkKey(botId, groupId, kind))
             }
         }
+    }
+
+    override suspend fun process(
+        key: StateWorkKey,
+        policy: StateWorkPolicy,
+        force: Boolean
+    ): StateWorkResult = UsageContext.withUsage(key.botId, key.groupId) {
+        memoryService.processGroupMemory(
+            botMark = key.botId,
+            groupId = key.groupId,
+            batchLimit = policy.batchLimit,
+            minimumMessages = policy.minMessages,
+            force = force
+        )
     }
 
     fun doExpiredMemoryCleanup() {

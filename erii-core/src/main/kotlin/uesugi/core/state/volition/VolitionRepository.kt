@@ -52,25 +52,21 @@ class VolitionRepository {
         }
     }
 
-    /**
-     * 获取待处理的历史消息
-     */
-    fun getHistoriesToProcess(
+    fun getLatestHistoriesToProcess(
         botMark: String,
         groupId: String,
         lastHistoryId: Int,
-        limit: Int = 100
-    ): List<HistoryEntity> {
-        return transaction {
-            HistoryEntity.find(
-                (HistoryTable.botMark eq botMark) and
-                        (HistoryTable.groupId eq groupId) and
-                        (HistoryTable.id greater lastHistoryId)
-            )
-                .orderBy(HistoryTable.createdAt to SortOrder.ASC)
-                .limit(limit)
-                .toList()
-        }
+        limit: Int
+    ): List<HistoryEntity> = transaction {
+        HistoryEntity.find(
+            (HistoryTable.botMark eq botMark) and
+                    (HistoryTable.groupId eq groupId) and
+                    (HistoryTable.id greater lastHistoryId)
+        )
+            .orderBy(HistoryTable.id to SortOrder.DESC)
+            .limit(limit)
+            .toList()
+            .reversed()
     }
 
     /**

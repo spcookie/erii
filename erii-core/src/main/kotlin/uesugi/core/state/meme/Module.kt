@@ -8,5 +8,7 @@ val memeModule = module {
     singleOf(::MemeRepository)
     singleOf(::MemeService)
     singleOf(::MemeJob)
+    singleOf(::MemeCollectProcessor)
+    singleOf(::MemeAnalyzeProcessor)
     singleOf(::MemoVectorStore)
 }

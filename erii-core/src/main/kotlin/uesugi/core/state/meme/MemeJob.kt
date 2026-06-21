@@ -1,7 +1,9 @@
 package uesugi.core.state.meme
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import okio.Path.Companion.toPath
 import okio.buffer
 import org.jetbrains.exposed.v1.core.*
@@ -16,6 +18,8 @@ import uesugi.common.toolkit.logger
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.component.usage.UsageContext
 import uesugi.core.message.resource.ResourceService
+import uesugi.core.state.dispatch.StateWorkKind
+import uesugi.core.state.dispatch.StateWorkResult
 
 /**
  * 表情包调度任务
@@ -24,9 +28,7 @@ import uesugi.core.message.resource.ResourceService
  * 1. 收集任务 [doCollecting]: 扫描历史消息中的图片，收集表情包
  * 2. 提取任务 [doExtracting]: 分析待处理的表情包，提取描述、用途、标签
  *
- * 调度周期：
- * - 收集任务：每 30 分钟执行一次
- * - 提取任务：每 1 小时执行一次
+ * 收集与提取由状态协调器触发，清理仍由 Cron 执行。
  *
  * @property memeService 表情包服务
  * @property resourceService 资源服务
@@ -49,26 +51,9 @@ class MemeJob(
     /**
      * 开启定时触发
      *
-     * 启动三个定时任务：
-     * - 收集任务：每 30 分钟执行一次
-     * - 提取任务：每 1 小时执行一次
-     * - 清理任务：每天凌晨 3 点执行一次
+     * 启动每天凌晨 3 点执行的清理任务。
      */
     fun openTimingTriggerSignal() {
-        // 收集任务：每 30 分钟一次
-        BackgroundJob.scheduleRecurrently(
-            "meme-collect-job",
-            "0,30 * * * *",
-            ::doCollecting
-        )
-
-        // 提取任务：每 1 小时一次
-        BackgroundJob.scheduleRecurrently(
-            "meme-extract-job",
-            "0 */1 * * *",
-            ::doExtracting
-        )
-
         // 清理任务：每天凌晨 3 点一次
         BackgroundJob.scheduleRecurrently(
             "meme-cleanup-job",
@@ -76,7 +61,7 @@ class MemeJob(
             ::doCleanup
         )
 
-        log.info("Emoji task started - Collect: 30 minutes, Extract: 1 hour, Cleanup: daily at 03:00")
+        log.info("Meme event processors initialized, cleanup: daily at 03:00")
     }
 
     /**
@@ -122,26 +107,43 @@ class MemeJob(
      * @param botId 机器人标识
      * @param groupId 群组ID
      */
-    private fun processGroupCollection(botId: String, groupId: String) {
+    internal suspend fun processGroupCollection(
+        botId: String,
+        groupId: String,
+        batchLimit: Int = 500
+    ): StateWorkResult {
         log.debug("开始收集群组表情包, 群组ID: $groupId")
 
         try {
             // 获取扫描状态（上次扫描到的最后 history id）
-            val scanState = memeService.getScanState(botId, groupId)
-            val lastHistoryId = scanState?.lastHistoryId ?: 0
+            val scanState = withContext(Dispatchers.IO) {
+                memeService.getScanState(botId, groupId)
+            }
+            if (scanState == null) {
+                val latestId = withContext(Dispatchers.IO) {
+                    memeService.latestHistoryId(botId, groupId)
+                } ?: return StateWorkResult(0, 0, false)
+                withContext(Dispatchers.IO) {
+                    memeService.updateScanState(botId, groupId, latestId)
+                }
+                return StateWorkResult(0, latestId, false)
+            }
+            val lastHistoryId = scanState.lastHistoryId
             log.debug("上次扫描到的最后 history id: $lastHistoryId")
 
             // 获取增量图片消息（只获取 id > lastHistoryId 的）
-            val newImages = memeService.getRecentImageMessages(
-                botId = botId,
-                groupId = groupId,
-                lastHistoryId = lastHistoryId,
-                limit = 500
-            )
+            val newImages = withContext(Dispatchers.IO) {
+                memeService.getRecentImageMessages(
+                    botId = botId,
+                    groupId = groupId,
+                    lastHistoryId = lastHistoryId,
+                    limit = batchLimit
+                )
+            }
 
             if (newImages.isEmpty()) {
                 log.debug("群组 $groupId 没有新的图片消息需要处理")
-                return
+                return StateWorkResult(0, lastHistoryId, false)
             }
 
             log.debug("发现 ${newImages.size} 张新图片需要处理")
@@ -164,30 +166,42 @@ class MemeJob(
                     val context = getContextMessage(botId, groupId, image.historyId)
 
                     // 添加或更新表情包
-                    memeService.addOrUpdateMeme(
-                        botId = botId,
-                        groupId = groupId,
-                        resourceId = image.resourceId,
-                        md5 = image.md5,
-                        context = context
-                    )
+                    withContext(Dispatchers.IO) {
+                        memeService.addOrUpdateMeme(
+                            botId = botId,
+                            groupId = groupId,
+                            resourceId = image.resourceId,
+                            md5 = image.md5,
+                            context = context
+                        )
+                    }
 
                     log.debug("处理图片: md5=${image.md5}, historyId=${image.historyId}")
                 } catch (e: Exception) {
                     log.error("Processing image ${image.resourceId} failed", e)
+                    throw e
                 }
             }
 
             // 更新扫描状态
             if (maxHistoryId > lastHistoryId) {
-                memeService.updateScanState(botId, groupId, maxHistoryId)
+                withContext(Dispatchers.IO) {
+                    memeService.updateScanState(botId, groupId, maxHistoryId)
+                }
                 log.debug("扫描状态已更新: lastHistoryId=$maxHistoryId")
             }
 
             log.debug("群组 $groupId 表情包收集完成")
+            return StateWorkResult(
+                processedCount = newImages.size,
+                cursor = maxHistoryId,
+                hasMore = newImages.size == batchLimit,
+                wakeKinds = setOf(StateWorkKind.MEME_ANALYZE)
+            )
 
         } catch (e: Exception) {
             log.error("Handling group $groupId meme collection failure", e)
+            throw e
         }
     }
 
@@ -199,8 +213,9 @@ class MemeJob(
      * @param historyId 图片消息的 history id
      * @return 上下文消息文本
      */
-    private fun getContextMessage(botMark: String, groupId: String, historyId: Int): String? {
-        return transaction {
+    private suspend fun getContextMessage(botMark: String, groupId: String, historyId: Int): String? {
+        return withContext(Dispatchers.IO) {
+            transaction {
             // 获取该图片之前的文本消息（id < historyId 的最近的消息）
             val beforeMessages = HistoryTable
                 .select(HistoryTable.content)
@@ -232,6 +247,7 @@ class MemeJob(
             val allContexts = beforeMessages + afterMessages
 
             allContexts.joinToString("\n").takeIf { it.isNotBlank() }
+            }
         }
     }
 
@@ -278,16 +294,23 @@ class MemeJob(
      * @param botMark 机器人标识
      * @param groupId 群组ID
      */
-    private suspend fun processGroupExtraction(botMark: String, groupId: String) {
+    internal suspend fun processGroupExtraction(
+        botMark: String,
+        groupId: String,
+        batchLimit: Int = 20
+    ): StateWorkResult {
         log.debug("开始提取群组表情包, 群组ID: $groupId")
 
         try {
             // 获取待分析的表情包
-            val pendingMemos = memeService.getPendingAnalysisMemes(botMark, groupId)
+            val allPendingMemos = withContext(Dispatchers.IO) {
+                memeService.getPendingAnalysisMemes(botMark, groupId)
+            }
+            val pendingMemos = allPendingMemos.take(batchLimit)
 
             if (pendingMemos.isEmpty()) {
                 log.debug("群组 $groupId 没有待分析的表情包")
-                return
+                return StateWorkResult(0, null, false)
             }
 
             log.debug("发现 ${pendingMemos.size} 个待分析表情包")
@@ -330,26 +353,33 @@ class MemeJob(
                         memeService.upsertToVectorStore(updatedMemo)
 
                         // 更新分析结果（传入当前计数）
-                        memeService.updateAnalysis(
-                            memeId = memo.id,
-                            description = analysis.description,
-                            purpose = analysis.purpose,
-                            tags = analysis.tags.joinToString(","),
-                            vectorId = vectorId,
-                            analyzedCount = currentSeenCount
-                        )
+                        withContext(Dispatchers.IO) {
+                            memeService.updateAnalysis(
+                                memeId = memo.id,
+                                description = analysis.description,
+                                purpose = analysis.purpose,
+                                tags = analysis.tags.joinToString(","),
+                                vectorId = vectorId,
+                                analyzedCount = currentSeenCount
+                            )
+                        }
 
                         log.debug("表情包分析完成: memoId=${memo.id}, seenCount=$currentSeenCount, description=${analysis.description}")
+                    } else {
+                        error("Meme analysis returned no result for memo ${memo.id}")
                     }
                 } catch (e: Exception) {
                     log.error("Failed to analyze memes ${memo.id}", e)
+                    throw e
                 }
             }
 
             log.debug("群组 $groupId 表情包提取完成")
+            return StateWorkResult(pendingMemos.size, null, allPendingMemos.size > pendingMemos.size)
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 表情包提取失败", e)
+            throw e
         }
     }
 

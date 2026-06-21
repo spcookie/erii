@@ -53,11 +53,14 @@ class EvolutionService {
                     (HistoryTable.messageType eq MessageType.TEXT) and
                     (HistoryTable.userId neq botMark)
         }
+            .orderBy(HistoryTable.id to SortOrder.DESC)
+            .limit(limit)
+            .toList()
+            .reversed()
             .mapNotNull { entity ->
                 val content = entity.content ?: return@mapNotNull null
                 if (shouldFilterMessage(content)) null else content
             }
-            .take(limit)
 
         log.debug("获取6小时前活跃消息完成, botId=$botMark, groupId=$groupId, 消息数=${messages.size}")
         messages
@@ -78,6 +81,9 @@ class EvolutionService {
                 isUrl(content) ||
                 isPureEmoji(content)
     }
+
+    fun filterMessages(messages: List<String>): List<String> =
+        messages.filterNot(::shouldFilterMessage)
 
     /**
      * 判断是否为URL

@@ -1,105 +1,81 @@
 package uesugi.core.state.summary
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.MessageType
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.state.dispatch.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
 
 /**
- * 摘要任务 - 定时调度对话摘要生成
+ * 摘要任务 - 事件驱动对话摘要生成与定时清理
  *
- * 独立的定时任务，负责生成群组对话摘要（历史压缩）
+ * 负责生成群组对话摘要（历史压缩）。
  */
 class SummaryJob(
     val jobScheduler: JobScheduler,
     private val summaryService: SummaryService,
     private val summaryRepository: SummaryRepository
-) {
+) : StateWorkProcessor {
+
+    override val kind = StateWorkKind.SUMMARY
 
     companion object {
         private val log = logger()
     }
 
-    private val mutex = Mutex()
     private val cleanupMutex = Mutex()
 
     /**
-     * 开启定时触发
-     * 每 30 分钟执行一次摘要生成
+     * 开启每日摘要清理任务。
      */
     fun openTimingTriggerSignal() {
-        jobScheduler.scheduleRecurrently(
-            "summary-job",
-            "*/5 * * * *",  // 每 5 分钟
-            ::doSummaryProcessing
-        )
         jobScheduler.scheduleRecurrently(
             "summary-cleanup-job",
             "0 3 * * *",  // 每日 03:00
             ::doSummaryCleanup
         )
-        log.info("Summary task timer started, generation: every 5 minutes, cleanup: daily 03:00")
+        log.info("Summary event processor initialized, cleanup: daily 03:00")
     }
 
-    /**
-     * 执行摘要处理
-     * 调度逻辑：遍历所有机器人和群组，调用 Service 生成摘要
-     */
-    fun doSummaryProcessing() {
-        runBlocking {
-            if (mutex.tryLock()) {
-                try {
-                    log.debug("摘要任务开始执行")
+    override fun accepts(record: HistoryRecord): Boolean = record.messageType == MessageType.TEXT
 
-                    for (currentBotId in BotManage.getAllBotIds()) {
-                        log.debug("开始为机器人 $currentBotId 生成摘要")
-
-                        // 查找需要处理的群组
-                        val groups = withContext(Dispatchers.IO) {
-                            summaryRepository.findGroupsNeedProcessing(currentBotId)
-                        }
-
-                        log.debug("摘要任务发现 ${groups.size} 个群组需要处理")
-
-                        // 使用 coroutineScope 并发处理各群组
-                        coroutineScope {
-                            for (groupId in groups) {
-                                launch(Dispatchers.IO) {
-                                    try {
-                                        UsageContext.withUsage(currentBotId, groupId) {
-                                            summaryService.processSummaryForGroup(currentBotId, groupId)
-                                        }
-                                    } catch (e: Exception) {
-                                        log.error("Failed to generate a summary for a group $groupId", e)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    log.debug("摘要任务执行完成")
-                } catch (e: Exception) {
-                    log.error("Summary task execution failed", e)
-                } finally {
-                    mutex.unlock()
-                }
-            } else {
-                log.debug("摘要任务正在执行中, 跳过本次调度")
+    override fun pendingKeys(): Set<StateWorkKey> = buildSet {
+        for (botId in BotManage.getAllBotIds()) {
+            summaryRepository.findGroupsNeedProcessing(botId).forEach { groupId ->
+                add(StateWorkKey(botId, groupId, kind))
             }
         }
     }
 
+    override suspend fun process(
+        key: StateWorkKey,
+        policy: StateWorkPolicy,
+        force: Boolean
+    ): StateWorkResult = UsageContext.withUsage(key.botId, key.groupId) {
+        summaryService.processSummaryForGroup(
+            botMark = key.botId,
+            groupId = key.groupId,
+            batchLimit = policy.batchLimit,
+            minimumMessages = policy.minMessages,
+            force = force
+        )
+    }
+
     /**
      * 执行摘要清理
-     * 删除 createdAt 早于 [SUMMARY_RETENTION_DAYS] 天的记录
+     * 删除 createdAt 早于 SUMMARY_RETENTION_DAYS 天的记录
      */
     @OptIn(ExperimentalTime::class)
     fun doSummaryCleanup() {

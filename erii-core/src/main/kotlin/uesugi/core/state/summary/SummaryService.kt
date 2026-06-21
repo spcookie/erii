@@ -2,8 +2,10 @@ package uesugi.core.state.summary
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.state.dispatch.StateWorkResult
 import uesugi.core.state.memory.MemoryRepository
 
 /**
@@ -12,7 +14,6 @@ import uesugi.core.state.memory.MemoryRepository
 class SummaryService(
     private val memoryRepository: MemoryRepository,
     private val summaryRepository: SummaryRepository,
-    private val memoryAgent: uesugi.core.state.memory.MemoryAgent,
     private val summaryAgent: SummaryAgent
 ) {
 
@@ -23,35 +24,55 @@ class SummaryService(
     /**
      * 处理群组对话摘要
      */
-    suspend fun processSummaryForGroup(botMark: String, groupId: String) {
+    suspend fun processSummaryForGroup(
+        botMark: String,
+        groupId: String,
+        batchLimit: Int = ConfigHolder.getStateTuning().summary.batchLimit,
+        minimumMessages: Int = ConfigHolder.getStateTuning().summary.minMessages,
+        force: Boolean = false
+    ): StateWorkResult {
         try {
             log.debug("开始处理群组对话摘要, groupId=$groupId")
 
             // 1. 获取需要处理的历史消息
-            val tuning = ConfigHolder.getStateTuning().summary
-            val summaryState = summaryRepository.getSummaryState(botMark, groupId)
-            val lastId = summaryState?.lastProcessedHistoryId ?: 0
+            val summaryState = withContext(Dispatchers.IO) {
+                summaryRepository.getSummaryState(botMark, groupId)
+            }
+            if (summaryState == null) {
+                val latestId = withContext(Dispatchers.IO) {
+                    summaryRepository.latestHistoryId(botMark, groupId)
+                } ?: return StateWorkResult(0, 0, false)
+                withContext(Dispatchers.IO) {
+                    summaryRepository.updateSummaryState(botMark, groupId, latestId)
+                }
+                return StateWorkResult(0, latestId, false)
+            }
+            val lastId = summaryState.lastProcessedHistoryId
 
             val histories = withContext(Dispatchers.IO) {
-                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, tuning.batchLimit)
+                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, batchLimit)
             }
 
             if (histories.isEmpty()) {
                 log.debug("群组 $groupId 没有新消息需要处理摘要")
-                return
+                return StateWorkResult(0, lastId, hasMore = false)
             }
 
-            if (histories.size < tuning.minMessages) {
-                log.debug("群组 $groupId 消息数量不足 30 条，跳过摘要生成")
-                return
+            if (!force && histories.size < minimumMessages) {
+                log.debug("群组 $groupId 消息数量不足 $minimumMessages 条，等待更多消息")
+                return StateWorkResult(0, lastId, hasMore = false)
             }
 
-            // 2. 转换为记忆消息
-            val messages = memoryAgent.convertToMemoryMessages(histories)
+            // 2. 过滤空内容消息
+            val messages = histories.filter { !it.content.isNullOrBlank() }
 
             if (messages.isEmpty()) {
-                log.debug("群组 $groupId 消息转换后为空,跳过摘要生成")
-                return
+                log.debug("群组 $groupId 过滤后无有效消息,跳过摘要生成")
+                val maxHistoryId = histories.maxOf { it.id!! }
+                withContext(Dispatchers.IO) {
+                    summaryRepository.updateSummaryState(botMark, groupId, maxHistoryId)
+                }
+                return StateWorkResult(histories.size, maxHistoryId, histories.size == batchLimit)
             }
 
             // 3. 生成摘要
@@ -63,9 +84,11 @@ class SummaryService(
             }
 
             log.debug("群组 $groupId 对话摘要生成完成")
+            return StateWorkResult(histories.size, maxHistoryId, histories.size == batchLimit)
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 对话摘要失败", e)
+            throw e
         }
     }
 
@@ -75,18 +98,17 @@ class SummaryService(
     private suspend fun doGenerateSummary(
         botMark: String,
         groupId: String,
-        messages: List<uesugi.core.state.memory.MemoryAgent.MemoryMessage>
+        messages: List<HistoryRecord>
     ) {
-        try {
-            log.debug("开始生成对话摘要, scopeId=$groupId")
+        log.debug("开始生成对话摘要, scopeId=$groupId")
 
-            val previousSummaryContext = withContext(Dispatchers.IO) {
-                summaryRepository.getLatestSummary(botMark, groupId)
-            }?.let(::buildPreviousSummaryContext)
+        val previousSummaryContext = withContext(Dispatchers.IO) {
+            summaryRepository.getLatestSummary(botMark, groupId)
+        }?.let(::buildPreviousSummaryContext)
 
-            val summary = summaryAgent.generateSummary(messages, groupId, previousSummaryContext)
+        val summary = summaryAgent.generateSummary(messages, groupId, previousSummaryContext)
 
-            // 保存到数据库
+        withContext(Dispatchers.IO) {
             summaryRepository.saveSummary(
                 botMark = botMark,
                 groupId = groupId,
@@ -97,11 +119,8 @@ class SummaryService(
                 participantCount = summary.participantIds.distinct().size,
                 messageCount = summary.messageCount
             )
-            log.info("Conversation summary analysis completed, botId=$botMark, groupId=$groupId")
-
-        } catch (e: Exception) {
-            log.error("Failed to generate conversation summary, groupId=$groupId", e)
         }
+        log.info("Conversation summary analysis completed, botId=$botMark, groupId=$groupId")
     }
 
     /**

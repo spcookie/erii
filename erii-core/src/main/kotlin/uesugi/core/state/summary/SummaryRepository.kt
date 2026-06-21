@@ -3,11 +3,7 @@ package uesugi.core.state.summary
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.exposed.v1.core.SortOrder
-import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.greater
-import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -40,6 +36,17 @@ class SummaryRepository {
                         (HistoryTable.id greater lastProcessedId)
             ) > 0
         }
+    }
+
+    fun latestHistoryId(botMark: String, groupId: String): Int? = transaction {
+        HistoryTable
+            .select(HistoryTable.id)
+            .where { (HistoryTable.botMark eq botMark) and (HistoryTable.groupId eq groupId) }
+            .orderBy(HistoryTable.id to SortOrder.DESC)
+            .limit(1)
+            .firstOrNull()
+            ?.get(HistoryTable.id)
+            ?.value
     }
 
     fun getSummaryState(botMark: String, groupId: String): SummaryStateRecord? = transaction {

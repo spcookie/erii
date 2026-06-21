@@ -1,6 +1,5 @@
 package uesugi.core.state.flow
 
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -12,6 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryEntity
 import uesugi.common.data.HistoryTable
 import uesugi.common.toolkit.logger
+import kotlin.time.Clock
 
 /**
  * 心流仓库 - 负责数据库操作
@@ -47,7 +47,7 @@ class FlowRepository {
                             (HistoryTable.id greater lastProcessedId)
                 )
 
-                newMessageCount > 3
+                newMessageCount > 0
             }
         }
     }
@@ -67,10 +67,27 @@ class FlowRepository {
                         (HistoryTable.groupId eq groupId) and
                         (HistoryTable.id greater lastHistoryId)
             )
-                .orderBy(HistoryTable.createdAt to SortOrder.ASC)
+                .orderBy(HistoryTable.id to SortOrder.ASC)
                 .limit(limit)
                 .toList()
         }
+    }
+
+    fun getLatestHistoriesToProcess(
+        botMark: String,
+        groupId: String,
+        lastHistoryId: Int,
+        limit: Int
+    ): List<HistoryEntity> = transaction {
+        HistoryEntity.find(
+            (HistoryTable.botMark eq botMark) and
+                    (HistoryTable.groupId eq groupId) and
+                    (HistoryTable.id greater lastHistoryId)
+        )
+            .orderBy(HistoryTable.id to SortOrder.DESC)
+            .limit(limit)
+            .toList()
+            .reversed()
     }
 
     /**

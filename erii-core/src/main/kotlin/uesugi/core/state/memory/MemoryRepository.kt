@@ -111,10 +111,21 @@ class MemoryRepository {
                         (HistoryTable.groupId eq groupId) and
                         (HistoryTable.id greater lastHistoryId)
             )
-                .orderBy(HistoryTable.createdAt to SortOrder.ASC)
+                .orderBy(HistoryTable.id to SortOrder.ASC)
                 .limit(limit)
                 .map { it.toRecord() }
         }
+    }
+
+    fun latestHistoryId(botMark: String, groupId: String): Int? = transaction {
+        HistoryTable
+            .select(HistoryTable.id)
+            .where { (HistoryTable.botMark eq botMark) and (HistoryTable.groupId eq groupId) }
+            .orderBy(HistoryTable.id to SortOrder.DESC)
+            .limit(1)
+            .firstOrNull()
+            ?.get(HistoryTable.id)
+            ?.value
     }
 
     /**
@@ -143,7 +154,7 @@ class MemoryRepository {
         userId: String,
         profile: String,
         preferences: String
-    ): UserProfileRecord? =
+    ): UserProfileRecord =
         transaction {
             val entity = UserProfileEntity.find(
                 (UserProfileTable.botMark eq botMark) and
@@ -432,7 +443,7 @@ class MemoryRepository {
             (HistoryTable.botMark eq botMark) and
                     (HistoryTable.groupId eq groupId) and
                     (HistoryTable.id greater lastHistoryId)
-        }.orderBy(HistoryTable.createdAt to SortOrder.ASC).limit(limit)
+        }.orderBy(HistoryTable.id to SortOrder.ASC).limit(limit)
 
         if (userId != null) query.filter { it.userId == userId }.map { it.toRecord() } else query.map { it.toRecord() }
     }

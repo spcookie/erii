@@ -26,28 +26,31 @@ class UsageContextBoundaryTest {
         )
         assertContains(
             "src/main/kotlin/uesugi/core/state/emotion/EmotionJob.kt",
-            "UsageContext.withUsage(currentBotId, group)"
+            "UsageContext.withUsage(key.botId, key.groupId)"
         )
         assertContains(
             "src/main/kotlin/uesugi/core/state/evolution/EvolutionJob.kt",
-            "UsageContext.withUsage(currentBotId, groupId)"
+            "UsageContext.withUsage(key.botId, key.groupId)"
         )
         assertContains(
             "src/main/kotlin/uesugi/core/state/flow/FlowJob.kt",
-            "UsageContext.withUsage(currentBotId, groupId)"
+            "UsageContext.withUsage(key.botId, key.groupId)"
         )
-        assertContains("src/main/kotlin/uesugi/core/state/meme/MemeJob.kt", "UsageContext.withUsage(botId, groupId)")
+        assertContains(
+            "src/main/kotlin/uesugi/core/state/meme/MemeWorkProcessors.kt",
+            "UsageContext.withUsage(key.botId, key.groupId)"
+        )
         assertContains(
             "src/main/kotlin/uesugi/core/state/memory/MemoryJob.kt",
-            "UsageContext.withUsage(currentBotId, groupId)"
+            "UsageContext.withUsage(key.botId, key.groupId)"
         )
         assertContains(
             "src/main/kotlin/uesugi/core/state/summary/SummaryJob.kt",
-            "UsageContext.withUsage(currentBotId, groupId)"
+            "UsageContext.withUsage(key.botId, key.groupId)"
         )
         assertContains(
             "src/main/kotlin/uesugi/core/state/volition/VolitionJob.kt",
-            "UsageContext.withUsage(currentBotId, groupId)"
+            "UsageContext.withUsage(key.botId, key.groupId)"
         )
     }
 

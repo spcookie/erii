@@ -8,10 +8,11 @@ import ai.koog.prompt.params.LLMParams
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
 import uesugi.common.LLMProviderChoice
+import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
-import uesugi.core.state.memory.MemoryAgent.MemoryMessage
+import uesugi.core.state.memory.asLlmPrompt
 import kotlin.time.ExperimentalTime
 
 @Serializable
@@ -32,7 +33,7 @@ class SummaryAgent {
 
     @OptIn(ExperimentalTime::class)
     suspend fun generateSummary(
-        messages: List<MemoryMessage>,
+        messages: List<HistoryRecord>,
         groupId: String,
         previousSummaryContext: String? = null
     ): SummaryAnalysis {
@@ -71,8 +72,8 @@ class SummaryAgent {
             )
 
             val msg = messages.joinToString("\n") { it.asLlmPrompt() }
-            val startTime = messages.firstOrNull()?.time?.format(DateTimeFormat) ?: "unknown"
-            val endTime = messages.lastOrNull()?.time?.format(DateTimeFormat) ?: "unknown"
+            val startTime = messages.firstOrNull()?.createdAt?.format(DateTimeFormat) ?: "unknown"
+            val endTime = messages.lastOrNull()?.createdAt?.format(DateTimeFormat) ?: "unknown"
 
             val previousBlock = previousSummaryContext
                 ?.takeIf { it.isNotBlank() }

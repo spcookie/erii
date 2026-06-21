@@ -1,25 +1,27 @@
 package uesugi.core.state.evolution
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import org.jobrunr.scheduling.BackgroundJob
 import uesugi.common.BotManage
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.MessageType
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
-import kotlin.time.Duration
+import uesugi.core.state.dispatch.*
 import kotlin.time.Duration.Companion.hours
 
 class EvolutionJob(
     private val evolutionService: EvolutionService,
     private val extractionAgent: ExtractionAgent,
     private val evolutionRepository: EvolutionRepository
-) {
+) : StateWorkProcessor {
+    override val kind = StateWorkKind.EVOLUTION
     companion object {
         private val log = logger()
     }
-
-    private val mutex = Mutex()
 
     /**
      * 开启定时触发
@@ -28,113 +30,105 @@ class EvolutionJob(
      */
     fun openTimingTriggerSignal() {
         BackgroundJob.scheduleRecurrently(
-            "evolution-job",
+            "evolution-decay-job",
             "0 */1 * * *",  // 每 1 小时一次
-            ::doEvolutionProcessing
+            ::doEvolutionDecay
         )
-        log.info("Evolution task timer has started, execution cycle: per hour")
+        log.info("Evolution event processor initialized, decay cycle: per hour")
     }
 
-    /**
-     * 执行模因进化处理
-     *
-     * 主流程：
-     * 1. 获取所有活跃群组
-     * 2. 逐个群组处理：捕获消息 -> 提取流行语 -> 更新词汇库 -> 热度衰减
-     */
-    fun doEvolutionProcessing() {
-        runBlocking {
-            if (mutex.tryLock()) {
-                try {
-                    log.debug("模因进化任务开始执行")
-                    for (currentBotId in BotManage.getAllBotIds()) {
-                        log.debug("开始模因进化任务: currentBotId=$currentBotId")
+    override fun accepts(record: HistoryRecord): Boolean =
+        record.messageType == MessageType.TEXT && record.userId != record.botMark
 
-                        val groups = evolutionRepository.getActiveGroups(currentBotId)
-
-                        log.debug("发现 ${groups.size} 个活跃群组需要处理")
-
-                        for (groupId in groups) {
-                            UsageContext.withUsage(currentBotId, groupId) {
-                                processGroupEvolution(
-                                    currentBotId,
-                                    groupId,
-                                    ConfigHolder.getStateTuning().evolution.recentRangeHours.hours
-                                )
-                            }
-                        }
-                    }
-
-                    log.debug("模因进化任务执行完成")
-                } catch (e: Exception) {
-                    log.error("模因进化任务执行失败", e)
-                } finally {
-                    mutex.unlock()
-                }
-            } else {
-                log.debug("模因进化任务正在执行中, 跳过本次调度")
+    override fun pendingKeys(): Set<StateWorkKey> = buildSet {
+        for (botId in BotManage.getAllBotIds()) {
+            evolutionRepository.findGroupsNeedProcessing(botId).forEach { groupId ->
+                add(StateWorkKey(botId, groupId, kind))
             }
         }
     }
 
-    /**
-     * 处理单个群组的模因进化
-     *
-     * 处理流程：
-     * 1. 捕获最近 500 条活跃消息
-     * 2. 使用 LLM 提取流行语
-     * 3. 更新词汇库（新增或增加热度）
-     * 4. 执行热度衰减（遗忘过气的梗）
-     *
-     * @param botMark 机器人标识
-     * @param groupId 群组ID
-     */
-    private suspend fun processGroupEvolution(botMark: String, groupId: String, range: Duration) {
-        log.debug("开始处理群组模因进化, 群组ID: $groupId")
-
-        try {
-            // 步骤1: 捕获最近的消息
-            val recentMessages = evolutionService.getMostActiveMessages(
-                botMark,
-                groupId,
-                ConfigHolder.getStateTuning().evolution.recentMessageLimit,
-                range
-            )
-
-            if (recentMessages.isEmpty()) {
-                log.warn("Group $groupId has no recent messages, only decay old words")
-                evolutionService.decayOldWords(botMark, groupId, emptyList())
-                return
+    override suspend fun process(
+        key: StateWorkKey,
+        policy: StateWorkPolicy,
+        force: Boolean
+    ): StateWorkResult = UsageContext.withUsage(key.botId, key.groupId) {
+        val state = withContext(Dispatchers.IO) {
+            evolutionRepository.getState(key.botId, key.groupId)
+        }
+        if (state == null) {
+            val latestId = withContext(Dispatchers.IO) {
+                evolutionRepository.latestHistoryId(key.botId, key.groupId)
+            } ?: return@withUsage StateWorkResult(0, null, false)
+            val recentMessages = withContext(Dispatchers.IO) {
+                evolutionService.getMostActiveMessages(
+                    key.botId, key.groupId, policy.batchLimit,
+                    ConfigHolder.getStateTuning().evolution.recentRangeHours.hours
+                )
             }
+            if (recentMessages.isNotEmpty()) processMessages(key.botId, key.groupId, recentMessages)
+            withContext(Dispatchers.IO) {
+                evolutionRepository.updateState(key.botId, key.groupId, latestId)
+            }
+            return@withUsage StateWorkResult(recentMessages.size, latestId, false)
+        }
 
-            log.debug("消息捕获完成, 消息数=${recentMessages.size}")
+        val histories = withContext(Dispatchers.IO) {
+            evolutionRepository.getMessagesAfter(
+                key.botId, key.groupId, state.lastProcessedHistoryId, policy.batchLimit
+            )
+        }
+        if (histories.isEmpty() || (!force && histories.size < policy.minMessages)) {
+            return@withUsage StateWorkResult(0, state.lastProcessedHistoryId, false)
+        }
+        val messages = evolutionService.filterMessages(histories.map { it.content })
+        if (messages.isNotEmpty()) processMessages(key.botId, key.groupId, messages)
+        val cursor = histories.last().id
+        withContext(Dispatchers.IO) {
+            evolutionRepository.updateState(key.botId, key.groupId, cursor)
+        }
+        StateWorkResult(histories.size, cursor, histories.size == policy.batchLimit)
+    }
 
-            // 步骤2: 使用 LLM 提取流行语
-            val slangWords = extractionAgent.extractSlangWords(recentMessages)
-
-            if (slangWords.isEmpty()) {
-                log.warn("Evolutions not extracted")
-            } else {
-                log.info("Evolutions extracted, size=${slangWords.size}")
-                slangWords.forEachIndexed { index, slang ->
-                    log.debug("  ${index + 1}. ${slang.word} (${slang.type}) - ${slang.meaning}")
+    fun doEvolutionDecay() {
+        runBlocking {
+            for (botId in BotManage.getAllBotIds()) {
+                val groups = withContext(Dispatchers.IO) {
+                    evolutionRepository.getActiveGroups(botId)
+                }
+                groups.forEach { groupId ->
+                    val recent = withContext(Dispatchers.IO) {
+                        evolutionService.getMostActiveMessages(
+                            botId, groupId,
+                            ConfigHolder.getStateTuning().evolution.recentMessageLimit,
+                            ConfigHolder.getStateTuning().evolution.recentRangeHours.hours
+                        )
+                    }
+                    withContext(Dispatchers.IO) {
+                        evolutionService.decayOldWords(botId, groupId, recent)
+                    }
                 }
             }
+        }
+    }
 
-            // 步骤3: 更新词汇库
+    private suspend fun processMessages(botMark: String, groupId: String, messages: List<String>) {
+        val slangWords = extractionAgent.extractSlangWords(messages)
+
+        if (slangWords.isEmpty()) {
+            log.warn("Evolutions not extracted")
+        } else {
+            log.info("Evolutions extracted, size=${slangWords.size}")
+            slangWords.forEachIndexed { index, slang ->
+                log.debug("  ${index + 1}. ${slang.word} (${slang.type}) - ${slang.meaning}")
+            }
+        }
+
+        withContext(Dispatchers.IO) {
             for (slangWord in slangWords) {
                 evolutionService.addOrUpdateWord(botMark, groupId, slangWord)
             }
-            log.debug("词汇库更新完成")
-
-            // 步骤4: 热度衰减
-            evolutionService.decayOldWords(botMark, groupId, recentMessages)
-            log.debug("热度衰减完成")
-
-            log.debug("群组 $groupId 模因进化处理完成")
-
-        } catch (e: Exception) {
-            log.error("处理群组 $groupId 模因进化失败", e)
+            evolutionService.decayOldWords(botMark, groupId, messages)
         }
     }
 }

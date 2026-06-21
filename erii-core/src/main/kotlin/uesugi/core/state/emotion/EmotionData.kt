@@ -30,7 +30,7 @@ object EmotionTable : IntIdTable("chat_emotion") {
     val behavior = json<BehaviorProfile>("behavior", JSON)
     val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
-    val historyMessageProcessed = integer("history_message_processed")
+    val historyMessageProcessed = integer("history_message_processed").default(0)
 
 }
 
@@ -114,7 +114,7 @@ fun EmotionEntity.Companion.findRequiredAnalysisHistoryGroupIds(botMark: String)
             .where { EmotionTable.botMark eq botMark }
             .map { it[EmotionTable.groupId] to it[EmotionTable.historyMessageProcessed] }
             .groupBy { it.first }
-            .mapValues { it.value.maxOfOrNull { p -> p.second } ?: -1 }
+            .mapValues { it.value.maxOfOrNull { p -> p.second } ?: 0 }
 
         // 获取所有有历史消息的 groupId
         val allGroupIds = HistoryTable
@@ -123,15 +123,15 @@ fun EmotionEntity.Companion.findRequiredAnalysisHistoryGroupIds(botMark: String)
             .withDistinct(true)
             .map { it[HistoryTable.groupId] }
 
-        // 对每个 groupId 统计未处理消息数，过滤 > 10 的
+        // 对每个 groupId 统计未处理消息数
         allGroupIds.filter { groupId ->
-            val lastProcessed = lastProcessedByGroup[groupId] ?: -1
+            val lastProcessed = lastProcessedByGroup[groupId] ?: 0
             val newCount = HistoryEntity.count(
                 (HistoryTable.botMark eq botMark) and
                         (HistoryTable.groupId eq groupId) and
                         (HistoryTable.id greater lastProcessed)
             )
-            newCount > 10
+            newCount > 0
         }
     }
 }

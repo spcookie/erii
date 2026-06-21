@@ -42,6 +42,8 @@ data class BotConfig(
  * 用于集中控制情绪、心流、冲动值、记忆整理、摘要、表情包和热词进化等状态模块的数值策略。
  */
 data class StateTuningConfig(
+    /** 状态任务的事件合并、触发频率和并发配置。 */
+    val dispatch: StateDispatchTuningConfig = StateDispatchTuningConfig(),
     /** 情绪与 mood 的更新、保留和时间衰减配置。 */
     val emotion: EmotionTuningConfig = EmotionTuningConfig(),
     /** 心流值的下限、增长、扣减、衰减和状态阈值配置。 */
@@ -56,6 +58,22 @@ data class StateTuningConfig(
     val meme: MemeTuningConfig = MemeTuningConfig(),
     /** 热词权重增长、衰减、淘汰和活跃词表输出配置。 */
     val evolution: EvolutionTuningConfig = EvolutionTuningConfig()
+)
+
+enum class StateTriggerProfile {
+    REALTIME,
+    BALANCED,
+    ECONOMY;
+
+    companion object {
+        fun parse(value: String?): StateTriggerProfile =
+            entries.firstOrNull { it.name.equals(value?.trim(), ignoreCase = true) } ?: ECONOMY
+    }
+}
+
+data class StateDispatchTuningConfig(
+    val profile: StateTriggerProfile = StateTriggerProfile.ECONOMY,
+    val maxConcurrency: Int = 4
 )
 
 /**

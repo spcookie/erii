@@ -6,11 +6,14 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.jobrunr.scheduling.JobScheduler
 import uesugi.common.BotManage
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.MessageType
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.state.dispatch.*
 
 /**
- * 情绪任务 - 定时调度情绪分析和衰减
+ * 情绪任务 - 事件驱动情绪分析与定时衰减
  *
  * 仅负责调度和组合逻辑，业务逻辑封装在 EmotionService 中
  */
@@ -18,7 +21,9 @@ class EmotionJob(
     val jobScheduler: JobScheduler,
     private val emotionRepository: EmotionRepository,
     private val emotionService: EmotionService
-) {
+) : StateWorkProcessor {
+
+    override val kind = StateWorkKind.EMOTION
 
     companion object {
         private val log = logger()
@@ -27,77 +32,59 @@ class EmotionJob(
     private val mutex = Mutex()
 
     /**
-     * 开启定时触发
-     * 每 2 分钟执行一次情绪分析
+     * 开启每 2 分钟执行一次的情绪衰减。
      */
     fun openTimingTriggerSignal() {
         jobScheduler.scheduleRecurrently(
-            "emotion-job",
+            "emotion-decay-job",
             "*/2 * * * *",
-            ::doAnalysis
+            ::doDecay
         )
-        log.info("Emotional task timer has started, execution cycle: every 2 minutes")
+        log.info("Emotion decay timer started, execution cycle: every 2 minutes")
     }
 
-    /**
-     * 执行情绪分析
-     * 调度逻辑：遍历所有机器人和群组，调用 Service 处理
-     *
-     * 注意：JobRunr 调用此方法的线程不应阻塞，实际工作在独立协程中异步执行
-     */
-    fun doAnalysis() {
-        if (!mutex.tryLock()) {
-            log.debug("情绪任务正在执行中, 跳过本次调度")
-            return
-        }
+    override fun accepts(record: HistoryRecord): Boolean = record.messageType == MessageType.TEXT
 
+    override fun pendingKeys(): Set<StateWorkKey> = buildSet {
+        for (botId in BotManage.getAllBotIds()) {
+            emotionRepository.findGroupsNeedAnalysis(botId).forEach { groupId ->
+                add(StateWorkKey(botId, groupId, kind))
+            }
+        }
+    }
+
+    override suspend fun process(
+        key: StateWorkKey,
+        policy: StateWorkPolicy,
+        force: Boolean
+    ): StateWorkResult = UsageContext.withUsage(key.botId, key.groupId) {
+        val cursor = emotionService.analyzeGroupEmotion(
+            currentBotId = key.botId,
+            groupId = key.groupId,
+            batchLimit = policy.batchLimit,
+            minimumMessages = policy.minMessages,
+            force = force
+        )
+        StateWorkResult(if (cursor == null) 0 else 1, cursor, hasMore = false)
+    }
+
+    fun doDecay() {
+        if (!mutex.tryLock()) return
         try {
             runBlocking {
-                try {
-                    log.debug("情绪任务开始执行")
-                    for (currentBotId in BotManage.getAllBotIds()) {
-                        log.debug("开始执行的情绪分析, botId=$currentBotId")
-
-                        // 1. 查找需要分析的群组
-                        val groups = withContext(Dispatchers.IO) {
-                            emotionRepository.findGroupsNeedAnalysis(currentBotId)
-                        }
-                        log.debug("情绪任务发现 ${groups.size} 个群组有新消息需要分析")
-
-                        // 2. 对每个群组执行情绪分析（单群失败不影响其他群）
-                        for (group in groups) {
-                            try {
-                                UsageContext.withUsage(currentBotId, group) {
-                                    emotionService.analyzeGroupEmotion(currentBotId, group)
-                                }
-                            } catch (e: Exception) {
-                                log.error("Emotional analysis failed, botId=$currentBotId, group=$group", e)
-                            }
-                        }
-
-                        // 3. 查找需要衰减的群组
-                        val decayGroups = withContext(Dispatchers.IO) {
-                            emotionRepository.findGroupsNotNeedAnalysis(currentBotId, groups)
-                        }
-                        log.debug("情绪任务发现 ${decayGroups.size} 个群组需要执行情绪衰减")
-
-                        // 4. 对每个群组执行情绪衰减
-                        for (group in decayGroups) {
-                            try {
-                                emotionService.decayGroupEmotion(currentBotId, group)
-                            } catch (e: Exception) {
-                                log.error("Emotional decline fails, botId=$currentBotId, group=$group", e)
-                            }
-                        }
+                for (botId in BotManage.getAllBotIds()) {
+                    val groups = withContext(Dispatchers.IO) {
+                        emotionRepository.findGroupsNotNeedAnalysis(botId, emptyList())
                     }
-
-                    log.debug("情绪任务执行完成")
-                } catch (e: Exception) {
-                    log.error("Emotional task execution fails", e)
+                    groups.forEach { groupId ->
+                        runCatching { emotionService.decayGroupEmotion(botId, groupId) }
+                            .onFailure { log.error("Emotion decay failed, botId=$botId, groupId=$groupId", it) }
+                    }
                 }
             }
         } finally {
             mutex.unlock()
         }
     }
+
 }

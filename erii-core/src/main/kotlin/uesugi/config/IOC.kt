@@ -22,6 +22,8 @@ import uesugi.core.component.usage.TokenUsageRepository
 import uesugi.core.cron.CronService
 import uesugi.core.cron.cronModule
 import uesugi.core.message.messageModule
+import uesugi.core.state.dispatch.StateDispatchJob
+import uesugi.core.state.dispatch.stateDispatchModule
 import uesugi.core.state.emotion.EmotionJob
 import uesugi.core.state.emotion.emotionModule
 import uesugi.core.state.evolution.EvolutionJob
@@ -47,6 +49,7 @@ fun Application.warmUp() {
         it.get<EvolutionJob>().openTimingTriggerSignal()
         it.get<FlowJob>().openTimingTriggerSignal()
         it.get<MemeJob>().openTimingTriggerSignal()
+        it.get<StateDispatchJob>().open()
         it.get<CronService>().start()
     }
 }
@@ -112,6 +115,7 @@ val appModule = module {
     includes(memoryModule)
     includes(summaryModule)
     includes(volitionModule)
+    includes(stateDispatchModule)
     includes(cronModule)
     includes(chatModule)
 }

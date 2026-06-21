@@ -1,28 +1,27 @@
 package uesugi.core.state.flow
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
-import org.jobrunr.scheduling.JobScheduler
 import org.koin.core.context.GlobalContext
 import uesugi.common.BotManage
+import uesugi.common.data.HistoryRecord
+import uesugi.common.data.MessageType
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.state.dispatch.*
 import kotlin.time.ExperimentalTime
 
 class FlowJob(
-    val jobScheduler: JobScheduler,
     private val flowAgent: FlowAgent,
     private val flowRepository: FlowRepository
-) {
+) : StateWorkProcessor {
+
+    override val kind = StateWorkKind.FLOW
 
     companion object {
         private val log = logger()
     }
-
-    private val mutex = Mutex()
 
     fun openTimingTriggerSignal() {
         for (bot in BotManage.getAllBotIds()) {
@@ -32,46 +31,27 @@ class FlowJob(
                 ensureFlowGaugeExists(bot, group)
             }
         }
-        jobScheduler.scheduleRecurrently(
-            "flow-job",
-            "*/1 * * * *",
-            ::doFlowAnalysis
-        )
-        log.info("Flow task timer started, execution cycle: per minute")
+        log.info("Flow event processor initialized")
     }
 
-    fun doFlowAnalysis() {
-        runBlocking {
-            if (mutex.tryLock()) {
-                try {
-                    log.debug("心流任务开始执行")
+    override fun accepts(record: HistoryRecord): Boolean = record.messageType == MessageType.TEXT
 
-                    for (currentBotId in BotManage.getAllBotIds()) {
-                        log.debug("开始处理心流任务: currentBotId=$currentBotId")
-
-                        val groups = withContext(Dispatchers.IO) {
-                            flowRepository.findGroupsNeedProcessing(currentBotId)
-                        }
-
-                        log.debug("心流任务发现 ${groups.size} 个群组需要处理")
-
-                        for (groupId in groups) {
-                            ensureFlowGaugeExists(currentBotId, groupId)
-                            UsageContext.withUsage(currentBotId, groupId) {
-                                processGroupFlow(currentBotId, groupId)
-                            }
-                        }
-                    }
-
-                    log.debug("心流任务执行完成")
-                } catch (e: Exception) {
-                    log.error("心流任务执行失败", e)
-                } finally {
-                    mutex.unlock()
-                }
-            } else {
-                log.debug("心流任务正在执行中, 跳过本次调度")
+    override fun pendingKeys(): Set<StateWorkKey> = buildSet {
+        for (botId in BotManage.getAllBotIds()) {
+            flowRepository.findGroupsNeedProcessing(botId).forEach { groupId ->
+                add(StateWorkKey(botId, groupId, kind))
             }
+        }
+    }
+
+    override suspend fun process(
+        key: StateWorkKey,
+        policy: StateWorkPolicy,
+        force: Boolean
+    ): StateWorkResult {
+        ensureFlowGaugeExists(key.botId, key.groupId)
+        return UsageContext.withUsage(key.botId, key.groupId) {
+            processGroupFlow(key.botId, key.groupId, policy, force)
         }
     }
 
@@ -84,20 +64,26 @@ class FlowJob(
     }
 
     @OptIn(ExperimentalTime::class)
-    private suspend fun processGroupFlow(botMark: String, groupId: String) {
+    private suspend fun processGroupFlow(
+        botMark: String,
+        groupId: String,
+        policy: StateWorkPolicy,
+        force: Boolean
+    ): StateWorkResult {
         log.debug("开始处理群组心流, groupId=$groupId")
 
         try {
-            val flowState = flowRepository.getFlowState(botMark, groupId)
+            val flowState = withContext(Dispatchers.IO) {
+                flowRepository.getFlowState(botMark, groupId)
+            }
             val lastId = flowState?.lastProcessedHistoryId ?: 0
 
             val histories = withContext(Dispatchers.IO) {
-                flowRepository.getHistoriesToProcess(botMark, groupId, lastId, 100)
+                flowRepository.getLatestHistoriesToProcess(botMark, groupId, lastId, policy.batchLimit)
             }
 
-            if (histories.size < 20) {
-                log.debug("群组 $groupId 新消息不足20条, 跳过处理心流")
-                return
+            if (histories.isEmpty() || (!force && histories.size < policy.minMessages)) {
+                return StateWorkResult(0, lastId, hasMore = false)
             }
 
             log.debug("群组 $groupId 获取到 ${histories.size} 条新消息")
@@ -115,19 +101,25 @@ class FlowJob(
             if (messages.isEmpty()) {
                 log.debug("群组 $groupId 消息转换后为空, 跳过处理")
                 val maxHistoryId = histories.maxOf { it.id.value }
-                flowRepository.updateFlowState(botMark, groupId, maxHistoryId)
-                return
+                withContext(Dispatchers.IO) {
+                    flowRepository.updateFlowState(botMark, groupId, maxHistoryId)
+                }
+                return StateWorkResult(histories.size, maxHistoryId, hasMore = false)
             }
 
             flowAgent.analysis(messages, botMark, groupId)
 
             val maxHistoryId = histories.maxOf { it.id.value }
-            flowRepository.updateFlowState(botMark, groupId, maxHistoryId)
+            withContext(Dispatchers.IO) {
+                flowRepository.updateFlowState(botMark, groupId, maxHistoryId)
+            }
 
             log.debug("群组 $groupId 心流处理完成, 最大 historyId=$maxHistoryId")
+            return StateWorkResult(histories.size, maxHistoryId, hasMore = false)
 
         } catch (e: Exception) {
             log.error("处理群组 $groupId 心流失败", e)
+            throw e
         }
     }
 

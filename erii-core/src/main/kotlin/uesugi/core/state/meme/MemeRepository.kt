@@ -374,6 +374,17 @@ class MemeRepository {
         }
     }
 
+    fun latestHistoryId(botMark: String, groupId: String): Int? = transaction {
+        HistoryTable
+            .select(HistoryTable.id)
+            .where { (HistoryTable.botMark eq botMark) and (HistoryTable.groupId eq groupId) }
+            .orderBy(HistoryTable.id to SortOrder.DESC)
+            .limit(1)
+            .firstOrNull()
+            ?.get(HistoryTable.id)
+            ?.value
+    }
+
     /**
      * 获取扫描状态
      *

@@ -58,20 +58,21 @@ class EmotionRepository {
         }
     }
 
-    /**
-     * 获取新消息（用于情绪分析）
-     */
-    fun getNewMessages(botMark: String, groupId: String, lastProcessedId: Int, limit: Int = 200): List<HistoryEntity> {
-        return transaction {
-            HistoryEntity.find(
-                (HistoryTable.botMark eq botMark) and
-                        (HistoryTable.groupId eq groupId) and
-                        (HistoryTable.id greater lastProcessedId)
-            )
-                .orderBy(HistoryTable.createdAt to SortOrder.ASC)
-                .limit(limit)
-                .toList()
-        }
+    fun getLatestNewMessages(
+        botMark: String,
+        groupId: String,
+        lastProcessedId: Int,
+        limit: Int = 200
+    ): List<HistoryEntity> = transaction {
+        HistoryEntity.find(
+            (HistoryTable.botMark eq botMark) and
+                    (HistoryTable.groupId eq groupId) and
+                    (HistoryTable.id greater lastProcessedId)
+        )
+            .orderBy(HistoryTable.id to SortOrder.DESC)
+            .limit(limit)
+            .toList()
+            .reversed()
     }
 
     /**
@@ -84,7 +85,7 @@ class EmotionRepository {
                         (HistoryTable.groupId eq groupId) and
                         (HistoryTable.id lessEq beforeId)
             )
-                .orderBy(HistoryTable.createdAt to SortOrder.DESC)
+                .orderBy(HistoryTable.id to SortOrder.DESC)
                 .limit(limit)
                 .toList()
                 .reversed()
