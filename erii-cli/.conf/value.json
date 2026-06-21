@@ -345,6 +345,14 @@
     "type": "string",
     "default": ""
   },
+  "state-tuning.dispatch.profile": {
+    "type": "enum",
+    "default": "ECONOMY"
+  },
+  "state-tuning.dispatch.max-concurrency": {
+    "type": "number",
+    "default": 4
+  },
   "state-tuning.emotion.emotion-retention-high": {
     "type": "number",
     "default": 0.85
