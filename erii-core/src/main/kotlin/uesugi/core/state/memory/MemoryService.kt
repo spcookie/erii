@@ -136,7 +136,7 @@ class MemoryService(
      *
      * 流程：
      * 1. LLM 提取事实（extractFacts）
-     * 2. LLM 冲突解决（resolveConflicts）→ ADD / UPDATE / DELETE / NONE
+     * 2. LLM 冲突解决（resolveConflicts）→ ADD / DELETE / NONE
      * 3. 批量执行决策
      * 4. 统一向量同步
      */

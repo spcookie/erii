@@ -120,6 +120,7 @@ object LLMProviderChoice {
                     LLMCapability.ToolChoice,
                     LLMCapability.MultipleChoices,
                     LLMCapability.Vision.Image,
+                    LLMCapability.OpenAIEndpoint.Completions,
                 )
             ),
         )

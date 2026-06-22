@@ -23,9 +23,9 @@ import kotlin.time.ExperimentalTime
  * 1. LLM 提取事实（extractFacts）
  *    → 输出 {"facts": [{keyword, description, values, subjects, scope}]}
  * 2. LLM 冲突解决（resolveConflicts）
- *    → 新事实 vs 已有事实 → 决策：ADD / UPDATE / DELETE / NONE
+ *    → 对比已有记忆 + 独立审查过时 → ADD / DELETE / NONE
  * 3. 批量执行决策（executeDecisions）
- *    → 数据库操作（增删改）
+ *    → 数据库操作（增删）
  * 4. 统一向量同步（syncVectors）
  *    → 生成 Embedding → 写入 Vector Store
  */
@@ -60,7 +60,6 @@ class MemoryAgent(
      */
     private data class AffectedFacts(
         val added: List<FactsRecord> = emptyList(),
-        val updated: List<FactsRecord> = emptyList(),
         val deleted: List<DeletedFact> = emptyList()
     )
 
@@ -81,46 +80,157 @@ class MemoryAgent(
         val prompt = prompt("__memory_user_profile__", LLMParams(maxTokens = 65536)) {
             system(
                 """
-                你是一名【用户行为分析专家】，擅长从群聊历史消息中提取可验证的行为特征。
+                你是一名用户行为分析专家。
 
-                请基于给定的【用户在群聊中的历史消息文本】，分析并输出该用户的画像信息。
+                你的任务是根据用户在群聊中的历史消息，提取稳定、可复用的用户画像与兴趣偏好。
 
-                ====================
-                【分析对象】
-                - 单一用户
-                - 数据来源：群聊消息（可能存在噪声、复读、引用他人内容）
+                # 分析对象
 
-                ====================
-                【分析原则（必须遵守）】
+                单一用户
 
-                1. 只基于**实际出现的消息内容**进行分析
-                   - 不得进行心理动机、人格类型（如内向/外向）或现实身份的推断
-                   - 不得使用“可能是、像是、应该是”等猜测性表述
+                数据来源：
 
-                2. 结论必须可由消息行为直接支持
-                   - 优先使用：发言长度、话题连续性、提问/输出比例、技术名词使用情况等行为证据
-                   - 群聊噪声（表情、复读、无新增信息的引用）应降低权重或忽略
+                * 群聊历史消息
+                * 可能包含引用
+                * 可能包含复读
+                * 可能包含玩梗
+                * 可能包含机器人回复
 
-                3. 当某一维度信息不足以支撑结论时：
-                   - 该字段输出空字符串 ""
+                需要自动过滤噪声。
 
-                4. 使用**简洁、客观、中性**的语言
-                   - 每一项控制在 50 字左右
-                   - 不输出示例、不输出分析过程
+                # 核心原则
 
-                【需要输出的字段】
+                仅基于用户真实发言进行分析。
 
-                请分析并输出以下 2 个字段：
+                禁止：
 
-                1. profile（用户画像）
-                   - 关注其在群聊中的**行为模式与角色特征**
-                   - 如：是否经常输出完整观点、是否承担技术解释/总结角色、参与频率是否稳定
+                * 猜测现实身份
+                * 猜测职业
+                * 猜测学历
+                * 猜测年龄
+                * 猜测人格类型
+                * 猜测心理状态
 
-                2. preferences（兴趣偏好）
-                   - 基于其**主动参与和反复出现的话题**
-                   - 可体现技术领域、讨论深度、偏向问题类型（设计 / 实现 / 排错）
+                不得使用：
 
-                【重要】请仅输出**一个**JSON对象，不包含任何其他文字、解释、注释或标记。
+                * 可能
+                * 应该
+                * 像是
+                * 疑似
+                * 大概
+
+                所有结论必须能被消息直接证明。
+
+                信息不足时输出空字符串：
+
+                {
+                  "profile": "",
+                  "preferences": ""
+                }
+
+                # profile 定义
+
+                profile 描述：
+
+                用户在群聊中的行为模式和参与方式。
+
+                关注：
+
+                * 发言风格
+                * 参与深度
+                * 互动方式
+                * 内容组织方式
+                * 群内承担的角色
+
+                不要描述具体兴趣。
+
+                正确示例：
+
+                * 经常提供完整解决方案，倾向于输出可执行内容
+                * 遇到问题时习惯追问实现细节
+                * 发言以技术讨论和问题排查为主
+                * 经常回应他人问题并补充细节
+
+                错误示例：
+
+                * 喜欢 Kotlin
+                * 喜欢摄影
+                * 关注 AI
+
+                这些属于 preferences。
+
+                # preferences 定义
+
+                preferences 描述：
+
+                用户长期反复参与的话题和关注领域。
+
+                必须满足以下至少一项：
+
+                * 多次出现
+                * 持续讨论
+                * 主动发起相关话题
+                * 长期关注
+
+                不要记录一次性话题。
+
+                正确示例：
+
+                * Kotlin开发
+                * Java后端
+                * PostgreSQL
+                * AI应用开发
+                * 摄影设备
+                * 游戏开发
+
+                错误示例：
+
+                * 今天讨论过的新闻
+                * 一次性提到的游戏
+                * 偶然问过的问题
+
+                # 提取规则
+
+                优先依据：
+
+                * 发言频率
+                * 话题重复度
+                * 主动发起次数
+                * 技术关键词密度
+                * 持续讨论时长
+
+                降低权重：
+
+                * 表情
+                * 复读
+                * 引用
+                * 单句附和
+                * 无信息量回复
+
+                # 输出要求
+
+                profile：
+
+                * 20~80字
+                * 客观描述行为模式
+                * 不描述兴趣内容
+
+                preferences：
+
+                * 10~80字
+                * 仅描述长期关注领域
+                * 使用顿号分隔多个主题
+
+                # 输出格式
+
+                仅输出 JSON：
+
+                {
+                  "profile": "经常参与技术讨论，倾向于输出完整解决方案并关注实现细节。",
+                  "preferences": "Kotlin开发、后端架构、数据库优化、AI应用开发"
+                }
+
+                不要输出任何解释、Markdown、注释或额外文字。
                 """.trimIndent()
             )
 
@@ -167,10 +277,10 @@ class MemoryAgent(
     // ==================== 记忆整理核心流程 ====================
 
     /**
-     * 整理群记忆 - 新流程
+     * 整理群记忆
      *
      * Step 1: LLM 提取事实 → FactExtractionResult
-     * Step 2: LLM 冲突解决 → ConflictResolutionResult (ADD/UPDATE/DELETE/NONE)
+     * Step 2: LLM 冲突解决 → ConflictResolutionResult (ADD/DELETE/NONE)
      * Step 3: 批量执行决策 → 数据库操作
      * Step 4: 统一向量同步 → Embedding → Vector Store
      */
@@ -189,10 +299,6 @@ class MemoryAgent(
             log.error("Fact extraction failed, groupId=$groupId", e)
             return
         }
-        if (extraction.facts.isEmpty()) {
-            log.debug("No facts extracted, groupId=$groupId")
-            return
-        }
         log.info("Fact extraction completed, groupId=$groupId, extracted ${extraction.facts.size} facts")
 
         // Step 2: 获取已有事实
@@ -200,24 +306,18 @@ class MemoryAgent(
             memoryRepository.getValidFacts(botMark, groupId)
         }
 
-        // Step 3: 冲突解决
-        val resolution = if (existingFacts.isEmpty()) {
-            ConflictResolutionResult(
-                decisions = extraction.facts.map {
-                    MemoryDecision(
-                        action = MemoryAction.ADD,
-                        newFact = it,
-                        reason = "New fact, no existing memory"
-                    )
-                }
-            )
-        } else {
-            try {
-                resolveConflicts(extraction.facts, existingFacts)
-            } catch (e: Exception) {
-                log.error("Conflict resolution failed, groupId=$groupId", e)
-                return
-            }
+        // 即使没有新事实，如果有已有记忆，仍需审查已有记忆是否过时
+        if (extraction.facts.isEmpty() && existingFacts.isEmpty()) {
+            log.debug("No facts extracted and no existing memory, groupId=$groupId")
+            return
+        }
+
+        // Step 3: 冲突解决（始终传入原始消息，让 LLM 独立审查已有记忆是否过时）
+        val resolution = try {
+            resolveConflicts(extraction.facts, existingFacts, messages)
+        } catch (e: Exception) {
+            log.error("Conflict resolution failed, groupId=$groupId", e)
+            return
         }
 
         val actionCounts = resolution.decisions.groupingBy { it.action }.eachCount()
@@ -232,7 +332,6 @@ class MemoryAgent(
         log.info(
             "Memory organization completed, groupId=$groupId, " +
                     "added=${affectedFacts.added.size}, " +
-                    "updated=${affectedFacts.updated.size}, " +
                     "deleted=${affectedFacts.deleted.size}"
         )
     }
@@ -244,45 +343,300 @@ class MemoryAgent(
         val prompt = prompt("__memory_fact_extract__", LLMParams(maxTokens = 65536)) {
             system(
                 """
-                你是一名事实提取专家。从给定的群聊消息中提取有价值、长久有效的事实信息。
+                你是一名长期记忆提取专家，负责从群聊消息中提取值得长期保存的记忆。
 
-                ## 提取标准
-                1. 只提取事实性信息，不提取观点、情绪、临时信息
-                2. 关注：
-                   - 个人信息：职业、居住地、技能、学历、年龄等
-                   - 群组共识：共同决定、约定、规则等
-                   - 重要经历：旅行、项目、获奖等
-                   - 持久偏好：喜欢的技术、游戏、音乐、食物等
-                3. 忽略：
-                   - 日常寒暄、问候
-                   - 临时讨论、临时安排
-                   - 情绪波动、吐槽
-                   - 无信息量的内容（如纯表情、复读）
-                   - 不确定的信息（包含"可能"、"好像"、"听说"、"也许"等词）
+                ## 核心目标
 
-                ## 输出字段说明
-                - keyword: 关键词，2-6个字，概括事实类别
-                - description: 事实描述，简洁准确，20-50字
-                - values: 相关值/属性，如地点名称、职业名称、具体数值等
-                - subjects: 涉及的用户ID，逗号分隔。如果涉及多个用户都要列出
-                - scope: 范围类型
-                  - "user": 个人属性，只与特定用户相关
-                  - "group": 群组共识，与整个群组相关
+                你的任务不是总结聊天内容，也不是提取用户画像。
 
-                ## 输出格式
-                只输出一个 JSON 对象，包含 facts 数组。没有提取到事实时返回 {"facts": []}。
-                不要输出任何其他文字、解释或标记。
-                """.trimIndent()
-            )
+                职业、学历、技能、偏好、关系等内容已经由独立画像系统维护。
 
-            system(
-                """
-                # 过时记忆识别补充规则
-                如果消息明确表达“不是了、已经不、改成、换成、搬到、离开、辞职、分手、结婚、毕业、取消、废弃”等状态变化，
-                也要提取成事实候选。此类候选用于后续冲突解决，不要因为它是否定句就忽略。
+                禁止将画像信息写入记忆。
 
-                对于状态变化，优先提取“当前新状态”的事实；如果只有旧状态被否定但没有新状态，也要提取能表达旧事实失效的候选，
-                让冲突解决阶段有机会把已有记忆标记为 DELETE。
+                你的任务仅负责提取：
+
+                1. 重要经历
+                2. 重大状态变化
+                3. 群体长期规则
+                4. 群体长期共识
+                5. 长期约定
+                6. 未来可能被引用的重要事件
+
+                ---
+
+                ## 默认原则
+
+                默认不提取。
+
+                只有明确符合记忆条件时才允许提取。
+
+                如果无法确定是否属于长期记忆，则不要提取。
+
+                ---
+
+                ## 记忆准入条件
+
+                提取的信息必须同时满足以下条件：
+
+                * 一个月后仍然有价值
+                * 未来聊天中可能被引用
+                * 属于事件而非画像
+                * 属于事实而非观点
+                * 属于长期信息而非临时状态
+                * 不属于知识内容
+                * 不属于系统状态
+
+                否则不要提取。
+
+                ---
+
+                # 允许提取
+
+                ## 重要经历
+
+                对用户人生、身份或长期状态产生影响的重要事件。
+
+                ### 示例
+
+                * 毕业
+                * 入职
+                * 离职
+                * 创业
+                * 搬家
+                * 结婚
+                * 离婚
+                * 分手
+                * 获奖
+                * 长期项目完成
+                * 重大事故
+                * 长期治疗经历
+                * 长期停学
+                * 长期休学
+
+                ### 示例事实
+
+                * 用户A从重庆搬到杭州工作
+                * 用户B获得省级程序设计竞赛一等奖
+                * 用户C完成创业项目并正式上线
+
+                ---
+
+                ## 重大状态变化
+
+                仅限长期状态发生变化。
+
+                ### 示例
+
+                * 从学生变为上班族
+                * 从杭州搬到上海
+                * 从原公司离职
+                * 结婚
+                * 离婚
+                * 毕业
+                * 退学
+
+                ### 示例事实
+
+                * 用户A已经从XX公司离职
+                * 用户B毕业后开始工作
+                * 用户C搬迁至上海长期居住
+
+                ---
+
+                ## 群长期规则
+
+                长期有效且被群体遵守的规则。
+
+                ### 示例
+
+                * 群内禁止广告
+                * 群内禁止剧透
+                * 群内禁止人身攻击
+                * 群内统一使用某机器人
+
+                ---
+
+                ## 群长期共识
+
+                长期存在的群体约定或共识。
+
+                ### 示例
+
+                * 每周五固定活动
+                * 周年庆固定举办方式
+                * 长期执行的管理制度
+                * 群内默认使用某称呼
+
+                ---
+
+                ## 长期约定
+
+                未来仍可能被引用或执行的约定。
+
+                ### 示例
+
+                * 群周年活动约定
+                * 长期维护计划
+                * 长期协作约定
+
+                ---
+
+                # 状态变化处理
+
+                当消息中出现明确状态变化时，优先提取最新状态。
+
+                关键词包括但不限于：
+
+                * 已经
+                * 不再
+                * 不是了
+                * 换成
+                * 改成
+                * 搬到
+                * 离开
+                * 辞职
+                * 入职
+                * 毕业
+                * 退学
+                * 结婚
+                * 离婚
+                * 分手
+
+                ### 示例
+
+                原状态：
+
+                用户A是学生
+
+                新消息：
+
+                我已经毕业开始工作了
+
+                应提取：
+
+                毕业
+
+                而不是保留旧状态。
+
+                ---
+
+                # 严格禁止提取
+
+                ## 系统信息
+
+                * 机器人
+                * 插件
+                * 功能
+                * 命令
+                * 接口
+                * 模型
+                * 权限
+                * 配置
+                * BUG
+                * 服务状态
+                * API信息
+
+                ---
+
+                ## 技术讨论
+
+                * 代码
+                * SQL
+                * 架构
+                * 开发方案
+                * 调试过程
+                * 性能优化
+                * 技术问答
+                * 技术教程
+
+                ---
+
+                ## 临时事件
+
+                * 今天
+                * 明天
+                * 今晚
+                * 周末
+                * 最近
+                * 近期安排
+                * 一次性活动
+
+                ---
+
+                ## 临时状态
+
+                * 上班
+                * 下班
+                * 睡觉
+                * 起床
+                * 吃饭
+                * 摸鱼
+                * 打游戏
+                * 看电影
+                * 看番
+
+                ---
+
+                ## 数值信息
+
+                * 金币
+                * 余额
+                * 积分
+                * 排名
+                * 次数
+                * 价格
+                * 金价
+                * 股价
+                * 胜率
+                * 数量统计
+
+                ---
+
+                ## 知识内容
+
+                * 问答
+                * 教程
+                * 百科
+                * 新闻
+                * 技术知识
+                * 科普内容
+
+                ---
+
+                ## 观点与情绪
+
+                * 吐槽
+                * 抱怨
+                * 情绪表达
+                * 即时评价
+                * 主观观点
+                * 个人看法
+
+                ---
+
+                # 输出要求
+
+                仅输出 JSON：
+
+                {
+                  "facts": [
+                    {
+                      "keyword": "重要经历",
+                      "description": "用户A从重庆搬到杭州工作",
+                      "values": "重庆->杭州",
+                      "subjects": "A",
+                      "scope": "user"
+                    }
+                  ]
+                }
+
+                如果没有符合条件的记忆：
+
+                {
+                  "facts": []
+                }
+
+                不要输出任何解释、注释、Markdown 或额外文字。
                 """.trimIndent()
             )
 
@@ -322,77 +676,68 @@ class MemoryAgent(
     @OptIn(ExperimentalTime::class)
     private suspend fun resolveConflicts(
         newFacts: List<ExtractedFact>,
-        existingFacts: List<FactsRecord>
+        existingFacts: List<FactsRecord>,
+        messages: List<HistoryRecord>
     ): ConflictResolutionResult {
+        if (newFacts.isEmpty() && existingFacts.isEmpty()) {
+            return ConflictResolutionResult(decisions = emptyList())
+        }
+
         val prompt = prompt("__memory_conflict_resolve__", LLMParams(maxTokens = 65536)) {
             system(
                 """
-                你是一名记忆冲突解决专家。你的任务是将新提取的事实与已有记忆进行对比，做出最优决策。
+                你是一名记忆维护专家。基于最新聊天消息，维护一组准确、不过时的记忆。
 
-                ## 决策类型
-                - ADD: 新事实与所有已有记忆都不冲突，应该添加为新记忆
-                - UPDATE: 新事实与某条已有记忆描述同一属性但值不同/更完整，应该更新该记忆
-                - DELETE: 某条已有记忆已被证明过时或不准确，应该废弃（注意：DELETE 仅标记旧事实废弃，同时你需要 ADD 新版本）
-                - NONE: 新事实与已有记忆完全重复，无需操作
+                ## 职责
 
-                ## 决策规则
-                1. **同一属性不同值** → UPDATE
-                   例：已有"用户A住在北京"，新事实"用户A搬到上海" → UPDATE（将旧事实标记为DELETE，新事实标记为ADD）
-                2. **补充或修正** → UPDATE
-                   例：已有"用户A是程序员"，新事实"用户A是前端工程师" → UPDATE
-                3. **完全独立的新信息** → ADD
-                4. **已被明确否定** → DELETE（旧事实）+ ADD（新事实）
-                   例：已有"用户A单身"，消息中明确说"我已经结婚了" → DELETE 旧事实，ADD 新事实
-                5. **完全重复** → NONE
-                6. **事实已被更具体的版本覆盖** → UPDATE
+                ### 1. 处理新提取的事实
+                每条新事实与已有记忆对比：
+                - ADD: 新信息，与已有记忆不冲突，添加
+                - NONE: 与已有记忆完全重复，跳过
 
-                ## 注意事项
-                - 每个新事实必须对应一个决策
-                - UPDATE 时必须指定 existingFactId（要更新的已有事实ID）
-                - DELETE 时必须指定 existingFactId（要废弃的已有事实ID）
-                - 状态变化时（如单身→已婚），应该产生两个决策：DELETE 旧 + ADD 新
-                - 不要过度合并，不同属性的事实应该独立处理
-                - 当信息不足以判断时，优先选择 ADD 而不是 UPDATE
+                ### 2. 清理过时记忆
+                阅读原始聊天消息，找出已过时的已有记忆并 DELETE：
+                - 消息内容与已有记忆矛盾（已有"用户A在北京"，消息显示A在上海）
+                - 状态已变化（旧值失效，如有新值则同时 ADD 新版本）
+                - 临时性记忆，已不适用
+
+                ## 规则
+                - 同一属性值变化 → DELETE 旧 + ADD 新（两个决策）
+                - 已过时且无新值 → 仅 DELETE
+                - 完全重复 → NONE
 
                 ## 输出格式
-                只输出一个 JSON 对象，包含 decisions 数组。不要输出任何其他文字。
-                """.trimIndent()
-            )
-
-            system(
-                """
-                # DELETE / UPDATE 优先级补充
-                你的目标不是只追加新记忆，而是维护一组当前仍然真实的记忆。
-                当新事实与已有事实描述同一主体的同一属性，但值、状态、地点、关系、职业、偏好、计划已经变化时：
-                - 必须优先选择 UPDATE，并填写 existingFactId 与 newFact。
-                - 如果新消息只是否定旧事实、但没有给出新值，选择 DELETE，并填写 existingFactId。
-                - 不要把“用户不住北京了”这类内容作为一条长期负面新事实直接 ADD；应让旧的“住北京”失效。
-                - 对同一主体同一属性，避免同时保留旧值和新值。
+                只输出 JSON 对象，包含 decisions 数组。每条决策：
+                - action: ADD / DELETE / NONE
+                - newFact: 新事实（ADD 时必填，否则可空）
+                - existingFactId: 已有事实ID（DELETE 时必填）
+                - reason: 原因（10字以内）
                 """.trimIndent()
             )
 
             val newFactsText = newFacts.joinToString("\n") {
                 "- keyword: ${it.keyword}, description: ${it.description}, values: ${it.values}, subjects: ${it.subjects}, scope: ${it.scope}"
-            }
+            }.ifEmpty { "(no new extracted facts)" }
 
             val existingFactsText = existingFacts.joinToString("\n") {
-                "ID: ${it.id} | keyword: ${it.keyword} | description: ${it.description} | values: ${it.values} | subjects: ${it.subjects} | scope: ${it.scopeType}"
-            }
+                "ID: ${it.id} | keyword: ${it.keyword} | values: ${it.values} | subjects: ${it.subjects} | scope: ${it.scopeType} | createdAt: ${it.createdAt}"
+            }.ifEmpty { "(no existing memories)" }
+
+            val msgText = messages.joinToString("\n") { it.asLlmPrompt() }
 
             user {
                 text(
                     """
-                    ## 新提取的事实
-                    """.trimIndent()
-                )
-                text(
-                    """
+                    ## 原始聊天消息（用于独立判断已有记忆是否过时）
+                    $msgText
+
+                    ## 新提取的事实候选
                     $newFactsText
 
-                    ## 已有记忆
+                    ## 已有记忆（请逐条审查是否仍有效）
                     $existingFactsText
 
-                    请对比并输出决策列表。
+                    请输出完整决策列表。注意：对已有记忆中已过时或描述临时活动的内容，即使新事实中没有对应项也要产生 DELETE 决策。
                     """.trimIndent()
                 )
             }
@@ -400,7 +745,7 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<ConflictResolutionResult>(
             prompt = prompt,
-            model = LLMProviderChoice.Pro,  // 冲突解决需要更强的模型
+            model = LLMProviderChoice.Pro,
             fixingParser = StructureFixingParser(
                 model = LLMProviderChoice.Lite,
                 retries = 2
@@ -418,7 +763,6 @@ class MemoryAgent(
         decisions: List<MemoryDecision>
     ): AffectedFacts {
         val added = mutableListOf<FactsRecord>()
-        val updated = mutableListOf<FactsRecord>()
         val deleted = mutableListOf<DeletedFact>()
 
         for (decision in decisions) {
@@ -427,21 +771,6 @@ class MemoryAgent(
                     decision.newFact?.let { fact ->
                         createAndFetchFact(botMark, groupId, fact)?.let { added.add(it) }
                     }
-                }
-
-                MemoryAction.UPDATE -> {
-                    val existingId = decision.existingFactId ?: continue
-                    val newFact = decision.newFact ?: continue
-
-                    val oldVectorId = withContext(Dispatchers.IO) {
-                        memoryRepository.getFactById(existingId)?.vectorId
-                    }
-                    deleted.add(DeletedFact(existingId, oldVectorId))
-
-                    withContext(Dispatchers.IO) {
-                        memoryRepository.deprecateFactsById(botMark, groupId, existingId, newFact.scope)
-                    }
-                    createAndFetchFact(botMark, groupId, newFact)?.let { updated.add(it) }
                 }
 
                 MemoryAction.DELETE -> {
@@ -461,7 +790,7 @@ class MemoryAgent(
             }
         }
 
-        return AffectedFacts(added, updated, deleted)
+        return AffectedFacts(added, deleted)
     }
 
     private suspend fun createAndFetchFact(
@@ -495,7 +824,7 @@ class MemoryAgent(
             }
         }
 
-        val factsToIndex = affectedFacts.added + affectedFacts.updated
+        val factsToIndex = affectedFacts.added
         coroutineScope {
             factsToIndex.map { fact ->
                 async {

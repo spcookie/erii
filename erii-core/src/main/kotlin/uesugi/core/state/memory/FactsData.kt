@@ -152,9 +152,6 @@ enum class MemoryAction {
     @LLMDescription("添加新事实")
     ADD,
 
-    @LLMDescription("更新已有事实")
-    UPDATE,
-
     @LLMDescription("废弃过时事实")
     DELETE,
 
@@ -168,7 +165,6 @@ object MemoryActionSerializer : KSerializer<MemoryAction> {
     override fun deserialize(decoder: Decoder): MemoryAction {
         return when (val value = decoder.decodeString().lowercase()) {
             "add" -> MemoryAction.ADD
-            "update" -> MemoryAction.UPDATE
             "delete" -> MemoryAction.DELETE
             "none" -> MemoryAction.NONE
             else -> throw IllegalArgumentException("Unknown action: $value")
@@ -186,11 +182,11 @@ object MemoryActionSerializer : KSerializer<MemoryAction> {
 @Serializable
 @LLMDescription("记忆冲突解决决策")
 data class MemoryDecision(
-    @property:LLMDescription("操作类型: ADD/UPDATE/DELETE/NONE")
+    @property:LLMDescription("操作类型: ADD/DELETE/NONE")
     val action: MemoryAction,
-    @property:LLMDescription("新提取的事实（ADD/UPDATE 时必填）")
+    @property:LLMDescription("新提取的事实（ADD 时必填）")
     val newFact: ExtractedFact? = null,
-    @property:LLMDescription("已有事实的ID（UPDATE/DELETE 时必填）")
+    @property:LLMDescription("已有事实的ID（DELETE 时必填）")
     val existingFactId: Int? = null,
     @property:LLMDescription("决策原因")
     val reason: String = ""
