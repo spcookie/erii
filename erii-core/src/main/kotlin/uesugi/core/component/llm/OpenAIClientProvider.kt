@@ -2,7 +2,6 @@ package uesugi.core.component.llm
 
 import ai.koog.http.client.ktor.KtorKoogHttpClient
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
-import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.clients.retry.RetryConfig
 import ai.koog.prompt.executor.clients.retry.RetryingLLMClient
 import ai.koog.prompt.llm.LLMProvider
@@ -23,7 +22,7 @@ class OpenAIClientProvider : LLMClientProvider {
     override fun createClient(baseClient: HttpClient): RetryingLLMClient {
         val paths = ConfigHolder.getLlmOpenAIClientConfig()
         return RetryingLLMClient(
-            delegate = OpenAILLMClient(
+            delegate = UsageAwareOpenAILLMClient(
                 apiKey = apiKey,
                 settings = OpenAIClientSettings(
                     baseUrl = baseUrl,
