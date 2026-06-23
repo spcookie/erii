@@ -86,24 +86,35 @@ class ConfigHolderImpl : ConfigProvider {
         return result
     }
 
-    override fun getLlmGoogleApiKey(): String = config.getString("llm.providers.google.api-key")
-    override fun getLlmGoogleBaseUrl(): String = config.getString("llm.providers.google.base-url")
-    override fun getLlmGoogleModels(): Map<String, String> = getLlmModelsHierarchical("google")
-
     override fun getLlmOpenAIApiKey(): String = config.getString("llm.providers.openai.api-key")
     override fun getLlmOpenAIBaseUrl(): String = config.getString("llm.providers.openai.base-url")
     override fun getLlmOpenAIModels(): Map<String, String> =
         getLlmModelsHierarchical("openai")
+
+    override fun getLlmOpenAIClientConfig(): OpenAIClientConfig {
+        val p = "llm.providers.openai.settings"
+        return OpenAIClientConfig(
+            chatCompletionsPath = config.tryGetString("$p.chat-completions") ?: "v1/chat/completions",
+            responsesAPIPath = config.tryGetString("$p.responses-api") ?: "v1/responses",
+            embeddingsPath = config.tryGetString("$p.embeddings") ?: "v1/embeddings",
+            moderationsPath = config.tryGetString("$p.moderations") ?: "v1/moderations",
+            modelsPath = config.tryGetString("$p.models") ?: "v1/models"
+        )
+    }
 
     override fun getLlmAnthropicApiKey(): String = config.getString("llm.providers.anthropic.api-key")
     override fun getLlmAnthropicBaseUrl(): String = config.getString("llm.providers.anthropic.base-url")
     override fun getLlmAnthropicModels(): Map<String, String> =
         getLlmModelsHierarchical("anthropic")
 
-    override fun getLlmOpenRouterApiKey(): String = config.getString("llm.providers.openrouter.api-key")
-    override fun getLlmOpenRouterBaseUrl(): String = config.getString("llm.providers.openrouter.base-url")
-    override fun getLlmOpenRouterModels(): Map<String, String> =
-        getLlmModelsHierarchical("openrouter")
+    override fun getLlmAnthropicClientConfig(): AnthropicClientConfig {
+        val p = "llm.providers.anthropic.settings"
+        return AnthropicClientConfig(
+            apiVersion = config.tryGetString("$p.api-version") ?: "2023-06-01",
+            messagesPath = config.tryGetString("$p.messages") ?: "v1/messages",
+            modelsPath = config.tryGetString("$p.models") ?: "v1/models"
+        )
+    }
 
     override fun getChoiceProvider(): String = config.getString("llm.choice-provider")
 
@@ -160,9 +171,13 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getSearchProvider(): String = config.getString("search.provider")
     override fun getSearchUrl(): String = config.getString("search.url")
 
+    override fun getSearchModel(): String = config.tryGetString("search.model") ?: "doubao-seed-1-6-250615"
+
     override fun getVisionApiKey(): String = config.getString("vision.api-key")
     override fun getVisionProvider(): String = config.getString("vision.provider")
     override fun getVisionUrl(): String = config.getString("vision.url")
+
+    override fun getVisionModel(): String = config.tryGetString("vision.model") ?: "doubao-seed-2-0-lite-260215"
 
     override fun getProxyHttp(): String? = config.tryGetString("proxy.http")
     override fun getProxySocks(): String? = config.tryGetString("proxy.socks")

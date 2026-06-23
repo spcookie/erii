@@ -239,23 +239,39 @@ data class EvolutionTuningConfig(
 )
 
 /**
+ * OpenAI 客户端设置配置
+ */
+data class OpenAIClientConfig(
+    val chatCompletionsPath: String = "v1/chat/completions",
+    val responsesAPIPath: String = "v1/responses",
+    val embeddingsPath: String = "v1/embeddings",
+    val moderationsPath: String = "v1/moderations",
+    val modelsPath: String = "v1/models"
+)
+
+/**
+ * Anthropic 客户端设置配置
+ */
+data class AnthropicClientConfig(
+    val apiVersion: String = "2023-06-01",
+    val messagesPath: String = "v1/messages",
+    val modelsPath: String = "v1/models"
+)
+
+/**
  * 配置提供者接口
  * 定义所有配置读取方法的契约
  */
 interface ConfigProvider {
     // ===== LLM 配置 =====
-    fun getLlmGoogleApiKey(): String
-    fun getLlmGoogleBaseUrl(): String
-    fun getLlmGoogleModels(): Map<String, String>
     fun getLlmOpenAIApiKey(): String
     fun getLlmOpenAIBaseUrl(): String
     fun getLlmOpenAIModels(): Map<String, String>
+    fun getLlmOpenAIClientConfig(): OpenAIClientConfig
     fun getLlmAnthropicApiKey(): String
     fun getLlmAnthropicBaseUrl(): String
     fun getLlmAnthropicModels(): Map<String, String>
-    fun getLlmOpenRouterApiKey(): String
-    fun getLlmOpenRouterBaseUrl(): String
-    fun getLlmOpenRouterModels(): Map<String, String>
+    fun getLlmAnthropicClientConfig(): AnthropicClientConfig
     fun getChoiceProvider(): String
     fun isLlmCapabilityEnabled(name: String): Boolean
     fun isLlmCapabilityEnabled(tier: String, name: String): Boolean
@@ -269,9 +285,11 @@ interface ConfigProvider {
     fun getSearchApiKey(): String
     fun getSearchProvider(): String
     fun getSearchUrl(): String
+    fun getSearchModel(): String
     fun getVisionApiKey(): String
     fun getVisionProvider(): String
     fun getVisionUrl(): String
+    fun getVisionModel(): String
 
     // ===== 代理 =====
     fun getProxyHttp(): String?
@@ -329,18 +347,14 @@ object ConfigHolder {
     }
 
     // ===== LLM 配置 =====
-    fun getLlmGoogleApiKey(): String = provider.getLlmGoogleApiKey()
-    fun getLlmGoogleBaseUrl(): String = provider.getLlmGoogleBaseUrl()
-    fun getLlmGoogleModels(): Map<String, String> = provider.getLlmGoogleModels()
     fun getLlmOpenAIApiKey(): String = provider.getLlmOpenAIApiKey()
     fun getLlmOpenAIBaseUrl(): String = provider.getLlmOpenAIBaseUrl()
     fun getLlmOpenAIModels(): Map<String, String> = provider.getLlmOpenAIModels()
+    fun getLlmOpenAIClientConfig(): OpenAIClientConfig = provider.getLlmOpenAIClientConfig()
     fun getLlmAnthropicApiKey(): String = provider.getLlmAnthropicApiKey()
     fun getLlmAnthropicBaseUrl(): String = provider.getLlmAnthropicBaseUrl()
     fun getLlmAnthropicModels(): Map<String, String> = provider.getLlmAnthropicModels()
-    fun getLlmOpenRouterApiKey(): String = provider.getLlmOpenRouterApiKey()
-    fun getLlmOpenRouterBaseUrl(): String = provider.getLlmOpenRouterBaseUrl()
-    fun getLlmOpenRouterModels(): Map<String, String> = provider.getLlmOpenRouterModels()
+    fun getLlmAnthropicClientConfig(): AnthropicClientConfig = provider.getLlmAnthropicClientConfig()
     fun getChoiceProvider(): String = provider.getChoiceProvider()
     fun isLlmCapabilityEnabled(name: String): Boolean = provider.isLlmCapabilityEnabled(name)
     fun isLlmCapabilityEnabled(tier: String, name: String): Boolean = provider.isLlmCapabilityEnabled(tier, name)
@@ -354,9 +368,11 @@ object ConfigHolder {
     fun getSearchApiKey(): String = provider.getSearchApiKey()
     fun getSearchProvider(): String = provider.getSearchProvider()
     fun getSearchUrl(): String = provider.getSearchUrl()
+    fun getSearchModel(): String = provider.getSearchModel()
     fun getVisionApiKey(): String = provider.getVisionApiKey()
     fun getVisionProvider(): String = provider.getVisionProvider()
     fun getVisionUrl(): String = provider.getVisionUrl()
+    fun getVisionModel(): String = provider.getVisionModel()
 
     // ===== 代理 =====
     fun getProxyHttp(): String? = provider.getProxyHttp()

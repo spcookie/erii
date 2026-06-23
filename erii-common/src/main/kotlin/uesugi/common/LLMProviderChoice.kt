@@ -39,27 +39,6 @@ object LLMProviderChoice {
         return if (!all.isNullOrBlank()) all else providerModels[tier] ?: ""
     }
 
-    private fun googleModel(tier: String): LLModel {
-        val models = ConfigHolder.getLlmGoogleModels()
-        val modelId = resolveModelId(models, tier)
-        return LLModel(
-            provider = LLMProvider.Google,
-            id = modelId,
-            capabilities = filterCapabilities(
-                tier,
-                listOf(
-                    LLMCapability.Completion,
-                    LLMCapability.PromptCaching,
-                    LLMCapability.Temperature,
-                    LLMCapability.Tools,
-                    LLMCapability.ToolChoice,
-                    LLMCapability.MultipleChoices,
-                    LLMCapability.Vision.Image,
-                )
-            ),
-        )
-    }
-
     private fun openaiModel(tier: String): LLModel {
         val models = ConfigHolder.getLlmOpenAIModels()
         val modelId = resolveModelId(models, tier)
@@ -105,53 +84,26 @@ object LLMProviderChoice {
         )
     }
 
-    private fun openrouterModel(tier: String): LLModel {
-        val models = ConfigHolder.getLlmOpenRouterModels()
-        val modelId = resolveModelId(models, tier)
-        return LLModel(
-            provider = LLMProvider.OpenRouter,
-            id = modelId,
-            capabilities = filterCapabilities(
-                tier,
-                listOf(
-                    LLMCapability.Completion,
-                    LLMCapability.Temperature,
-                    LLMCapability.Tools,
-                    LLMCapability.ToolChoice,
-                    LLMCapability.MultipleChoices,
-                    LLMCapability.Vision.Image,
-                    LLMCapability.OpenAIEndpoint.Completions,
-                )
-            ),
-        )
-    }
-
     val Lite by lazy {
         when (choice) {
-            "GOOGLE" -> googleModel("lite")
-            "OPENAI" -> openaiModel("lite")
+            "GOOGLE", "OPENROUTER", "OPENAI" -> openaiModel("lite")
             "ANTHROPIC" -> anthropicModel("lite")
-            "OPENROUTER" -> openrouterModel("lite")
             else -> throw RuntimeException("Unknown choice provider: $choice")
         }
     }
 
     val Flash by lazy {
         when (choice) {
-            "GOOGLE" -> googleModel("flash")
-            "OPENAI" -> openaiModel("flash")
+            "GOOGLE", "OPENROUTER", "OPENAI" -> openaiModel("flash")
             "ANTHROPIC" -> anthropicModel("flash")
-            "OPENROUTER" -> openrouterModel("flash")
             else -> throw RuntimeException("Unknown choice provider: $choice")
         }
     }
 
     val Pro by lazy {
         when (choice) {
-            "GOOGLE" -> googleModel("pro")
-            "OPENAI" -> openaiModel("pro")
+            "GOOGLE", "OPENROUTER", "OPENAI" -> openaiModel("pro")
             "ANTHROPIC" -> anthropicModel("pro")
-            "OPENROUTER" -> openrouterModel("pro")
             else -> throw RuntimeException("Unknown choice provider: $choice")
         }
     }

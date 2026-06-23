@@ -21,10 +21,18 @@ class OpenAIClientProvider : LLMClientProvider {
 
     @OptIn(ExperimentalTime::class)
     override fun createClient(baseClient: HttpClient): RetryingLLMClient {
+        val paths = ConfigHolder.getLlmOpenAIClientConfig()
         return RetryingLLMClient(
             delegate = OpenAILLMClient(
                 apiKey = apiKey,
-                settings = OpenAIClientSettings(baseUrl = baseUrl),
+                settings = OpenAIClientSettings(
+                    baseUrl = baseUrl,
+                    chatCompletionsPath = paths.chatCompletionsPath,
+                    responsesAPIPath = paths.responsesAPIPath,
+                    embeddingsPath = paths.embeddingsPath,
+                    moderationsPath = paths.moderationsPath,
+                    modelsPath = paths.modelsPath
+                ),
                 httpClientFactory = KtorKoogHttpClient.Factory(baseClient),
             ),
             config = RetryConfig.CONSERVATIVE

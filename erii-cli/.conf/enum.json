@@ -6,18 +6,18 @@
   ],
   "llm.choice-provider": [
     "none",
-    "google",
     "openai",
-    "anthropic",
-    "openrouter"
+    "anthropic"
   ],
   "search.provider": [
     "none",
+    "ark",
     "exa",
     "minimax"
   ],
   "vision.provider": [
     "none",
+    "ark",
     "minimax"
   ],
   "state-tuning.dispatch.profile": [

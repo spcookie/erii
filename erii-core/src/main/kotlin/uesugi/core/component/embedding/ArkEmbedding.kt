@@ -12,9 +12,9 @@ import uesugi.config.HttpClientFactory
 import java.io.IOException
 
 @AutoService(IEmbedding::class)
-class ByteDanceEmbedding : IEmbedding {
+class ArkEmbedding : IEmbedding {
 
-    override val id: String = "bytedance"
+    override val id: String = "ark"
 
     companion object {
         private val client = HttpClientFactory().createClient()

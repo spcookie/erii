@@ -188,27 +188,6 @@
       }
     }
   },
-  "llm.providers.google.api-key": {
-    "type": "string",
-    "nullable": true,
-    "default": ""
-  },
-  "llm.providers.google.base-url": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.google.models.flash": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.google.models.lite": {
-    "type": "string",
-    "default": ""
-  },
-  "llm.providers.google.models.pro": {
-    "type": "string",
-    "default": ""
-  },
   "llm.providers.openai.api-key": {
     "type": "string",
     "nullable": true,
@@ -251,26 +230,37 @@
     "type": "string",
     "default": ""
   },
-  "llm.providers.openrouter.api-key": {
+  "llm.providers.openai.settings.chat-completions": {
     "type": "string",
-    "nullable": true,
-    "default": ""
+    "default": "v1/chat/completions"
   },
-  "llm.providers.openrouter.base-url": {
+  "llm.providers.openai.settings.responses-api": {
     "type": "string",
-    "default": ""
+    "default": "v1/responses"
   },
-  "llm.providers.openrouter.models.flash": {
+  "llm.providers.openai.settings.embeddings": {
     "type": "string",
-    "default": ""
+    "default": "v1/embeddings"
   },
-  "llm.providers.openrouter.models.lite": {
+  "llm.providers.openai.settings.moderations": {
     "type": "string",
-    "default": ""
+    "default": "v1/moderations"
   },
-  "llm.providers.openrouter.models.pro": {
+  "llm.providers.openai.settings.models": {
     "type": "string",
-    "default": ""
+    "default": "v1/models"
+  },
+  "llm.providers.anthropic.settings.api-version": {
+    "type": "string",
+    "default": "2023-06-01"
+  },
+  "llm.providers.anthropic.settings.messages": {
+    "type": "string",
+    "default": "v1/messages"
+  },
+  "llm.providers.anthropic.settings.models": {
+    "type": "string",
+    "default": "v1/models"
   },
   "onebot.bots.*.disabled-plugins": {
     "type": "array",
@@ -344,6 +334,10 @@
   "vision.url": {
     "type": "string",
     "default": ""
+  },
+  "vision.model": {
+    "type": "string",
+    "default": "doubao-seed-2-0-lite-260215"
   },
   "state-tuning.dispatch.profile": {
     "type": "enum",

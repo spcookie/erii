@@ -7,6 +7,7 @@ import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.annotation.InternalAgentsApi
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.*
+import ai.koog.agents.core.environment.ToolResultKind
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.core.tools.reflect.ToolFromCallable
 import ai.koog.agents.features.eventHandler.feature.handleEvents
@@ -285,7 +286,7 @@ object BotAgent {
                                 edge(nodeSendInput forwardTo nodeExecuteTool onToolCalls (::onToolCall))
                                 edge(
                                     nodeExecuteTool forwardTo nodeFinish
-                                            onCondition { results -> results.toolResults.all { it.resultObject == null } }
+                                            onCondition { results -> results.toolResults.all { it.resultObject == null && it.resultKind is ToolResultKind.Success } }
                                             transformed { "" }
                                 )
                                 edge(nodeExecuteTool forwardTo nodeSendToolResult)

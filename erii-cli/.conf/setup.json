@@ -1,12 +1,6 @@
 {
   "providers": [
     {
-      "name": "Google",
-      "key": "google",
-      "desc": "Google Gemini models",
-      "base-url": "https://generativelanguage.googleapis.com"
-    },
-    {
       "name": "OpenAI",
       "key": "openai",
       "desc": "OpenAI models",
@@ -17,23 +11,10 @@
       "key": "anthropic",
       "desc": "Anthropic Claude models",
       "base-url": "https://api.anthropic.com"
-    },
-    {
-      "name": "OpenRouter",
-      "key": "openrouter",
-      "desc": "OpenRouter - unified API for multiple LLM providers",
-      "base-url": "https://openrouter.ai/api"
     }
   ],
   "defaults": {
     "llm": {
-      "google": {
-        "model-mode": "separate",
-        "lite-model": "gemini-2.0-flash-lite",
-        "flash-model": "gemini-2.0-flash",
-        "pro-model": "gemini-2.5-pro",
-        "all-model": "gemini-2.5-pro"
-      },
       "openai": {
         "model-mode": "separate",
         "lite-model": "gpt-4.1-nano",
@@ -47,13 +28,6 @@
         "flash-model": "claude-sonnet-4-6",
         "pro-model": "claude-sonnet-4-6",
         "all-model": "claude-sonnet-4-6"
-      },
-      "openrouter": {
-        "model-mode": "separate",
-        "lite-model": "openai/gpt-4.1-nano",
-        "flash-model": "openai/gpt-4.1-mini",
-        "pro-model": "anthropic/claude-sonnet-4-6",
-        "all-model": "anthropic/claude-sonnet-4-6"
       }
     },
     "bot": {
@@ -90,6 +64,10 @@
     ],
     "search": [
       {
+        "name": "Ark",
+        "url": "https://ark.cn-beijing.volces.com/api/v1/responses"
+      },
+      {
         "name": "Exa",
         "url": "https://api.exa.ai/search"
       },
@@ -99,6 +77,10 @@
       }
     ],
     "vision": [
+      {
+        "name": "Ark",
+        "url": "https://ark.cn-beijing.volces.com/api/v3/responses"
+      },
       {
         "name": "MiniMax",
         "url": "https://api.minimaxi.com/v1/coding_plan/vlm"

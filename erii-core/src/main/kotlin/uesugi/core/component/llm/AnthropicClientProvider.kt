@@ -29,12 +29,16 @@ class AnthropicClientProvider : LLMClientProvider {
             LLMProviderChoice.Pro to models["pro"],
         ).mapNotNull { (model, id) -> id?.let { model to it } }.toMap()
 
+        val anthropicConfig = ConfigHolder.getLlmAnthropicClientConfig()
         return RetryingLLMClient(
             delegate = AnthropicLLMClient(
                 apiKey = apiKey,
                 settings = AnthropicClientSettings(
                     baseUrl = baseUrl,
-                    modelVersionsMap = modelVersionsMap
+                    modelVersionsMap = modelVersionsMap,
+                    apiVersion = anthropicConfig.apiVersion,
+                    messagesPath = anthropicConfig.messagesPath,
+                    modelsPath = anthropicConfig.modelsPath
                 ),
                 httpClientFactory = KtorKoogHttpClient.Factory(baseClient),
             ),
