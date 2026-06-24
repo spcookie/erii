@@ -2,6 +2,7 @@ package manage
 
 import (
 	"erii-cli/internal/api"
+	"erii-cli/internal/tui/components"
 
 	"github.com/charmbracelet/bubbletea"
 )
@@ -43,17 +44,15 @@ type (
 	RefreshMsg struct{}
 )
 
-type NavigationStack []tea.Model
-
 type RootModel struct {
-	stack  NavigationStack
+	stack  components.ScreenStack
 	width  int
 	height int
 }
 
 func NewRootModel(initial tea.Model) *RootModel {
 	return &RootModel{
-		stack: NavigationStack{initial},
+		stack: components.ScreenStack{initial},
 	}
 }
 
@@ -62,14 +61,7 @@ func (m *RootModel) Push(screen tea.Model) {
 }
 
 func (m *RootModel) pushWithSize(screen tea.Model) (tea.Model, tea.Cmd) {
-	m.Push(screen)
-	cmd := m.Current().Init()
-	if m.width > 0 {
-		if top := m.Current(); top != nil {
-			newTop, _ := top.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-			m.stack[len(m.stack)-1] = newTop
-		}
-	}
+	cmd := components.PushScreen(&m.stack, screen, m.width, m.height)
 	return m, cmd
 }
 
@@ -182,8 +174,8 @@ func (m *RootModel) View() string {
 
 func getAPI(model tea.Model) *api.Client {
 	switch m := model.(type) {
-	case *BotListModel:
-		return m.api
+	case *components.BotListModel:
+		return m.API()
 	default:
 		return nil
 	}

@@ -245,6 +245,37 @@ type UpdateVolitionRequest struct {
 	Stimulus float64 `json:"stimulus"`
 }
 
+// ── Token Usage ──
+
+type TokenUsageChartPoint struct {
+	Name           string `json:"name"`
+	CacheHitInput  int64  `json:"cacheHitInput"`
+	CacheMissInput int64  `json:"cacheMissInput"`
+	Output         int64  `json:"output"`
+}
+
+type DailyTokenUsagePoint struct {
+	Date   string  `json:"date"`
+	Tokens int64   `json:"tokens"`
+	Cost   float64 `json:"cost"`
+}
+
+type TokenUsageSummary struct {
+	TodayCacheHitInput  int64                  `json:"todayCacheHitInput"`
+	TodayCacheMissInput int64                  `json:"todayCacheMissInput"`
+	TodayOutput         int64                  `json:"todayOutput"`
+	TodayCost           float64                `json:"todayCost"`
+	PriceUnit           string                 `json:"priceUnit"`
+	TotalCacheHitInput  int64                  `json:"totalCacheHitInput"`
+	TotalCacheMissInput int64                  `json:"totalCacheMissInput"`
+	TotalOutput         int64                  `json:"totalOutput"`
+	TotalCost           float64                `json:"totalCost"`
+	TodayCacheHitRate   float64                `json:"todayCacheHitRate"`
+	SceneBars           []TokenUsageChartPoint `json:"sceneBars"`
+	ModelBars           []TokenUsageChartPoint `json:"modelBars"`
+	DailySeries         []DailyTokenUsagePoint `json:"dailySeries"`
+}
+
 // ── Stats specific ──
 
 type FlowState struct {

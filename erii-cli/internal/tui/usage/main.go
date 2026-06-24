@@ -1,4 +1,4 @@
-package stats
+package usage
 
 import (
 	"erii-cli/internal/tui/components"
@@ -49,7 +49,6 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		// Forward to current child
 		if top := m.Current(); top != nil {
 			newTop, _ := top.Update(msg)
 			m.stack[len(m.stack)-1] = newTop
@@ -64,9 +63,9 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, components.PushScreen(&m.stack,
 			NewGroupListModel(m.stack[0].(*components.BotListModel).API(), msg.Bot),
 			m.width, m.height)
-	case PushStatusViewMsg:
+	case PushUsageViewMsg:
 		return m, components.PushScreen(&m.stack,
-			NewStatusViewModel(m.stack[0].(*components.BotListModel).API(), msg.Bot, msg.Group),
+			NewUsageViewModel(m.stack[0].(*components.BotListModel).API(), msg.BotID, msg.BotName, msg.GroupID, msg.GroupName),
 			m.width, m.height)
 	}
 

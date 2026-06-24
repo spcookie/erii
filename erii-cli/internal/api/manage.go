@@ -1,6 +1,9 @@
 package api
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const defaultFetchLimit = 10000
 
@@ -178,6 +181,21 @@ func (c *Client) UpdateCronTask(botID, groupID, taskID string, req UpdateCronTas
 func (c *Client) DeleteCronTask(botID, groupID, taskID string) error {
 	_, err := c.doRequest("DELETE", fmt.Sprintf("/api/bot/%s/group/%s/cron-tasks/%s", botID, groupID, taskID), nil)
 	return err
+}
+
+func (c *Client) GetUsage(botID, groupID string) (*TokenUsageSummary, error) {
+	path := "/api/usage"
+	if botID != "" || groupID != "" {
+		var params []string
+		if botID != "" {
+			params = append(params, "botId="+botID)
+		}
+		if groupID != "" {
+			params = append(params, "groupId="+groupID)
+		}
+		path += "?" + strings.Join(params, "&")
+	}
+	return doJSONRequest[*TokenUsageSummary](c, "GET", path, nil)
 }
 
 func (c *Client) RefreshConfig() error {
