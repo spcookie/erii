@@ -63,5 +63,13 @@ fun Routing.configureUsageRoutes() {
 
             call.respond(JteContent("usage-template.kte", mapOf("vm" to viewModel)))
         }
+
+        get("/api/usage") {
+            val tokenUsageRepository by inject<TokenUsageRepository>()
+            val botId = call.request.queryParameters["botId"]
+            val groupId = call.request.queryParameters["groupId"]
+            val summary = tokenUsageRepository.summary(botId = botId, groupId = groupId)
+            call.respond(summary)
+        }
     }
 }
