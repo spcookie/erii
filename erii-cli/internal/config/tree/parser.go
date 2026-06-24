@@ -252,7 +252,7 @@ func (p *HOCONParser) Parse(path string) (ConfigNode, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return NewBranch("root", "HOCON configuration", nil), nil
+			return NewBranch("root", "HOCON configuration"), nil
 		}
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func parseHOCON(data string) ConfigNode {
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
 			continue
 		}
 		if idx := strings.IndexByte(trimmed, '#'); idx >= 0 {

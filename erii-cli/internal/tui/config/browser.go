@@ -13,7 +13,6 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // BrowserKeyMap defines keybindings for the config browser.
@@ -196,7 +195,6 @@ func NewBrowserModel(root tree.ConfigNode, title string, onEdit func(leaf *tree.
 		height:     24,
 	}
 	m.refreshList()
-	m.List.SetSize(80, 20)
 	return m
 }
 
@@ -271,8 +269,8 @@ func (m *BrowserModel) refreshList() {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
+	l.SetShowPagination(false)
 	l.Styles.Title = style.ListTitle
-	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
 	if m.List.Items() != nil {
 		// Preserve index if possible
@@ -292,8 +290,8 @@ func (m *BrowserModel) refreshList() {
 
 func (m *BrowserModel) updateSize() {
 	if m.width > 0 && m.height > 0 {
-		// Account for borders, padding, title, help
-		m.List.SetSize(m.width, m.height-4)
+		// Reserve 2 lines for the external help bar rendered below the list.
+		m.List.SetSize(m.width, m.height-2)
 		m.help.Width = m.width
 	}
 }

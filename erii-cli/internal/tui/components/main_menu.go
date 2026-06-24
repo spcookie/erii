@@ -89,6 +89,7 @@ func NewMainMenuModel(onSelect func(index int)) *MainMenuModel {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
+	l.SetShowPagination(false)
 	l.Styles.Title = style.ListTitle
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
