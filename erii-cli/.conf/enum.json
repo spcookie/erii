@@ -1,7 +1,7 @@
 {
   "embedding.provider": [
     "none",
-    "bytedance",
+    "ark",
     "siliconflow"
   ],
   "llm.choice-provider": [
