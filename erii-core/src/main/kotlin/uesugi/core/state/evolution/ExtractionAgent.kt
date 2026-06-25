@@ -96,7 +96,7 @@ class ExtractionAgent {
                        例如：好、行、来、看、整、搞、状态、列表
 
                     4. **机器人命令、系统命令、接口参数、路径**
-                       例如：`/status`、`list`、`farm`、`status`
+                       例如：`/status`、`/list`、`/farm`、`/usage`
 
                     5. **普通英文单词或功能词**
                        例如：animal、status、farm、list、config、help
