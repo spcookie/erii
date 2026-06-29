@@ -89,9 +89,9 @@ data class EmotionTuningConfig(
     /** mood 在单次更新中保留历史值的比例；越大 mood 越平滑，越小变化越灵敏。 */
     val moodRetention: Double = 0.92,
     /** 当前情绪对 mood 的影响权重；越大 mood 越容易跟随最近情绪变化。 */
-    val moodEmotionInfluence: Double = 0.5,
+    val moodEmotionInfluence: Double = 0.7,
     /** 当前情绪随时间自然衰减的半衰期，单位秒。 */
-    val emotionHalfLifeSeconds: Long = 600,
+    val emotionHalfLifeSeconds: Long = 1200,
     /** mood 随时间自然衰减的半衰期，单位秒。 */
     val moodHalfLifeSeconds: Long = 3600
 )

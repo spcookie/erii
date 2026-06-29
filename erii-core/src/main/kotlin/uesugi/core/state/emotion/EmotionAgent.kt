@@ -129,9 +129,9 @@ suspend fun analyzeStimulus(history: List<GMessage>): Stimulus {
         ),
         examples = listOf(
             PadScale12(
-                q1 = 0.1, q4 = 2.0, q7 = -3.0, q10 = 0.0,
-                q2 = 0.0, q5 = 0.0, q8 = 0.0, q11 = 1.1,
-                q3 = 0.12, q6 = 0.99, q9 = 0.0, q12 = 0.0
+                q1 = 1.5, q4 = -2.0, q7 = 1.5, q10 = -1.0,
+                q2 = 0.5, q5 = 0.5, q8 = 0.5, q11 = 1.0,
+                q3 = 1.0, q6 = -0.5, q9 = 0.5, q12 = -0.5
             )
         )
     )
