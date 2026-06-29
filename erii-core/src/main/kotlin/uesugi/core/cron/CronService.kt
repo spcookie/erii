@@ -7,6 +7,7 @@ import uesugi.common.BotManage
 import uesugi.common.EventBus
 import uesugi.common.event.PSFeature
 import uesugi.common.message.CommandUtil
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.component.usage.UsageContext
 import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteCallEvent
@@ -82,9 +83,13 @@ class CronService(private val jobScheduler: JobScheduler) {
                 wheel.pushTask(task.copy(triggerTime = nextTrigger, firedAt = System.currentTimeMillis()))
             }
 
-            when (task.taskType) {
-                CronTaskType.REMINDER -> sendReminderMessage(task)
-                CronTaskType.TASK_TRIGGER -> fireTaskTrigger(task)
+            if (task.groupId in ConfigHolder.getEffectiveEnableGroups(task.botId)) {
+                when (task.taskType) {
+                    CronTaskType.REMINDER -> sendReminderMessage(task)
+                    CronTaskType.TASK_TRIGGER -> fireTaskTrigger(task)
+                }
+            } else {
+                log.warn { "Group ${task.groupId} not enabled for bot ${task.botId}, skipping task ${task.taskId}" }
             }
         } catch (e: Exception) {
             log.error(e) { "Error firing cron task ${task.taskId}" }
