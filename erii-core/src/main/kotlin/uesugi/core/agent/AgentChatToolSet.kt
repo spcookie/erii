@@ -77,14 +77,14 @@ class AgentChatToolSet(
                 sendGroupMessage(buildMessage {
                     image("base64://$base64")
                 })
+                return "发送表情包消息成功"
             } else {
                 sendText(listOf(alt))
+                return "未找到表情包\"$tag\"，已发送文字替代"
             }
         } catch (e: Exception) {
             return "发送表情包消息失败，原因：" + e.message
         }
-
-        return "发送表情包消息成功"
     }
 
     private suspend fun convertNonGifToGif(bytes: ByteArray): ByteArray = withContext(Dispatchers.IO) {
