@@ -345,7 +345,7 @@
         }
 
         .swatch.level-4 {
-            background: #6b8f00;
+            background: #3a4f00;
         }
 
         .heatmap-legend span {
@@ -891,6 +891,15 @@
     }
 
     const heatmapData = createHeatmapData(startDate, heatmapDataEndDate, dailySeriesData);
+
+    var heatmapMax = 0;
+    for (var i = 0; i < heatmapData.length; i++) {
+        if (heatmapData[i].value > heatmapMax) heatmapMax = heatmapData[i].value;
+    }
+    var heatmapDomain = heatmapMax > 0
+        ? [1, Math.round(heatmapMax * 0.05), Math.round(heatmapMax * 0.25), Math.round(heatmapMax * 0.625)]
+        : [1, 200000, 1000000, 2500000];
+
     const heatmapSize = calculateHeatmapSquareSize(startDate, 6);
     const heatmapHeight = heatmapSize * 7 + heatmapGutter * 6 + 38;
     document.querySelector('.heatmap-viewport').style.minHeight = heatmapHeight + 'px';
@@ -920,8 +929,8 @@
             scale: {
                 color: {
                     type: 'threshold',
-                    range: ['#f0f0ee', '#e1f0a3', '#C5E803', '#9fc100', '#6b8f00'],
-                    domain: [1, 10000, 50000, 100000]
+                    range: ['#f0f0ee', '#e1f0a3', '#C5E803', '#9fc100', '#3a4f00'],
+                    domain: heatmapDomain
                 }
             }
         });

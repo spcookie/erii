@@ -263,7 +263,6 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 
 	heatW := cw
 	heatH := 9 // 7 day rows + 1 spacer + 1 legend row
-	scaleLen := len(heatGreenScale)
 
 	cv := canvas.New(heatW, heatH)
 	for y := 0; y < heatH; y++ {
@@ -292,16 +291,26 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 		tokens := tokenByDate[dateKey]
 
 		inRange := !dayCursor.Before(startDate) && !dayCursor.After(endDate)
-
-		frac := float64(tokens) / float64(maxV)
-		if frac > 1 {
-			frac = 1
-		}
 		colorIdx := 0
 		if inRange && tokens > 0 {
-			colorIdx = int(frac*float64(scaleLen-1) + 0.5)
-			if colorIdx >= scaleLen {
-				colorIdx = scaleLen - 1
+			frac := float64(tokens) / float64(maxV)
+			switch {
+			case frac >= 0.72:
+				colorIdx = 8
+			case frac >= 0.52:
+				colorIdx = 7
+			case frac >= 0.35:
+				colorIdx = 6
+			case frac >= 0.22:
+				colorIdx = 5
+			case frac >= 0.13:
+				colorIdx = 4
+			case frac >= 0.07:
+				colorIdx = 3
+			case frac >= 0.03:
+				colorIdx = 2
+			case frac >= 0.01:
+				colorIdx = 1
 			}
 		}
 		borderIdx := colorIdx
