@@ -1,9 +1,13 @@
 package uesugi.core.agent
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import uesugi.common.ChatMessage
 import uesugi.common.ChatToolSet
+import uesugi.onebot.core.model.MessageContent
 import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.api.sendGroupMsg
 import uesugi.onebot.sdk.message.buildMessage
@@ -12,11 +16,13 @@ import java.io.ByteArrayOutputStream
 import java.net.URL
 import java.util.*
 import javax.imageio.ImageIO
+import kotlin.time.Duration.Companion.milliseconds
 
 class AgentChatToolSet(
     val client: OneBotClient,
     val groupId: Long,
-    val context: Context
+    val context: Context,
+    private val rateLimiter: MessageSendRateLimiter = MessageSendRateLimiter()
 ) : ChatToolSet {
 
     companion object {
@@ -32,7 +38,7 @@ class AgentChatToolSet(
                 val matches = NUMBER_PATTERN.findAll(text).toList()
 
                 if (matches.isEmpty()) {
-                    client.sendGroupMsg(groupId, buildMessage { text(text) })
+                    sendGroupMessage(buildMessage { text(text) })
                 } else {
                     val msg = buildMessage {
                         var lastEnd = 0
@@ -51,7 +57,7 @@ class AgentChatToolSet(
                             text(text.substring(lastEnd))
                         }
                     }
-                    client.sendGroupMsg(groupId, msg)
+                    sendGroupMessage(msg)
                 }
             }
         } catch (e: Exception) {
@@ -68,7 +74,7 @@ class AgentChatToolSet(
             if (memo != null) {
                 val imageBytes = convertNonGifToGif(memo.bytes)
                 val base64 = Base64.getEncoder().encodeToString(imageBytes)
-                client.sendGroupMsg(groupId, buildMessage {
+                sendGroupMessage(buildMessage {
                     image("base64://$base64")
                 })
             } else {
@@ -121,7 +127,7 @@ class AgentChatToolSet(
         }
 
         try {
-            client.sendGroupMsg(groupId, buildMessage {
+            sendGroupMessage(buildMessage {
                 image(file = url)
             })
         } catch (e: Exception) {
@@ -157,7 +163,7 @@ class AgentChatToolSet(
                 }
                 text?.let { text(it) }
             }
-            client.sendGroupMsg(groupId, msg)
+            sendGroupMessage(msg)
         } catch (e: Exception) {
             return "发送消息失败，原因：" + e.message
         }
@@ -168,12 +174,42 @@ class AgentChatToolSet(
     @ChatMessage
     override suspend fun sendAtAll(): String {
         try {
-            client.sendGroupMsg(groupId, buildMessage { atAll() })
+            sendGroupMessage(buildMessage { atAll() })
         } catch (e: Exception) {
             return "发送 At 全体成员消息失败， 原因：" + e.message
         }
 
         return "发送 At 全体成员消息成功"
+    }
+
+    private suspend fun sendGroupMessage(message: MessageContent) {
+        rateLimiter.awaitTurn()
+        client.sendGroupMsg(groupId, message)
+    }
+
+}
+
+class MessageSendRateLimiter(
+    private val intervalMs: Long = DEFAULT_SEND_INTERVAL_MS,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
+    private val delayMillis: suspend (Long) -> Unit = { delay(it.milliseconds) }
+) {
+    private val mutex = Mutex()
+    private var lastSentAtMs: Long? = null
+
+    suspend fun awaitTurn() = mutex.withLock {
+        val lastSentAt = lastSentAtMs
+        if (lastSentAt != null) {
+            val waitMs = intervalMs - (nowMillis() - lastSentAt)
+            if (waitMs > 0) {
+                delayMillis(waitMs)
+            }
+        }
+        lastSentAtMs = nowMillis()
+    }
+
+    companion object {
+        const val DEFAULT_SEND_INTERVAL_MS = 1240L
     }
 
 }
