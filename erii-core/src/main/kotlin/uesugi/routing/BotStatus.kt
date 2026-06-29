@@ -89,7 +89,7 @@ private fun buildGroupStatus(
     memoService: MemeService
 ): BotStatus.ByGroup {
     val behaviorProfile = emotionService.getCurrentBehaviorProfile(botId, groupId)
-    val pad = emotionService.getCurrentMood(botId, groupId)
+    val pad = emotionService.getCurrentEmotion(botId, groupId)
     val flowState = flowGaugeManager.getOrCreate(botId, groupId, emoticon)
         .let { it.state.value to it.mapToState() }
     val volitionState = volitionGaugeManager.getOrCreate(botId, groupId, emoticon)

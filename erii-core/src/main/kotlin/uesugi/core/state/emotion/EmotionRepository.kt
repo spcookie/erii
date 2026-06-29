@@ -170,7 +170,7 @@ class EmotionRepository {
         val instant = entity.updatedAt.toInstant(tz)
         val seconds = (now - instant).inWholeSeconds.coerceAtLeast(0)
         return if (seconds > minSeconds) {
-            calculateDecayEmotion(entity.emotion, baseline, seconds) to calculateDecayMood(
+            calculateDecayEmotion(entity.emotion, entity.mood, seconds) to calculateDecayMood(
                 entity.mood,
                 baseline,
                 seconds
@@ -181,12 +181,12 @@ class EmotionRepository {
     }
 
     /**
-     * 情绪衰减计算，向 baseline 回弹
+     * 情绪衰减计算，向 mood 回弹
      */
-    fun calculateDecayEmotion(emotion: PAD, baseline: PAD, deltaSeconds: Long): PAD {
+    fun calculateDecayEmotion(emotion: PAD, mood: PAD, deltaSeconds: Long): PAD {
         val halfLife = ConfigHolder.getStateTuning().emotion.emotionHalfLifeSeconds.coerceAtLeast(1)
         val factor = decayFactor(halfLife, deltaSeconds)
-        return decayToward(emotion, baseline, factor)
+        return decayToward(emotion, mood, factor)
     }
 
     /**

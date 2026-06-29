@@ -44,13 +44,13 @@ internal fun buildSpeechConstraints(
     aggressiveness: Aggressiveness?,
     emojiLevel: EmojiLevel?,
     interruptionMode: InterruptionMode,
-    mood: PAD?,
+    emotionPad: PAD?,
     flowValue: Double
 ): SpeechConstraints {
     val constraints = SpeechConstraints()
 
     emotion?.apply {
-        applyEmotion(this, mood, constraints)
+        applyEmotion(this, emotionPad, constraints)
     }
     tone?.apply {
         applyTone(this, constraints)
@@ -64,14 +64,14 @@ internal fun buildSpeechConstraints(
 
     applyInterruptionMode(interruptionMode, constraints)
     applyFlowState(flowValue, constraints)
-    applyEmotionFlowInteraction(mood, flowValue, constraints)
+    applyEmotionFlowInteraction(emotionPad, flowValue, constraints)
 
     return constraints
 }
 
 private fun applyEmotion(
     emotion: EmotionalTendencies,
-    mood: PAD?,
+    emotionPad: PAD?,
     constraints: SpeechConstraints
 ) {
     when (emotion) {
@@ -129,7 +129,7 @@ private fun applyEmotion(
         }
     }
 
-    mood?.normalize()?.let { pad ->
+    emotionPad?.normalize()?.let { pad ->
         val (p, a, d) = Triple(pad.p, pad.a, pad.d)
         when {
             p > 0.5 -> {
@@ -246,12 +246,12 @@ private fun applyEmojiLevel(
 }
 
 private fun applyEmotionFlowInteraction(
-    mood: PAD?,
+    emotionPad: PAD?,
     flowValue: Double,
     constraints: SpeechConstraints
 ) {
-    if (mood == null) return
-    val (p, a, d) = Triple(mood.normalize().p, mood.normalize().a, mood.normalize().d)
+    if (emotionPad == null) return
+    val (p, a, d) = Triple(emotionPad.normalize().p, emotionPad.normalize().a, emotionPad.normalize().d)
 
     if (flowValue >= 70 && a > 0.3) {
         constraints.styleHints += "对话热度高且情绪兴奋，可适当增加互动感"
@@ -342,7 +342,7 @@ data class Context(
     val interruptionMode: InterruptionMode,
     val behaviorProfile: suspend () -> BehaviorProfile?,
     val flow: () -> Double,
-    val mood: suspend () -> PAD?,
+    val emotionPad: suspend () -> PAD?,
     val facts: suspend () -> List<FactsEntity>,
     val userProfiles: suspend () -> List<UserProfileEntity>,
     val vocabulary: suspend () -> List<LearnedVocabEntity>,
@@ -358,7 +358,7 @@ data class Context(
     data class Transient(
         val behaviorProfile: BehaviorProfile?,
         val flow: Double,
-        val mood: PAD?,
+        val emotionPad: PAD?,
         val facts: List<FactsEntity>,
         val userProfiles: List<UserProfileEntity>,
         val vocabulary: List<LearnedVocabEntity>,
@@ -373,7 +373,7 @@ data class Context(
     suspend fun toTransient() = Transient(
         behaviorProfile = behaviorProfile(),
         flow = flow(),
-        mood = mood(),
+        emotionPad = emotionPad(),
         facts = facts(),
         userProfiles = userProfiles(),
         vocabulary = vocabulary(),
@@ -433,9 +433,9 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
                     )
                 flowGauge.getFlowMeter()
             },
-            mood = {
+            emotionPad = {
                 withContext(Dispatchers.IO) {
-                    emotionService.getCurrentMood(currentBotId, groupId)
+                    emotionService.getCurrentEmotion(currentBotId, groupId)
                 }
             },
             facts = {
@@ -549,7 +549,7 @@ internal fun buildConstraint(
         behaviorProfile?.aggressiveness,
         behaviorProfile?.emojiLevel,
         context.interruptionMode,
-        transient.mood,
+        transient.emotionPad,
         transient.flow
     )
     return constraints

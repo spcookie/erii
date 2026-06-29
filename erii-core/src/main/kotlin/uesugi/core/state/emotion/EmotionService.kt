@@ -300,14 +300,7 @@ class EmotionService(
         return emotionRepository.getLatestEmotion(botMark, groupId)?.behavior
     }
 
-    @OptIn(ExperimentalTime::class)
-    fun getCurrentMood(botMark: String, groupId: String): PAD? {
-        return emotionRepository.getLatestEmotion(botMark, groupId)?.let {
-            val tz = TimeZone.currentSystemDefault()
-            val now = Clock.System.now()
-            val instant = it.updatedAt.toInstant(tz)
-            val hours = (now - instant).inWholeHours.coerceAtLeast(0)
-            if (hours < 1) it.emotion else it.mood
-        }
+    fun getCurrentEmotion(botMark: String, groupId: String): PAD? {
+        return emotionRepository.getLatestEmotion(botMark, groupId)?.emotion
     }
 }
