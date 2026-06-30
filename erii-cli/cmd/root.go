@@ -13,6 +13,7 @@ var (
 	confDirFlag     string
 	confMetaDirFlag string
 	pluginDirFlag   string
+	logsPathFlag    string
 )
 
 var rootCmd = &cobra.Command{
@@ -36,4 +37,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&confDirFlag, "conf-dir", "", "Path to conf directory (default: auto-detected)")
 	rootCmd.PersistentFlags().StringVar(&confMetaDirFlag, "meta-conf-dir", "", "Path to .conf meta directory (default: auto-detected)")
 	rootCmd.PersistentFlags().StringVar(&pluginDirFlag, "plugin-dir", "", "Path to plugins directory (default: auto-detected)")
+	rootCmd.PersistentFlags().StringVar(&logsPathFlag, "logs-path", "", "Path to logs directory (default: ./logs)")
 }
