@@ -302,6 +302,14 @@
     "type": "string",
     "default": ""
   },
+  "resource-cleanup.retention-days": {
+    "type": "number",
+    "default": 15
+  },
+  "resource-cleanup.thumbnail-retention-days": {
+    "type": "number",
+    "default": 30
+  },
   "proxy.http": {
     "type": "string",
     "nullable": true,

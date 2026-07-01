@@ -219,8 +219,9 @@ func (m *UsageViewModel) buildCharts() {
 	halfW := (panelW - 4) / 2
 	m.sceneChart = m.buildBarChart("Scene Tokens", translateSceneNames(sortSceneRows(m.data.SceneBars)), halfW)
 	m.modelChart = m.buildColumnChart("Model Tokens", m.data.ModelBars, halfW)
-	m.lineChart = m.buildLineChart(halfW)
-	m.heatmap = m.buildHeatmap(halfW)
+	var heatH int
+	m.heatmap, heatH = m.buildHeatmap(halfW)
+	m.lineChart = m.buildLineChart(halfW, heatH)
 }
 
 func (m *UsageViewModel) chartWidth() int {

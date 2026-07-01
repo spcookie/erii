@@ -943,8 +943,13 @@ func (m *DataTableModel) buildPreviewContent() string {
 		}
 	case api.MemeRecord:
 		title = fmt.Sprintf("Meme #%d", r.ID)
+		resourceIDStr := fmt.Sprintf("%d", r.ResourceID)
+		if r.ResourceID == 0 {
+			resourceIDStr = "(null)"
+		}
 		contentLines = []string{
 			wrap("ID", fmt.Sprintf("%d", r.ID)),
+			wrap("ResourceID", resourceIDStr),
 			wrap("Md5", r.Md5),
 			wrap("SeenCount", fmt.Sprintf("%d", r.SeenCount)),
 			wrap("Description", ptrStr(r.Description)),
@@ -1222,16 +1227,17 @@ func getFormatter(rt ResourceType) tableFormatter {
 	case ResourceMemes:
 		return tableFormatter{
 			title:     "Memes",
-			minWidths: []int{5, 15, 10, 10, 6, 6},
+			minWidths: []int{5, 15, 6, 10, 10, 6, 6},
 			columns: func(widths []int) []table.Column {
 				return []table.Column{
 					{Title: "", Width: widths[0]},
 					{Title: "ID", Width: widths[1]},
-					{Title: "Description", Width: widths[2]},
-					{Title: "Purpose", Width: widths[3]},
-					{Title: "Tags", Width: widths[4]},
-					{Title: "Seen", Width: widths[5]},
-					{Title: "Usage", Width: widths[6]},
+					{Title: "Res", Width: widths[2]},
+					{Title: "Description", Width: widths[3]},
+					{Title: "Purpose", Width: widths[4]},
+					{Title: "Tags", Width: widths[5]},
+					{Title: "Seen", Width: widths[6]},
+					{Title: "Usage", Width: widths[7]},
 				}
 			},
 			getRow: func(a any, selected bool) table.Row {
@@ -1239,6 +1245,10 @@ func getFormatter(rt ResourceType) tableFormatter {
 				cb := "[ ]"
 				if selected {
 					cb = "[x]"
+				}
+				resID := fmt.Sprintf("%d", r.ResourceID)
+				if r.ResourceID == 0 {
+					resID = "(null)"
 				}
 				desc := ""
 				if r.Description != nil {
@@ -1255,6 +1265,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				return table.Row{
 					cb,
 					fmt.Sprintf("%d", r.ID),
+					resID,
 					desc,
 					purpose,
 					tags,

@@ -230,10 +230,10 @@ func (m *UsageViewModel) buildColumnChart(title string, rows []api.TokenUsageCha
 
 // ── Daily Heatmap ──
 
-func (m *UsageViewModel) buildHeatmap(cw int) string {
+func (m *UsageViewModel) buildHeatmap(cw int) (string, int) {
 	series := m.data.DailySeries
 	if len(series) == 0 {
-		return ""
+		return "", 0
 	}
 
 	tokenByDate := make(map[string]int64)
@@ -250,7 +250,7 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 
 	lastDate, err := time.Parse("2006-01-02", series[len(series)-1].Date)
 	if err != nil {
-		return ""
+		return "", 0
 	}
 	startDate := time.Date(lastDate.Year(), lastDate.Month()-5, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(lastDate.Year(), lastDate.Month()+1, 0, 0, 0, 0, 0, time.UTC)
@@ -262,7 +262,15 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 	numWeeks := int(weekEnd.Sub(weekStart).Hours()/24/7) + 1
 
 	heatW := cw
-	heatH := 9 // 7 day rows + 1 spacer + 1 legend row
+	cellW := heatW / numWeeks
+	if cellW < 1 {
+		cellW = 1
+	}
+	cellH := cellW // square cells
+	dayRows := 7 * cellH
+	heatH := 1 + dayRows + 1 + 1 // month labels + day cells + spacer + legend
+	cellBaseY := 1               // day cells start at row 1 (row 0 = month labels)
+	legendY := 1 + dayRows + 1   // after cells + spacer
 
 	cv := canvas.New(heatW, heatH)
 	for y := 0; y < heatH; y++ {
@@ -285,7 +293,7 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 
 		startX := col * heatW / numWeeks
 		endX := (col + 1) * heatW / numWeeks
-		canvasY := row
+		canvasY := cellBaseY + row*cellH
 
 		dateKey := dayCursor.Format("2006-01-02")
 		tokens := tokenByDate[dateKey]
@@ -309,7 +317,7 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 				colorIdx = 3
 			case frac >= 0.03:
 				colorIdx = 2
-			case frac >= 0.01:
+			default:
 				colorIdx = 1
 			}
 		}
@@ -323,11 +331,17 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 		cellStyle := lipgloss.NewStyle().Background(bg)
 		borderStyle := lipgloss.NewStyle().Background(borderBg)
 
-		for x := startX; x < endX && x < heatW && canvasY < heatH; x++ {
-			if x == endX-1 && borderIdx != colorIdx {
-				cv.SetCell(canvas.Point{X: x, Y: canvasY}, canvas.NewCellWithStyle(' ', borderStyle))
-			} else {
-				cv.SetCell(canvas.Point{X: x, Y: canvasY}, canvas.NewCellWithStyle(' ', cellStyle))
+		for dy := 0; dy < cellH; dy++ {
+			cy := canvasY + dy
+			if cy >= heatH {
+				break
+			}
+			for x := startX; x < endX && x < heatW; x++ {
+				if x == endX-1 && borderIdx != colorIdx {
+					cv.SetCell(canvas.Point{X: x, Y: cy}, canvas.NewCellWithStyle(' ', borderStyle))
+				} else {
+					cv.SetCell(canvas.Point{X: x, Y: cy}, canvas.NewCellWithStyle(' ', cellStyle))
+				}
 			}
 		}
 
@@ -347,20 +361,17 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 		return monthLabels[i].col < monthLabels[j].col
 	})
 
-	var out strings.Builder
-
-	labelRow := strings.Repeat(" ", heatW)
-	labelRunes := []rune(labelRow)
+	// Draw month labels on canvas row 0
+	labelRunes := []rune(strings.Repeat(" ", heatW))
 	for i, ml := range monthLabels {
 		pos := ml.col * heatW / numWeeks
 		nameRunes := []rune(ml.name)
-		// Compute available space to next month label
 		limit := heatW
 		if i+1 < len(monthLabels) {
 			limit = monthLabels[i+1].col * heatW / numWeeks
 		}
 		if pos+len(nameRunes) > limit {
-			continue // not enough room
+			continue
 		}
 		for j, r := range nameRunes {
 			idx := pos + j
@@ -369,15 +380,13 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 			}
 		}
 	}
-	out.WriteString(style.Muted(string(labelRunes)))
-	out.WriteString("\n")
+	cv.SetStringWithStyle(canvas.Point{X: 0, Y: 0}, string(labelRunes), style.MutedStyle)
 
-	// Draw color legend on bottom-right of canvas
+	// Draw color legend below cells (with spacer row)
 	legendX := heatW - 21
 	if legendX < 0 {
 		legendX = 0
 	}
-	legendY := heatH - 1
 	cv.SetStringWithStyle(canvas.Point{X: legendX, Y: legendY}, "Less ", style.MutedStyle)
 	legendX += 5
 	for _, c := range heatGreenScale {
@@ -386,14 +395,15 @@ func (m *UsageViewModel) buildHeatmap(cw int) string {
 	}
 	cv.SetStringWithStyle(canvas.Point{X: legendX, Y: legendY}, " More", style.MutedStyle)
 
+	var out strings.Builder
 	out.WriteString(cv.View())
 
-	return out.String()
+	return out.String(), heatH
 }
 
 // ── Time Series Line Chart ──
 
-func (m *UsageViewModel) buildLineChart(cw int) string {
+func (m *UsageViewModel) buildLineChart(cw int, chartH int) string {
 	series := m.data.DailySeries
 	if cw < 30 {
 		cw = 40
@@ -427,7 +437,9 @@ func (m *UsageViewModel) buildLineChart(cw int) string {
 		return style.Muted(noDataMsg)
 	}
 
-	chartH := 10
+	if chartH < 10 {
+		chartH = 10
+	}
 
 	firstDate := timePoints[0].Time
 	lastDate := timePoints[len(timePoints)-1].Time
