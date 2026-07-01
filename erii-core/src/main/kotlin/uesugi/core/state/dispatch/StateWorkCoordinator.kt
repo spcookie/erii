@@ -11,7 +11,6 @@ import uesugi.common.toolkit.logger
 import uesugi.core.message.history.HistorySavedEvent
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.min
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
@@ -46,7 +45,6 @@ class StateWorkCoordinator(
 ) : AutoCloseable {
 
     private data class Pending(
-        val firstSignalAtNanos: Long,
         var lastSignalAtNanos: Long,
         var signalCount: Int,
         var forced: Boolean,
@@ -100,7 +98,7 @@ class StateWorkCoordinator(
         val now = System.nanoTime()
         synchronized(pendingLock) {
             val state = pending.getOrPut(key) {
-                Pending(now, now, 0, false)
+                Pending(now, 0, false)
             }
             state.lastSignalAtNanos = now
             state.signalCount += increment
@@ -111,14 +109,10 @@ class StateWorkCoordinator(
                 state.forced -> Duration.ZERO
                 state.signalCount >= policy.minMessages -> {
                     val debounceTarget = state.lastSignalAtNanos + policy.debounce.inWholeNanoseconds
-                    val deadlineTarget = state.firstSignalAtNanos + policy.maxWait.inWholeNanoseconds
-                    val target = min(debounceTarget, deadlineTarget)
-                    (target - now).coerceAtLeast(0).nanoseconds
+                    (debounceTarget - now).coerceAtLeast(0).nanoseconds
                 }
 
-                else -> (state.firstSignalAtNanos + policy.maxWait.inWholeNanoseconds - now)
-                    .coerceAtLeast(0)
-                    .nanoseconds
+                else -> return
             }
             state.scheduled = scope.launch {
                 delay(delayDuration)
@@ -133,7 +127,7 @@ class StateWorkCoordinator(
         } ?: return
         val processor = processorsByKind[key.kind] ?: return
         val policy = policies[key.kind] ?: return
-        val force = state.forced || state.signalCount < policy.minMessages
+        val force = state.forced
         val lock = keyLocks.computeIfAbsent(key) { Mutex() }
 
         lock.withLock {

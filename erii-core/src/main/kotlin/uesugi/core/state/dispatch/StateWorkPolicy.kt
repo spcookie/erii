@@ -24,7 +24,6 @@ enum class BacklogMode {
 data class StateWorkPolicy(
     val backlogMode: BacklogMode,
     val debounce: Duration,
-    val maxWait: Duration,
     val minMessages: Int,
     val batchLimit: Int
 )
@@ -42,16 +41,6 @@ fun StateTriggerProfile.policies(): Map<StateWorkKind, StateWorkPolicy> {
         StateTriggerProfile.BALANCED -> 30.seconds
         StateTriggerProfile.ECONOMY -> 1.minutes
     }
-    val realtimeWait = when (this) {
-        StateTriggerProfile.REALTIME -> 1.minutes
-        StateTriggerProfile.BALANCED -> 5.minutes
-        StateTriggerProfile.ECONOMY -> 10.minutes
-    }
-    val knowledgeWait = when (this) {
-        StateTriggerProfile.REALTIME -> 5.minutes
-        StateTriggerProfile.BALANCED -> 15.minutes
-        StateTriggerProfile.ECONOMY -> 30.minutes
-    }
     val realtimeMinimum = when (this) {
         StateTriggerProfile.REALTIME -> 20
         StateTriggerProfile.BALANCED -> 30
@@ -67,54 +56,20 @@ fun StateTriggerProfile.policies(): Map<StateWorkKind, StateWorkPolicy> {
         StateTriggerProfile.BALANCED -> 1.minutes
         StateTriggerProfile.ECONOMY -> 2.minutes
     }
-    val memeAnalysisWait = when (this) {
-        StateTriggerProfile.REALTIME -> 5.minutes
-        StateTriggerProfile.BALANCED -> 30.minutes
-        StateTriggerProfile.ECONOMY -> 60.minutes
-    }
     val evolutionMinimum = when (this) {
         StateTriggerProfile.REALTIME -> 100
         StateTriggerProfile.BALANCED -> 200
         StateTriggerProfile.ECONOMY -> 300
     }
-    val evolutionWait = when (this) {
-        StateTriggerProfile.REALTIME -> 15.minutes
-        StateTriggerProfile.BALANCED -> 30.minutes
-        StateTriggerProfile.ECONOMY -> 60.minutes
-    }
 
     return mapOf(
-        StateWorkKind.EMOTION to StateWorkPolicy(
-            BacklogMode.LATEST_WINDOW,
-            debounce,
-            realtimeWait,
-            realtimeMinimum,
-            200
-        ),
-        StateWorkKind.FLOW to StateWorkPolicy(BacklogMode.LATEST_WINDOW, debounce, realtimeWait, realtimeMinimum, 100),
-        StateWorkKind.VOLITION to StateWorkPolicy(
-            BacklogMode.LATEST_WINDOW,
-            debounce,
-            realtimeWait,
-            realtimeMinimum,
-            100
-        ),
-        StateWorkKind.MEMORY to StateWorkPolicy(BacklogMode.SEQUENTIAL, debounce, knowledgeWait, knowledgeMinimum, 400),
-        StateWorkKind.SUMMARY to StateWorkPolicy(
-            BacklogMode.SEQUENTIAL,
-            debounce,
-            knowledgeWait,
-            knowledgeMinimum,
-            200
-        ),
-        StateWorkKind.MEME_COLLECT to StateWorkPolicy(BacklogMode.SEQUENTIAL, memeDelay, memeDelay, 1, 500),
-        StateWorkKind.MEME_ANALYZE to StateWorkPolicy(BacklogMode.SEQUENTIAL, debounce, memeAnalysisWait, 1, 20),
-        StateWorkKind.EVOLUTION to StateWorkPolicy(
-            BacklogMode.SEQUENTIAL,
-            debounce,
-            evolutionWait,
-            evolutionMinimum,
-            500
-        )
+        StateWorkKind.EMOTION to StateWorkPolicy(BacklogMode.LATEST_WINDOW, debounce, realtimeMinimum, 200),
+        StateWorkKind.FLOW to StateWorkPolicy(BacklogMode.LATEST_WINDOW, debounce, realtimeMinimum, 100),
+        StateWorkKind.VOLITION to StateWorkPolicy(BacklogMode.LATEST_WINDOW, debounce, realtimeMinimum, 100),
+        StateWorkKind.MEMORY to StateWorkPolicy(BacklogMode.SEQUENTIAL, debounce, knowledgeMinimum, 400),
+        StateWorkKind.SUMMARY to StateWorkPolicy(BacklogMode.SEQUENTIAL, debounce, knowledgeMinimum, 200),
+        StateWorkKind.MEME_COLLECT to StateWorkPolicy(BacklogMode.SEQUENTIAL, memeDelay, 1, 500),
+        StateWorkKind.MEME_ANALYZE to StateWorkPolicy(BacklogMode.SEQUENTIAL, debounce, 1, 20),
+        StateWorkKind.EVOLUTION to StateWorkPolicy(BacklogMode.SEQUENTIAL, debounce, evolutionMinimum, 500)
     )
 }
