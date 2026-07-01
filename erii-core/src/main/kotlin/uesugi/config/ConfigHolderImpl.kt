@@ -299,6 +299,13 @@ class ConfigHolderImpl : ConfigProvider {
         return groupConfig.admins
     }
 
+    override fun getResourceCleanup(): ResourceCleanupConfig {
+        return ResourceCleanupConfig(
+            retentionDays = getIntOrDefault("resource-cleanup.retention-days", 15),
+            thumbnailRetentionDays = getIntOrDefault("resource-cleanup.thumbnail-retention-days", 30)
+        )
+    }
+
     override fun getStateTuning(): StateTuningConfig {
         val d = StateTuningConfig()
         val profileValue = if (config.hasPath("state-tuning.dispatch.profile")) {

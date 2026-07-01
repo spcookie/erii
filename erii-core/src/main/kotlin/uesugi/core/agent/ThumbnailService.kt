@@ -74,6 +74,18 @@ class ThumbnailService(
             .takeIf { it.isNotEmpty() } ?: "png"
     }
 
+    fun deleteThumbnail(originalPath: String) {
+        val thumbPath = pathMap[originalPath] ?: return
+        if (objectStorage.exists(thumbPath.toPath())) {
+            objectStorage.delete(thumbPath.toPath())
+        }
+        pathMap.remove(originalPath)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun getPathMapEntries(): MutableSet<MutableMap.MutableEntry<String, String>> =
+        pathMap.entries as MutableSet<MutableMap.MutableEntry<String, String>>
+
     private fun md5(input: String): String {
         val digest = MessageDigest.getInstance("MD5")
         return digest.digest(input.toByteArray()).joinToString("") { "%02x".format(it) }

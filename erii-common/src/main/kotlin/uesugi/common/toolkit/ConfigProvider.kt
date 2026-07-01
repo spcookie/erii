@@ -71,6 +71,16 @@ enum class StateTriggerProfile {
     }
 }
 
+/**
+ * 资源清理调参配置。
+ */
+data class ResourceCleanupConfig(
+    /** 资源保留天数，超过此天数的资源将被清理（被表情包引用的除外）。 */
+    val retentionDays: Int = 15,
+    /** 缩略图保留天数，默认 30。 */
+    val thumbnailRetentionDays: Int = 30
+)
+
 data class StateDispatchTuningConfig(
     val profile: StateTriggerProfile = StateTriggerProfile.ECONOMY,
     val maxConcurrency: Int = 4
@@ -301,6 +311,9 @@ interface ConfigProvider {
     fun getOnebotBots(): Map<String, BotConfig>
     fun getAdmins(botConfigKey: String, groupId: String): List<String>
 
+    // ===== Resource cleanup =====
+    fun getResourceCleanup(): ResourceCleanupConfig
+
     // ===== State tuning =====
     fun getStateTuning(): StateTuningConfig
 
@@ -383,6 +396,9 @@ object ConfigHolder {
     fun getOnebotToken(): String = provider.getOnebotToken()
     fun getOnebotBots(): Map<String, BotConfig> = provider.getOnebotBots()
     fun getAdmins(botConfigKey: String, groupId: String): List<String> = provider.getAdmins(botConfigKey, groupId)
+
+    // ===== Resource cleanup =====
+    fun getResourceCleanup(): ResourceCleanupConfig = provider.getResourceCleanup()
 
     // ===== State tuning =====
     fun getStateTuning(): StateTuningConfig = provider.getStateTuning()

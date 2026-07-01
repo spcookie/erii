@@ -10,6 +10,8 @@ import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.koinModule
 import uesugi.core.chat.chatModule
+import uesugi.core.cleanup.ResourceCleanupJob
+import uesugi.core.cleanup.cleanupModule
 import uesugi.core.component.llm.AnthropicClientProvider
 import uesugi.core.component.llm.OpenAIClientProvider
 import uesugi.core.component.storage.EmbeddedVectorStore
@@ -47,6 +49,7 @@ fun Application.warmUp() {
         it.get<EvolutionJob>().openTimingTriggerSignal()
         it.get<FlowJob>().openTimingTriggerSignal()
         it.get<MemeJob>().openTimingTriggerSignal()
+        it.get<ResourceCleanupJob>().openTimingTriggerSignal()
         it.get<StateDispatchJob>().open()
         it.get<CronService>().start()
     }
@@ -114,4 +117,5 @@ val appModule = module {
     includes(stateDispatchModule)
     includes(cronModule)
     includes(chatModule)
+    includes(cleanupModule)
 }
