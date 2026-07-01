@@ -140,6 +140,10 @@ class VolitionJob(
         val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
         val gauge = volitionGaugeManager.get(botMark, groupId) ?: return
 
+        gauge.state.lastActiveTime = messages.maxOf { it.time }
+            .toInstant(TimeZone.currentSystemDefault())
+            .toEpochMilliseconds()
+
         val botInterests = BotManage.getBot(botMark).role.character
 
         val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
