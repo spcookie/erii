@@ -162,7 +162,7 @@ class EmotionService(
         // 获取上下文消息
         val contextHistories = if (lastProcessedId > 0) {
             withContext(Dispatchers.IO) {
-                emotionRepository.getContextMessages(currentBotId, groupId, lastProcessedId, 100)
+                emotionRepository.getContextMessages(currentBotId, groupId, lastProcessedId, 30)
             }
         } else {
             emptyList()
