@@ -1,6 +1,7 @@
 package uesugi.core.component.storage
 
-import org.apache.lucene.analysis.standard.StandardAnalyzer
+import org.apache.lucene.analysis.cn.smart.SmartChineseAnalyzer
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 import org.apache.lucene.document.*
 import org.apache.lucene.index.IndexWriter
 import org.apache.lucene.index.IndexWriterConfig
@@ -8,6 +9,7 @@ import org.apache.lucene.index.Term
 import org.apache.lucene.search.*
 import org.apache.lucene.store.FSDirectory
 import java.io.Closeable
+import java.io.StringReader
 import java.nio.file.Path
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -25,6 +27,7 @@ interface VectorStore {
     fun delete(id: String)
     fun deleteAll()
     fun search(queryVector: FloatArray, topK: Int, filter: List<String>? = null): List<VectorSearchResult>
+    fun searchText(query: String, topK: Int): List<VectorSearchResult>
 }
 
 class EmbeddedVectorStore(
@@ -47,7 +50,7 @@ class EmbeddedVectorStore(
     }
 
     init {
-        val config = IndexWriterConfig(StandardAnalyzer()).apply {
+        val config = IndexWriterConfig(SmartChineseAnalyzer()).apply {
             openMode = IndexWriterConfig.OpenMode.CREATE_OR_APPEND
         }
 
@@ -119,6 +122,43 @@ class EmbeddedVectorStore(
                     tag = doc.get(TAG),
                     score = it.score
                 )
+            }
+        }
+    }
+
+    override fun searchText(query: String, topK: Int): List<VectorSearchResult> {
+        lock.read {
+            val searcher = searcherManager.acquire()
+            try {
+                val builder = BooleanQuery.Builder()
+                val analyzer = SmartChineseAnalyzer()
+                val tokenStream = analyzer.tokenStream(CONTENT_FIELD, StringReader(query))
+                val charTermAttr = tokenStream.addAttribute(CharTermAttribute::class.java)
+                tokenStream.reset()
+                while (tokenStream.incrementToken()) {
+                    val token = charTermAttr.toString()
+                    if (token.length >= 2) {
+                        builder.add(TermQuery(Term(CONTENT_FIELD, token)), BooleanClause.Occur.SHOULD)
+                    }
+                }
+                tokenStream.end()
+                tokenStream.close()
+                analyzer.close()
+
+                val topDocs = searcher.search(builder.build(), topK)
+                val storedFields = searcher.storedFields()
+
+                return topDocs.scoreDocs.map {
+                    val doc = storedFields.document(it.doc)
+                    VectorSearchResult(
+                        id = doc.get(ID_FIELD),
+                        content = doc.get(CONTENT_FIELD),
+                        tag = doc.get(TAG),
+                        score = it.score
+                    )
+                }
+            } finally {
+                searcherManager.release(searcher)
             }
         }
     }

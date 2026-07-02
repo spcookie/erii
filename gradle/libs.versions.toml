@@ -17,6 +17,7 @@ autoservice = "1.1.1"
 arrow = "2.0.0"
 lucene = "9.12.3"
 lucene-analyzers = "8.11.4"
+lucene-analyzers-smartcn = "8.11.4"
 clikt = "5.1.0"
 okio = "3.6.0"
 hutool = "5.8.26"
@@ -80,6 +81,7 @@ playwright = { module = "com.microsoft.playwright:playwright", version.ref = "pl
 arrow-core = { group = "io.arrow-kt", name = "arrow-core", version.ref = "arrow" }
 lucene-core = { module = "org.apache.lucene:lucene-core", version.ref = "lucene" }
 lucene-analyzers-common = { module = "org.apache.lucene:lucene-analyzers-common", version.ref = "lucene-analyzers" }
+lucene-analyzers-smartcn = { module = "org.apache.lucene:lucene-analyzers-smartcn", version.ref = "lucene-analyzers-smartcn" }
 jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
 pf4j = { module = "org.pf4j:pf4j", version.ref = "pf4j" }
 lunar = { module = "cn.6tail:lunar", version.ref = "lunar" }

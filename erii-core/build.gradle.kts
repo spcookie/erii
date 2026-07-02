@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.arrow.core)
     implementation(libs.lucene.core)
     implementation(libs.lucene.analyzers.common)
+    implementation(libs.lucene.analyzers.smartcn)
     implementation(libs.playwright)
     implementation(libs.flexmark.html2md)
     implementation(libs.flexmark.ext.tables)
