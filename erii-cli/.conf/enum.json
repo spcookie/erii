@@ -5,9 +5,9 @@
     "siliconflow"
   ],
   "llm.choice-provider": [
-    "none",
-    "openai",
-    "anthropic"
+    "NONE",
+    "OPENAI",
+    "ANTHROPIC"
   ],
   "search.provider": [
     "none",
