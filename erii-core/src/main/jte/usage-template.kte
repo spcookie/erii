@@ -381,16 +381,9 @@
         <div class="kpi">
             <div class="kpi-label">
                 <i data-lucide="download" class="icon"></i>
-                <span>输入 · 缓存命中</span></div>
-            <div class="kpi-value">${vm.formatTokens(vm.todayCacheHitInput)}</div>
-            <div class="kpi-hint">INPUT CACHE HIT</div>
-        </div>
-        <div class="kpi">
-            <div class="kpi-label">
-                <i data-lucide="arrow-down-to-line" class="icon"></i>
-                <span>输入 · 未命中</span></div>
-            <div class="kpi-value">${vm.formatTokens(vm.todayCacheMissInput)}</div>
-            <div class="kpi-hint">INPUT CACHE MISS</div>
+                <span>输入 · 命中/未命中</span></div>
+            <div class="kpi-value">${vm.formatTokens(vm.todayCacheHitInput)} / ${vm.formatTokens(vm.todayCacheMissInput)}</div>
+            <div class="kpi-hint">HIT / MISS</div>
         </div>
         <div class="kpi">
             <div class="kpi-label">
@@ -398,6 +391,13 @@
                 <span>输出</span></div>
             <div class="kpi-value">${vm.formatTokens(vm.todayOutput)}</div>
             <div class="kpi-hint">OUTPUT TOKENS</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">
+                <i data-lucide="hash" class="icon"></i>
+                <span>总计</span></div>
+            <div class="kpi-value">${vm.formatTokens(vm.todayCacheHitInput + vm.todayCacheMissInput + vm.todayOutput)}</div>
+            <div class="kpi-hint">TOTAL TOKENS</div>
         </div>
         <div class="kpi accent">
             <div class="kpi-label">
