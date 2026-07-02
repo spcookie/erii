@@ -348,9 +348,9 @@ func (m *UsageViewModel) buildKPIGrid(width int) []string {
 	costSymbol := currencySymbol(d.PriceUnit)
 
 	cols := []string{
-		kpiBox(false).Render(labelStyle.Render("Input Hit") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheHitInput))),
-		kpiBox(false).Render(labelStyle.Render("Input Miss") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheMissInput))),
+		kpiBox(false).Render(labelStyle.Render("Input Hit/Miss") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheHitInput) + " / " + compactNumber(d.TodayCacheMissInput))),
 		kpiBox(false).Render(labelStyle.Render("Output") + "\n" + valueStyle.Render(compactNumber(d.TodayOutput))),
+		kpiBox(false).Render(labelStyle.Render("Total") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheHitInput+d.TodayCacheMissInput+d.TodayOutput))),
 		kpiBox(true).Render(labelStyle.Render("Cost") + "\n" + valueStyle.Render(fmt.Sprintf("%s%.4f", costSymbol, d.TodayCost))),
 		kpiBox(false).Render(labelStyle.Render("Hit Rate") + "\n" + valueStyle.Render(fmt.Sprintf("%.1f%%", d.TodayCacheHitRate))),
 	}

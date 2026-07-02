@@ -266,7 +266,10 @@ func (m *UsageViewModel) buildHeatmap(cw int) (string, int) {
 	if cellW < 1 {
 		cellW = 1
 	}
-	cellH := cellW // square cells
+	offsetX := (heatW - numWeeks*cellW) / 2
+
+
+	cellH := max(1, cellW*2/3)
 	dayRows := 7 * cellH
 	heatH := 1 + dayRows + 1 + 1 // month labels + day cells + spacer + legend
 	cellBaseY := 1               // day cells start at row 1 (row 0 = month labels)
@@ -291,8 +294,8 @@ func (m *UsageViewModel) buildHeatmap(cw int) (string, int) {
 		col := int(dayCursor.Sub(weekStart).Hours() / 24 / 7)
 		row := int(dayCursor.Weekday())
 
-		startX := col * heatW / numWeeks
-		endX := (col + 1) * heatW / numWeeks
+		startX := offsetX + col*cellW
+		endX := startX + cellW
 		canvasY := cellBaseY + row*cellH
 
 		dateKey := dayCursor.Format("2006-01-02")
@@ -328,8 +331,8 @@ func (m *UsageViewModel) buildHeatmap(cw int) (string, int) {
 
 		bg := heatGreenScale[colorIdx]
 		borderBg := heatGreenScale[borderIdx]
-		cellStyle := lipgloss.NewStyle().Background(bg)
-		borderStyle := lipgloss.NewStyle().Background(borderBg)
+		cellStyle := lipgloss.NewStyle().Background(bg).Foreground(bg)
+		borderStyle := lipgloss.NewStyle().Background(borderBg).Foreground(borderBg)
 
 		for dy := 0; dy < cellH; dy++ {
 			cy := canvasY + dy
@@ -338,9 +341,9 @@ func (m *UsageViewModel) buildHeatmap(cw int) (string, int) {
 			}
 			for x := startX; x < endX && x < heatW; x++ {
 				if x == endX-1 && borderIdx != colorIdx {
-					cv.SetCell(canvas.Point{X: x, Y: cy}, canvas.NewCellWithStyle(' ', borderStyle))
+					cv.SetCell(canvas.Point{X: x, Y: cy}, canvas.NewCellWithStyle('█', borderStyle))
 				} else {
-					cv.SetCell(canvas.Point{X: x, Y: cy}, canvas.NewCellWithStyle(' ', cellStyle))
+					cv.SetCell(canvas.Point{X: x, Y: cy}, canvas.NewCellWithStyle('█', cellStyle))
 				}
 			}
 		}
@@ -364,11 +367,11 @@ func (m *UsageViewModel) buildHeatmap(cw int) (string, int) {
 	// Draw month labels on canvas row 0
 	labelRunes := []rune(strings.Repeat(" ", heatW))
 	for i, ml := range monthLabels {
-		pos := ml.col * heatW / numWeeks
+		pos := offsetX + ml.col*cellW
 		nameRunes := []rune(ml.name)
 		limit := heatW
 		if i+1 < len(monthLabels) {
-			limit = monthLabels[i+1].col * heatW / numWeeks
+			limit = offsetX + monthLabels[i+1].col*cellW
 		}
 		if pos+len(nameRunes) > limit {
 			continue
@@ -437,8 +440,8 @@ func (m *UsageViewModel) buildLineChart(cw int, chartH int) string {
 		return style.Muted(noDataMsg)
 	}
 
-	if chartH < 10 {
-		chartH = 10
+	if chartH < 8 {
+		chartH = 8
 	}
 
 	firstDate := timePoints[0].Time
