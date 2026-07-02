@@ -8,6 +8,7 @@ import (
 var (
 	ConfDir         string
 	ConfMetaDir     string
+	OptsPath        string
 	EnvFile         string
 	AppFile         string
 	SoulsDir        string
@@ -18,10 +19,10 @@ var (
 )
 
 func init() {
-	InitPaths("", "", "")
+	InitPaths("", "", "", "")
 }
 
-func InitPaths(confDir, confMetaDir, pluginDir string) {
+func InitPaths(confDir, confMetaDir, pluginDir, optsPath string) {
 	if confDir != "" {
 		ConfDir = confDir
 	} else {
@@ -31,6 +32,11 @@ func InitPaths(confDir, confMetaDir, pluginDir string) {
 		ConfMetaDir = confMetaDir
 	} else {
 		ConfMetaDir = resolveConfMetaDir()
+	}
+	if optsPath != "" {
+		OptsPath = optsPath
+	} else {
+		OptsPath = resolveOptsPath()
 	}
 	EnvFile = filepath.Join(ConfDir, ".env.local")
 	AppFile = filepath.Join(ConfDir, "application.conf")
@@ -66,6 +72,15 @@ func resolveConfDir() string {
 			return filepath.Join(cwd, "conf")
 		}
 		return "./conf"
+	})
+}
+
+func resolveOptsPath() string {
+	return resolveDir("opts", func() string {
+		if cwd, err := os.Getwd(); err == nil {
+			return filepath.Join(cwd, "opts")
+		}
+		return "./opts"
 	})
 }
 

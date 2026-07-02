@@ -13,6 +13,7 @@ var (
 	confDirFlag     string
 	confMetaDirFlag string
 	pluginDirFlag   string
+	optsPathFlag    string
 	logsPathFlag    string
 )
 
@@ -22,7 +23,7 @@ var rootCmd = &cobra.Command{
 	Long:    `A command-line tool with TUI for managing Erii bot configuration.`,
 	Version: version.Version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		path.InitPaths(confDirFlag, confMetaDirFlag, pluginDirFlag)
+		path.InitPaths(confDirFlag, confMetaDirFlag, pluginDirFlag, optsPathFlag)
 		return nil
 	},
 }
@@ -38,4 +39,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&confMetaDirFlag, "meta-conf-dir", "", "Path to .conf meta directory (default: auto-detected)")
 	rootCmd.PersistentFlags().StringVar(&pluginDirFlag, "plugin-dir", "", "Path to plugins directory (default: auto-detected)")
 	rootCmd.PersistentFlags().StringVar(&logsPathFlag, "logs-path", "", "Path to logs directory (default: ./logs)")
+	rootCmd.PersistentFlags().StringVar(&optsPathFlag, "opts-path", "", "Path to JVM opts directory (default: auto-detected)")
 }
