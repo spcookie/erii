@@ -440,14 +440,21 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
             },
             facts = {
                 withContext(Dispatchers.IO) {
-                    val (subjects, query) = transaction {
+                    val contentToSubjects = transaction {
                         val records =
                             historyService.getLatestHistory(currentBotId, groupId, 20, 12.hours)
-                        val subjects = records.map { it.userId }.distinct().toList()
-                        val query = records.mapNotNull { it.content }.joinToString(" ")
-                        subjects to query
+                        records.mapNotNull { r ->
+                            r.content?.let { it to r.userId }
+                        }.groupBy({ it.first }, { it.second })
+                            .mapValues { (_, userIds) -> userIds.distinct() }
                     }
-                    memoryService.getFactsWithVector(currentBotId, groupId, subjects, query, 15)
+                    if (contentToSubjects.isEmpty()) {
+                        emptyList()
+                    } else {
+                        contentToSubjects.flatMap { (content, contentSubjects) ->
+                            memoryService.getFactsWithVector(currentBotId, groupId, contentSubjects, content, 5)
+                        }.distinct().take(15)
+                    }
                 }
             },
             userProfiles = {

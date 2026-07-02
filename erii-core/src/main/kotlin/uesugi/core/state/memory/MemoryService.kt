@@ -16,6 +16,9 @@ import uesugi.common.toolkit.logger
 import uesugi.core.state.dispatch.StateWorkResult
 import uesugi.core.state.summary.SummaryEntity
 import uesugi.core.state.summary.SummaryTable
+import org.apache.lucene.analysis.cn.smart.SmartChineseAnalyzer
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
+import java.io.StringReader
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
@@ -188,40 +191,6 @@ class MemoryService(
         }
     }
 
-    fun getFacts(
-        botMark: String,
-        groupId: String,
-        subjects: List<String>,
-        limit: Int = 25
-    ): List<FactsEntity> {
-        return transaction {
-            val userFacts = FactsEntity.find {
-                (FactsTable.botMark eq botMark) and
-                        (FactsTable.groupId eq groupId) and
-                        (FactsTable.scopeType eq Scopes.USER) and
-                        (FactsTable.validFrom lessEq CurrentDateTime) and
-                        (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-            }.orderBy(FactsTable.createdAt to SortOrder.DESC)
-                .limit(limit)
-                .reversed()
-                .filter { fact ->
-                    fact.subjects.split(",")
-                        .map { it.trim() }
-                        .any { subjects.contains(it) }
-                }
-            val groupFacts = FactsEntity.find {
-                (FactsTable.botMark eq botMark) and
-                        (FactsTable.groupId eq groupId) and
-                        (FactsTable.scopeType eq Scopes.GROUP) and
-                        (FactsTable.validFrom lessEq CurrentDateTime) and
-                        (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-            }.orderBy(FactsTable.createdAt to SortOrder.DESC)
-                .limit(limit)
-                .reversed()
-            userFacts + groupFacts
-        }
-    }
-
     suspend fun getFactsWithVector(
         botMark: String,
         groupId: String,
@@ -229,12 +198,7 @@ class MemoryService(
         query: String,
         limit: Int = 15
     ): List<FactsEntity> {
-        val dbFacts = getFacts(botMark, groupId, subjects, limit)
-
-        if (query.isBlank()) {
-            markFactsRecalled(dbFacts)
-            return dbFacts
-        }
+        val dbFacts = searchFactsByKeyword(botMark, groupId, subjects, query, limit)
 
         val vectorResults = try {
             factVectorStore.search(query, groupId, botMark, limit)
@@ -266,6 +230,107 @@ class MemoryService(
         val recalledFacts = dbFacts + newVectorFacts
         markFactsRecalled(recalledFacts)
         return recalledFacts
+    }
+
+    /**
+     * 按关键词搜索事实记忆，三层降级策略：
+     * 1. query 为空 → 仅按 subjects 过滤，不搜关键词
+     * 2. Lucene BM25 文本检索 → 利用索引的 SmartChineseAnalyzer 分词 + BM25 打分
+     * 3. 降级 SQL LIKE → Lucene 索引为空时，用 SmartChineseAnalyzer 分词后 LIKE keyword/description 字段
+     *
+     * 所有路径均叠加 subjects（涉及用户）和 scopeType（GROUP 共享 / USER 主体匹配）过滤
+     */
+    private fun searchFactsByKeyword(
+        botMark: String,
+        groupId: String,
+        subjects: List<String>,
+        query: String,
+        limit: Int
+    ): List<FactsEntity> {
+        // query 为空：仅按主体过滤有效事实
+        if (query.isBlank()) {
+            return transaction {
+                FactsEntity.find {
+                    (FactsTable.botMark eq botMark) and
+                            (FactsTable.groupId eq groupId) and
+                            (FactsTable.validFrom lessEq CurrentDateTime) and
+                            (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
+                }.filter { fact ->
+                    fact.scopeType == Scopes.GROUP ||
+                            fact.subjects.split(",").map { it.trim() }.any { it in subjects }
+                }.sortedByDescending { it.createdAt }
+                    .take(limit)
+                    .reversed()
+            }
+        }
+
+        // 优先使用 Lucene BM25 文本检索（SmartChineseAnalyzer 分词 + BM25 打分）
+        val searchResults = try {
+            factVectorStore.searchByKeyword(query, groupId, botMark, limit)
+        } catch (_: Exception) {
+            log.warn("Lucene BM25 search failed, falling back to DB keyword search")
+            emptyList()
+        }
+
+        return transaction {
+            val dbFacts = if (searchResults.isEmpty()) {
+                // Lucene 索引为空时降级：SmartChineseAnalyzer 分词 → SQL LIKE keyword/description
+                val keywords = tokenizeQuery(query)
+                FactsEntity.find {
+                    (FactsTable.botMark eq botMark) and
+                            (FactsTable.groupId eq groupId) and
+                            (FactsTable.validFrom lessEq CurrentDateTime) and
+                            (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
+                }.filter { fact ->
+                    val matchesKeyword = keywords.any { kw ->
+                        fact.keyword.contains(kw, ignoreCase = true) ||
+                                fact.description.contains(kw, ignoreCase = true)
+                    }
+                    val matchesSubject = fact.scopeType == Scopes.GROUP ||
+                            fact.subjects.split(",").map { it.trim() }.any { it in subjects }
+                    matchesKeyword && matchesSubject
+                }
+            } else {
+                // BM25 命中：按返回的 factId 加载实体，叠加 subjects 过滤
+                val factIds = searchResults.mapNotNull { it.factId }
+                FactsEntity.find {
+                    (FactsTable.id inList factIds) and
+                            (FactsTable.validFrom lessEq CurrentDateTime) and
+                            (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
+                }.filter { fact ->
+                    fact.scopeType == Scopes.GROUP ||
+                            fact.subjects.split(",").map { it.trim() }.any { it in subjects }
+                }
+            }
+
+            dbFacts.sortedByDescending { it.createdAt }
+                .take(limit)
+                .reversed()
+        }
+    }
+
+    /**
+     * 使用 SmartChineseAnalyzer（HMM 中文分词 + 内置停用词）对 query 分词，
+     * 过滤出长度 >= 2 的实义词 token，用于 SQL LIKE 降级匹配
+     */
+    private fun tokenizeQuery(query: String): List<String> {
+        if (query.isBlank()) return emptyList()
+        val tokens = mutableListOf<String>()
+        val analyzer = SmartChineseAnalyzer()
+        analyzer.use { analyzer ->
+            val tokenStream = analyzer.tokenStream("", StringReader(query))
+            val charTermAttr = tokenStream.addAttribute(CharTermAttribute::class.java)
+            tokenStream.reset()
+            while (tokenStream.incrementToken()) {
+                val token = charTermAttr.toString()
+                if (token.length >= 2) {
+                    tokens.add(token)
+                }
+            }
+            tokenStream.end()
+            tokenStream.close()
+        }
+        return tokens.distinct()
     }
 
     private suspend fun markFactsRecalled(facts: List<FactsEntity>) {

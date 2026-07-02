@@ -114,6 +114,28 @@ class FactVectorStore {
     }
 
     /**
+     * BM25 关键词搜索（不依赖向量）
+     */
+    fun searchByKeyword(
+        query: String,
+        groupId: String,
+        botMark: String,
+        topK: Int
+    ): List<FactSearchResult> {
+        val store = getStore(botMark, groupId)
+        val results = store.searchText(query, topK)
+
+        return results.map { result ->
+            FactSearchResult(
+                vectorId = result.id,
+                factId = extractFactId(result.id),
+                content = result.content,
+                score = result.score
+            )
+        }
+    }
+
+    /**
      * 从向量ID中提取 factId
      * 向量ID格式: fact_{botId}_{groupId}_{factId}
      */
