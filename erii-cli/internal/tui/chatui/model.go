@@ -363,9 +363,13 @@ func (m *Model) handleHistoryLoaded(msg historyLoadedMsg) (tea.Model, tea.Cmd) {
 		if e.Sender == "user" {
 			typ = msgUser
 		}
+		content := e.Content
+		if typ == msgUser {
+			content = stripBotMention(content, m.roleName)
+		}
 		histMsgs = append(histMsgs, chatMsg{
 			typ:       typ,
-			content:   e.Content,
+			content:   content,
 			timestamp: time.UnixMilli(e.Timestamp),
 		})
 	}
@@ -652,6 +656,15 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dm", mins)
 	}
 	return fmt.Sprintf("%dm%ds", mins, secs)
+}
+
+func stripBotMention(text, botName string) string {
+	prefix := "@" + botName
+	text = strings.TrimSpace(text)
+	if after, found := strings.CutPrefix(text, prefix); found {
+		return strings.TrimSpace(after)
+	}
+	return text
 }
 
 func wrapText(text string, width int) string {
