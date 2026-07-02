@@ -8,6 +8,7 @@ import (
 )
 
 var logLines int
+var logFollow bool
 
 var logCmd = &cobra.Command{
 	Use:   "log [error]",
@@ -26,11 +27,12 @@ var logCmd = &cobra.Command{
 		}
 
 		logPath := filepath.Join(logsPath, logFile)
-		return logview.Start(logPath, logLines)
+		return logview.Start(logPath, logLines, logFollow)
 	},
 }
 
 func init() {
 	logCmd.Flags().IntVarP(&logLines, "lines", "n", 500, "Number of lines to show")
+	logCmd.Flags().BoolVarP(&logFollow, "follow", "f", true, "Follow log output (like tail -f)")
 	rootCmd.AddCommand(logCmd)
 }

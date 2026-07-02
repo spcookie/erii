@@ -3,9 +3,11 @@ package logview
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -41,6 +43,8 @@ var (
 	)
 )
 
+type tickMsg struct{}
+
 type logKeyMap struct {
 	Up       key.Binding
 	Down     key.Binding
@@ -48,15 +52,16 @@ type logKeyMap struct {
 	HalfDown key.Binding
 	Top      key.Binding
 	Bottom   key.Binding
+	Follow   key.Binding
 	Quit     key.Binding
 }
 
 func (k logKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.HalfDown, k.HalfUp, k.Bottom, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Follow, k.Bottom, k.Quit}
 }
 
 func (k logKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Up, k.Down, k.HalfDown, k.HalfUp}, {k.Top, k.Bottom, k.Quit}}
+	return [][]key.Binding{{k.Up, k.Down, k.HalfDown, k.HalfUp}, {k.Top, k.Bottom, k.Follow, k.Quit}}
 }
 
 var keys = logKeyMap{
@@ -66,6 +71,7 @@ var keys = logKeyMap{
 	HalfDown: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "½ down")),
 	Top:      key.NewBinding(key.WithKeys("g", "home"), key.WithHelp("g/home", "top")),
 	Bottom:   key.NewBinding(key.WithKeys("G", "end"), key.WithHelp("G/end", "bottom")),
+	Follow:   key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "follow")),
 	Quit:     key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc/ctrl+c", "quit")),
 }
 
@@ -74,12 +80,23 @@ type model struct {
 	help     help.Model
 	rawLines []string
 	filePath string
+	follow   bool
+	readPos  int64
 	ready    bool
 	err      error
 }
 
 func (m model) Init() tea.Cmd {
+	if m.follow {
+		return doTick()
+	}
 	return nil
+}
+
+func doTick() tea.Cmd {
+	return tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
+		return tickMsg{}
+	})
 }
 
 func (m *model) setContent(width int) {
@@ -109,10 +126,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case tickMsg:
+		if !m.follow {
+			return m, nil
+		}
+		newLines, err := m.readNewLines()
+		if err != nil || len(newLines) == 0 {
+			return m, doTick()
+		}
+		atBottom := m.viewport.ScrollPercent() >= 0.99
+		m.rawLines = append(m.rawLines, newLines...)
+		if len(m.rawLines) > 10000 {
+			m.rawLines = m.rawLines[len(m.rawLines)-10000:]
+		}
+		m.setContent(m.viewport.Width)
+		if atBottom {
+			m.viewport.GotoBottom()
+		}
+		return m, doTick()
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c":
 			return m, tea.Quit
+		case "f":
+			m.follow = !m.follow
+			if m.follow {
+				m.viewport.GotoBottom()
+				return m, doTick()
+			}
+			return m, nil
 		}
 	}
 
@@ -128,7 +171,11 @@ func (m model) View() string {
 			Render(fmt.Sprintf("Error: %v\n\nPress esc to quit.", m.err))
 	}
 
-	title := titleStyle.Render(fmt.Sprintf("Log: %s", m.filePath))
+	followStatus := "ON"
+	if !m.follow {
+		followStatus = "OFF"
+	}
+	title := titleStyle.Render(fmt.Sprintf("Log: %s  [follow: %s]", m.filePath, followStatus))
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		title,
@@ -201,6 +248,52 @@ func wrapLine(line string, width int) []string {
 	return wrapped
 }
 
+func (m *model) readNewLines() ([]string, error) {
+	info, err := os.Stat(m.filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.Size() < m.readPos {
+		m.readPos = 0
+	}
+	if info.Size() <= m.readPos {
+		return nil, nil
+	}
+
+	f, err := os.Open(m.filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	_, err = f.Seek(m.readPos, io.SeekStart)
+	if err != nil {
+		m.readPos = 0
+		return nil, err
+	}
+
+	remaining := info.Size() - m.readPos
+	buf := make([]byte, remaining)
+	n, err := io.ReadFull(f, buf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return nil, err
+	}
+
+	m.readPos += int64(n)
+
+	text := string(buf[:n])
+	if text == "" {
+		return nil, nil
+	}
+
+	lines := strings.Split(text, "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines, nil
+}
+
 func tailLines(filePath string, numLines int) ([]string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -244,10 +337,14 @@ func tailLines(filePath string, numLines int) ([]string, error) {
 	return lines, nil
 }
 
-func Start(logPath string, numLines int) error {
+func Start(logPath string, numLines int, follow bool) error {
 	lines, err := tailLines(logPath, numLines)
 	if err != nil {
-		lines = []string{fmt.Sprintf("Failed to read log file: %v", err)}
+		if follow {
+			lines = nil
+		} else {
+			lines = []string{fmt.Sprintf("Failed to read log file: %v", err)}
+		}
 	}
 
 	vp := viewport.New(0, 0)
@@ -257,10 +354,18 @@ func Start(logPath string, numLines int) error {
 		help:     help.New(),
 		rawLines: lines,
 		filePath: logPath,
+		follow:   follow,
+		readPos:  0,
 		err:      nil,
 	}
-	if err != nil {
+	if err != nil && !follow {
 		m.err = err
+	}
+
+	if follow {
+		if info, statErr := os.Stat(logPath); statErr == nil {
+			m.readPos = info.Size()
+		}
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
