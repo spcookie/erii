@@ -118,7 +118,7 @@
             cursorBlink: true,
             cursorStyle: 'bar',
             fontSize: 14,
-            fontFamily: 'monospace',
+            fontFamily: 'JetBrains Mono, monospace',
             letterSpacing: 0,
             lineHeight: 1.2,
             theme: {

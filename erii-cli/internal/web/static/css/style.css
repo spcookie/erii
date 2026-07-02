@@ -1,3 +1,11 @@
+@font-face {
+    font-family: 'JetBrains Mono';
+    src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: block;
+}
+
 :root {
     --bg-primary: #282A36;
     --bg-secondary: #282A36;
@@ -23,7 +31,7 @@ html, body {
     height: 100%;
     background: var(--bg-primary);
     color: var(--text-primary);
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 13px;
     overflow: hidden;
 }
@@ -42,16 +50,15 @@ html, body {
     flex-direction: column;
     flex-shrink: 0;
     overflow: hidden;
+    font-family: inherit;
 }
 
 #sidebar-header {
     padding: 16px 16px 12px;
-    font-family: inherit;
 }
 
 #sidebar-header .title {
     color: var(--accent);
-    font-family: inherit;
     font-weight: 600;
     font-size: 12px;
     text-transform: uppercase;
@@ -62,6 +69,7 @@ html, body {
     flex: 1;
     overflow-y: auto;
     padding: 0 8px 12px;
+    font-family: inherit;
 }
 
 .sidebar-group {

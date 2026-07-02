@@ -143,7 +143,7 @@ html, body { height: 100%; }
 body {
     background: #11111b;
     color: #cdd6f4;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 13px;
     display: flex;
     align-items: center;
