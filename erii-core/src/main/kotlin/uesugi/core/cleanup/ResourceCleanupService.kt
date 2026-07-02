@@ -5,9 +5,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import okio.Path.Companion.toPath
 import uesugi.common.toolkit.logger
-import uesugi.core.agent.ThumbnailService
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.resource.ResourceService
+import uesugi.core.message.resource.ThumbnailService
 import uesugi.core.state.meme.MemeRepository
 import kotlin.time.Duration.Companion.days
 

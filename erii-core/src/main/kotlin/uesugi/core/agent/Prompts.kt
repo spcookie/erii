@@ -25,6 +25,7 @@ import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.ref
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.resource.ResourceService
+import uesugi.core.message.resource.ThumbnailService
 import uesugi.core.rule.Rule
 import uesugi.core.state.evolution.LearnedVocabEntity
 import uesugi.core.state.memory.FactsEntity
@@ -37,7 +38,7 @@ internal suspend fun buildPrompt(context: Context): Prompt {
     val constraints = buildConstraint(context, transient)
     val supportsVision = LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
     val objectStorage: ObjectStorage by ref()
-    val thumbnailService = ThumbnailService(objectStorage)
+    val thumbnailService: ThumbnailService by ref()
 
     val imageSources = if (supportsVision) {
         val imageHistories = transient.histories

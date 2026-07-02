@@ -1,4 +1,4 @@
-package uesugi.core.agent
+package uesugi.core.message.resource
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
