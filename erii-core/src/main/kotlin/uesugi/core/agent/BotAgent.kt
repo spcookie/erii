@@ -28,6 +28,7 @@ import uesugi.common.event.*
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.mcp.McpManager
 import kotlin.reflect.full.hasAnnotation
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
@@ -328,8 +329,7 @@ object BotAgent {
                             suspend fun runWithRetry(targetEvent: ProactiveSpeakEvent) {
                                 rateLimited = false
                                 chatRateLimiter.reset()
-                                val registry =
-                                    with(buildToolEnv(targetEvent, context, multimodal)) { buildToolRegistry() }
+                                val registry = buildAgentToolRegistry(targetEvent, context, multimodal)
                                 chatMessageToolNames = registry.tools
                                     .filterIsInstance<ToolFromCallable<*>>()
                                     .filter { it.callable.hasAnnotation<ChatMessage>() }
@@ -434,6 +434,25 @@ object BotAgent {
     private fun isMultimodalProvider(): Boolean =
         LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
 
+    private suspend fun buildAgentToolRegistry(
+        event: ProactiveSpeakEvent,
+        context: Context,
+        multimodal: Boolean
+    ): ToolRegistry {
+        val baseRegistry = with(buildToolEnv(event, context, multimodal)) { buildToolRegistry() }
+        val mcpRegistry = runCatching { McpManager.registry() }
+            .onFailure { log.error("Failed to load MCP tools", it) }
+            .getOrDefault(ToolRegistry.EMPTY)
+        if (mcpRegistry.tools.isNotEmpty()) {
+            val baseNames = baseRegistry.tools.map { it.name }.toSet()
+            val collisions = mcpRegistry.tools.map { it.name }.filter { it in baseNames }
+            if (collisions.isNotEmpty()) {
+                log.warn("Skipping MCP tools with names already used by built-in tools: {}", collisions)
+            }
+        }
+        return baseRegistry + mcpRegistry
+    }
+
     @OptIn(ExperimentalTime::class)
     private suspend fun agentRun(
         aiAgent: GraphAIAgentService<String, String>,
@@ -451,7 +470,7 @@ object BotAgent {
         var error: Exception? = null
         try {
             val additionalToolRegistry = preBuiltRegistry
-                ?: with(buildToolEnv(event, context, isMultimodalProvider())) { buildToolRegistry() }
+                ?: buildAgentToolRegistry(event, context, isMultimodalProvider())
             val text = aiAgent.createAgentAndRun(
                 agentInput = event.input ?: DEFAULT_INPUT,
                 agentConfig = AIAgentConfig(

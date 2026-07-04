@@ -6,6 +6,7 @@ import io.ktor.server.routing.*
 import uesugi.common.BotManage
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.bot.BotRoleManager
+import uesugi.core.mcp.McpManager
 import uesugi.core.rule.RuleManager
 
 fun Routing.configureBotConfigManager() {
@@ -14,6 +15,7 @@ fun Routing.configureBotConfigManager() {
             ConfigHolder.refresh()
             BotRoleManager.reload()
             RuleManager.reload()
+            McpManager.refresh()
 
             val botConfigs = ConfigHolder.getOnebotBots()
             botConfigs.forEach { (key, config) ->

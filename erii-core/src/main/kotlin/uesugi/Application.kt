@@ -4,6 +4,7 @@ import ch.qos.logback.classic.LoggerContext
 import io.github.oshai.kotlinlogging.KotlinLoggingConfiguration
 import io.ktor.server.application.*
 import io.ktor.server.netty.*
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import uesugi.cli.configureIpc
 import uesugi.common.toolkit.BrowserScraperHolder
@@ -16,6 +17,7 @@ import uesugi.core.bot.configureConnectBots
 import uesugi.core.bot.disconnectBots
 import uesugi.core.chat.configureChatBridge
 import uesugi.core.component.browser.BrowserScraperImpl
+import uesugi.core.mcp.McpManager
 import uesugi.server.*
 
 internal val LOG by lazy { logger("uesugi") }
@@ -36,8 +38,14 @@ fun Application.module() {
     val browserScraperImpl = BrowserScraperImpl()
     BrowserScraperHolder.init(browserScraperImpl)
     monitor.subscribe(ApplicationStopPreparing) {
-        disconnectBots()
         browserScraperImpl.close()
+    }
+
+    runBlocking {
+        McpManager.load()
+    }
+    monitor.subscribe(ApplicationStopPreparing) {
+        runBlocking { McpManager.close() }
     }
 
     configureFrameworks()
@@ -49,7 +57,12 @@ fun Application.module() {
     configureIpc()
 
     configureBotAgent()
+
     configureConnectBots()
+    monitor.subscribe(ApplicationStopPreparing) {
+        disconnectBots()
+    }
+
     configureH2Console()
     configureChatBridge()
 }
@@ -91,7 +104,7 @@ fun Application.checkDefaultCredentials() {
 
 fun Application.configurePrintCliStartupInfo() {
     if (System.getenv("ERII_START_MODE") != "CLI") return
-    environment.monitor.subscribe(ApplicationStarted) {
+    monitor.subscribe(ApplicationStarted) {
         if (System.getenv("ERII_START_MODE") != "CLI") return@subscribe
 
         val port = environment.config.property("ktor.deployment.port").getString().toInt()

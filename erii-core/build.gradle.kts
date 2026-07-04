@@ -27,6 +27,7 @@ dependencies {
     implementation(libs.koog.agents) {
         exclude("io.ktor", "ktor-client-apache5")
     }
+    implementation(libs.koog.agents.mcp)
     // 依赖注入
     implementation(libs.koin.core)
     implementation(libs.koin.ktor)

@@ -6,6 +6,7 @@ koin = "4.1.2-Beta1"
 kotlin = "2.3.20"
 ktor = "3.3.2"
 koog = "1.0.0"
+koog-mcp = "1.0.0-beta"
 jobrunr = '8.3.1'
 logback = "1.4.14"
 caffeine = "3.1.8"
@@ -36,6 +37,7 @@ rdf4j = "4.3.13"
 [libraries]
 jobrunr = { module = "org.jobrunr:jobrunr", version.ref = "jobrunr" }
 koog-agents = { module = "ai.koog:koog-agents", version.ref = "koog" }
+koog-agents-mcp = { module = "ai.koog:agents-mcp", version.ref = "koog-mcp" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }

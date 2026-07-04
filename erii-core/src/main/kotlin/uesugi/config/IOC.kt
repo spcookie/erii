@@ -1,6 +1,7 @@
 package uesugi.config
 
 import io.ktor.server.application.*
+import kotlinx.coroutines.runBlocking
 import okio.Path.Companion.toPath
 import org.jetbrains.exposed.v1.core.DatabaseConfig
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -23,6 +24,7 @@ import uesugi.core.component.storage.VectorStore
 import uesugi.core.component.usage.TokenUsageRepository
 import uesugi.core.cron.CronService
 import uesugi.core.cron.cronModule
+import uesugi.core.mcp.McpManager
 import uesugi.core.message.messageModule
 import uesugi.core.state.dispatch.StateDispatchJob
 import uesugi.core.state.dispatch.stateDispatchModule
