@@ -27,14 +27,19 @@ class ResourceCleanupService(
             .toLocalDateTime(TimeZone.currentSystemDefault())
 
         var totalDeleted = 0
+        var offset = 0L
         while (true) {
-            val resources = resourceService.findResourcesOlderThan(cutoff, batchSize)
+            val resources = resourceService.findResourcesOlderThan(cutoff, batchSize, offset)
             if (resources.isEmpty()) break
 
+            var skipped = 0
             resources.forEach { resource ->
                 val resourceId = resource.id ?: return@forEach
                 val memes = memeRepository.findMemesByResourceId(resourceId)
-                if (memes.isNotEmpty()) return@forEach
+                if (memes.isNotEmpty()) {
+                    skipped++
+                    return@forEach
+                }
 
                 val deleted = resourceService.deleteResource(resourceId)
                 if (deleted) {
@@ -42,6 +47,7 @@ class ResourceCleanupService(
                     totalDeleted++
                 }
             }
+            offset += skipped
         }
         if (totalDeleted > 0) {
             log.info("Cleaned up $totalDeleted old resources (retention=$retentionDays days)")

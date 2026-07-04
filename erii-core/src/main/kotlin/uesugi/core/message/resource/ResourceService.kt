@@ -73,11 +73,12 @@ class ResourceService {
         }
     }
 
-    fun findResourcesOlderThan(cutoff: LocalDateTime, limit: Int = 100): List<ResourceRecord> {
+    fun findResourcesOlderThan(cutoff: LocalDateTime, limit: Int = 100, offset: Long = 0): List<ResourceRecord> {
         return transaction {
             ResourceEntity.find { ResourceTable.createdAt less cutoff }
-                .orderBy(ResourceTable.createdAt to SortOrder.ASC)
+                .orderBy(ResourceTable.createdAt to SortOrder.ASC, ResourceTable.id to SortOrder.ASC)
                 .limit(limit)
+                .offset(offset)
                 .map { it.toRecord() }
         }
     }

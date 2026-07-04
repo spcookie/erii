@@ -460,7 +460,7 @@ class MemeRepository {
             HistoryTable
                 .join(
                     ResourceTable,
-                    JoinType.LEFT,
+                    JoinType.INNER,
                     additionalConstraint = { ResourceTable.id eq HistoryTable.resourceId }
                 )
                 .select(
