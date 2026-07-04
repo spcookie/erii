@@ -13,6 +13,28 @@ import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
 import uesugi.core.state.dispatch.*
 
+internal suspend fun runConfiguredMemoryRebuilds(
+    options: MemoryRebuildOptions,
+    rebuildVector: suspend () -> Unit,
+    rebuildGraph: suspend () -> Unit,
+    logFailure: (String, Exception) -> Unit
+) {
+    if (options.vector) {
+        try {
+            rebuildVector()
+        } catch (e: Exception) {
+            logFailure("vector", e)
+        }
+    }
+    if (options.graph) {
+        try {
+            rebuildGraph()
+        } catch (e: Exception) {
+            logFailure("graph", e)
+        }
+    }
+}
+
 /**
  * 记忆任务 - 事件驱动记忆处理与定时清理
  *
@@ -35,7 +57,8 @@ class MemoryJob(
     /**
      * 开启每日记忆清理任务。
      */
-    fun openTimingTriggerSignal() {
+    fun openTimingTriggerSignal(rebuildOptions: MemoryRebuildOptions = MemoryRebuildOptions.from()) {
+        runConfiguredRebuilds(rebuildOptions)
         jobScheduler.scheduleRecurrently(
             "memory-expired-cleanup-job",
             "0 2 * * *",
@@ -47,6 +70,38 @@ class MemoryJob(
             ::doStaleRecalledMemoryCleanup
         )
         log.info("Memory event processor and cleanup timers initialized")
+    }
+
+    private fun runConfiguredRebuilds(options: MemoryRebuildOptions) {
+        if (!options.vector && !options.graph) return
+        runBlocking {
+            if (mutex.tryLock()) {
+                try {
+                    runConfiguredMemoryRebuilds(
+                        options = options,
+                        rebuildVector = {
+                            log.info("Configured fact vector rebuild started")
+                            withContext(Dispatchers.IO) {
+                                memoryService.rebuildFactVectors()
+                            }
+                        },
+                        rebuildGraph = {
+                            log.info("Configured fact graph rebuild started")
+                            withContext(Dispatchers.IO) {
+                                memoryService.rebuildFactGraphs()
+                            }
+                        },
+                        logFailure = { name, error ->
+                            log.error("Configured fact $name rebuild failed", error)
+                        }
+                    )
+                } finally {
+                    mutex.unlock()
+                }
+            } else {
+                log.debug("Memory task is running, skip configured memory rebuild")
+            }
+        }
     }
 
     override fun accepts(record: HistoryRecord): Boolean = record.messageType == MessageType.TEXT

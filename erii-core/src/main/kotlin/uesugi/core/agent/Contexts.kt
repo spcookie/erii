@@ -440,20 +440,30 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
             },
             facts = {
                 withContext(Dispatchers.IO) {
-                    val contentToSubjects = transaction {
-                        val records =
-                            historyService.getLatestHistory(currentBotId, groupId, 20, 12.hours)
-                        records.mapNotNull { r ->
-                            r.content?.let { it to r.userId }
-                        }.groupBy({ it.first }, { it.second })
-                            .mapValues { (_, userIds) -> userIds.distinct() }
+                    val records = historyService.getLatestHistory(currentBotId, groupId, 50, 12.hours)
+                    val subjectsByContent = linkedMapOf<String, MutableSet<String>>()
+                    records.asReversed().forEach { record ->
+                        val content = record.content?.trim()?.takeIf { it.isNotBlank() } ?: return@forEach
+                        subjectsByContent.getOrPut(content) { linkedSetOf() }.add(record.userId)
                     }
+                    val contentToSubjects = subjectsByContent.entries
+                        .take(20)
+                        .map { it.key to it.value.toList() }
+
                     if (contentToSubjects.isEmpty()) {
                         emptyList()
                     } else {
                         contentToSubjects.flatMap { (content, contentSubjects) ->
-                            memoryService.getFactsWithVector(currentBotId, groupId, contentSubjects, content, 5)
-                        }.distinct().take(15)
+                            memoryService.recallFactsForAgent(
+                                botMark = currentBotId,
+                                groupId = groupId,
+                                subjects = contentSubjects,
+                                query = content,
+                                candidateLimit = 3,
+                                minScore = 0.7f,
+                                graphLimit = 2
+                            )
+                        }.distinctBy { it.id.value }.take(20)
                     }
                 }
             },

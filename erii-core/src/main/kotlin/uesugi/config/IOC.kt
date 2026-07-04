@@ -15,8 +15,10 @@ import uesugi.core.cleanup.cleanupModule
 import uesugi.core.component.llm.AnthropicClientProvider
 import uesugi.core.component.llm.OpenAIClientProvider
 import uesugi.core.component.storage.EmbeddedVectorStore
+import uesugi.core.component.storage.GraphStore
 import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.core.component.storage.ObjectStorage
+import uesugi.core.component.storage.Rdf4jGraphStore
 import uesugi.core.component.storage.VectorStore
 import uesugi.core.component.usage.TokenUsageRepository
 import uesugi.core.cron.CronService
@@ -33,6 +35,7 @@ import uesugi.core.state.flow.flowModule
 import uesugi.core.state.meme.MemeJob
 import uesugi.core.state.meme.memeModule
 import uesugi.core.state.memory.MemoryJob
+import uesugi.core.state.memory.MemoryRepository
 import uesugi.core.state.memory.memoryModule
 import uesugi.core.state.summary.SummaryJob
 import uesugi.core.state.summary.summaryModule
@@ -63,6 +66,9 @@ fun Application.configBaseModule() = koinModule {
     }
     factory<VectorStore> {
         EmbeddedVectorStore(it.get(), it.get())
+    }
+    factory<GraphStore> { params ->
+        Rdf4jGraphStore(params.get(), params.get(), params.get(), get<MemoryRepository>())
     }
     single<DataSource> {
         ConnectionFactoryConfig().getDataSource()

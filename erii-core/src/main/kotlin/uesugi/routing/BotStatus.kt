@@ -107,7 +107,7 @@ private fun buildGroupStatus(
             BotStatus.Fact(
                 it.keyword,
                 it.description,
-                it.values,
+                it.entities,
                 it.subjects.split(",")
             )
         }
@@ -449,7 +449,7 @@ data class BotStatus(
     data class Fact(
         val keyword: String,
         val description: String,
-        val values: String,
+        val entities: List<String>,
         val subjects: List<String>
     )
 

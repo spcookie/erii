@@ -7,7 +7,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.*
-import org.jetbrains.exposed.v1.datetime.CurrentDateTime
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryRecord
@@ -16,9 +15,6 @@ import uesugi.common.toolkit.logger
 import uesugi.core.state.dispatch.StateWorkResult
 import uesugi.core.state.summary.SummaryEntity
 import uesugi.core.state.summary.SummaryTable
-import org.apache.lucene.analysis.cn.smart.SmartChineseAnalyzer
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
-import java.io.StringReader
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
@@ -29,7 +25,8 @@ import kotlin.time.ExperimentalTime
 class MemoryService(
     private val memoryAgent: MemoryAgent,
     private val memoryRepository: MemoryRepository,
-    private val factVectorStore: FactVectorStore
+    private val factVectorStoreFactory: FactVectorStoreFactory,
+    private val factGraphStoreFactory: FactGraphStoreFactory
 ) {
 
     companion object {
@@ -191,147 +188,338 @@ class MemoryService(
         }
     }
 
-    suspend fun getFactsWithVector(
+    suspend fun recallFactsForAgent(
         botMark: String,
         groupId: String,
         subjects: List<String>,
         query: String,
-        limit: Int = 15
+        candidateLimit: Int = 3,
+        minScore: Float = 0.7f,
+        graphLimit: Int = 2
     ): List<FactsEntity> {
-        val dbFacts = searchFactsByKeyword(botMark, groupId, subjects, query, limit)
+        if (query.isBlank() || candidateLimit <= 0) return emptyList()
 
-        val vectorResults = try {
-            factVectorStore.search(query, groupId, botMark, limit)
+        val bm25Results = try {
+            factVectorStoreFactory.searchByKeyword(query, groupId, botMark, candidateLimit)
         } catch (e: Exception) {
-            log.warn("Vector search failed for facts, falling back to DB only", e)
+            log.warn("BM25 search failed for agent fact recall", e)
             emptyList()
         }
 
-        val dbFactIds = dbFacts.map { it.id.value }.toSet()
-
-        val newVectorFacts = withContext(Dispatchers.IO) {
-            transaction {
-                val factIds = vectorResults
-                    .mapNotNull { it.factId }
-                    .filter { it !in dbFactIds }
-
-                if (factIds.isEmpty()) {
-                    emptyList()
-                } else {
-                    FactsEntity.find {
-                        (FactsTable.id inList factIds) and
-                                (FactsTable.validFrom lessEq CurrentDateTime) and
-                                (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-                    }.toList()
-                }
-            }
+        val vectorResults = try {
+            factVectorStoreFactory.search(query, groupId, botMark, candidateLimit)
+        } catch (e: Exception) {
+            log.warn("Vector search failed for agent fact recall", e)
+            emptyList()
         }
 
-        val recalledFacts = dbFacts + newVectorFacts
+        val seedResults = mergeFactSearchResults(
+            bm25Results = bm25Results,
+            vectorResults = vectorResults,
+            limit = candidateLimit
+        ).filter { it.score >= minScore }
+
+        val seedFactsById = getVisibleFactEntitiesByIds(
+            botMark = botMark,
+            groupId = groupId,
+            subjects = subjects,
+            factIds = seedResults.mapNotNull { it.factId }
+        )
+        val seedFacts = seedResults.mapNotNull { result ->
+            result.factId?.let { seedFactsById[it] }
+        }
+
+        val expandedFacts = if (graphLimit > 0) {
+            expandByGraph(botMark, groupId, subjects, seedFacts, graphLimit)
+        } else {
+            emptyList()
+        }
+
+        val recalledFacts = (seedFacts + expandedFacts)
+            .distinctBy { it.id.value }
         markFactsRecalled(recalledFacts)
         return recalledFacts
     }
 
-    /**
-     * 按关键词搜索事实记忆，三层降级策略：
-     * 1. query 为空 → 仅按 subjects 过滤，不搜关键词
-     * 2. Lucene BM25 文本检索 → 利用索引的 SmartChineseAnalyzer 分词 + BM25 打分
-     * 3. 降级 SQL LIKE → Lucene 索引为空时，用 SmartChineseAnalyzer 分词后 LIKE keyword/description 字段
-     *
-     * 所有路径均叠加 subjects（涉及用户）和 scopeType（GROUP 共享 / USER 主体匹配）过滤
-     */
-    private fun searchFactsByKeyword(
+    suspend fun searchFactsVector(
         botMark: String,
         groupId: String,
-        subjects: List<String>,
         query: String,
-        limit: Int
-    ): List<FactsEntity> {
-        // query 为空：仅按主体过滤有效事实
-        if (query.isBlank()) {
-            return transaction {
-                FactsEntity.find {
-                    (FactsTable.botMark eq botMark) and
-                            (FactsTable.groupId eq groupId) and
-                            (FactsTable.validFrom lessEq CurrentDateTime) and
-                            (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-                }.filter { fact ->
-                    fact.scopeType == Scopes.GROUP ||
-                            fact.subjects.split(",").map { it.trim() }.any { it in subjects }
-                }.sortedByDescending { it.createdAt }
-                    .take(limit)
-                    .reversed()
-            }
+        limit: Int = 10
+    ): MemoryVectorSearchResponse {
+        if (query.isBlank() || limit <= 0) {
+            return MemoryVectorSearchResponse(query = query, results = emptyList())
         }
+        val effectiveLimit = limit.coerceAtMost(100)
 
-        // 优先使用 Lucene BM25 文本检索（SmartChineseAnalyzer 分词 + BM25 打分）
-        val searchResults = try {
-            factVectorStore.searchByKeyword(query, groupId, botMark, limit)
-        } catch (_: Exception) {
-            log.warn("Lucene BM25 search failed, falling back to DB keyword search")
+        val bm25Results = try {
+            factVectorStoreFactory.searchByKeyword(query, groupId, botMark, effectiveLimit)
+        } catch (e: Exception) {
+            log.warn("Management BM25 search failed for facts", e)
             emptyList()
         }
 
-        return transaction {
-            val dbFacts = if (searchResults.isEmpty()) {
-                // Lucene 索引为空时降级：SmartChineseAnalyzer 分词 → SQL LIKE keyword/description
-                val keywords = tokenizeQuery(query)
-                FactsEntity.find {
-                    (FactsTable.botMark eq botMark) and
-                            (FactsTable.groupId eq groupId) and
-                            (FactsTable.validFrom lessEq CurrentDateTime) and
-                            (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-                }.filter { fact ->
-                    val matchesKeyword = keywords.any { kw ->
-                        fact.keyword.contains(kw, ignoreCase = true) ||
-                                fact.description.contains(kw, ignoreCase = true)
-                    }
-                    val matchesSubject = fact.scopeType == Scopes.GROUP ||
-                            fact.subjects.split(",").map { it.trim() }.any { it in subjects }
-                    matchesKeyword && matchesSubject
-                }
-            } else {
-                // BM25 命中：按返回的 factId 加载实体，叠加 subjects 过滤
-                val factIds = searchResults.mapNotNull { it.factId }
-                FactsEntity.find {
-                    (FactsTable.id inList factIds) and
-                            (FactsTable.validFrom lessEq CurrentDateTime) and
-                            (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-                }.filter { fact ->
-                    fact.scopeType == Scopes.GROUP ||
-                            fact.subjects.split(",").map { it.trim() }.any { it in subjects }
+        val vectorResults = try {
+            factVectorStoreFactory.search(query, groupId, botMark, effectiveLimit)
+        } catch (e: Exception) {
+            log.warn("Management vector search failed for facts", e)
+            emptyList()
+        }
+
+        val mergedResults = mergeFactSearchResults(
+            bm25Results = bm25Results,
+            vectorResults = vectorResults,
+            limit = effectiveLimit
+        )
+        val factsById = getValidFactRecordsByIds(botMark, groupId, mergedResults.mapNotNull { it.factId })
+        val results = mergedResults.mapNotNull { result ->
+            val fact = result.factId?.let { factsById[it] } ?: return@mapNotNull null
+            MemoryFactSearchResult(
+                fact = fact,
+                score = result.score,
+                vectorId = result.vectorId,
+                source = result.source
+            )
+        }
+
+        return MemoryVectorSearchResponse(query = query, results = results)
+    }
+
+    private fun mergeFactSearchResults(
+        bm25Results: List<FactSearchResult>,
+        vectorResults: List<FactSearchResult>,
+        limit: Int
+    ): List<ScoredFactSearchResult> {
+        val byFactId = linkedMapOf<Int, ScoredFactSearchResult>()
+        fun add(result: FactSearchResult, source: String) {
+            val factId = result.factId ?: return
+            val scored = ScoredFactSearchResult(result, source)
+            val existing = byFactId[factId]
+            if (existing == null || scored.score > existing.score) {
+                byFactId[factId] = scored
+            }
+        }
+        bm25Results.forEach { add(it, "bm25") }
+        vectorResults.forEach { add(it, "vector") }
+        return byFactId.values
+            .sortedByDescending { it.score }
+            .take(limit)
+    }
+
+    private data class ScoredFactSearchResult(
+        val result: FactSearchResult,
+        val source: String
+    ) {
+        val factId: Int? = result.factId
+        val score: Float = result.score
+        val vectorId: String = result.vectorId
+    }
+
+    suspend fun rebuildFactVectors(): MemoryRebuildResult {
+        val facts = withContext(Dispatchers.IO) {
+            memoryRepository.getAllValidFacts()
+        }
+        val groups = withContext(Dispatchers.IO) {
+            memoryRepository.getAllFactGroups()
+        }
+
+        groups.forEach { (botMark, groupId) ->
+            val indexed = factVectorStoreFactory.rebuildStore(
+                botMark = botMark,
+                groupId = groupId,
+                facts = facts.filter { it.botMark == botMark && it.groupId == groupId }
+            )
+            indexed.forEach { (factId, vectorId) ->
+                withContext(Dispatchers.IO) {
+                    memoryRepository.updateFactVectorId(factId, vectorId)
                 }
             }
-
-            dbFacts.sortedByDescending { it.createdAt }
-                .take(limit)
-                .reversed()
         }
+
+        log.info("Fact vector stores rebuilt, groups=${groups.size}, facts=${facts.size}")
+        return MemoryRebuildResult(
+            facts = facts.size,
+            groups = groups.map { (botMark, groupId) -> "$botMark:$groupId" }
+        )
+    }
+
+    fun rebuildFactGraphs(): MemoryRebuildResult {
+        val facts = memoryRepository.getAllValidFacts()
+        val groups = memoryRepository.getAllFactGroups()
+
+        groups.forEach { (botMark, groupId) ->
+            factGraphStoreFactory.rebuildStore(botMark, groupId)
+        }
+
+        log.info("Fact graph stores rebuilt, groups=${groups.size}, facts=${facts.size}")
+        return MemoryRebuildResult(
+            facts = facts.size,
+            groups = groups.map { (botMark, groupId) -> "$botMark:$groupId" }
+        )
+    }
+
+    suspend fun searchFactsGraph(
+        botMark: String,
+        groupId: String,
+        query: String,
+        limit: Int = 10
+    ): MemoryGraphSearchResponse {
+        if (query.isBlank() || limit <= 0) {
+            return MemoryGraphSearchResponse(
+                query = query,
+                seedResults = emptyList(),
+                expandedResults = emptyList(),
+                nodes = emptyList(),
+                edges = emptyList()
+            )
+        }
+        val effectiveLimit = limit.coerceAtMost(100)
+        val vectorResponse = searchFactsVector(botMark, groupId, query, effectiveLimit)
+        val seedResults = vectorResponse.results.map { it.copy(source = "seed") }
+        val seedIds = seedResults.map { it.fact.id }
+
+        val entityNames = factGraphStoreFactory.expandByFacts(seedIds, botMark, groupId).distinct()
+        val expandedIds = if (entityNames.isEmpty()) {
+            emptyList()
+        } else {
+            factGraphStoreFactory.expandByEntities(entityNames, botMark, groupId)
+                .distinct()
+                .filter { it !in seedIds }
+                .take(effectiveLimit)
+        }
+
+        val expandedFactsById = getValidFactRecordsByIds(botMark, groupId, expandedIds)
+        val expandedResults = expandedIds.mapNotNull { factId ->
+            expandedFactsById[factId]?.let { fact ->
+                MemoryFactSearchResult(
+                    fact = fact,
+                    score = null,
+                    vectorId = fact.vectorId,
+                    source = "expanded"
+                )
+            }
+        }
+
+        val allResults = seedResults + expandedResults
+        val nodes = buildMemoryGraphNodes(allResults)
+        val edges = buildMemoryGraphEdges(allResults)
+
+        return MemoryGraphSearchResponse(
+            query = query,
+            seedResults = seedResults,
+            expandedResults = expandedResults,
+            nodes = nodes,
+            edges = edges
+        )
     }
 
     /**
-     * 使用 SmartChineseAnalyzer（HMM 中文分词 + 内置停用词）对 query 分词，
-     * 过滤出长度 >= 2 的实义词 token，用于 SQL LIKE 降级匹配
+     * 图扩展：从已召回事实出发，双向一跳查询找到更多相关事实。
+     * 正向：seed facts → entities（SPARQL 反向查询）→ more facts（SPARQL 正向查询）
      */
-    private fun tokenizeQuery(query: String): List<String> {
-        if (query.isBlank()) return emptyList()
-        val tokens = mutableListOf<String>()
-        val analyzer = SmartChineseAnalyzer()
-        analyzer.use { analyzer ->
-            val tokenStream = analyzer.tokenStream("", StringReader(query))
-            val charTermAttr = tokenStream.addAttribute(CharTermAttribute::class.java)
-            tokenStream.reset()
-            while (tokenStream.incrementToken()) {
-                val token = charTermAttr.toString()
-                if (token.length >= 2) {
-                    tokens.add(token)
+    private fun expandByGraph(
+        botMark: String,
+        groupId: String,
+        subjects: List<String>,
+        seedFacts: List<FactsEntity>,
+        limit: Int = Int.MAX_VALUE
+    ): List<FactsEntity> {
+        val seedIds = seedFacts.map { it.id.value }
+        if (seedIds.isEmpty()) return emptyList()
+
+        // 反向：seed fact IDs → entities
+        val entityNames = factGraphStoreFactory.expandByFacts(seedIds, botMark, groupId)
+        if (entityNames.isEmpty()) return emptyList()
+
+        // 正向：entities → more fact IDs
+        val expandedFactIds = factGraphStoreFactory.expandByEntities(entityNames, botMark, groupId)
+        val seedIdSet = seedIds.toSet()
+        val novelIds = expandedFactIds.filter { it !in seedIdSet }
+
+        if (novelIds.isEmpty() || limit <= 0) return emptyList()
+        val order = novelIds.withIndex().associate { (index, id) -> id to index }
+
+        return transaction {
+            FactsEntity.find {
+                (FactsTable.id inList novelIds) and FactsTable.validCondition(botMark, groupId)
+            }
+                .filter { fact -> fact.isVisibleTo(subjects) }
+                .sortedBy { fact -> order[fact.id.value] ?: Int.MAX_VALUE }
+                .take(limit)
+        }
+    }
+
+    private fun getVisibleFactEntitiesByIds(
+        botMark: String,
+        groupId: String,
+        subjects: List<String>,
+        factIds: List<Int>
+    ): Map<Int, FactsEntity> {
+        val ids = factIds.distinct()
+        if (ids.isEmpty()) return emptyMap()
+
+        return transaction {
+            FactsEntity.find {
+                (FactsTable.id inList ids) and FactsTable.validCondition(botMark, groupId)
+            }
+                .filter { fact -> fact.isVisibleTo(subjects) }
+                .associateBy { it.id.value }
+        }
+    }
+
+    private fun getValidFactRecordsByIds(
+        botMark: String,
+        groupId: String,
+        factIds: List<Int>
+    ): Map<Int, FactsRecord> {
+        val ids = factIds.distinct()
+        if (ids.isEmpty()) return emptyMap()
+
+        return transaction {
+            FactsEntity.find {
+                (FactsTable.id inList ids) and FactsTable.validCondition(botMark, groupId)
+            }.associate { it.id.value to it.toRecord() }
+        }
+    }
+
+    private fun buildMemoryGraphNodes(results: List<MemoryFactSearchResult>): List<MemoryGraphNode> {
+        val factNodes = results.map { result ->
+            MemoryGraphNode(
+                id = factNodeId(result.fact.id),
+                type = "fact",
+                label = "#${result.fact.id} ${result.fact.keyword}",
+                source = result.source
+            )
+        }
+        val entityNodes = results
+            .flatMap { it.fact.entities }
+            .distinct()
+            .map { entity ->
+                MemoryGraphNode(
+                    id = entityNodeId(entity),
+                    type = "entity",
+                    label = entity
+                )
+            }
+        return factNodes + entityNodes
+    }
+
+    private fun buildMemoryGraphEdges(results: List<MemoryFactSearchResult>): List<MemoryGraphEdge> =
+        results
+            .flatMap { result ->
+                result.fact.entities.map { entity ->
+                    MemoryGraphEdge(
+                        from = factNodeId(result.fact.id),
+                        to = entityNodeId(entity),
+                        label = "involves"
+                    )
                 }
             }
-            tokenStream.end()
-            tokenStream.close()
-        }
-        return tokens.distinct()
-    }
+            .distinct()
+
+    private fun factNodeId(factId: Int): String = "fact:$factId"
+
+    private fun entityNodeId(entity: String): String = "entity:$entity"
 
     private suspend fun markFactsRecalled(facts: List<FactsEntity>) {
         val ids = facts.map { it.id.value }.distinct()
@@ -344,6 +532,7 @@ class MemoryService(
     fun deleteExpiredFacts(): Int {
         val deletedFacts = memoryRepository.deleteExpiredFacts()
         deleteVectors(deletedFacts)
+        deleteGraphs(deletedFacts)
         log.info("Expired fact memory cleanup completed, deleted=${deletedFacts.size}")
         return deletedFacts.size
     }
@@ -355,6 +544,7 @@ class MemoryService(
             .toLocalDateTime(TimeZone.currentSystemDefault())
         val deletedFacts = memoryRepository.deleteStaleUnrecalledFacts(cutoff)
         deleteVectors(deletedFacts)
+        deleteGraphs(deletedFacts)
         log.info("Stale unrecalled fact memory cleanup completed, days=$staleRecallDays, deleted=${deletedFacts.size}")
         return deletedFacts.size
     }
@@ -362,8 +552,14 @@ class MemoryService(
     private fun deleteVectors(facts: List<FactsRecord>) {
         facts.forEach { fact ->
             fact.vectorId?.let { vectorId ->
-                factVectorStore.deleteVector(vectorId, fact.botMark, fact.groupId)
+                factVectorStoreFactory.deleteVector(vectorId, fact.botMark, fact.groupId)
             }
+        }
+    }
+
+    private fun deleteGraphs(facts: List<FactsRecord>) {
+        facts.forEach { fact ->
+            factGraphStoreFactory.removeFactEntities(fact.id, fact.botMark, fact.groupId)
         }
     }
 
@@ -374,11 +570,7 @@ class MemoryService(
         limit: Int = 0
     ): Pair<List<FactsEntity>, Int> {
         return transaction {
-            val condition =
-                (FactsTable.botMark eq botMark) and
-                        (FactsTable.groupId eq groupId) and
-                        (FactsTable.validFrom lessEq CurrentDateTime) and
-                        (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
+            val condition = FactsTable.validCondition(botMark, groupId)
             val baseQuery = FactsEntity.find { condition }
             val total = baseQuery.count().toInt()
             val query = FactsTable
@@ -476,8 +668,67 @@ class MemoryService(
         val fact = memoryRepository.getFactById(id) ?: return false
         if (fact.botMark != botId || fact.groupId != groupId) return false
         fact.vectorId?.let { vectorId ->
-            factVectorStore.deleteVector(vectorId, botId, groupId)
+            factVectorStoreFactory.deleteVector(vectorId, botId, groupId)
         }
+        factGraphStoreFactory.removeFactEntities(id, botId, groupId)
         return memoryRepository.deleteFact(id)
+    }
+
+    suspend fun createFact(
+        botMark: String,
+        groupId: String,
+        keyword: String,
+        description: String,
+        entities: List<String>,
+        subjects: String,
+        scopeType: Scopes
+    ): FactsRecord? {
+        val id = withContext(Dispatchers.IO) {
+            memoryRepository.createFact(botMark, groupId, keyword, description, entities, subjects, scopeType)
+        }
+        val fact = withContext(Dispatchers.IO) {
+            memoryRepository.getFactById(id)
+        } ?: return null
+        factGraphStoreFactory.addFactEntities(fact)
+        return syncFactVector(fact)
+    }
+
+    suspend fun updateFact(
+        botMark: String,
+        groupId: String,
+        id: Int,
+        keyword: String,
+        description: String,
+        entities: List<String>,
+        subjects: String,
+        scopeType: Scopes
+    ): FactsRecord? {
+        val existing = memoryRepository.getFactById(id) ?: return null
+        if (existing.botMark != botMark || existing.groupId != groupId) return null
+        existing.vectorId?.let { vectorId ->
+            factVectorStoreFactory.deleteVector(vectorId, botMark, groupId)
+        }
+        factGraphStoreFactory.removeFactEntities(id, botMark, groupId)
+        val updated = withContext(Dispatchers.IO) {
+            memoryRepository.updateFact(id, keyword, description, entities, subjects, scopeType)
+        } ?: return null
+        factGraphStoreFactory.addFactEntities(updated)
+        return syncFactVector(updated)
+    }
+
+    private suspend fun syncFactVector(fact: FactsRecord): FactsRecord? {
+        val vectorId = try {
+            factVectorStoreFactory.indexFact(fact)
+        } catch (e: Exception) {
+            log.warn(
+                "Failed to sync fact vector, factId=${fact.id}, botId=${fact.botMark}, groupId=${fact.groupId}",
+                e
+            )
+            return fact
+        }
+        return withContext(Dispatchers.IO) {
+            memoryRepository.updateFactVectorId(fact.id, vectorId)
+            memoryRepository.getFactById(fact.id)
+        }
     }
 }

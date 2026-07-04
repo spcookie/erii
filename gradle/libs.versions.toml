@@ -31,6 +31,7 @@ ksp = "2.3.8"
 kotlinx-serialization-msgpack = "0.5.5"
 thumbnailator = "0.4.20"
 commons-pool2 = "2.11.1"
+rdf4j = "4.3.13"
 
 [libraries]
 jobrunr = { module = "org.jobrunr:jobrunr", version.ref = "jobrunr" }
@@ -96,6 +97,9 @@ kotlinx-serialization-msgpack = { module = "com.ensarsarajcic.kotlinx:serializat
 ksp-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 thumbnailator = { module = "net.coobird:thumbnailator", version.ref = "thumbnailator" }
 commons-pool2 = { module = "org.apache.commons:commons-pool2", version.ref = "commons-pool2" }
+rdf4j-sail-nativerdf = { module = "org.eclipse.rdf4j:rdf4j-sail-nativerdf", version.ref = "rdf4j" }
+rdf4j-repository-sail = { module = "org.eclipse.rdf4j:rdf4j-repository-sail", version.ref = "rdf4j" }
+rdf4j-queryparser-sparql = { module = "org.eclipse.rdf4j:rdf4j-queryparser-sparql", version.ref = "rdf4j" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

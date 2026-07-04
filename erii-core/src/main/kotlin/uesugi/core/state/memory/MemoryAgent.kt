@@ -31,7 +31,8 @@ import kotlin.time.ExperimentalTime
  */
 class MemoryAgent(
     val memoryRepository: MemoryRepository,
-    val factVectorStore: FactVectorStore,
+    val factVectorStoreFactory: FactVectorStoreFactory,
+    val factGraphStoreFactory: FactGraphStoreFactory,
     val promptExecutor: PromptExecutor
 ) {
 
@@ -314,19 +315,36 @@ class MemoryAgent(
             return
         }
 
-        // Step 3: 冲突解决（始终传入原始消息，让 LLM 独立审查已有记忆是否过时）
-        val resolution = try {
-            resolveConflicts(extraction.facts, existingFacts, messages)
+        // Step 3: 冲突解决（按作用域分开处理，USER/GROUP 各自独立审查）
+        val userFacts = extraction.facts.filter { it.scope == Scopes.USER }
+        val groupFacts = extraction.facts.filter { it.scope == Scopes.GROUP }
+        val existingUserFacts = existingFacts.filter { it.scopeType == Scopes.USER }
+        val existingGroupFacts = existingFacts.filter { it.scopeType == Scopes.GROUP }
+
+        val userResolution = try {
+            resolveConflicts(userFacts, existingUserFacts, messages)
         } catch (e: Exception) {
-            log.error("Conflict resolution failed, groupId=$groupId", e)
+            log.error("User scope conflict resolution failed, groupId=$groupId", e)
             return
         }
 
-        val actionCounts = resolution.decisions.groupingBy { it.action }.eachCount()
+        val groupResolution = try {
+            resolveConflicts(groupFacts, existingGroupFacts, messages)
+        } catch (e: Exception) {
+            log.error("Group scope conflict resolution failed, groupId=$groupId", e)
+            return
+        }
+
+        val allDecisions = userResolution.decisions + groupResolution.decisions
+
+        val actionCounts = allDecisions.groupingBy { it.action }.eachCount()
         log.info("Conflict resolution completed, groupId=$groupId, decisions=$actionCounts")
 
         // Step 4: 批量执行决策
-        val affectedFacts = executeDecisions(botMark, groupId, resolution.decisions)
+        val affectedFacts = executeDecisions(botMark, groupId, allDecisions)
+
+        // Step 4.5: 同步图存储（实体三元组）
+        syncGraph(affectedFacts, botMark, groupId)
 
         // Step 5: 统一向量同步
         syncVectors(botMark, groupId, affectedFacts)
@@ -346,298 +364,109 @@ class MemoryAgent(
             system(
                 """
                 你是一名长期记忆提取专家，负责从群聊消息中提取值得长期保存的记忆。
-
                 ## 核心目标
-
                 你的任务不是总结聊天内容，也不是提取用户画像。
-
                 职业、学历、技能、偏好、关系等内容已经由独立画像系统维护。
-
                 禁止将画像信息写入记忆。
-
                 你的任务仅负责提取：
-
-                1. 重要经历
-                2. 重大状态变化
-                3. 群体长期规则
-                4. 群体长期共识
-                5. 长期约定
-                6. 未来可能被引用的重要事件
-
+                1. 重要经历 2. 重大状态变化 3. 群体长期规则 4. 群体长期共识 5. 长期约定 6. 未来可能被引用的重要事件
                 ---
-
                 ## 默认原则
-
                 默认不提取。
-
                 只有明确符合记忆条件时才允许提取。
-
                 如果无法确定是否属于长期记忆，则不要提取。
-
                 ---
-
                 ## 记忆准入条件
-
                 提取的信息必须同时满足以下条件：
-
-                * 一个月后仍然有价值
-                * 未来聊天中可能被引用
-                * 属于事件而非画像
-                * 属于事实而非观点
-                * 属于长期信息而非临时状态
-                * 不属于知识内容
-                * 不属于系统状态
-
+                * 一个月后仍然有价值 * 未来聊天中可能被引用 * 属于事件而非画像 * 属于事实而非观点 * 属于长期信息而非临时状态 * 不属于知识内容 * 不属于系统状态
                 否则不要提取。
-
                 ---
-
                 # 允许提取
-
                 ## 重要经历
-
                 对用户人生、身份或长期状态产生影响的重要事件。
-
                 ### 示例
-
-                * 毕业
-                * 入职
-                * 离职
-                * 创业
-                * 搬家
-                * 结婚
-                * 离婚
-                * 分手
-                * 获奖
-                * 长期项目完成
-                * 重大事故
-                * 长期治疗经历
-                * 长期停学
-                * 长期休学
-
+                * 毕业 * 入职 * 离职 * 创业 * 搬家 * 结婚 * 离婚 * 分手 * 获奖 * 长期项目完成 * 重大事故 * 长期治疗经历 * 长期停学 * 长期休学
                 ### 示例事实
-
-                * 用户A从重庆搬到杭州工作
-                * 用户B获得省级程序设计竞赛一等奖
-                * 用户C完成创业项目并正式上线
-
+                * 用户A从重庆搬到杭州工作 * 用户B获得省级程序设计竞赛一等奖 * 用户C完成创业项目并正式上线
                 ---
-
                 ## 重大状态变化
-
                 仅限长期状态发生变化。
-
                 ### 示例
-
-                * 从学生变为上班族
-                * 从杭州搬到上海
-                * 从原公司离职
-                * 结婚
-                * 离婚
-                * 毕业
-                * 退学
-
+                * 从学生变为上班族 * 从杭州搬到上海 * 从原公司离职 * 结婚 * 离婚 * 毕业 * 退学
                 ### 示例事实
-
-                * 用户A已经从XX公司离职
-                * 用户B毕业后开始工作
-                * 用户C搬迁至上海长期居住
-
+                * 用户A已经从XX公司离职 * 用户B毕业后开始工作 * 用户C搬迁至上海长期居住
                 ---
-
                 ## 群长期规则
-
                 长期有效且被群体遵守的规则。
-
                 ### 示例
-
-                * 群内禁止广告
-                * 群内禁止剧透
-                * 群内禁止人身攻击
-                * 群内统一使用某机器人
-
+                * 群内禁止广告 * 群内禁止剧透 * 群内禁止人身攻击 * 群内统一使用某机器人
                 ---
-
                 ## 群长期共识
-
                 长期存在的群体约定或共识。
-
                 ### 示例
-
-                * 每周五固定活动
-                * 周年庆固定举办方式
-                * 长期执行的管理制度
-                * 群内默认使用某称呼
-
+                * 每周五固定活动 * 周年庆固定举办方式 * 长期执行的管理制度 * 群内默认使用某称呼
                 ---
-
                 ## 长期约定
-
                 未来仍可能被引用或执行的约定。
-
                 ### 示例
-
-                * 群周年活动约定
-                * 长期维护计划
-                * 长期协作约定
-
+                * 群周年活动约定 * 长期维护计划 * 长期协作约定
                 ---
-
                 # 状态变化处理
-
                 当消息中出现明确状态变化时，优先提取最新状态。
-
                 关键词包括但不限于：
-
-                * 已经
-                * 不再
-                * 不是了
-                * 换成
-                * 改成
-                * 搬到
-                * 离开
-                * 辞职
-                * 入职
-                * 毕业
-                * 退学
-                * 结婚
-                * 离婚
-                * 分手
-
+                * 已经 * 不再 * 不是了 * 换成 * 改成 * 搬到 * 离开 * 辞职 * 入职 * 毕业 * 退学 * 结婚 * 离婚 * 分手
                 ### 示例
-
-                原状态：
-
-                用户A是学生
-
-                新消息：
-
-                我已经毕业开始工作了
-
-                应提取：
-
-                毕业
-
+                原状态：用户A是学生
+                新消息：我已经毕业开始工作了
+                应提取：毕业
                 而不是保留旧状态。
-
                 ---
-
                 # 严格禁止提取
-
                 ## 系统信息
-
-                * 机器人
-                * 插件
-                * 功能
-                * 命令
-                * 接口
-                * 模型
-                * 权限
-                * 配置
-                * BUG
-                * 服务状态
-                * API信息
-
+                * 机器人 * 插件 * 功能 * 命令 * 接口 * 模型 * 权限 * 配置 * BUG * 服务状态 * API信息
                 ---
-
                 ## 技术讨论
-
-                * 代码
-                * SQL
-                * 架构
-                * 开发方案
-                * 调试过程
-                * 性能优化
-                * 技术问答
-                * 技术教程
-
+                * 代码 * SQL * 架构 * 开发方案 * 调试过程 * 性能优化 * 技术问答 * 技术教程
                 ---
-
                 ## 临时事件
-
-                * 今天
-                * 明天
-                * 今晚
-                * 周末
-                * 最近
-                * 近期安排
-                * 一次性活动
-
+                * 今天 * 明天 * 今晚 * 周末 * 最近 * 近期安排 * 一次性活动
                 ---
-
                 ## 临时状态
-
-                * 上班
-                * 下班
-                * 睡觉
-                * 起床
-                * 吃饭
-                * 摸鱼
-                * 打游戏
-                * 看电影
-                * 看番
-
+                * 上班 * 下班 * 睡觉 * 起床 * 吃饭 * 摸鱼 * 打游戏 * 看电影 * 看番
                 ---
-
                 ## 数值信息
-
-                * 金币
-                * 余额
-                * 积分
-                * 排名
-                * 次数
-                * 价格
-                * 金价
-                * 股价
-                * 胜率
-                * 数量统计
-
+                * 金币 * 余额 * 积分 * 排名 * 次数 * 价格 * 金价 * 股价 * 胜率 * 数量统计
                 ---
-
                 ## 知识内容
-
-                * 问答
-                * 教程
-                * 百科
-                * 新闻
-                * 技术知识
-                * 科普内容
-
+                * 问答 * 教程 * 百科 * 新闻 * 技术知识 * 科普内容
                 ---
-
                 ## 观点与情绪
-
-                * 吐槽
-                * 抱怨
-                * 情绪表达
-                * 即时评价
-                * 主观观点
-                * 个人看法
-
+                * 吐槽 * 抱怨 * 情绪表达 * 即时评价 * 主观观点 * 个人看法
                 ---
-
                 # 输出要求
-
                 仅输出 JSON：
-
                 {
                   "facts": [
                     {
                       "keyword": "重要经历",
                       "description": "用户A从重庆搬到杭州工作",
-                      "values": "重庆->杭州",
+                      "entities": ["杭州", "重庆"],
                       "subjects": "A",
                       "scope": "user"
                     }
                   ]
                 }
-
                 如果没有符合条件的记忆：
-
                 {
                   "facts": []
                 }
-
+                # 实体提取
+                对于每条事实，从 description 和消息原文中提取涉及的实体。
+                ## entities 字段格式
+                JSON 字符串数组，包含实体名称，使用原文中的标准名称。
+                示例：
+                - "从杭州搬到了重庆" → ["杭州", "重庆"] - "入职了字节跳动" → ["字节跳动"] - "和张三一起做了项目" → ["张三"]
+                没有实体时 entities 为空数组 []。
                 不要输出任何解释、注释、Markdown 或额外文字。
                 """.trimIndent()
             )
@@ -648,13 +477,11 @@ class MemoryAgent(
                 text(
                     """
                     请从以下群聊消息中提取事实：
-
                     """.trimIndent()
                 )
                 text(
                     """
                     $msgText
-
                     请输出 JSON 格式的事实列表。
                     """.trimIndent()
                 )
@@ -718,11 +545,11 @@ class MemoryAgent(
             )
 
             val newFactsText = newFacts.joinToString("\n") {
-                "- keyword: ${it.keyword}, description: ${it.description}, values: ${it.values}, subjects: ${it.subjects}, scope: ${it.scope}"
+                "- keyword: ${it.keyword}, description: ${it.description}, entities: ${it.entities}, subjects: ${it.subjects}, scope: ${it.scope}"
             }.ifEmpty { "(no new extracted facts)" }
 
             val existingFactsText = existingFacts.joinToString("\n") {
-                "ID: ${it.id} | keyword: ${it.keyword} | values: ${it.values} | subjects: ${it.subjects} | scope: ${it.scopeType} | createdAt: ${it.createdAt}"
+                "ID: ${it.id} | keyword: ${it.keyword} | entities: ${it.entities} | subjects: ${it.subjects} | scope: ${it.scopeType} | createdAt: ${it.createdAt}"
             }.ifEmpty { "(no existing memories)" }
 
             val msgText = messages.joinToString("\n") { it.asLlmPrompt() }
@@ -804,7 +631,7 @@ class MemoryAgent(
             memoryRepository.createFact(
                 botMark, groupId,
                 fact.keyword, fact.description,
-                fact.values, fact.subjects, fact.scope
+                fact.entities, fact.subjects, fact.scope
             )
         }
         return withContext(Dispatchers.IO) {
@@ -814,6 +641,15 @@ class MemoryAgent(
 
     // ==================== Step 4: 统一向量同步 ====================
 
+    private fun syncGraph(affectedFacts: AffectedFacts, botMark: String, groupId: String) {
+        for (added in affectedFacts.added) {
+            factGraphStoreFactory.addFactEntities(added)
+        }
+        for (deleted in affectedFacts.deleted) {
+            factGraphStoreFactory.removeFactEntities(deleted.id, botMark, groupId)
+        }
+    }
+
     private suspend fun syncVectors(
         botMark: String,
         groupId: String,
@@ -821,7 +657,7 @@ class MemoryAgent(
     ) {
         for (deleted in affectedFacts.deleted) {
             deleted.vectorId?.let { vectorId ->
-                factVectorStore.deleteVector(vectorId, botMark, groupId)
+                factVectorStoreFactory.deleteVector(vectorId, botMark, groupId)
                 log.debug("Old vector deleted, factId=${deleted.id}, vectorId=$vectorId")
             }
         }
@@ -830,7 +666,7 @@ class MemoryAgent(
         coroutineScope {
             factsToIndex.map { fact ->
                 async {
-                    val vectorId = factVectorStore.indexFact(fact)
+                    val vectorId = factVectorStoreFactory.indexFact(fact)
                     withContext(Dispatchers.IO) {
                         memoryRepository.updateFactVectorId(fact.id, vectorId)
                     }

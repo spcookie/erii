@@ -79,6 +79,7 @@ private fun init(database: Database) {
             TokenUsageTable,
             inBatch = true
         )
+        exec("ALTER TABLE memory_facts ADD COLUMN IF NOT EXISTS entities TEXT DEFAULT '[]' NOT NULL")
     }
 }
 

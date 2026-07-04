@@ -45,9 +45,15 @@ data class PaginatedResponse<T>(
 data class FactRequest(
     val keyword: String,
     val description: String,
-    val values: String,
+    val entities: List<String> = emptyList(),
     val subjects: String,
     val scopeType: Scopes
+)
+
+@Serializable
+data class MemorySearchRequest(
+    val query: String,
+    val limit: Int = 10
 )
 
 @Serializable
@@ -189,16 +195,39 @@ fun Routing.configureBotStatusManager() {
             )
         }
 
+        post("/api/bot/{bot-id}/group/{group-id}/facts/vector-search") {
+            val request = call.receiveOrError<MemorySearchRequest>() ?: return@post
+            call.respond(
+                memoryService.searchFactsVector(
+                    botMark = call.botId(),
+                    groupId = call.groupId(),
+                    query = request.query,
+                    limit = request.limit.coerceIn(1, 100)
+                )
+            )
+        }
+
+        post("/api/bot/{bot-id}/group/{group-id}/facts/graph-search") {
+            val request = call.receiveOrError<MemorySearchRequest>() ?: return@post
+            call.respond(
+                memoryService.searchFactsGraph(
+                    botMark = call.botId(),
+                    groupId = call.groupId(),
+                    query = request.query,
+                    limit = request.limit.coerceIn(1, 100)
+                )
+            )
+        }
+
         post("/api/bot/{bot-id}/group/{group-id}/facts") {
             val botId = call.botId()
             val groupId = call.groupId()
             val request = call.receiveOrError<FactRequest>() ?: return@post
-            val id = memoryRepository.createFact(
+            val fact = memoryService.createFact(
                 botMark = botId, groupId = groupId, keyword = request.keyword,
-                description = request.description, values = request.values,
+                description = request.description, entities = request.entities,
                 subjects = request.subjects, scopeType = request.scopeType
             )
-            val fact = memoryRepository.getFactById(id)
             if (fact == null) {
                 call.respond(mapOf("error" to "fact not found"))
             } else {
@@ -212,9 +241,11 @@ fun Routing.configureBotStatusManager() {
             val factId = call.intPathParam("fact-id") ?: return@put call.respond(mapOf("error" to "invalid fact-id"))
             val request = call.receiveOrError<FactRequest>() ?: return@put
             call.respondScoped(
-                memoryRepository.updateFact(
+                memoryService.updateFact(
+                    botMark = botId,
+                    groupId = groupId,
                     id = factId, keyword = request.keyword,
-                    description = request.description, values = request.values,
+                    description = request.description, entities = request.entities,
                     subjects = request.subjects, scopeType = request.scopeType
                 ), botId, groupId,
                 { it.botMark }, { it.groupId }, "fact not found"
@@ -256,11 +287,7 @@ fun Routing.configureBotStatusManager() {
                 request.profile,
                 request.preferences
             )
-            if (profile == null) {
-                call.respond(mapOf("error" to "user-profile not found"))
-            } else {
-                call.respond(profile)
-            }
+            call.respond(profile)
         }
 
         delete("/api/bot/{bot-id}/group/{group-id}/user-profiles/{user-id}") {

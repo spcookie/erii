@@ -175,13 +175,53 @@ class MemoryRepository {
      */
     fun getValidFacts(botMark: String, groupId: String): List<FactsRecord> {
         return transaction {
-            FactsEntity.find(
-                (FactsTable.botMark eq botMark) and
-                        (FactsTable.groupId eq groupId) and
-                        (FactsTable.validFrom lessEq CurrentDateTime) and
-                        (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
-            ).map { it.toRecord() }
+            FactsEntity.find(FactsTable.validCondition(botMark, groupId))
+                .map { it.toRecord() }
         }
+    }
+
+    /**
+     * 获取全部有效事实（跨 bot/group，用于图重建）
+     */
+    fun getAllValidFacts(): List<FactsRecord> = transaction {
+        FactsEntity.find {
+            (FactsTable.validFrom lessEq CurrentDateTime) and
+                    (FactsTable.validTo.isNull() or (FactsTable.validTo greater CurrentDateTime))
+        }.map { it.toRecord() }
+    }
+
+    fun getAllFactGroups(): List<Pair<String, String>> = transaction {
+        FactsTable
+            .select(FactsTable.botMark, FactsTable.groupId)
+            .withDistinct(true)
+            .map { it[FactsTable.botMark] to it[FactsTable.groupId] }
+            .sortedWith(compareBy<Pair<String, String>> { it.first }.thenBy { it.second })
+    }
+
+    fun getFactsForEntityRebuild(
+        botMark: String? = null,
+        groupId: String? = null,
+        onlyEmptyEntities: Boolean = true,
+        includeInvalid: Boolean = false,
+        limit: Int? = null
+    ): List<FactsRecord> = transaction {
+        val facts = FactsEntity.all()
+            .map { it.toRecord() }
+            .asSequence()
+            .filter { fact -> botMark == null || fact.botMark == botMark }
+            .filter { fact -> groupId == null || fact.groupId == groupId }
+            .filter { fact -> !onlyEmptyEntities || fact.entities.isEmpty() }
+            .filter { fact -> includeInvalid || fact.validTo == null }
+            .sortedBy { it.id }
+
+        val limited = limit?.let { facts.take(it) } ?: facts
+        limited.toList()
+    }
+
+    fun updateFactEntities(id: Int, entities: List<String>): FactsRecord? = transaction {
+        FactsEntity.findById(id)?.apply {
+            this.entities = entities
+        }?.toRecord()
     }
 
     /**
@@ -193,7 +233,7 @@ class MemoryRepository {
         groupId: String,
         keyword: String,
         description: String,
-        values: String,
+        entities: List<String>,
         subjects: String,
         scopeType: Scopes
     ): Int {
@@ -203,7 +243,7 @@ class MemoryRepository {
                 this.groupId = groupId
                 this.keyword = keyword
                 this.description = description
-                this.values = values
+                this.entities = entities
                 this.subjects = subjects
                 this.scopeType = scopeType
                 this.validFrom = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -303,7 +343,7 @@ class MemoryRepository {
         id: Int,
         keyword: String,
         description: String,
-        values: String,
+        entities: List<String>,
         subjects: String,
         scopeType: Scopes
     ): FactsRecord? =
@@ -311,9 +351,10 @@ class MemoryRepository {
             FactsEntity.findById(id)?.apply {
                 this.keyword = keyword
                 this.description = description
-                this.values = values
+                this.entities = entities
                 this.subjects = subjects
                 this.scopeType = scopeType
+                this.vectorId = null
             }?.toRecord()
         }
 

@@ -22,10 +22,41 @@ data class VectorSearchResult(
     val score: Float
 )
 
+data class VectorStoreItem(
+    val id: String,
+    val content: String,
+    val tag: String,
+    val vector: FloatArray,
+    val searchText: String = content
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is VectorStoreItem) return false
+
+        if (id != other.id) return false
+        if (content != other.content) return false
+        if (tag != other.tag) return false
+        if (!vector.contentEquals(other.vector)) return false
+        if (searchText != other.searchText) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + content.hashCode()
+        result = 31 * result + tag.hashCode()
+        result = 31 * result + vector.contentHashCode()
+        result = 31 * result + searchText.hashCode()
+        return result
+    }
+}
+
 interface VectorStore {
-    fun upsert(id: String, content: String, tag: String, vector: FloatArray)
+    fun upsert(id: String, content: String, tag: String, vector: FloatArray, searchText: String = content)
     fun delete(id: String)
     fun deleteAll()
+    fun rebuild(items: List<VectorStoreItem>)
     fun search(queryVector: FloatArray, topK: Int, filter: List<String>? = null): List<VectorSearchResult>
     fun searchText(query: String, topK: Int): List<VectorSearchResult>
 }
@@ -46,6 +77,7 @@ class EmbeddedVectorStore(
         const val VECTOR_FIELD = "vector"
         const val ID_FIELD = "id"
         const val CONTENT_FIELD = "content"
+        const val SEARCH_TEXT_FIELD = "search_text"
         const val TAG = "tag"
     }
 
@@ -58,18 +90,11 @@ class EmbeddedVectorStore(
         searcherManager = SearcherManager(writer, null)
     }
 
-    override fun upsert(id: String, content: String, tag: String, vector: FloatArray) {
+    override fun upsert(id: String, content: String, tag: String, vector: FloatArray, searchText: String) {
         validate(vector)
 
         lock.write {
-            val doc = Document().apply {
-                add(StringField(ID_FIELD, id, Field.Store.YES))
-                add(TextField(CONTENT_FIELD, content, Field.Store.YES))
-                add(StringField(TAG, tag, Field.Store.YES))
-                add(KnnFloatVectorField(VECTOR_FIELD, vector))
-            }
-
-            writer.updateDocument(Term(ID_FIELD, id), doc)
+            writer.updateDocument(Term(ID_FIELD, id), document(id, content, tag, vector, searchText))
             writer.commit()
             searcherManager.maybeRefresh()
         }
@@ -91,6 +116,19 @@ class EmbeddedVectorStore(
         }
     }
 
+    override fun rebuild(items: List<VectorStoreItem>) {
+        items.forEach { validate(it.vector) }
+
+        lock.write {
+            writer.deleteAll()
+            items.forEach { item ->
+                writer.addDocument(document(item.id, item.content, item.tag, item.vector, item.searchText))
+            }
+            writer.commit()
+            searcherManager.maybeRefresh()
+        }
+    }
+
     override fun search(
         queryVector: FloatArray,
         topK: Int,
@@ -101,27 +139,31 @@ class EmbeddedVectorStore(
 
         lock.read {
             val searcher = searcherManager.acquire()
+            try {
 
-            val knnQuery = KnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK)
+                val knnQuery = KnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK)
 
-            val finalQuery = if (filter.isNullOrEmpty()) {
-                knnQuery
-            } else {
-                buildFilteredQuery(knnQuery, filter)
-            }
+                val finalQuery = if (filter.isNullOrEmpty()) {
+                    knnQuery
+                } else {
+                    buildFilteredQuery(knnQuery, filter)
+                }
 
-            val topDocs = searcher.search(finalQuery, topK)
+                val topDocs = searcher.search(finalQuery, topK)
 
-            val storedFields = searcher.storedFields()
+                val storedFields = searcher.storedFields()
 
-            return topDocs.scoreDocs.map {
-                val doc = storedFields.document(it.doc)
-                VectorSearchResult(
-                    id = doc.get(ID_FIELD),
-                    content = doc.get(CONTENT_FIELD),
-                    tag = doc.get(TAG),
-                    score = it.score
-                )
+                return topDocs.scoreDocs.map {
+                    val doc = storedFields.document(it.doc)
+                    VectorSearchResult(
+                        id = doc.get(ID_FIELD),
+                        content = doc.get(CONTENT_FIELD),
+                        tag = doc.get(TAG),
+                        score = it.score
+                    )
+                }
+            } finally {
+                searcherManager.release(searcher)
             }
         }
     }
@@ -132,13 +174,13 @@ class EmbeddedVectorStore(
             try {
                 val builder = BooleanQuery.Builder()
                 val analyzer = SmartChineseAnalyzer()
-                val tokenStream = analyzer.tokenStream(CONTENT_FIELD, StringReader(query))
+                val tokenStream = analyzer.tokenStream(SEARCH_TEXT_FIELD, StringReader(query))
                 val charTermAttr = tokenStream.addAttribute(CharTermAttribute::class.java)
                 tokenStream.reset()
                 while (tokenStream.incrementToken()) {
                     val token = charTermAttr.toString()
                     if (token.length >= 2) {
-                        builder.add(TermQuery(Term(CONTENT_FIELD, token)), BooleanClause.Occur.SHOULD)
+                        builder.add(TermQuery(Term(SEARCH_TEXT_FIELD, token)), BooleanClause.Occur.SHOULD)
                     }
                 }
                 tokenStream.end()
@@ -177,9 +219,11 @@ class EmbeddedVectorStore(
         val builder = BooleanQuery.Builder()
         builder.add(knnQuery, BooleanClause.Occur.MUST)
 
+        val tagFilter = BooleanQuery.Builder()
         filter.forEach { v ->
-            builder.add(TermQuery(Term("tag", v)), BooleanClause.Occur.FILTER)
+            tagFilter.add(TermQuery(Term(TAG, v)), BooleanClause.Occur.SHOULD)
         }
+        builder.add(tagFilter.build(), BooleanClause.Occur.FILTER)
 
         return builder.build()
     }
@@ -189,4 +233,13 @@ class EmbeddedVectorStore(
             "Vector dimension must be $dimension but was ${vector.size}"
         }
     }
+
+    private fun document(id: String, content: String, tag: String, vector: FloatArray, searchText: String): Document =
+        Document().apply {
+            add(StringField(ID_FIELD, id, Field.Store.YES))
+            add(StoredField(CONTENT_FIELD, content))
+            add(TextField(SEARCH_TEXT_FIELD, searchText, Field.Store.NO))
+            add(StringField(TAG, tag, Field.Store.YES))
+            add(KnnFloatVectorField(VECTOR_FIELD, vector))
+        }
 }

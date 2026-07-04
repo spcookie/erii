@@ -8,5 +8,6 @@ val memoryModule = module {
     singleOf(::MemoryRepository)
     singleOf(::MemoryService)
     singleOf(::MemoryJob)
-    singleOf(::FactVectorStore)
+    singleOf(::FactVectorStoreFactory)
+    singleOf(::FactGraphStoreFactory)
 }

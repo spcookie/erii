@@ -87,6 +87,9 @@ dependencies {
     implementation(libs.kotlin.logging)
     implementation(libs.thumbnailator)
     implementation(libs.commons.pool2)
+    implementation(libs.rdf4j.sail.nativerdf)
+    implementation(libs.rdf4j.repository.sail)
+    implementation(libs.rdf4j.queryparser.sparql)
     compileOnly(libs.jte.kotlin)
     compileOnly(libs.autoservice.annotations)
     // 测试
@@ -134,6 +137,19 @@ tasks.jar {
 
 tasks.run {
     dependsOn(tasks.precompileJte)
+    workingDir = rootProject.projectDir
+}
+
+tasks.register<JavaExec>("rebuildFactEntities") {
+    group = "maintenance"
+    description = "Re-analyze memory_facts.entities from existing fact records."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("uesugi.core.state.memory.FactEntityRebuildKt")
+    workingDir = rootProject.projectDir
+    val localConfig = rootProject.file(".uesugi/conf/application.conf")
+    if (localConfig.exists()) {
+        systemProperty("config.path", localConfig.absolutePath)
+    }
 }
 
 tasks.test {
