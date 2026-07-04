@@ -14,6 +14,10 @@ import kotlin.reflect.KClass
 
 class ConfigHolderImpl : ConfigProvider {
 
+    companion object {
+        private const val DEFAULT_EMBEDDING_MODEL = "doubao-embedding-vision-251215"
+    }
+
     private val log = KotlinLogging.logger {}
 
     private val pluginConfigCache = ConcurrentHashMap<String, Config>()
@@ -165,7 +169,7 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
     override fun getEmbeddingProvider(): String = config.getString("embedding.provider")
     override fun getEmbeddingUrl(): String = config.getString("embedding.url")
-    override fun getEmbeddingModel(): String = config.getString("embedding.model")
+    override fun getEmbeddingModel(): String = config.tryGetString("embedding.model") ?: DEFAULT_EMBEDDING_MODEL
 
     override fun getSearchApiKey(): String = config.getString("search.api-key")
     override fun getSearchProvider(): String = config.getString("search.provider")
