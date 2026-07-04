@@ -18,7 +18,7 @@ class LLMFactory(
 ) {
 
     @OptIn(ExperimentalTime::class)
-    fun promptExecutor(): PromptExecutor {
+    fun promptExecutor(recordUsage: Boolean = true): PromptExecutor {
         val isDebug = System.getProperty("llm.request.debug")?.toBoolean()
             ?: System.getenv("LLM_REQUEST_DEBUG")?.toBoolean()
             ?: false
@@ -33,7 +33,11 @@ class LLMFactory(
             FixingPromptExecutor(MultiLLMPromptExecutor(llmClients)),
             defaultParams
         )
-        return TokenUsagePromptExecutor(executor, tokenUsageRepository)
+        return if (recordUsage) {
+            TokenUsagePromptExecutor(executor, tokenUsageRepository)
+        } else {
+            executor
+        }
     }
 
     fun getBaseClient(isDebug: Boolean): HttpClient = HttpClient {
