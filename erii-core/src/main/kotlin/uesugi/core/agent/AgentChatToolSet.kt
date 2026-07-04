@@ -26,7 +26,6 @@ class AgentChatToolSet(
 ) : ChatToolSet {
 
     companion object {
-        private val NUMBER_PATTERN = Regex("""(?<!\d)(\d{4,})(?!\d)""")
         private val GIF87A = "GIF87a".toByteArray()
         private val GIF89A = "GIF89a".toByteArray()
     }
@@ -35,30 +34,7 @@ class AgentChatToolSet(
     override suspend fun sendText(texts: List<String>): String {
         try {
             for (text in texts) {
-                val matches = NUMBER_PATTERN.findAll(text).toList()
-
-                if (matches.isEmpty()) {
-                    sendGroupMessage(buildMessage { text(text) })
-                } else {
-                    val msg = buildMessage {
-                        var lastEnd = 0
-                        for (match in matches) {
-                            val precededByAt = match.range.first > 0 && text[match.range.first - 1] == '@'
-                            val start = if (precededByAt) match.range.first - 1 else match.range.first
-
-                            if (start > lastEnd) {
-                                text(text.substring(lastEnd, start))
-                            }
-                            val userId = match.groupValues[1].toLong()
-                            at(userId)
-                            lastEnd = match.range.last + 1
-                        }
-                        if (lastEnd < text.length) {
-                            text(text.substring(lastEnd))
-                        }
-                    }
-                    sendGroupMessage(msg)
-                }
+                sendGroupMessage(buildMessage { text(text) })
             }
         } catch (e: Exception) {
             return "消息发送失败，原因：" + e.message

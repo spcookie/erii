@@ -71,7 +71,7 @@ object IpcWriter {
     private val dirPath: Path = Path.of(
         System.getProperty("erii.ipc.path")
             ?: System.getenv("ERII_IPC_PATH")
-            ?: "."
+            ?: "./.erii"
     )
     private var ringBuffer: IpcRingBuffer? = null
 
