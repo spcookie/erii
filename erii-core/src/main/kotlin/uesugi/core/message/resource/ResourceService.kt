@@ -7,6 +7,8 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
+import uesugi.common.data.HistoryTable
 import uesugi.common.data.ResourceEntity
 import uesugi.common.data.ResourceRecord
 import uesugi.common.data.ResourceTable
@@ -63,6 +65,9 @@ class ResourceService {
     fun deleteResource(id: Int): Boolean {
         return transaction {
             val entity = ResourceEntity.findById(id) ?: return@transaction false
+            HistoryTable.update({ HistoryTable.resourceId eq id }) {
+                it[resourceId] = null
+            }
             entity.delete()
             true
         }
