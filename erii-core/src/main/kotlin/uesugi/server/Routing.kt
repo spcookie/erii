@@ -18,7 +18,10 @@ import java.nio.file.Path
 import gg.jte.ContentType as JteContentType
 
 fun Application.configureRouting() {
-    install(WebSockets)
+    install(WebSockets) {
+        pingPeriodMillis = 30_000  // 每 30 秒发一次 ping，保持 WebSocket 连接活跃
+        timeoutMillis = 15_000     // pong 超时 15 秒
+    }
     install(Resources)
     install(DoubleReceive)
     install(AutoHeadResponse)
