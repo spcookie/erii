@@ -93,6 +93,24 @@ func (r ResourceType) CanCreate() bool {
 	}
 }
 
+type MemorySearchMode int
+
+const (
+	MemorySearchVector MemorySearchMode = iota
+	MemorySearchGraph
+)
+
+func (m MemorySearchMode) Title() string {
+	switch m {
+	case MemorySearchVector:
+		return "Vector"
+	case MemorySearchGraph:
+		return "Graph"
+	default:
+		return "Memory Search"
+	}
+}
+
 // ── State type enum ──
 
 type StateType int

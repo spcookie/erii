@@ -84,7 +84,7 @@ func NewManageMenuModel(bot api.BotInfo, group api.GroupInfo) *ManageMenuModel {
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
 	items := []list.Item{
-		menuItem{resourceType: ResourceFacts, action: "pushTable", title: "🗂️  Memory", desc: "Manage group memory facts"},
+		menuItem{resourceType: ResourceFacts, action: "pushMemoryMenu", title: "🗂️  Memory", desc: "Manage and search group memory"},
 		menuItem{resourceType: ResourceProfiles, action: "pushTable", title: "🪪  User Profiles", desc: "Manage user profiles"},
 		menuItem{resourceType: ResourceSummaries, action: "pushTable", title: "📑  Summaries", desc: "Manage conversation summaries"},
 		menuItem{resourceType: ResourceMemes, action: "pushTable", title: "🎭  Memes", desc: "Manage meme metadata"},
@@ -128,6 +128,13 @@ func (m *ManageMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if idx >= 0 && idx < len(items) {
 				item := items[idx].(menuItem)
 				switch item.action {
+				case "pushMemoryMenu":
+					return m, func() tea.Msg {
+						return PushMemoryMenuMsg{
+							Bot:   m.bot,
+							Group: m.group,
+						}
+					}
 				case "pushMessageMenu":
 					return m, func() tea.Msg {
 						return PushMessageMenuMsg{

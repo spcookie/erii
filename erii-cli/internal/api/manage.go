@@ -42,6 +42,14 @@ func (c *Client) DeleteFact(botID, groupID string, id int) error {
 	return err
 }
 
+func (c *Client) SearchMemoryVector(botID, groupID string, req MemorySearchRequest) (*MemoryVectorSearchResponse, error) {
+	return doJSONRequest[*MemoryVectorSearchResponse](c, "POST", fmt.Sprintf("/api/bot/%s/group/%s/facts/vector-search", botID, groupID), req)
+}
+
+func (c *Client) SearchMemoryGraph(botID, groupID string, req MemorySearchRequest) (*MemoryGraphSearchResponse, error) {
+	return doJSONRequest[*MemoryGraphSearchResponse](c, "POST", fmt.Sprintf("/api/bot/%s/group/%s/facts/graph-search", botID, groupID), req)
+}
+
 func (c *Client) GetUserProfiles(botID, groupID string) (PaginatedResponse[UserProfileRecord], error) {
 	return doJSONRequest[PaginatedResponse[UserProfileRecord]](c, "GET", paginatedURL(fmt.Sprintf("/api/bot/%s/group/%s/user-profiles", botID, groupID)), nil)
 }

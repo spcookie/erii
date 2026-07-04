@@ -925,7 +925,7 @@ func (m *DataTableModel) buildPreviewContent() string {
 			wrap("ID", fmt.Sprintf("%d", r.ID)),
 			wrap("Keyword", r.Keyword),
 			wrap("Description", r.Description),
-			wrap("Values", r.Values),
+			wrap("Entities", factEntitiesDisplay(r)),
 			wrap("Subjects", r.Subjects),
 			wrap("Scope", r.ScopeType),
 			wrap("ValidFrom", r.ValidFrom),
@@ -1133,7 +1133,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 					{Title: "ID", Width: widths[1]},
 					{Title: "Keyword", Width: widths[2]},
 					{Title: "Description", Width: widths[3]},
-					{Title: "Values", Width: widths[4]},
+					{Title: "Entities", Width: widths[4]},
 					{Title: "Subjects", Width: widths[5]},
 					{Title: "Scope", Width: widths[6]},
 				}
@@ -1149,7 +1149,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 					fmt.Sprintf("%d", r.ID),
 					r.Keyword,
 					r.Description,
-					r.Values,
+					factEntitiesDisplay(r),
 					r.Subjects,
 					r.ScopeType,
 				}
@@ -1160,7 +1160,7 @@ func getFormatter(rt ResourceType) tableFormatter {
 				r := a.(api.FactRecord)
 				return strings.Contains(strings.ToLower(r.Keyword), kw) ||
 					strings.Contains(strings.ToLower(r.Description), kw) ||
-					strings.Contains(strings.ToLower(r.Values), kw) ||
+					strings.Contains(strings.ToLower(factEntitiesDisplay(r)), kw) ||
 					strings.Contains(strings.ToLower(r.Subjects), kw) ||
 					strings.Contains(strings.ToLower(r.ScopeType), kw)
 			},
@@ -1706,6 +1706,13 @@ func cronTypeLabel(r api.CronTaskRecord) string {
 		return r.TriggerType
 	}
 	return r.TaskType
+}
+
+func factEntitiesDisplay(r api.FactRecord) string {
+	if len(r.Entities) > 0 {
+		return strings.Join(r.Entities, ", ")
+	}
+	return r.Values
 }
 
 func formatUnixTime(ts int64) string {

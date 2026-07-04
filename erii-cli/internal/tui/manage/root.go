@@ -25,6 +25,15 @@ type (
 		Bot   api.BotInfo
 		Group api.GroupInfo
 	}
+	PushMemoryMenuMsg struct {
+		Bot   api.BotInfo
+		Group api.GroupInfo
+	}
+	PushMemorySearchMsg struct {
+		Mode  MemorySearchMode
+		Bot   api.BotInfo
+		Group api.GroupInfo
+	}
 	PushEditMsg struct {
 		ResourceType ResourceType
 		Bot          api.BotInfo
@@ -146,6 +155,12 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case PushMessageMenuMsg:
 		return m.pushWithSize(NewMessageMenuModel(msg.Bot, msg.Group))
+
+	case PushMemoryMenuMsg:
+		return m.pushWithSize(NewMemoryMenuModel(msg.Bot, msg.Group))
+
+	case PushMemorySearchMsg:
+		return m.pushWithSize(NewMemorySearchModel(getAPI(m.stack[0]), msg.Mode, msg.Bot, msg.Group))
 
 	case PushEditMsg:
 		return m.pushWithSize(NewEditFormModel(getAPI(m.stack[0]), msg.ResourceType, msg.Bot, msg.Group, msg.Data, msg.IsCreate))

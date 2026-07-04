@@ -32,6 +32,7 @@ type EditFormModel struct {
 
 	// Keep references to request objects so Text fields update them directly.
 	factReq        api.FactRequest
+	factEntities   string
 	profileReq     api.UpdateUserProfileRequest
 	memeDesc       string
 	memePurpose    string
@@ -108,16 +109,20 @@ func (m *EditFormModel) buildFactForm(data any, isCreate bool, width int) *huh.F
 		m.factReq = api.FactRequest{
 			Keyword:     r.Keyword,
 			Description: r.Description,
-			Values:      r.Values,
+			Entities:    r.Entities,
 			Subjects:    r.Subjects,
 			ScopeType:   r.ScopeType,
+		}
+		m.factEntities = strings.Join(r.Entities, ",")
+		if m.factEntities == "" {
+			m.factEntities = r.Values
 		}
 	}
 	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Key("keyword").Title("Keyword").Value(&m.factReq.Keyword).Validate(huh.ValidateNotEmpty()),
 			huh.NewText().Key("description").Title("Description (multi-line)").Value(&m.factReq.Description),
-			huh.NewInput().Key("values").Title("Values").Value(&m.factReq.Values),
+			huh.NewInput().Key("entities").Title("Entities (comma-separated)").Value(&m.factEntities),
 			huh.NewInput().Key("subjects").Title("Subjects (comma-separated)").Value(&m.factReq.Subjects).Validate(validateCommaSeparated),
 			huh.NewSelect[string]().Key("scopeType").Title("Scope Type").
 				Options(huh.NewOption("User", "USER"), huh.NewOption("Group", "GROUP")).
@@ -319,6 +324,21 @@ func validateCommaSeparated(s string) error {
 	return nil
 }
 
+func parseCommaList(s string) []string {
+	if strings.TrimSpace(s) == "" {
+		return []string{}
+	}
+	parts := strings.Split(s, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			values = append(values, part)
+		}
+	}
+	return values
+}
+
 var dateTimeRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$`)
 
 func validateDateTime(s string) error {
@@ -431,6 +451,7 @@ func (m *EditFormModel) submit() tea.Cmd {
 		switch rt {
 		case ResourceFacts:
 			req := m.factReq
+			req.Entities = parseCommaList(m.factEntities)
 			if isCreate {
 				err = client.CreateFact(botID, groupID, req)
 			} else {

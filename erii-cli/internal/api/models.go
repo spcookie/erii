@@ -41,26 +41,65 @@ type BehaviorProfile struct {
 // ── Facts ──
 
 type FactRecord struct {
-	ID          int     `json:"id"`
-	BotMark     string  `json:"botMark"`
-	GroupID     string  `json:"groupId"`
-	Keyword     string  `json:"keyword"`
-	Description string  `json:"description"`
-	Values      string  `json:"values"`
-	Subjects    string  `json:"subjects"`
-	ScopeType   string  `json:"scopeType"`
-	CreatedAt   string  `json:"createdAt"`
-	ValidFrom   string  `json:"validFrom"`
-	ValidTo     *string `json:"validTo"`
-	VectorID    *string `json:"vectorId"`
+	ID          int      `json:"id"`
+	BotMark     string   `json:"botMark"`
+	GroupID     string   `json:"groupId"`
+	Keyword     string   `json:"keyword"`
+	Description string   `json:"description"`
+	Values      string   `json:"values"`
+	Entities    []string `json:"entities"`
+	Subjects    string   `json:"subjects"`
+	ScopeType   string   `json:"scopeType"`
+	CreatedAt   string   `json:"createdAt"`
+	ValidFrom   string   `json:"validFrom"`
+	ValidTo     *string  `json:"validTo"`
+	VectorID    *string  `json:"vectorId"`
 }
 
 type FactRequest struct {
-	Keyword     string `json:"keyword"`
-	Description string `json:"description"`
-	Values      string `json:"values"`
-	Subjects    string `json:"subjects"`
-	ScopeType   string `json:"scopeType"`
+	Keyword     string   `json:"keyword"`
+	Description string   `json:"description"`
+	Entities    []string `json:"entities"`
+	Subjects    string   `json:"subjects"`
+	ScopeType   string   `json:"scopeType"`
+}
+
+type MemorySearchRequest struct {
+	Query string `json:"query"`
+	Limit int    `json:"limit"`
+}
+
+type MemoryFactSearchResult struct {
+	Fact     FactRecord `json:"fact"`
+	Score    *float64   `json:"score"`
+	VectorID *string    `json:"vectorId"`
+	Source   string     `json:"source"`
+}
+
+type MemoryGraphNode struct {
+	ID     string `json:"id"`
+	Type   string `json:"type"`
+	Label  string `json:"label"`
+	Source string `json:"source"`
+}
+
+type MemoryGraphEdge struct {
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Label string `json:"label"`
+}
+
+type MemoryVectorSearchResponse struct {
+	Query   string                   `json:"query"`
+	Results []MemoryFactSearchResult `json:"results"`
+}
+
+type MemoryGraphSearchResponse struct {
+	Query           string                   `json:"query"`
+	SeedResults     []MemoryFactSearchResult `json:"seedResults"`
+	ExpandedResults []MemoryFactSearchResult `json:"expandedResults"`
+	Nodes           []MemoryGraphNode        `json:"nodes"`
+	Edges           []MemoryGraphEdge        `json:"edges"`
 }
 
 // ── User Profiles ──
