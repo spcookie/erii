@@ -7,6 +7,7 @@ import (
 	"erii-cli/internal/tui/components/md"
 	"erii-cli/internal/tui/components/plugin"
 	"erii-cli/internal/tui/config"
+	"erii-cli/internal/tui/mcp"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -48,6 +49,16 @@ func Start() error {
 			root.pendingPush = md.NewBrowserModel(path.SoulsDir, "Souls")
 		case 4:
 			root.pendingPush = md.NewBrowserModel(path.RulesDir, "Rules")
+		case 5:
+			root.pendingPush = mcp.NewBrowserModel(path.McpDir, func(name string, filePath string) {
+				parser := tree.DetectParser(filePath)
+				browser := buildConfigBrowser(parser, filePath, name+" MCP", pushScreen, "").
+					WithEditable(true).
+					WithNewItemFactory(func(title, desc string) tree.ConfigNode {
+						return tree.NewLeaf(title, desc, tree.TypeString, "")
+					})
+				pushScreen(browser)
+			})
 		}
 	})
 

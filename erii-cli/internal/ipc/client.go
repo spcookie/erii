@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	SIZE        = 64 * 1024 // 64KB
-	DefaultSock = ".conf/erii.sock"
+	SIZE = 64 * 1024 // 64KB
 )
 
 type ServerConfig struct {
@@ -25,12 +24,7 @@ type ServerConfig struct {
 }
 
 func ReadConfig() (*ServerConfig, error) {
-	var filePath string
-	if dirPath := os.Getenv("ERII_IPC_PATH"); dirPath != "" {
-		filePath = filepath.Join(dirPath, DefaultSock)
-	} else {
-		filePath = filepath.Join(path.ConfMetaDir, "erii.sock")
-	}
+	var filePath = filepath.Join(path.EriiDir, "erii.sock")
 
 	// 创建父目录
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {

@@ -8,21 +8,23 @@ import (
 var (
 	ConfDir         string
 	ConfMetaDir     string
+	EriiDir         string
 	OptsPath        string
 	EnvFile         string
 	AppFile         string
 	SoulsDir        string
 	RulesDir        string
+	McpDir          string
 	PluginConfigDir string
 	PluginDir       string
 	PluginSchemaDir string
 )
 
 func init() {
-	InitPaths("", "", "", "")
+	InitPaths("", "", "", "", "")
 }
 
-func InitPaths(confDir, confMetaDir, pluginDir, optsPath string) {
+func InitPaths(confDir, confMetaDir, eriiDir, pluginDir, optsPath string) {
 	if confDir != "" {
 		ConfDir = confDir
 	} else {
@@ -33,6 +35,11 @@ func InitPaths(confDir, confMetaDir, pluginDir, optsPath string) {
 	} else {
 		ConfMetaDir = resolveConfMetaDir()
 	}
+	if eriiDir != "" {
+		EriiDir = eriiDir
+	} else {
+		EriiDir = resolveEriiDir()
+	}
 	if optsPath != "" {
 		OptsPath = optsPath
 	} else {
@@ -42,6 +49,7 @@ func InitPaths(confDir, confMetaDir, pluginDir, optsPath string) {
 	AppFile = filepath.Join(ConfDir, "application.conf")
 	SoulsDir = filepath.Join(ConfDir, "souls")
 	RulesDir = filepath.Join(ConfDir, "rules")
+	McpDir = filepath.Join(ConfDir, "mcp")
 	PluginConfigDir = filepath.Join(ConfDir, "plugin-config")
 	PluginSchemaDir = filepath.Join(PluginConfigDir, "schema")
 	if pluginDir != "" {
@@ -53,7 +61,10 @@ func InitPaths(confDir, confMetaDir, pluginDir, optsPath string) {
 
 func resolveConfMetaDir() string {
 	return resolveDir(".conf", func() string {
-		return filepath.Join(filepath.Dir(ConfDir), ".conf")
+		if cwd, err := os.Getwd(); err == nil {
+			return filepath.Join(cwd, ".conf")
+		}
+		return "./.conf"
 	})
 }
 
@@ -72,6 +83,15 @@ func resolveConfDir() string {
 			return filepath.Join(cwd, "conf")
 		}
 		return "./conf"
+	})
+}
+
+func resolveEriiDir() string {
+	return resolveDir(".erii", func() string {
+		if cwd, err := os.Getwd(); err == nil {
+			return filepath.Join(cwd, ".erii")
+		}
+		return "./erii"
 	})
 }
 

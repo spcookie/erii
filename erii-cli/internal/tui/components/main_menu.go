@@ -80,6 +80,7 @@ func NewMainMenuModel(onSelect func(index int)) *MainMenuModel {
 		menuItem{"Plugins", "Edit plugin configurations"},
 		menuItem{"Souls", "Manage soul/persona markdown files"},
 		menuItem{"Rules", "Manage rule markdown files"},
+		menuItem{"MCP", "Manage MCP server JSON configs"},
 	}
 
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
