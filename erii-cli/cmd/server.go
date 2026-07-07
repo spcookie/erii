@@ -66,8 +66,8 @@ var serverLogsCmd = &cobra.Command{
 	Short: "View Erii backend server logs",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		follow, _ := cmd.Flags().GetBool("follow")
-			lines, _ := cmd.Flags().GetInt("lines")
-			return runServerLogs(follow, lines)
+		lines, _ := cmd.Flags().GetInt("lines")
+		return runServerLogs(follow, lines)
 	},
 }
 
@@ -102,10 +102,10 @@ func projectRoot() string {
 }
 
 func pidFilePath() string {
-	if path.ConfMetaDir != "" {
-		return filepath.Join(path.ConfMetaDir, "erii.pid")
+	if path.EriiDir != "" {
+		return filepath.Join(path.EriiDir, "erii.pid")
 	}
-	return filepath.Join(projectRoot(), ".conf", "erii.pid")
+	return filepath.Join(projectRoot(), ".erii", "erii.pid")
 }
 
 // ---- Java finding ----
