@@ -15,26 +15,28 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
+
+	"erii-cli/internal/tui/style"
 )
 
 var (
-	styleDate   = lipgloss.NewStyle().Foreground(lipgloss.Color("#8be9fd"))
-	styleThread = lipgloss.NewStyle().Foreground(lipgloss.Color("#6272a4"))
-	styleLogger = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff79c6")).Bold(true)
-	styleMsg    = lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2"))
-	styleMuted  = lipgloss.NewStyle().Foreground(lipgloss.Color("#6272a4"))
+	styleDate   = lipgloss.NewStyle().Foreground(style.Info)
+	styleThread = lipgloss.NewStyle().Foreground(style.TextMuted)
+	styleLogger = lipgloss.NewStyle().Foreground(style.Secondary).Bold(true)
+	styleMsg    = lipgloss.NewStyle().Foreground(style.Text)
+	styleMuted  = lipgloss.NewStyle().Foreground(style.TextMuted)
 
 	levelStyles = map[string]lipgloss.Style{
-		"ERROR": lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Bold(true),
-		"WARN":  lipgloss.NewStyle().Foreground(lipgloss.Color("#f1fa8c")).Bold(true),
-		"INFO":  lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")),
-		"DEBUG": lipgloss.NewStyle().Foreground(lipgloss.Color("#8be9fd")),
-		"TRACE": lipgloss.NewStyle().Foreground(lipgloss.Color("#6272a4")),
+		"ERROR": lipgloss.NewStyle().Foreground(style.Error).Bold(true),
+		"WARN":  lipgloss.NewStyle().Foreground(style.Warning).Bold(true),
+		"INFO":  lipgloss.NewStyle().Foreground(style.Success),
+		"DEBUG": lipgloss.NewStyle().Foreground(style.Info),
+		"TRACE": lipgloss.NewStyle().Foreground(style.TextMuted),
 	}
 
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#ff79c6")).
+			Foreground(style.Secondary).
 			MarginBottom(1)
 
 	// Logback pattern: %date{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %gray([%thread]) %boldMagenta(%logger{50}) %msg%n
@@ -167,7 +169,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	if m.err != nil {
 		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ff5555")).
+			Foreground(style.Error).
 			Render(fmt.Sprintf("Error: %v\n\nPress esc to quit.", m.err))
 	}
 
