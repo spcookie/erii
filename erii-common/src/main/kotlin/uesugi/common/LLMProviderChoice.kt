@@ -86,7 +86,7 @@ object LLMProviderChoice {
 
     val Lite by lazy {
         when (choice) {
-            "GOOGLE", "OPENROUTER", "OPENAI" -> openaiModel("lite")
+            "OPENAI" -> openaiModel("lite")
             "ANTHROPIC" -> anthropicModel("lite")
             else -> throw RuntimeException("Unknown choice provider: $choice")
         }
@@ -94,7 +94,7 @@ object LLMProviderChoice {
 
     val Flash by lazy {
         when (choice) {
-            "GOOGLE", "OPENROUTER", "OPENAI" -> openaiModel("flash")
+            "OPENAI" -> openaiModel("flash")
             "ANTHROPIC" -> anthropicModel("flash")
             else -> throw RuntimeException("Unknown choice provider: $choice")
         }
@@ -102,7 +102,7 @@ object LLMProviderChoice {
 
     val Pro by lazy {
         when (choice) {
-            "GOOGLE", "OPENROUTER", "OPENAI" -> openaiModel("pro")
+            "OPENAI" -> openaiModel("pro")
             "ANTHROPIC" -> anthropicModel("pro")
             else -> throw RuntimeException("Unknown choice provider: $choice")
         }
