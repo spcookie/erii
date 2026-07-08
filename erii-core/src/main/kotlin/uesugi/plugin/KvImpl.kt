@@ -14,7 +14,7 @@ import kotlin.time.Duration
 internal class KvImpl(val defined: PluginDef) : Kv {
 
     private val default by lazy {
-        MapDB.Cache.hashMap(defined.name)
+        MapDB.plugin(defined.name).hashMap("kv")
             .keySerializer(Serializer.STRING)
             .valueSerializer(Serializer.STRING)
             .createOrOpen()
@@ -42,7 +42,7 @@ internal class KvImpl(val defined: PluginDef) : Kv {
     ) {
         withContext(Dispatchers.IO) {
             map.getOrPut(strategy.name + "_" + expire.toString()) {
-                MapDB.Cache.hashMap(defined.name)
+                MapDB.plugin(defined.name).hashMap("kv")
                     .keySerializer(Serializer.STRING)
                     .valueSerializer(Serializer.STRING)
                     .apply {

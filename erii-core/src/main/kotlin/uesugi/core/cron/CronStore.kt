@@ -23,7 +23,7 @@ class CronStore {
     }
 
     private val db: HTreeMap<String, String> by lazy {
-        MapDB.Cache.hashMap("core_cron")
+        MapDB.module("cron").hashMap("core_cron")
             .keySerializer(Serializer.STRING)
             .valueSerializer(Serializer.STRING)
             .createOrOpen()

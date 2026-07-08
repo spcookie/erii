@@ -21,7 +21,7 @@ class ThumbnailService(
 ) {
 
     private val pathMap by lazy {
-        MapDB.Cache.hashMap("image_thumbnail_path")
+        MapDB.module("thumbnail").hashMap("image_thumbnail_path")
             .keySerializer(Serializer.STRING)
             .valueSerializer(Serializer.STRING)
             .createOrOpen()
