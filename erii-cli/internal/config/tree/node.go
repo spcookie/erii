@@ -1,5 +1,7 @@
 package tree
 
+import "strings"
+
 type ValueType int
 
 const (
@@ -114,6 +116,100 @@ func (l *LeafNode) IsNull() bool                  { return l.isNull }
 func (l *LeafNode) SetNull(b bool)                { l.isNull = b }
 func (l *LeafNode) ValueConfig() *ValueConfig     { return l.valueConfig }
 func (l *LeafNode) SetValueConfig(c *ValueConfig) { l.valueConfig = c }
+
+// CloneNode creates a deep copy of a ConfigNode tree.
+// Leaf nodes copy their value, type, env ref status, null status, and metadata.
+// Branch nodes copy their children recursively.
+func CloneNode(node ConfigNode) ConfigNode {
+	if leaf, ok := node.(*LeafNode); ok {
+		var emptyVal any
+		switch leaf.ValueType() {
+		case TypeString, TypeText, TypeEnum:
+			emptyVal = ""
+		case TypeNumber:
+			emptyVal = float64(0)
+		case TypeBool:
+			emptyVal = false
+		case TypeArray:
+			emptyVal = []string{}
+		case TypeObject:
+			emptyVal = map[string]any{}
+		}
+		val := emptyVal
+		if !leaf.IsNull() && leaf.Value() != nil {
+			val = leaf.Value()
+		}
+		newLeaf := NewLeaf(leaf.Title(), leaf.Description(), leaf.ValueType(), val)
+		newLeaf.SetNull(leaf.IsNull())
+		newLeaf.SetEnvRef(leaf.IsEnvRef())
+		newLeaf.SetValueConfig(leaf.ValueConfig())
+		if leaf.ValueType() == TypeEnum {
+			newLeaf.SetOptions(leaf.Options())
+		}
+		return newLeaf
+	}
+	if branch, ok := node.(*BranchNode); ok {
+		newBranch := NewBranch(branch.Title(), branch.Description())
+		newBranch.SetIsArray(branch.IsArray())
+		for _, child := range branch.Children() {
+			newBranch.AddChild(CloneNode(child))
+		}
+		return newBranch
+	}
+	return nil
+}
+
+// FindNodeByPath walks a ConfigNode tree by dot-separated path segments.
+// Returns the matched node or nil if any segment is not found.
+func FindNodeByPath(root ConfigNode, path string) ConfigNode {
+	if path == "" || path == "root" {
+		return root
+	}
+	parts := strings.Split(path, ".")
+	current := root
+	for _, part := range parts {
+		branch, ok := current.(*BranchNode)
+		if !ok {
+			return nil
+		}
+		found := false
+		for _, child := range branch.Children() {
+			if child.Title() == part {
+				current = child
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil
+		}
+	}
+	return current
+}
+
+// FindParentByPath walks to the parent branch of the given dot-separated path.
+// Returns the parent branch and the last path segment.
+func FindParentByPath(root ConfigNode, path string) (*BranchNode, string) {
+	if path == "" || path == "root" {
+		return nil, ""
+	}
+	parts := strings.Split(path, ".")
+	if len(parts) == 1 {
+		if b, ok := root.(*BranchNode); ok {
+			return b, parts[0]
+		}
+		return nil, ""
+	}
+	parentPath := strings.Join(parts[:len(parts)-1], ".")
+	parent := FindNodeByPath(root, parentPath)
+	if parent == nil {
+		return nil, ""
+	}
+	if b, ok := parent.(*BranchNode); ok {
+		return b, parts[len(parts)-1]
+	}
+	return nil, ""
+}
 
 // fixValueForType converts the leaf value to match its valueType after a type override.
 // This fixes the mismatch when e.g. a null value (initially TypeString with "")

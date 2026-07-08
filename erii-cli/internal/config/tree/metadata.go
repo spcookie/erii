@@ -431,3 +431,27 @@ func matchCopyPattern(pattern string, pathParts []string) bool {
 	}
 	return true
 }
+
+// IsObjectContext checks whether the given dot-separated path is inside an object-typed
+// config node (as defined by value.json). Walk up the path's ancestors looking for a
+// ValueConfig with Type == "object".
+func IsObjectContext(pluginName, path string) bool {
+	for p := path; p != ""; {
+		vc := GetValueConfig(pluginName, p)
+		if vc != nil && vc.Type == "object" {
+			return true
+		}
+		lastDot := strings.LastIndex(p, ".")
+		if lastDot < 0 {
+			break
+		}
+		p = p[:lastDot]
+	}
+	return false
+}
+
+// CanModify reports whether the given path allows modification (add/copy/rename/delete/desc-edit).
+// True when: explicit editable (caller handles), CanCopy matches, or path is inside an object-typed context.
+func CanModify(pluginName, path string) bool {
+	return CanCopy(pluginName, path) || IsObjectContext(pluginName, path)
+}

@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"erii-cli/internal/config/tree"
+
 	"github.com/gurkankaymak/hocon"
 )
 
@@ -750,4 +752,91 @@ func formatHOCONValue(v hocon.Value) string {
 	default:
 		return v.String()
 	}
+}
+
+// HoconCopy copies a config node (branch or leaf) from sourceKey to newKey in a HOCON file.
+// Uses tree-based parsing/cloning/saving to handle complex nested blocks correctly.
+func HoconCopy(filePath, sourceKey, newKey string) error {
+	parser := &tree.HOCONParser{}
+	root, err := parser.Parse(filePath)
+	if err != nil {
+		return fmt.Errorf("parse hocon: %w", err)
+	}
+
+	sourceNode := tree.FindNodeByPath(root, sourceKey)
+	if sourceNode == nil {
+		return fmt.Errorf("source key not found: %s", sourceKey)
+	}
+
+	cloned := tree.CloneNode(sourceNode)
+
+	newKeyParts := strings.Split(newKey, ".")
+	newName := newKeyParts[len(newKeyParts)-1]
+	if b, ok := cloned.(*tree.BranchNode); ok {
+		b.SetTitle(newName)
+	} else if l, ok := cloned.(*tree.LeafNode); ok {
+		l.SetTitle(newName)
+	}
+
+	parentPath := strings.Join(newKeyParts[:len(newKeyParts)-1], ".")
+	parent := tree.FindNodeByPath(root, parentPath)
+	if parent == nil {
+		rb, ok := root.(*tree.BranchNode)
+		if !ok || len(newKeyParts) != 1 {
+			return fmt.Errorf("parent path not found: %s", parentPath)
+		}
+		rb.AddChild(cloned)
+	} else {
+		pb, ok := parent.(*tree.BranchNode)
+		if !ok {
+			return fmt.Errorf("parent is not a branch: %s", parentPath)
+		}
+		pb.AddChild(cloned)
+	}
+
+	return parser.Save(filePath, root)
+}
+
+// HoconAddItem adds a new child item under a parent in a HOCON file.
+// valueType must be one of: number, string, boolean, array, object.
+func HoconAddItem(filePath, parentKey, name, valueType, description string) error {
+	parser := &tree.HOCONParser{}
+	root, err := parser.Parse(filePath)
+	if err != nil {
+		return fmt.Errorf("parse hocon: %w", err)
+	}
+
+	parent := tree.FindNodeByPath(root, parentKey)
+	if parent == nil {
+		return fmt.Errorf("parent key not found: %s", parentKey)
+	}
+	parentBranch, ok := parent.(*tree.BranchNode)
+	if !ok {
+		return fmt.Errorf("parent is not a branch: %s", parentKey)
+	}
+
+	var newNode tree.ConfigNode
+	switch valueType {
+	case "object":
+		newNode = tree.NewBranch(name, description)
+	case "array":
+		newNode = tree.NewLeaf(name, description, tree.TypeArray, []string{})
+	case "boolean":
+		newNode = tree.NewLeaf(name, description, tree.TypeBool, false)
+	case "number":
+		newNode = tree.NewLeaf(name, description, tree.TypeNumber, float64(0))
+	case "string":
+		newNode = tree.NewLeaf(name, description, tree.TypeString, "")
+	default:
+		return fmt.Errorf("unsupported type: %s (use: number, string, boolean, array, object)", valueType)
+	}
+
+	parentBranch.AddChild(newNode)
+
+	if description != "" {
+		fullPath := parentKey + "." + name
+		_ = tree.SaveDesc(fullPath, description)
+	}
+
+	return parser.Save(filePath, root)
 }

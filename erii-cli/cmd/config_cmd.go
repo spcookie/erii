@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"erii-cli/internal/config/setter"
+	"erii-cli/internal/config/tree"
 	"erii-cli/internal/path"
 
 	"github.com/spf13/cobra"
@@ -128,9 +129,77 @@ var configPluginGetCmd = &cobra.Command{
 	},
 }
 
+// --- app copy ---
+var configAppCopyCmd = &cobra.Command{
+	Use:   "copy <source-key> <new-key>",
+	Short: "Copy a config branch/leaf to a new location",
+	Long: `Clone a configuration node (branch or leaf) and place it at a new key path.
+The source must exist. The new key's parent path must already exist.
+Example: config app copy llm.providers.openai llm.providers.deepseek`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := setter.HoconCopy(path.AppFile, args[0], args[1]); err != nil {
+			return fmt.Errorf("config app copy: %w", err)
+		}
+		fmt.Printf("Copied %s to %s in application.conf\n", args[0], args[1])
+		return nil
+	},
+}
+
+// --- app add-item ---
+var configAppAddItemCmd = &cobra.Command{
+	Use:   "add-item <parent-key> <name> <type> [description]",
+	Short: "Add a child item under an object-typed parent",
+	Long: `Add a new child configuration item under a parent.
+Type must be one of: number, string, boolean, array, object.
+Example: config app add-item llm.param ultra number "Ultra tier params"`,
+	Args: cobra.RangeArgs(3, 4),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		parentKey := args[0]
+		name := args[1]
+		valueType := args[2]
+		description := ""
+		if len(args) >= 4 {
+			description = args[3]
+		}
+		if err := setter.HoconAddItem(path.AppFile, parentKey, name, valueType, description); err != nil {
+			return fmt.Errorf("config app add-item: %w", err)
+		}
+		fmt.Printf("Added %s (type: %s) under %s in application.conf\n", name, valueType, parentKey)
+		return nil
+	},
+}
+
+// --- app desc ---
+var configAppDescCmd = &cobra.Command{
+	Use:   "desc <key> <description>",
+	Short: "Set the description for a config path",
+	Long: `Update the description for a configuration key in desc.json.
+The description is saved to the metadata and will appear in the TUI config browser.
+Example: config app desc llm.providers.openai "OpenAI provider configuration"`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		key := args[0]
+		description := args[1]
+		tree.LoadMetadata(path.ConfMetaDir)
+		if !tree.CanModify("", key) {
+			return fmt.Errorf("config app desc: key %q is not in a modifiable context (add it to copy.json or ensure parent has type: object in value.json)", key)
+		}
+
+		if err := tree.SaveDesc(key, description); err != nil {
+			return fmt.Errorf("config app desc: %w", err)
+		}
+		fmt.Printf("Set description for %s in desc.json\n", key)
+		return nil
+	},
+}
+
 func init() {
 	configAppCmd.AddCommand(configAppSetCmd)
 	configAppCmd.AddCommand(configAppGetCmd)
+	configAppCmd.AddCommand(configAppCopyCmd)
+	configAppCmd.AddCommand(configAppAddItemCmd)
+	configAppCmd.AddCommand(configAppDescCmd)
 	configEnvCmd.AddCommand(configEnvSetCmd)
 	configEnvCmd.AddCommand(configEnvGetCmd)
 	configPluginCmd.AddCommand(configPluginSetCmd)

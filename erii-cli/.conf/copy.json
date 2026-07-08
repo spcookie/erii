@@ -1,4 +1,5 @@
 [
   "onebot.bots",
-  "onebot.bots.*.groups"
+  "onebot.bots.*.groups",
+  "llm.providers"
 ]

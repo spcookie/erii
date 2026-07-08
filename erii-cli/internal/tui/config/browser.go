@@ -17,15 +17,20 @@ import (
 
 // BrowserKeyMap defines keybindings for the config browser.
 type BrowserKeyMap struct {
-	Up     key.Binding
-	Down   key.Binding
-	Enter  key.Binding
-	Back   key.Binding
-	New    key.Binding
-	Rename key.Binding
-	Delete key.Binding
-	Help   key.Binding
-	Quit   key.Binding
+	Up       key.Binding
+	Down     key.Binding
+	Enter    key.Binding
+	Back     key.Binding
+	New      key.Binding
+	Rename   key.Binding
+	Delete   key.Binding
+	EditDesc     key.Binding
+	Help         key.Binding
+	Quit         key.Binding
+	FormCancel   key.Binding
+	FormNext     key.Binding
+	FormPrev     key.Binding
+	FormSubmit   key.Binding
 }
 
 func (k BrowserKeyMap) ShortHelp() []key.Binding {
@@ -69,6 +74,10 @@ var DefaultBrowserKeys = BrowserKeyMap{
 		key.WithKeys("ctrl+d"),
 		key.WithHelp("ctrl+d", "delete"),
 	),
+	EditDesc: key.NewBinding(
+		key.WithKeys("ctrl+e"),
+		key.WithHelp("ctrl+e", "edit desc"),
+	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", "toggle help"),
@@ -76,6 +85,22 @@ var DefaultBrowserKeys = BrowserKeyMap{
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c"),
 		key.WithHelp("ctrl+c", "quit"),
+	),
+	FormCancel: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "cancel"),
+	),
+	FormNext: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "next field"),
+	),
+	FormPrev: key.NewBinding(
+		key.WithKeys("shift+tab"),
+		key.WithHelp("shift+tab", "prev field"),
+	),
+	FormSubmit: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "submit"),
 	),
 }
 
@@ -161,8 +186,6 @@ type BrowserModel struct {
 	addDesc         string
 	addType         string
 	addForm         *huh.Form
-	objectCtxPath   string
-	objectCtxResult bool
 	renaming        bool
 	renameValue     string
 	renameDesc      string
@@ -170,6 +193,9 @@ type BrowserModel struct {
 	deleting        bool
 	deleteConfirm   bool
 	deleteForm      *huh.Form
+	editingDesc     bool
+	editDescValue   string
+	editDescForm    *huh.Form
 	editable        bool
 	newItemFactory  func(title, desc string) tree.ConfigNode
 }
@@ -205,31 +231,19 @@ func (m *BrowserModel) WithPlugin(name string) *BrowserModel {
 }
 
 func (m *BrowserModel) canModify() bool {
-	return m.editable || tree.CanCopy(m.pluginName, m.currentPath()) || m.isObjectContext()
+	return m.editable || tree.CanModify(m.pluginName, m.currentPath())
+}
+
+// canEditDesc reports whether description editing is available at the current path.
+// Requires structured config context (copy.json patterns or object-typed parent),
+// not just the editable flag (env/mcp files have no desc.json metadata).
+func (m *BrowserModel) canEditDesc() bool {
+	return tree.CanModify(m.pluginName, m.currentPath())
 }
 
 // isObjectContext checks if the current path is inside an object-typed config node.
 func (m *BrowserModel) isObjectContext() bool {
-	path := m.currentPath()
-	if path == m.objectCtxPath {
-		return m.objectCtxResult
-	}
-	m.objectCtxPath = path
-	// Walk up path ancestors looking for an object-typed value config.
-	for p := path; p != ""; {
-		vc := tree.GetValueConfig(m.pluginName, p)
-		if vc != nil && vc.Type == "object" {
-			m.objectCtxResult = true
-			return true
-		}
-		lastDot := strings.LastIndex(p, ".")
-		if lastDot < 0 {
-			break
-		}
-		p = p[:lastDot]
-	}
-	m.objectCtxResult = false
-	return false
+	return tree.IsObjectContext(m.pluginName, m.currentPath())
 }
 
 func (m *BrowserModel) autoSave() {
@@ -311,7 +325,7 @@ func (m *BrowserModel) handleFormSizeAndCancel(msg tea.Msg, active *bool, form *
 		if msg.String() == "esc" {
 			*active = false
 			setForm(nil)
-			return false, nil
+			return true, nil
 		}
 	}
 	return false, nil
@@ -408,11 +422,61 @@ func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 	return m.deleteForm.Init()
 }
 
+func (m *BrowserModel) buildEditDescForm() tea.Cmd {
+	w := m.formWidth()
+	m.editDescForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Description").
+				Placeholder("(empty)").
+				Value(&m.editDescValue).
+				Key("desc"),
+		),
+	).WithWidth(w).WithShowHelp(false)
+	return m.editDescForm.Init()
+}
+
 func (m *BrowserModel) Init() tea.Cmd {
 	return nil
 }
 
 func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.editingDesc && m.editDescForm != nil {
+		if handled, cmd := m.handleFormSizeAndCancel(msg, &m.editingDesc, m.editDescForm, func(f *huh.Form) { m.editDescForm = f }); handled {
+			return m, cmd
+		}
+		newForm, cmd := m.editDescForm.Update(msg)
+		if f, ok := newForm.(*huh.Form); ok {
+			m.editDescForm = f
+		}
+		if m.editDescForm.State == huh.StateCompleted {
+			newDesc := strings.TrimSpace(m.editDescValue)
+			m.editingDesc = false
+			m.editDescForm = nil
+			idx := m.List.Index()
+			if idx >= 0 && idx < len(m.current.Children()) {
+				child := m.current.Children()[idx]
+				if b, ok := child.(*tree.BranchNode); ok {
+					b.SetDescription(newDesc)
+				} else if l, ok := child.(*tree.LeafNode); ok {
+					l.SetDescription(newDesc)
+				}
+				m.refreshList()
+				m.List.Select(idx)
+				nodePath := m.currentPath()
+				if nodePath != "" {
+					nodePath = nodePath + "." + child.Title()
+				} else {
+					nodePath = child.Title()
+				}
+				if newDesc != "" {
+					_ = tree.SaveDesc(nodePath, newDesc)
+				}
+			}
+		}
+		return m, cmd
+	}
+
 	if m.adding && m.addForm != nil {
 		if handled, cmd := m.handleFormSizeAndCancel(msg, &m.adding, m.addForm, func(f *huh.Form) { m.addForm = f }); handled {
 			return m, cmd
@@ -577,6 +641,19 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if key.Matches(msg, m.Keys.EditDesc) {
+			if !m.canEditDesc() {
+				return m, nil
+			}
+
+			if item, ok := m.List.SelectedItem().(NodeItem); ok {
+				m.editingDesc = true
+				m.editDescValue = item.Node.Description()
+				return m, m.buildEditDescForm()
+			}
+			return m, nil
+		}
+
 		if key.Matches(msg, m.Keys.New) {
 			if !m.canModify() {
 				return m, nil
@@ -618,55 +695,13 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func cloneStructure(node tree.ConfigNode) tree.ConfigNode {
-	if leaf, ok := node.(*tree.LeafNode); ok {
-		var emptyVal any
-		switch leaf.ValueType() {
-		case tree.TypeString, tree.TypeText, tree.TypeEnum:
-			emptyVal = ""
-		case tree.TypeNumber:
-			emptyVal = float64(0)
-		case tree.TypeBool:
-			emptyVal = false
-		case tree.TypeArray:
-			emptyVal = []string{}
-		case tree.TypeObject:
-			emptyVal = map[string]any{}
-		default:
-			panic("unhandled default case")
-		}
-		// Copy original value if not null, otherwise use empty default
-		val := emptyVal
-		if !leaf.IsNull() && leaf.Value() != nil {
-			val = leaf.Value()
-		}
-		newLeaf := tree.NewLeaf(leaf.Title(), leaf.Description(), leaf.ValueType(), val)
-		newLeaf.SetNull(leaf.IsNull())
-		newLeaf.SetEnvRef(leaf.IsEnvRef())
-		newLeaf.SetValueConfig(leaf.ValueConfig())
-		if leaf.ValueType() == tree.TypeEnum {
-			newLeaf.SetOptions(leaf.Options())
-		}
-		return newLeaf
-	}
-	if branch, ok := node.(*tree.BranchNode); ok {
-		newBranch := tree.NewBranch(branch.Title(), branch.Description())
-		newBranch.SetIsArray(branch.IsArray())
-		for _, child := range branch.Children() {
-			newBranch.AddChild(cloneStructure(child))
-		}
-		return newBranch
-	}
-	return nil
-}
-
 func (m *BrowserModel) createNodeFromTemplate(title, desc string) tree.ConfigNode {
 	if m.newItemFactory != nil {
 		return m.newItemFactory(title, desc)
 	}
 	if len(m.current.Children()) > 0 {
 		template := m.current.Children()[0]
-		cloned := cloneStructure(template)
+		cloned := tree.CloneNode(template)
 		if branch, ok := cloned.(*tree.BranchNode); ok {
 			newBranch := tree.NewBranch(title, desc)
 			newBranch.SetIsArray(branch.IsArray())
@@ -698,11 +733,20 @@ func (m *BrowserModel) createObjectValueNode(title, desc, valueType string) tree
 }
 
 func (m *BrowserModel) ShortHelp() []key.Binding {
+	if m.editingDesc || m.adding || m.renaming || m.deleting {
+		return []key.Binding{m.Keys.FormCancel, m.Keys.FormNext, m.Keys.FormPrev, m.Keys.FormSubmit}
+	}
+	if m.canEditDesc() {
+		return []key.Binding{m.Keys.Up, m.Keys.Down, m.Keys.Enter, m.Keys.Back, m.Keys.EditDesc, m.Keys.Help, m.Keys.Quit}
+	}
 	return m.Keys.ShortHelp()
 }
 
 func (m *BrowserModel) FullHelp() [][]key.Binding {
 	var middle []key.Binding
+	if m.canEditDesc() {
+		middle = append(middle, m.Keys.EditDesc)
+	}
 	if m.canModify() {
 		middle = append(middle, m.Keys.New)
 		if item, ok := m.List.SelectedItem().(NodeItem); ok {
@@ -720,11 +764,19 @@ func (m *BrowserModel) FullHelp() [][]key.Binding {
 }
 
 func (m *BrowserModel) View() string {
+	if m.editingDesc && m.editDescForm != nil {
+		var b strings.Builder
+		b.WriteString(style.Title("Edit Description") + "\n\n")
+		b.WriteString(m.editDescForm.View())
+		b.WriteString("\n" + m.help.View(m))
+		return b.String()
+	}
+
 	if m.adding && m.addForm != nil {
 		var b strings.Builder
 		b.WriteString(style.Title("Add new item") + "\n\n")
 		b.WriteString(m.addForm.View())
-		b.WriteString("\n\n" + style.Muted("esc cancel • tab/shift+tab navigate • enter next/submit"))
+		b.WriteString("\n" + m.help.View(m))
 		return b.String()
 	}
 
@@ -732,7 +784,7 @@ func (m *BrowserModel) View() string {
 		var b strings.Builder
 		b.WriteString(style.Title("Rename") + "\n\n")
 		b.WriteString(m.renameForm.View())
-		b.WriteString("\n\n" + style.Muted("esc cancel • tab/shift+tab navigate • enter next/submit"))
+		b.WriteString("\n" + m.help.View(m))
 		return b.String()
 	}
 
@@ -740,7 +792,7 @@ func (m *BrowserModel) View() string {
 		var b strings.Builder
 		b.WriteString(style.Title("Delete") + "\n\n")
 		b.WriteString(m.deleteForm.View())
-		b.WriteString("\n\n" + style.Muted("esc cancel • ←/→ select • enter confirm"))
+		b.WriteString("\n" + m.help.View(m))
 		return b.String()
 	}
 
