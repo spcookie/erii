@@ -93,7 +93,14 @@ private fun buildGroupStatus(
     val flowState = flowGaugeManager.getOrCreate(botId, groupId, emoticon)
         .let { it.state.value to it.mapToState() }
     val volitionState = volitionGaugeManager.getOrCreate(botId, groupId, emoticon)
-        .let { Triple(it.state.stimulus, it.state.fatigue, it.shouldSpeak()) }
+        .let {
+            BotStatus.VolitionState(
+                impulse = it.calculateRawImpulse(),
+                stimulus = it.state.stimulus,
+                fatigue = it.state.fatigue,
+                shouldSpeak = it.shouldSpeak()
+            )
+        }
     val vocabularies = evolutionService.getActiveVocabulary(botId, groupId, 999).map { it.word }
     val summary = memoryService.getSummary(botId, groupId)?.content
     val factSize = memoryService.getFactSize(botId, groupId)
@@ -146,7 +153,7 @@ private fun buildGroupStatus(
         behaviorProfile = behaviorProfile,
         pad = pad,
         flowState = BotStatus.FlowState.fromPair(flowState),
-        volitionState = BotStatus.VolitionState.fromTriple(volitionState),
+        volitionState = volitionState,
         vocabularies = vocabularies,
         summary = summary,
         factSize = factSize,
@@ -461,13 +468,12 @@ data class BotStatus(
     )
 
     @Serializable
-    data class VolitionState(val stimulus: Double, val fatigue: Double, val shouldSpeak: Boolean) {
-        companion object {
-            fun fromTriple(triple: Triple<Double, Double, Boolean>): VolitionState {
-                return VolitionState(triple.first, triple.second, triple.third)
-            }
-        }
-    }
+    data class VolitionState(
+        val impulse: Double,
+        val stimulus: Double,
+        val fatigue: Double,
+        val shouldSpeak: Boolean
+    )
 
     @Serializable
     data class FlowState(val meter: Double, val state: FlowMeterState) {

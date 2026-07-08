@@ -358,7 +358,7 @@
         }
 
         .pad-grid-3 .pg .pg-fill.d {
-            background: var(--grey-2);
+            background: var(--accent);
         }
 
         .pad-grid-3 .pg .pg-scale {
@@ -879,7 +879,7 @@
                 <div class="sg-right">
                     <div class="vol-block">
                         <div class="vl-top compact">
-                            <span class="vl-label"><i data-lucide="brain"></i> 冲动值累积</span>
+                            <span class="vl-label"><i data-lucide="brain"></i> 冲动值</span>
                             @if(vm.groupStatus.volitionState.shouldSpeak)
                                 <span class="vl-badge on">
                                 <i data-lucide="check-circle"></i> 已触发
@@ -893,12 +893,12 @@
                         <div class="vl-split compact">
                             <div class="vs">
                                 <div class="vs-head">
-                                    <span class="vs-label"><i data-lucide="zap"></i> Stimulus</span>
-                                    <span class="vs-val">${String.format("%.1f", vm.groupStatus.volitionState.stimulus)}</span>
+                                    <span class="vs-label"><i data-lucide="zap"></i> Impulse</span>
+                                    <span class="vs-val">${String.format("%.1f", vm.groupStatus.volitionState.impulse)}</span>
                                 </div>
                                 <div class="vs-track">
                                     <div class="vs-fill stimulus"
-                                         style="--fill-size: ${vm.groupStatus.volitionState.stimulus}%"></div>
+                                         style="--fill-size: ${vm.groupStatus.volitionState.impulse}%"></div>
                                 </div>
                                 <div class="vs-scale"><span>0</span><span>50</span><span>100</span></div>
                             </div>

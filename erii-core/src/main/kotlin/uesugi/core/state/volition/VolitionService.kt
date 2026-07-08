@@ -190,7 +190,7 @@ class VolitionGauge(
         }
     }
 
-    fun calculateImpulse(): Double {
+    fun calculateRawImpulse(): Double {
         val emotionModifier = arousal * tuning.arousalImpulseWeight -
                 maxOf(0.0, -pleasure * tuning.negativePleasurePenaltyWeight)
         val flowBonus = if (flowValue > tuning.flowBonusStart) {
@@ -198,9 +198,13 @@ class VolitionGauge(
         } else 0.0
 
         val stimulus = state.stimulus
-        val impulse = (baseDesire.coerceIn(0.0, 100.0) + stimulus + emotionModifier + flowBonus) - state.fatigue
+        val impulse = baseDesire.coerceIn(0.0, 100.0) + stimulus + emotionModifier + flowBonus
 
         return impulse.coerceIn(0.0, 100.0)
+    }
+
+    fun calculateImpulse(): Double {
+        return (calculateRawImpulse() - state.fatigue).coerceIn(0.0, 100.0)
     }
 
     fun minusStimulus(amount: Double) {

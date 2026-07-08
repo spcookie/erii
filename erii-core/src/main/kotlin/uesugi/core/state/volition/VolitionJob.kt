@@ -116,7 +116,10 @@ class VolitionJob(
                 return StateWorkResult(histories.size, maxHistoryId, hasMore = false)
             }
 
-            analyze(botMark, groupId, messages)
+            val success = analyze(botMark, groupId, messages)
+            if (!success) {
+                throw IllegalStateException("Volition analysis failed, botId=$botMark, groupId=$groupId")
+            }
 
             val maxHistoryId = histories.maxOf { it.id.value }
             withContext(Dispatchers.IO) {
@@ -136,9 +139,9 @@ class VolitionJob(
         botMark: String,
         groupId: String,
         messages: List<VolitionMessage>
-    ) {
+    ): Boolean {
         val volitionGaugeManager = GlobalContext.get().get<VolitionGaugeManager>()
-        val gauge = volitionGaugeManager.get(botMark, groupId) ?: return
+        val gauge = volitionGaugeManager.get(botMark, groupId) ?: return false
 
         gauge.state.lastActiveTime = messages.maxOf { it.time }
             .toInstant(TimeZone.currentSystemDefault())
@@ -146,7 +149,7 @@ class VolitionJob(
 
         val botInterests = BotManage.getBot(botMark).role.character
 
-        val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return
+        val result = volitionAgent.analysis(messages, botInterests, gauge.getMood()) ?: return false
         val tuning = ConfigHolder.getStateTuning().volition
 
         log.info("Impulsive value analysis completed, botId=$botMark, groupId=$groupId, $result")
@@ -174,6 +177,8 @@ class VolitionJob(
         if (result.emotionalResonance) {
             EventBus.postAsync(EmotionalResonanceEvent(botMark, groupId, tuning.emotionalResonanceStimulus))
         }
+
+        return true
     }
 
     @OptIn(ExperimentalTime::class)
