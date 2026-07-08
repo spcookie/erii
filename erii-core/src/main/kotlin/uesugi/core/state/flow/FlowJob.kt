@@ -107,7 +107,16 @@ class FlowJob(
                 return StateWorkResult(histories.size, maxHistoryId, hasMore = false)
             }
 
-            flowAgent.analysis(messages, botMark, groupId)
+            if (flowState == null) {
+                withContext(Dispatchers.IO) {
+                    flowRepository.updateFlowState(botMark, groupId, lastId)
+                }
+            }
+
+            val success = flowAgent.analysis(messages, botMark, groupId)
+            if (!success) {
+                throw IllegalStateException("Flow analysis failed, botId=$botMark, groupId=$groupId")
+            }
 
             val maxHistoryId = histories.maxOf { it.id.value }
             withContext(Dispatchers.IO) {

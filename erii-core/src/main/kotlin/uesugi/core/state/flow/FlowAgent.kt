@@ -81,7 +81,7 @@ data class GroupResonance(
     val exists: Boolean,
     @property:LLMDescription("参与讨论的人数")
     val participants: Int,
-    @property:LLMDescription("情绪PAD的 arousal，-1.0-1.0，值越大表示愉悦度越强")
+    @property:LLMDescription("情绪PAD的 arousal，-1.0-1.0，值越大表示唤醒度越强")
     val arousal: Double
 )
 
@@ -151,8 +151,8 @@ class FlowAgent {
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun analysis(messages: List<FlowMessage>, botMark: String, groupId: String) {
-        if (messages.isEmpty()) return
+    suspend fun analysis(messages: List<FlowMessage>, botMark: String, groupId: String): Boolean {
+        if (messages.isEmpty()) return true
 
         val promptExecutor by GlobalContext.get().inject<PromptExecutor>()
 
@@ -206,7 +206,7 @@ class FlowAgent {
             }
         }
 
-        try {
+        return try {
             val response = promptExecutor.executeStructured<FlowAnalysisResult>(
                 prompt,
                 model = LLMProviderChoice.Pro,
@@ -223,8 +223,10 @@ class FlowAgent {
             triggerFlowEvents(result, botMark, groupId)
 
             log.info("Flow analysis completed, botId=$botMark, groupId=$groupId, $result")
+            true
         } catch (e: Exception) {
             log.error("Flow analysis failed, groupId=$groupId", e)
+            false
         }
     }
 
@@ -234,7 +236,7 @@ class FlowAgent {
             .distinct()
             .forEach { eventType ->
                 when (eventType) {
-                    ChargeEventType.CoreInterest -> EventBus.postAsync(
+                    ChargeEventType.CoreInterest -> if (result.interestMatch.hit) EventBus.postAsync(
                         CoreInterestEvent(
                             botMark,
                             groupId,
@@ -242,15 +244,18 @@ class FlowAgent {
                         )
                     )
 
-                    ChargeEventType.GroupResonance -> EventBus.postAsync(
+                    ChargeEventType.GroupResonance -> if (
+                        result.groupResonance.exists &&
+                        result.groupResonance.participants >= 2
+                    ) EventBus.postAsync(
                         GroupResonanceEvent(
                             botMark,
                             groupId,
-                            result.groupResonance.arousal
+                            result.groupResonance.arousal.coerceIn(-1.0, 1.0)
                         )
                     )
 
-                    ChargeEventType.DeepReply -> EventBus.postAsync(
+                    ChargeEventType.DeepReply -> if (result.interactionQuality.deepReplies) EventBus.postAsync(
                         DeepReplyEvent(botMark, groupId, tuning.deepReplyBaseCharge)
                     )
                     ChargeEventType.ContinuousInteraction -> EventBus.postAsync(
