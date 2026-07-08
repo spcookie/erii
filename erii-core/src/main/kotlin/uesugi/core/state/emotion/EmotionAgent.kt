@@ -10,6 +10,8 @@ import kotlinx.datetime.format
 import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
 import uesugi.common.LLMProviderChoice
+import uesugi.common.data.EmotionalTendencies
+import uesugi.common.data.PAD
 import uesugi.common.data.PadScale12
 import uesugi.common.toolkit.DateTimeFormat
 import kotlin.time.ExperimentalTime
@@ -52,7 +54,11 @@ data class GMessage(
  * @return Prompt 对象
  */
 @OptIn(ExperimentalTime::class)
-fun buildPrompt(history: List<GMessage>) = prompt(
+fun buildPrompt(
+    history: List<GMessage>,
+    baseLine: EmotionalTendencies,
+    currentMood: PAD?
+) = prompt(
     "__emotion_analysis__",
     LLMParams(maxTokens = 65536)
 ) {
@@ -77,8 +83,11 @@ fun buildPrompt(history: List<GMessage>) = prompt(
 
         规则：
         - 每题范围 [-4.00, +4.00]，越靠近左侧越偏左侧词，越靠近右侧越偏右侧词
-        - 评分反映机器人**当下即时主观情绪**，不推断长期人格或动机
-        - 根据对话内容、语气、互动氛围**合理推测**机器人的情绪反应，避免给出全 0 的打分
+        - 评分反映机器人**当下即时主观情绪刺激**，不推断长期人格或动机
+        - 群友愤怒、争吵、阴阳怪气，不等于机器人自己愤怒；只有当这些内容会明确刺激机器人时才给强负面
+        - 普通闲聊、信息同步、无人直接影响机器人时，允许分数接近 0
+        - 机器人情绪基线是 ${baseLine.name}，PAD=${baseLine.pad}
+        - 当前心情参考值是 ${currentMood ?: baseLine.pad}，新刺激应只反映本批消息带来的短期偏移
 
         仅输出 JSON，含 Q1–Q12，保留两位小数，无解释。
         """.trimIndent()
@@ -108,13 +117,17 @@ fun buildPrompt(history: List<GMessage>) = prompt(
  * @param history 群聊历史消息列表
  * @return Stimulus (PAD 情感刺激值)
  */
-suspend fun analyzeStimulus(history: List<GMessage>): Stimulus {
+suspend fun analyzeStimulus(
+    history: List<GMessage>,
+    baseLine: EmotionalTendencies,
+    currentMood: PAD?
+): Stimulus {
     val log = LoggerFactory.getLogger("EmotionAgent")
 
     log.debug("开始分析情感刺激值, 消息数=${history.size}")
 
     // 构建 Prompt
-    val prompt = buildPrompt(history)
+    val prompt = buildPrompt(history, baseLine, currentMood)
 
     // 获取 Prompt 执行器
     val promptExecutor by GlobalContext.get().inject<PromptExecutor>()

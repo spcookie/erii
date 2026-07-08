@@ -40,9 +40,9 @@ class EmotionEntity(id: EntityID<Int>) : IntEntity(id) {
     var botMark by EmotionTable.botMark
     var groupId by EmotionTable.groupId
     var emotionalTendency by EmotionTable.emotionalTendency
-    var stimulus: PAD by EmotionTable.stimulus.memoizedTransform(PADColumnTransformer())
-    var emotion by EmotionTable.emotion.memoizedTransform(PADColumnTransformer())
-    var mood by EmotionTable.mood.memoizedTransform(PADColumnTransformer())
+    var stimulus: PAD by EmotionTable.stimulus.transform(PADColumnTransformer())
+    var emotion by EmotionTable.emotion.transform(PADColumnTransformer())
+    var mood by EmotionTable.mood.transform(PADColumnTransformer())
     var behavior by EmotionTable.behavior
     var updatedAt by EmotionTable.updatedAt
     var createdAt by EmotionTable.createdAt

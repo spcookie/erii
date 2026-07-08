@@ -200,7 +200,7 @@ class EmotionService(
         }
 
         // 调用 LLM 分析情感刺激值
-        val stimulus = analyzeStimulus(gMessages)
+        val stimulus = analyzeStimulus(gMessages, baseLine, decayedMood)
 
         // 创建行为分析器（使用衰减后的状态）
         val behaviorAnalysis = BehaviorAnalysis(
