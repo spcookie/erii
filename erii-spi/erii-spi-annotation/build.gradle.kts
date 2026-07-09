@@ -15,8 +15,9 @@ publishing {
 }
 
 dependencies {
-    implementation(project(":erii-spi:erii-spi-core"))
     implementation(libs.ksp.api)
+    implementation(project(":erii-spi:erii-spi-core"))
+    compileOnly(project(":erii-common"))
     compileOnly(libs.koog.agents)
     compileOnly(libs.pf4j)
     compileOnly(libs.ktor.server.core)

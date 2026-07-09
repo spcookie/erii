@@ -28,6 +28,7 @@ class KspAnnotationProcessor(
         const val ANN_ON_UNLOAD = "uesugi.spi.annotation.OnUnload"
         const val ANN_ON_START = "uesugi.spi.annotation.OnStart"
         const val ANN_ON_STOP = "uesugi.spi.annotation.OnStop"
+        const val ANN_ON_EVENT = "uesugi.spi.annotation.OnEvent"
 
         private val CMD_SLOTS = listOf(
             ParamSlot("meta", "uesugi.spi.Meta", "meta"),
@@ -115,6 +116,14 @@ class KspAnnotationProcessor(
             .filter { it.findAnnotation(ANN_ON_UNLOAD)?.stringArg("value")?.isEmpty() != false }
             .map { "${it.simpleName.asString()}()" }
 
+        // Event functions
+        val onEventFunctions = resolver.getSymbolsWithAnnotation(ANN_ON_EVENT)
+            .filterIsInstance<KSFunctionDeclaration>()
+            .filter { it.checkVisibility("OnEvent") }
+            .toList()
+        onEventFunctions.forEach { it.validateOnEventParams() }
+        val globalOnEvent = onEventFunctions.map { func -> buildOnEventSubscription(func) }
+
         // Plugin lifecycle
         val onStartFuncs = resolver.getSymbolsWithAnnotation(ANN_ON_START)
             .filterIsInstance<KSFunctionDeclaration>()
@@ -140,13 +149,13 @@ class KspAnnotationProcessor(
         generatePluginDelegate(pkgName, defAnno, onStartFuncs.firstOrNull(), onStopFuncs.firstOrNull())
         // KAPT PluginDefinitionProcessor generates plugin.properties from @PluginDefinition annotation
         generateToolSets(toolFunctions, pkgName)
-        generateRouteExtensions(routeFunctions, pkgName, namedOnLoad, namedOnUnload, globalOnLoad, globalOnUnload)
-        generateCmdExtensions(cmdFunctions, pkgName, namedOnLoad, namedOnUnload, globalOnLoad, globalOnUnload)
-        generatePassiveExtensions(passiveFunctions, pkgName, namedOnLoad, namedOnUnload, globalOnLoad, globalOnUnload)
+        generateRouteExtensions(routeFunctions, pkgName, namedOnLoad, namedOnUnload, globalOnLoad, globalOnUnload, globalOnEvent)
+        generateCmdExtensions(cmdFunctions, pkgName, namedOnLoad, namedOnUnload, globalOnLoad, globalOnUnload, globalOnEvent)
+        generatePassiveExtensions(passiveFunctions, pkgName, namedOnLoad, namedOnUnload, globalOnLoad, globalOnUnload, globalOnEvent)
 
         val hasExtension = routeFunctions.isNotEmpty() || cmdFunctions.isNotEmpty() || passiveFunctions.isNotEmpty()
         if (!hasExtension && toolFunctions.isNotEmpty()) {
-            generateDefaultPassive(toolFunctions, pkgName)
+            generateDefaultPassive(toolFunctions, pkgName, globalOnEvent)
         }
 
         generatePf4jExtensionsFile(routeFunctions, cmdFunctions, passiveFunctions, toolFunctions, pkgName, hasExtension)
@@ -371,6 +380,7 @@ class KspAnnotationProcessor(
         onUnloadCalls: List<String>,
         globalOnLoad: List<String>,
         globalOnUnload: List<String>,
+        globalOnEvent: List<String>,
         toolSets: List<String>,
         extraProperties: StringBuilder.() -> Unit = {},
         extraOnLoad: StringBuilder.() -> Unit = {},
@@ -390,6 +400,7 @@ class KspAnnotationProcessor(
             extraProperties()
             appendLine("    override fun onLoad(context: PluginContext) {")
             emitLifecycleCalls(onLoadCalls + globalOnLoad, "        ")
+            emitLifecycleCalls(globalOnEvent, "        ")
             appendLine("        context.chain { meta ->")
             extraOnLoad()
             appendLine("            withPluginContext(context) {")
@@ -417,6 +428,7 @@ class KspAnnotationProcessor(
         namedOnUnload: Map<String, KSFunctionDeclaration>,
         globalOnLoad: List<String>,
         globalOnUnload: List<String>,
+        globalOnEvent: List<String>,
     ) {
         for (func in routeFunctions) {
             val routeAnno = func.findAnnotation(ANN_ROUTE) ?: continue
@@ -435,6 +447,7 @@ class KspAnnotationProcessor(
                 onUnloadCalls = onUnloadCalls,
                 globalOnLoad = globalOnLoad,
                 globalOnUnload = globalOnUnload,
+                globalOnEvent = globalOnEvent,
                 toolSets = routeAnno.stringArrayArg("toolSets"),
                 extraProperties = {
                     appendLine("    override val matcher: Pair<String, String>")
@@ -458,6 +471,7 @@ class KspAnnotationProcessor(
         namedOnUnload: Map<String, KSFunctionDeclaration>,
         globalOnLoad: List<String>,
         globalOnUnload: List<String>,
+        globalOnEvent: List<String>,
     ) {
         for (func in cmdFunctions) {
             val cmdAnno = func.findAnnotation(ANN_CMD) ?: continue
@@ -479,6 +493,7 @@ class KspAnnotationProcessor(
                 onUnloadCalls = onUnloadCalls,
                 globalOnLoad = globalOnLoad,
                 globalOnUnload = globalOnUnload,
+                globalOnEvent = globalOnEvent,
                 toolSets = cmdAnno.stringArrayArg("toolSets"),
                 extraProperties = {
                     appendLine("    override val cmd: String")
@@ -505,6 +520,7 @@ class KspAnnotationProcessor(
         namedOnUnload: Map<String, KSFunctionDeclaration>,
         globalOnLoad: List<String>,
         globalOnUnload: List<String>,
+        globalOnEvent: List<String>,
     ) {
         for (func in passiveFunctions) {
             val passiveAnno = func.findAnnotation(ANN_PASSIVE) ?: continue
@@ -523,6 +539,7 @@ class KspAnnotationProcessor(
                 onUnloadCalls = onUnloadCalls,
                 globalOnLoad = globalOnLoad,
                 globalOnUnload = globalOnUnload,
+                globalOnEvent = globalOnEvent,
                 toolSets = passiveAnno.stringArrayArg("toolSets"),
             )
         }
@@ -530,7 +547,7 @@ class KspAnnotationProcessor(
 
     // ========== Default Passive (auto-generated for tool-only plugins) ==========
 
-    private fun generateDefaultPassive(toolFunctions: List<KSFunctionDeclaration>, pkgName: String) {
+    private fun generateDefaultPassive(toolFunctions: List<KSFunctionDeclaration>, pkgName: String, globalOnEvent: List<String>) {
         val toolSetClasses = toolFunctions
             .map { it.findAnnotation(ANN_TOOL)?.stringArg("set")?.takeUnless { s -> s.isEmpty() } ?: DEFAULT_TOOLSET }
             .distinct()
@@ -551,6 +568,9 @@ class KspAnnotationProcessor(
             appendLine("    override fun onLoad(context: PluginContext) {")
             for (tsClass in toolSetClasses) {
                 appendLine("        context.tool { { $pkgName.$tsClass(context) } }")
+            }
+            for (eventSub in globalOnEvent) {
+                appendLine("        $eventSub")
             }
             appendLine("    }")
             appendLine()
@@ -744,6 +764,33 @@ class KspAnnotationProcessor(
             )
         }
     }
+
+    /** Validates that an @OnEvent function has exactly one parameter. */
+    private fun KSFunctionDeclaration.validateOnEventParams() {
+        val count = parameters.count()
+        if (count != 1) {
+            logger.error(
+                "@OnEvent function '${simpleName.asString()}' must have exactly one parameter, " +
+                        "but found $count parameter(s)."
+            )
+        }
+    }
+
+    /** Builds a context.onEvent { ... } subscription line for an @OnEvent function. */
+    private fun buildOnEventSubscription(func: KSFunctionDeclaration): String {
+        val funcName = func.simpleName.asString()
+        val annotation = func.findAnnotation(ANN_ON_EVENT)
+        val eventType = annotation?.kClassArg("value")
+        val eventTypeName = eventType?.declaration?.qualifiedName?.asString() ?: run {
+            logger.error("@OnEvent function '$funcName': cannot resolve event type from annotation value")
+            "Any"
+        }
+        return "context.onEvent { event -> if (event is $eventTypeName) { $funcName(event) } }"
+    }
+
+    /** Extracts a KClass annotation argument as KSType. */
+    private fun KSAnnotation.kClassArg(name: String): KSType? =
+        arguments.firstOrNull { it.name?.asString() == name }?.value as? KSType
 
     private fun KSFunctionDeclaration?.isSuspendFunc(): Boolean =
         this != null && Modifier.SUSPEND in modifiers

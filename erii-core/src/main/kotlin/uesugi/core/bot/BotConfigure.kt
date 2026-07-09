@@ -3,6 +3,8 @@ package uesugi.core.bot
 import kotlinx.coroutines.*
 import uesugi.LOG
 import uesugi.common.BotManage
+import uesugi.common.EventBus
+import uesugi.common.event.BotConnectedEvent
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.GroupMessageEventListener
 import uesugi.core.agent.BotAgent
@@ -55,6 +57,12 @@ fun configureConnectBots() {
                     }
 
                     BotManage.registerBot(key, client, selfId, role)
+
+                    EventBus.postAsync(BotConnectedEvent(
+                        botId = selfId,
+                        configKey = key,
+                        roleName = role.name
+                    ))
 
                     val listener = GroupMessageEventListener(selfId, role.name, key)
                     listener.register(client)

@@ -30,6 +30,7 @@ import org.pf4j.Plugin
 import org.pf4j.PluginWrapper
 import uesugi.common.ChatToolSet
 import uesugi.common.IBotManage
+import uesugi.common.IntegrationEvent
 import uesugi.common.data.HistoryRecord
 import uesugi.common.event.PSFeature
 import uesugi.common.event.ProactiveSpeakFeature
@@ -237,6 +238,8 @@ interface PluginContext : AutoCloseable {
     fun chain(handler: Handler)
 
     fun tool(toolset: PluginContext.() -> MetaToolSetCreator)
+
+    fun onEvent(handler: suspend (IntegrationEvent) -> Unit)
 
 }
 

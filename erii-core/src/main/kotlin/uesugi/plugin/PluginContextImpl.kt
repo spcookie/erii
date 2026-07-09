@@ -16,6 +16,7 @@ import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
+import uesugi.common.IntegrationEvent
 import uesugi.spi.*
 
 class PluginContextImpl(
@@ -25,13 +26,14 @@ class PluginContextImpl(
     override val blob: Blob,
     override val vector: Vector,
     override val config: PluginConfig,
-    override val database: Database,
     override val scheduler: Scheduler,
     llm: PromptExecutor,
     override val http: HttpClient,
     override val server: Server,
     val httpProxy: HttpClient
 ) : PluginContextBootstrap {
+
+    override val database: Database = PluginDatabaseImpl(defined.name)
 
     companion object {
         val log = logger()
@@ -43,6 +45,9 @@ class PluginContextImpl(
         })
 
     private lateinit var job: Job
+    private lateinit var eventJob: Job
+
+    private val eventHandlers = mutableListOf<suspend (IntegrationEvent) -> Unit>()
 
     override val llm: PromptExecutor = if (defined.name.startsWith("builtin_", ignoreCase = true)) {
         llm
@@ -62,6 +67,10 @@ class PluginContextImpl(
 
     override fun tool(toolset: PluginContext.() -> MetaToolSetCreator) {
         toolsets += toolset(this)
+    }
+
+    override fun onEvent(handler: suspend (IntegrationEvent) -> Unit) {
+        eventHandlers += handler
     }
 
     override fun open() {
@@ -89,6 +98,14 @@ class PluginContextImpl(
                 }
             }
         }
+
+        eventJob = EventBus.subscribeAsync<IntegrationEvent>(scope) { event ->
+            scope.launch {
+                for (handler in eventHandlers) {
+                    handler(event)
+                }
+            }
+        }
     }
 
     override fun ready() {
@@ -100,6 +117,9 @@ class PluginContextImpl(
     override fun close() {
         if (this::job.isInitialized) {
             EventBus.unsubscribeAsync(job)
+        }
+        if (this::eventJob.isInitialized) {
+            EventBus.unsubscribeAsync(eventJob)
         }
     }
 
