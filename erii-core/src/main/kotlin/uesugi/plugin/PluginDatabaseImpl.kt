@@ -1,20 +1,56 @@
 package uesugi.plugin
 
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.Path.Companion.toPath
 import okio.buffer
 import org.jetbrains.exposed.v1.jdbc.Query
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.core.Schema
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import uesugi.common.data.HistoryRecord
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.ResourceRecord
 import uesugi.common.data.ResourceTable
 import uesugi.common.toolkit.ref
 import uesugi.core.component.storage.ObjectStorage
-import uesugi.spi.Database
+import kotlinx.atomicfu.atomic
+import uesugi.spi.Database as SpiDatabase
+import javax.sql.DataSource
 
-internal class DatabaseImpl : Database {
+internal class PluginDatabaseImpl(private val pluginName: String) : SpiDatabase {
+
+    private val dataSource: DataSource by lazy {
+        val config = HikariConfig().apply {
+            jdbcUrl = "jdbc:h2:file:./store/data;MODE=PostgreSQL;AUTO_SERVER=TRUE;NON_KEYWORDS=VALUE"
+            driverClassName = "org.h2.Driver"
+            maximumPoolSize = 2
+            poolName = "plugin-$pluginName"
+        }
+        HikariDataSource(config)
+    }
+
+    private val exposedDb: Database by lazy {
+        Database.connect(dataSource)
+    }
+
+    private val schema by lazy { Schema(pluginName) }
+
+    private val schemaCreated = atomic(false)
+
+    override suspend fun <T> execute(block: () -> T): T = withContext(Dispatchers.IO) {
+        transaction(exposedDb) {
+            if (schemaCreated.compareAndSet(false, true)) {
+                SchemaUtils.createSchema(schema)
+            }
+            exec("SET SCHEMA \"$pluginName\"")
+            block()
+        }
+    }
+
     override suspend fun getHistory(query: () -> Query): List<HistoryRecord> {
         val storage by ref<ObjectStorage>()
         return withContext(Dispatchers.IO) {
@@ -50,7 +86,5 @@ internal class DatabaseImpl : Database {
                 }
             }
         }
-
     }
-
 }

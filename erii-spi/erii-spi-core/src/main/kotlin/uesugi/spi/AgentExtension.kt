@@ -334,6 +334,8 @@ interface Meta {
 
 interface Database {
     suspend fun getHistory(query: () -> Query): List<HistoryRecord>
+
+    suspend fun <T> execute(block: () -> T): T
 }
 
 interface Server {

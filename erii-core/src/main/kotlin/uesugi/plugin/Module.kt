@@ -84,8 +84,6 @@ fun pluginModule() = module(createdAtStart = true) {
             }
     }
 
-    val database = DatabaseImpl()
-
     factory<Scheduler> {
         SchedulerImpl(it[0], get())
     }
@@ -113,7 +111,6 @@ fun pluginModule() = module(createdAtStart = true) {
                         blob,
                         vector,
                         config,
-                        database,
                         get { parametersOf(pluginDef.name) },
                         get(),
                         get(named(HttpClientFactory.Type.NO_PROXY)),
