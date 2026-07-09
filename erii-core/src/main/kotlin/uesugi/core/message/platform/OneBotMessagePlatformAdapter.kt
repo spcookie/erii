@@ -7,7 +7,7 @@ import uesugi.common.data.MessageType
 import uesugi.common.message.MessagePlatformAdapter
 import uesugi.common.message.ParsedMessage
 import uesugi.onebot.core.model.GroupMessageEvent
-import uesugi.onebot.sdk.message.*
+import uesugi.onebot.core.message.*
 
 class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
 

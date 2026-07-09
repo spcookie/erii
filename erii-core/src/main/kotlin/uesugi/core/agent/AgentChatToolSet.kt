@@ -12,7 +12,7 @@ import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.api.sendGroupMsg
 import uesugi.onebot.sdk.client.api.canSendImage
 import uesugi.onebot.sdk.client.api.canSendMarkdown
-import uesugi.onebot.sdk.message.buildMessage
+import uesugi.onebot.core.message.buildMessage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.net.URL

@@ -13,7 +13,7 @@ import uesugi.core.route.CmdRuleRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.core.route.RoutingAgent
 import uesugi.onebot.sdk.client.api.sendGroupMsg
-import uesugi.onebot.sdk.message.buildMessage
+import uesugi.onebot.core.message.buildMessage
 import uesugi.spi.Feature
 import uesugi.spi.sendAgent
 import kotlin.time.Duration.Companion.seconds

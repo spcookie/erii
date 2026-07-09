@@ -21,8 +21,8 @@ import uesugi.onebot.core.model.MessageContent
 import uesugi.onebot.mock.MockBot
 import uesugi.onebot.mock.storage.InMemoryStorage
 import uesugi.onebot.sdk.client.OneBotClient
-import uesugi.onebot.sdk.message.buildMessage
-import uesugi.onebot.sdk.message.text
+import uesugi.onebot.core.message.buildMessage
+import uesugi.onebot.core.message.text
 import java.net.ServerSocket
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger

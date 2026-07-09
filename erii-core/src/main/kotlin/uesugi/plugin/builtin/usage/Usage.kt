@@ -7,7 +7,7 @@ import uesugi.common.toolkit.BrowserScraperHolder
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.onebot.sdk.client.api.getGroupList
 import uesugi.onebot.sdk.client.api.sendGroupMsg
-import uesugi.onebot.sdk.message.buildMessage
+import uesugi.onebot.core.message.buildMessage
 import uesugi.plugin.builtin.Builtin
 import uesugi.plugin.builtin.BuiltinExtension
 import uesugi.plugin.builtin.CommandQueue
