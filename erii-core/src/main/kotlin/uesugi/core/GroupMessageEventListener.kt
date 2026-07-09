@@ -13,10 +13,9 @@ import uesugi.common.toolkit.logger
 import uesugi.core.message.pipeline.MessagePipeline
 import uesugi.core.message.platform.OneBotMessagePlatformAdapter
 import uesugi.onebot.core.model.GroupMessageEvent
-import uesugi.onebot.core.model.RawEvent
-import uesugi.onebot.core.transport.JsonFactory
 import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.event.onGroupMessage
+import uesugi.onebot.sdk.client.event.onMessageSent
 
 class GroupMessageEventListener(
     private val botId: String,
@@ -60,10 +59,8 @@ class GroupMessageEventListener(
         client.onGroupMessage { event ->
             serialHandle(event)
         }
-        client.onEvent("message_sent") { event ->
-            event as RawEvent
-            val groupMessageEvent = JsonFactory.lenient.decodeFromJsonElement<GroupMessageEvent>(event.raw)
-            serialHandle(groupMessageEvent)
+        client.onMessageSent { event ->
+            event.tryAsGroupMessage()?.let { serialHandle(it) }
         }
     }
 
