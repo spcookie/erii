@@ -28,7 +28,6 @@ Subcommands:
   start     Start the server (default)
   stop      Stop a running server
   status    Show server status
-  logs      View server logs
   restart   Restart the server
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,16 +60,6 @@ var serverStatusCmd = &cobra.Command{
 	},
 }
 
-var serverLogsCmd = &cobra.Command{
-	Use:   "logs",
-	Short: "View Erii backend server logs",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		follow, _ := cmd.Flags().GetBool("follow")
-		lines, _ := cmd.Flags().GetInt("lines")
-		return runServerLogs(follow, lines)
-	},
-}
-
 var serverRestartCmd = &cobra.Command{
 	Use:                "restart",
 	Short:              "Restart the Erii backend server",
@@ -84,9 +73,6 @@ func init() {
 	serverCmd.AddCommand(serverStartCmd)
 	serverCmd.AddCommand(serverStopCmd)
 	serverCmd.AddCommand(serverStatusCmd)
-	serverLogsCmd.Flags().BoolP("follow", "f", true, "Follow log output (like tail -f)")
-	serverLogsCmd.Flags().IntP("lines", "n", 50, "Number of lines to show from the end")
-	serverCmd.AddCommand(serverLogsCmd)
 	serverCmd.AddCommand(serverRestartCmd)
 	rootCmd.AddCommand(serverCmd)
 }
@@ -488,124 +474,6 @@ func runServerStatus() error {
 	}
 	fmt.Printf("Server is not running (stale PID file: %d).\n", pid)
 	os.Exit(1)
-	return nil
-}
-
-func runServerLogs(follow bool, numLines int) error {
-	logFile := findLogFile()
-	if logFile == "" {
-		fmt.Println("No log files found. Java manages its own logging.")
-		return nil
-	}
-
-	f, err := os.Open(logFile)
-	if err != nil {
-		return fmt.Errorf("opening log file %s: %w", logFile, err)
-	}
-	defer f.Close()
-
-	if err := printLastLines(f, numLines); err != nil {
-		return err
-	}
-
-	if !follow {
-		return nil
-	}
-
-	// tail -f: follow new lines
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-	defer signal.Stop(sigCh)
-
-	for {
-		select {
-		case <-sigCh:
-			return nil
-		default:
-		}
-
-		buf := make([]byte, 4096)
-		n, err := f.Read(buf)
-		if n > 0 {
-			os.Stdout.Write(buf[:n])
-		}
-		if err != nil {
-			if err == io.EOF {
-				time.Sleep(200 * time.Millisecond)
-				continue
-			}
-			return fmt.Errorf("reading log file: %w", err)
-		}
-	}
-}
-
-func findLogFile() string {
-	logDir := filepath.Join(projectRoot(), "logs")
-	entries, err := os.ReadDir(logDir)
-	if err != nil {
-		return ""
-	}
-
-	var best string
-	var bestTime time.Time
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".log") {
-			continue
-		}
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		// Prefer the most recently modified log file
-		if info.ModTime().After(bestTime) {
-			bestTime = info.ModTime()
-			best = entry.Name()
-		}
-	}
-	if best != "" {
-		fmt.Printf("  => %s\n\n", best)
-		return filepath.Join(logDir, best)
-	}
-	return ""
-}
-
-func printLastLines(f *os.File, n int) error {
-	stat, err := f.Stat()
-	if err != nil {
-		return err
-	}
-
-	// For small files or n=0, just read from the beginning
-	if n <= 0 || stat.Size() < 8192 {
-		_, err := io.Copy(os.Stdout, f)
-		return err
-	}
-
-	// Read the last ~8KB and find the nth line from the end
-	chunkSize := int64(8192)
-	if stat.Size() < chunkSize {
-		chunkSize = stat.Size()
-	}
-	buf := make([]byte, chunkSize)
-	_, err = f.ReadAt(buf, stat.Size()-chunkSize)
-	if err != nil && err != io.EOF {
-		return err
-	}
-
-	// Count backwards to find the start of the nth last line
-	start := len(buf)
-	lineCount := 0
-	for i := len(buf) - 1; i >= 0; i-- {
-		if buf[i] == '\n' {
-			lineCount++
-			if lineCount > n {
-				start = i + 1
-				break
-			}
-		}
-	}
-
-	os.Stdout.Write(buf[start:])
 	return nil
 }
 
