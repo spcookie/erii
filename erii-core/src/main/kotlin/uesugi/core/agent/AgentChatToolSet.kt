@@ -10,6 +10,8 @@ import uesugi.common.ChatToolSet
 import uesugi.onebot.core.model.MessageContent
 import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.sdk.client.api.sendGroupMsg
+import uesugi.onebot.sdk.client.api.canSendImage
+import uesugi.onebot.sdk.client.api.canSendMarkdown
 import uesugi.onebot.sdk.message.buildMessage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -45,6 +47,10 @@ class AgentChatToolSet(
 
     @ChatMessage
     override suspend fun sendMeme(tag: String, alt: String): String {
+        if (!canSendImage()) {
+            sendText(listOf(alt))
+            return "当前不支持发送图片，已发送文字替代：$alt"
+        }
         try {
             val memo = context.meme(tag)
             if (memo != null) {
@@ -97,6 +103,9 @@ class AgentChatToolSet(
 
     @ChatMessage
     override suspend fun sendImageByUrl(url: String): String {
+        if (!canSendImage()) {
+            return "当前不支持发送图片，请使用 sendText 发送纯文本消息代替。图片 URL: $url"
+        }
         val isImg = isImageUrl(url)
         if (!isImg) {
             return "URL 链接访问不是一个图片"
@@ -156,6 +165,32 @@ class AgentChatToolSet(
         }
 
         return "发送 At 全体成员消息成功"
+    }
+
+    @ChatMessage
+    override suspend fun sendMarkdown(content: String): String {
+        if (canSendMarkdown()) {
+            try {
+                sendGroupMessage(buildMessage { markdown(content) })
+                return "发送 Markdown 消息成功"
+            } catch (e: Exception) {
+                return "发送 Markdown 消息失败，原因：" + e.message
+            }
+        }
+        sendGroupMessage(buildMessage { text(content) })
+        return "当前不支持 Markdown，已降级为文本发送"
+    }
+
+    private suspend fun canSendImage(): Boolean = try {
+        client.canSendImage()
+    } catch (_: Exception) {
+        false
+    }
+
+    private suspend fun canSendMarkdown(): Boolean = try {
+        client.canSendMarkdown()
+    } catch (_: Exception) {
+        false
     }
 
     private suspend fun sendGroupMessage(message: MessageContent) {

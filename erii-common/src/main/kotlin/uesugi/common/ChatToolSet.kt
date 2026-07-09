@@ -36,4 +36,9 @@ interface ChatToolSet : ToolSet {
     @LLMDescription("发送 At 全体成员消息。这是你向群聊发送 At 全体成员消息的途径")
     suspend fun sendAtAll(): String
 
+    @ChatMessage
+    @Tool
+    @LLMDescription("发送 Markdown 消息到群聊。支持 Markdown 语法的富文本消息。如果不能发送 Markdown 会自动降级为普通文本。")
+    suspend fun sendMarkdown(@LLMDescription("Markdown 内容") content: String): String
+
 }
