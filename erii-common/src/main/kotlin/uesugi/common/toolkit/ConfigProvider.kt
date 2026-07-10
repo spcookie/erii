@@ -342,6 +342,7 @@ interface ConfigProvider {
 
     // ===== Agent 配置 =====
     fun getAgentMaxMessageLength(): Int
+    fun getAgentMaxIterations(): Int
 
     // ===== 通用配置读取 =====
     fun getString(path: String): String?
@@ -433,6 +434,7 @@ object ConfigHolder {
 
     // ===== Agent 配置 =====
     fun getAgentMaxMessageLength(): Int = provider.getAgentMaxMessageLength()
+    fun getAgentMaxIterations(): Int = provider.getAgentMaxIterations()
 
     // ===== 通用配置读取 =====
     fun getString(path: String): String? = provider.getString(path)

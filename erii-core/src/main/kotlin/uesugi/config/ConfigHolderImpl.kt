@@ -669,4 +669,7 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getAgentMaxMessageLength(): Int =
         getIntOrDefault("agent.max-message-length", 500)
 
+    override fun getAgentMaxIterations(): Int =
+        getIntOrDefault("agent.max-iterations", 50)
+
 }

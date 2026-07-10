@@ -25,6 +25,7 @@ import uesugi.common.ChatMessage
 import uesugi.common.EventBus
 import uesugi.common.LLMProviderChoice
 import uesugi.common.event.*
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
 import uesugi.core.component.usage.UsageContext
@@ -342,7 +343,7 @@ object BotAgent {
                                 agentConfig = AIAgentConfig(
                                     prompt = prompt("__other__") {},
                                     model = LLMProviderChoice.Flash,
-                                    maxAgentIterations = 50,
+                                    maxAgentIterations = ConfigHolder.getAgentMaxIterations(),
                                 ),
                                 strategy = strategy
                             ) {
@@ -505,7 +506,7 @@ object BotAgent {
                 agentConfig = AIAgentConfig(
                     prompt = buildPrompt(context),
                     model = LLMProviderChoice.Flash,
-                    maxAgentIterations = 50,
+                    maxAgentIterations = ConfigHolder.getAgentMaxIterations(),
                 ),
                 additionalToolRegistry = additionalToolRegistry,
             )
