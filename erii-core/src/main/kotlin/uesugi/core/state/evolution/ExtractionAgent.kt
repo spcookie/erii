@@ -7,7 +7,7 @@ import ai.koog.prompt.executor.model.executeStructured
 import ai.koog.prompt.params.LLMParams
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.toolkit.logger
 import kotlin.time.ExperimentalTime
 
@@ -154,9 +154,9 @@ class ExtractionAgent {
 
             val result = promptExecutor.executeStructured<SlangWordList>(
                 prompt = userPromptObj,
-                model = LLMProviderChoice.Pro,
+                model = LLMModelChoice.Pro,
                 fixingParser = StructureFixingParser(
-                    model = LLMProviderChoice.Lite,
+                    model = LLMModelChoice.Lite,
                     retries = 2
                 )
             )

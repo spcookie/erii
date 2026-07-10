@@ -6,7 +6,7 @@ import ai.koog.prompt.llm.LLModel
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 
-object LLMProviderChoice {
+object LLMModelChoice {
 
     private val log = logger()
 

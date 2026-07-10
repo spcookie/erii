@@ -7,7 +7,7 @@ import ai.koog.prompt.executor.model.executeStructured
 import ai.koog.prompt.params.LLMParams
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
@@ -113,9 +113,9 @@ class SummaryAgent {
 
         val result = promptExecutor.executeStructured<SummaryAnalysis>(
             prompt = prompt,
-            model = LLMProviderChoice.Pro,
+            model = LLMModelChoice.Pro,
             fixingParser = StructureFixingParser(
-                model = LLMProviderChoice.Lite,
+                model = LLMModelChoice.Lite,
                 retries = 2
             )
         )

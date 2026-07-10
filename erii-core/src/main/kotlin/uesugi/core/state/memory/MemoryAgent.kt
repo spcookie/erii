@@ -9,7 +9,7 @@ import ai.koog.prompt.params.LLMParams
 import kotlinx.coroutines.*
 import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
@@ -265,9 +265,9 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<UserProfileAnalysis>(
             prompt = prompt,
-            model = LLMProviderChoice.Pro,
+            model = LLMModelChoice.Pro,
             fixingParser = StructureFixingParser(
-                model = LLMProviderChoice.Lite,
+                model = LLMModelChoice.Lite,
                 retries = 2
             )
         )
@@ -490,9 +490,9 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<FactExtractionResult>(
             prompt = prompt,
-            model = LLMProviderChoice.Pro,
+            model = LLMModelChoice.Pro,
             fixingParser = StructureFixingParser(
-                model = LLMProviderChoice.Lite,
+                model = LLMModelChoice.Lite,
                 retries = 2
             )
         )
@@ -574,9 +574,9 @@ class MemoryAgent(
 
         val result = promptExecutor.executeStructured<ConflictResolutionResult>(
             prompt = prompt,
-            model = LLMProviderChoice.Pro,
+            model = LLMModelChoice.Pro,
             fixingParser = StructureFixingParser(
-                model = LLMProviderChoice.Lite,
+                model = LLMModelChoice.Lite,
                 retries = 2
             )
         )

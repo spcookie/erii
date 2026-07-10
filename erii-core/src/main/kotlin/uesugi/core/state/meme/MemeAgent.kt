@@ -10,7 +10,7 @@ import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.params.LLMParams
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.toolkit.logger
 import kotlin.time.ExperimentalTime
 
@@ -52,7 +52,7 @@ class MemeAgent {
         }
 
         val contextText = contexts.joinToString("\n---\n")
-        val supportsVision = LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
+        val supportsVision = LLMModelChoice.Pro.supports(LLMCapability.Vision.Image)
         val hasImage = supportsVision && imageBytes != null && imageFormat != null
 
         log.debug("开始分析表情包, 上下文数量=${contexts.size}, 视觉支持=$supportsVision, 有图片=$hasImage")
@@ -97,9 +97,9 @@ class MemeAgent {
 
             val result = promptExecutor.executeStructured<MemoAnalysis>(
                 prompt = userPromptObj,
-                model = LLMProviderChoice.Pro,
+                model = LLMModelChoice.Pro,
                 fixingParser = StructureFixingParser(
-                    model = LLMProviderChoice.Lite,
+                    model = LLMModelChoice.Lite,
                     retries = 2
                 )
             )

@@ -9,7 +9,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.format
 import org.koin.core.context.GlobalContext
 import org.slf4j.LoggerFactory
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.data.EmotionalTendencies
 import uesugi.common.data.PAD
 import uesugi.common.data.PadScale12
@@ -135,9 +135,9 @@ suspend fun analyzeStimulus(
     // 执行结构化 LLM 调用
     val result = promptExecutor.executeStructured<PadScale12>(
         prompt = prompt,
-        model = LLMProviderChoice.Pro,
+        model = LLMModelChoice.Pro,
         fixingParser = StructureFixingParser(
-            model = LLMProviderChoice.Lite,
+            model = LLMModelChoice.Lite,
             retries = 2
         ),
         examples = listOf(

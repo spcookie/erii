@@ -7,7 +7,7 @@ import ai.koog.prompt.executor.clients.retry.RetryConfig
 import ai.koog.prompt.executor.clients.retry.RetryingLLMClient
 import ai.koog.prompt.llm.LLMProvider
 import io.ktor.client.*
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.config.LLMClientProvider
 import kotlin.time.ExperimentalTime
@@ -24,9 +24,9 @@ class AnthropicClientProvider : LLMClientProvider {
     override fun createClient(baseClient: HttpClient): RetryingLLMClient {
         val models = ConfigHolder.getLlmAnthropicModels()
         val modelVersionsMap = mapOf(
-            LLMProviderChoice.Lite to models["lite"],
-            LLMProviderChoice.Flash to models["flash"],
-            LLMProviderChoice.Pro to models["pro"],
+            LLMModelChoice.Lite to models["lite"],
+            LLMModelChoice.Flash to models["flash"],
+            LLMModelChoice.Pro to models["pro"],
         ).mapNotNull { (model, id) -> id?.let { model to it } }.toMap()
 
         val anthropicConfig = ConfigHolder.getLlmAnthropicClientConfig()

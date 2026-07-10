@@ -10,7 +10,7 @@ import ai.koog.prompt.message.Message
 import ai.koog.prompt.params.LLMParams
 import ai.koog.prompt.streaming.StreamFrame
 import kotlinx.serialization.json.JsonElement
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 
 /**
  * Wraps a [PromptExecutor] to inject default params per model tier
@@ -65,9 +65,9 @@ class DefaultParamPromptExecutor(
 
     private fun resolveTier(model: LLModel): String? {
         return when (model) {
-            LLMProviderChoice.Lite -> "lite"
-            LLMProviderChoice.Flash -> "flash"
-            LLMProviderChoice.Pro -> "pro"
+            LLMModelChoice.Lite -> "lite"
+            LLMModelChoice.Flash -> "flash"
+            LLMModelChoice.Pro -> "pro"
             else -> null
         }
     }
