@@ -118,17 +118,28 @@ object BotAgent {
         private val windowMs: Long = 10_000L
     ) {
         private val timestamps = mutableListOf<Long>()
+        private val mutex = Mutex()
 
-        fun tryAcquire(): Boolean {
-            val now = System.currentTimeMillis()
-            timestamps.removeAll { now - it > windowMs }
-            if (timestamps.size >= maxCalls) return false
-            timestamps.add(now)
-            return true
+        suspend fun tryAcquire(): Boolean {
+            mutex.withLock {
+                val now = System.currentTimeMillis()
+                timestamps.removeAll { now - it > windowMs }
+                if (timestamps.size >= maxCalls) return false
+                timestamps.add(now)
+                return true
+            }
         }
 
-        fun reset() {
-            timestamps.clear()
+        suspend fun release() {
+            mutex.withLock {
+                timestamps.removeLastOrNull()
+            }
+        }
+
+        suspend fun reset() {
+            mutex.withLock {
+                timestamps.clear()
+            }
         }
     }
 
@@ -261,12 +272,12 @@ object BotAgent {
 
                             fun toolShortName(fullName: String): String = fullName.substringAfterLast(".")
                             fun isChatTool(toolName: String): Boolean = toolName in chatMessageToolNames
-                            fun onToolCall(toolCall: MessagePart.Tool.Call): Boolean {
+                            suspend fun onToolCall(toolCall: MessagePart.Tool.Call): Boolean {
                                 if (isChatTool(toolShortName(toolCall.tool))) {
                                     if (!chatRateLimiter.tryAcquire()) {
                                         rateLimited = true
                                         log.warn(
-                                            "Bot Chat tool rate-limited: tool={}, group={}",
+                                            "Bot Chat tool rate limited: tool={}, group={}",
                                             toolShortName(toolCall.tool), key.groupId
                                         )
                                         return false
@@ -275,6 +286,18 @@ object BotAgent {
                                 }
                                 calledAnyTool = true
                                 return true
+                            }
+
+                            suspend fun onToolResultRelease(results: ReceivedToolResults) {
+                                for (result in results.toolResults) {
+                                    if (isChatTool(toolShortName(result.tool)) && result.resultKind is ToolResultKind.Failure) {
+                                        chatRateLimiter.release()
+                                        log.warn(
+                                            "Bot Chat tool called failure, release limiter: tool={}, group={}",
+                                            toolShortName(result.tool), key.groupId
+                                        )
+                                    }
+                                }
                             }
 
                             val strategy = strategy<String, String>("chat") {
@@ -290,7 +313,13 @@ object BotAgent {
                                             onCondition { results -> results.toolResults.all { it.resultObject == null && it.resultKind is ToolResultKind.Success } }
                                             transformed { "" }
                                 )
-                                edge(nodeExecuteTool forwardTo nodeSendToolResult)
+                                edge(nodeExecuteTool forwardTo nodeSendToolResult transformed {
+                                    it.apply {
+                                        onToolResultRelease(
+                                            this
+                                        )
+                                    }
+                                })
                                 edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCalls (::onToolCall))
                                 edge(nodeSendToolResult forwardTo nodeFinish onTextMessage { true })
                                 edge(
