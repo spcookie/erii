@@ -1,4 +1,6 @@
 {
+  "agent": "Agent context configuration",
+  "agent.max-message-length": "Maximum characters per history message before truncation with \"...\"",
   "browser": "Browser automation configuration",
   "browser.download": "Download browser binary",
   "browser.playwright-url": "Playwright URL",

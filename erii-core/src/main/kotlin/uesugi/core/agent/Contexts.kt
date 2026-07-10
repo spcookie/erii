@@ -494,14 +494,18 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
             histories = {
                 withContext(Dispatchers.IO) {
                     transaction {
+                        val maxLen = ConfigHolder.getAgentMaxMessageLength()
                         historyService.getLatestHistory(currentBotId, groupId, 20, 12.hours)
+                            .map { it.truncateContent(maxLen) }
                     }
                 }
             },
             moreHistories = {
                 withContext(Dispatchers.IO) {
                     transaction {
+                        val maxLen = ConfigHolder.getAgentMaxMessageLength()
                         historyService.getLatestHistory(currentBotId, groupId, 30, 12.hours)
+                            .map { it.truncateContent(maxLen) }
                     }
                 }
             },
@@ -553,6 +557,14 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
             },
         )
     }
+}
+
+private fun HistoryRecord.truncateContent(maxLength: Int): HistoryRecord {
+    val content = this.content
+    if (content != null && content.length > maxLength) {
+        this.content = content.take(maxLength) + "..."
+    }
+    return this
 }
 
 internal fun buildConstraint(

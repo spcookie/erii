@@ -340,6 +340,9 @@ interface ConfigProvider {
     fun getDisabledPlugins(botKey: String): List<String>?
     fun isPluginEnabled(botKey: String, pluginName: String): Boolean
 
+    // ===== Agent 配置 =====
+    fun getAgentMaxMessageLength(): Int
+
     // ===== 通用配置读取 =====
     fun getString(path: String): String?
 
@@ -427,6 +430,9 @@ object ConfigHolder {
     fun getEnabledPlugins(botKey: String): List<String>? = provider.getEnabledPlugins(botKey)
     fun getDisabledPlugins(botKey: String): List<String>? = provider.getDisabledPlugins(botKey)
     fun isPluginEnabled(botKey: String, pluginName: String): Boolean = provider.isPluginEnabled(botKey, pluginName)
+
+    // ===== Agent 配置 =====
+    fun getAgentMaxMessageLength(): Int = provider.getAgentMaxMessageLength()
 
     // ===== 通用配置读取 =====
     fun getString(path: String): String? = provider.getString(path)

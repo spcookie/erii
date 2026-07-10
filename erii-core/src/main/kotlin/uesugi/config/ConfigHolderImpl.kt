@@ -665,4 +665,8 @@ class ConfigHolderImpl : ConfigProvider {
             else -> disabled.none(matchShort)
         }
     }
+
+    override fun getAgentMaxMessageLength(): Int =
+        getIntOrDefault("agent.max-message-length", 500)
+
 }
