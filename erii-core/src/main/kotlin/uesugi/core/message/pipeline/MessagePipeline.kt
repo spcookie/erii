@@ -125,39 +125,51 @@ class MessagePipeline(
         val parsed = context.parsedMessage
 
         if (parsed.isAtBot) {
-            scope.launch {
-                UsageContext.withUsage(context.botId, context.groupId) {
-                    log.info("Robot [$roleName(${context.botId})] is @, triggering active speech")
-                    val route = RoutingAgent.route(context.botId, context.groupId, parsed.content)
-                    log.info("Routing results: {}", route.name)
-                    EventBus.postAsync(
-                        RouteCallEvent(
-                            botId = context.botId,
-                            groupId = context.groupId,
-                            senderId = context.senderId,
-                            input = "你被群友 ${context.senderNick}(${context.senderId}) @了，内容：${parsed.content}",
-                            hit = route
-                        )
-                    )
-                }
+            if (CommandUtil.isAtCommand(parsed.content)) {
+                dispatchCommand(context, CommandUtil.parseAtCommand(parsed.content)!!)
+            } else {
+                dispatchRoute(context, roleName)
             }
         } else if (CommandUtil.isCommand(parsed.content)) {
-            val command = CommandUtil.parseCommand(parsed.content)!!
-            log.info("Robot receives the command $command")
-            val cmd = CmdRuleRegister.getRuleForBot(command, context.botId)
-            if (cmd == null) {
-                log.warn("Unknown command $command, skip processing")
-            } else {
+            dispatchCommand(context, CommandUtil.parseCommand(parsed.content)!!)
+        }
+    }
+
+    private fun dispatchRoute(context: MessageContext, roleName: String) {
+        scope.launch {
+            UsageContext.withUsage(context.botId, context.groupId) {
+                val content = context.parsedMessage.content
+                log.info("Robot [$roleName(${context.botId})] is @, triggering active speech")
+                val route = RoutingAgent.route(context.botId, context.groupId, content)
+                log.info("Routing results: {}", route.name)
                 EventBus.postAsync(
                     RouteCallEvent(
                         botId = context.botId,
                         groupId = context.groupId,
                         senderId = context.senderId,
-                        input = parsed.content,
-                        hit = cmd
+                        input = "你被群友 ${context.senderNick}(${context.senderId}) @了，内容：${content}",
+                        hit = route
                     )
                 )
             }
         }
+    }
+
+    private fun dispatchCommand(context: MessageContext, command: String) {
+        log.info("Robot receives the command $command")
+        val cmd = CmdRuleRegister.getRuleForBot(command, context.botId)
+        if (cmd == null) {
+            log.warn("Unknown command $command, skip processing")
+            return
+        }
+        EventBus.postAsync(
+            RouteCallEvent(
+                botId = context.botId,
+                groupId = context.groupId,
+                senderId = context.senderId,
+                input = context.parsedMessage.content,
+                hit = cmd
+            )
+        )
     }
 }
