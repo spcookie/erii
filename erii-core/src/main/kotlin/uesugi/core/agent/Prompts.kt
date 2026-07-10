@@ -18,7 +18,7 @@ import kotlinx.serialization.json.buildJsonObject
 import okio.Path.Companion.toPath
 import okio.buffer
 import uesugi.common.BotManage
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.data.HistoryRecord
 import uesugi.common.data.MessageType
 import uesugi.common.toolkit.DateTimeFormat
@@ -36,7 +36,7 @@ import kotlin.time.Clock
 internal suspend fun buildPrompt(context: Context): Prompt {
     val transient = context.toTransient()
     val constraints = buildConstraint(context, transient)
-    val supportsVision = LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
+    val supportsVision = LLMModelChoice.Pro.supports(LLMCapability.Vision.Image)
     val objectStorage: ObjectStorage by ref()
     val thumbnailService: ThumbnailService by ref()
 

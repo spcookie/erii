@@ -23,7 +23,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import uesugi.common.ChatMessage
 import uesugi.common.EventBus
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.event.*
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
@@ -312,7 +312,7 @@ object BotAgent {
                                 promptExecutor = promptExecutor,
                                 agentConfig = AIAgentConfig(
                                     prompt = prompt("__other__") {},
-                                    model = LLMProviderChoice.Flash,
+                                    model = LLMModelChoice.Flash,
                                     maxAgentIterations = 50,
                                 ),
                                 strategy = strategy
@@ -432,7 +432,7 @@ object BotAgent {
     }
 
     private fun isMultimodalProvider(): Boolean =
-        LLMProviderChoice.Pro.supports(LLMCapability.Vision.Image)
+        LLMModelChoice.Pro.supports(LLMCapability.Vision.Image)
 
     private suspend fun buildAgentToolRegistry(
         event: ProactiveSpeakEvent,
@@ -475,7 +475,7 @@ object BotAgent {
                 agentInput = event.input ?: DEFAULT_INPUT,
                 agentConfig = AIAgentConfig(
                     prompt = buildPrompt(context),
-                    model = LLMProviderChoice.Flash,
+                    model = LLMModelChoice.Flash,
                     maxAgentIterations = 50,
                 ),
                 additionalToolRegistry = additionalToolRegistry,

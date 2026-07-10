@@ -19,7 +19,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.koin.core.context.GlobalContext
 import uesugi.common.BotManage
 import uesugi.common.EventBus
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
@@ -209,9 +209,9 @@ class FlowAgent {
         return try {
             val response = promptExecutor.executeStructured<FlowAnalysisResult>(
                 prompt,
-                model = LLMProviderChoice.Pro,
+                model = LLMModelChoice.Pro,
                 fixingParser = StructureFixingParser(
-                    model = LLMProviderChoice.Lite,
+                    model = LLMModelChoice.Lite,
                     retries = 2
                 )
             )

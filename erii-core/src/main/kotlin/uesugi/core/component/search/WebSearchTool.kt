@@ -11,7 +11,7 @@ import ai.koog.prompt.markdown.MarkdownContentBuilder
 import ai.koog.prompt.params.LLMParams
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.extend.SearchResultItem
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
@@ -69,9 +69,9 @@ object WebSearchTool : ToolSet {
 
         val result = promptExecutor.executeStructured<SearchPlan>(
             prompt = rewritePrompt,
-            model = LLMProviderChoice.Flash,
+            model = LLMModelChoice.Flash,
             fixingParser = StructureFixingParser(
-                model = LLMProviderChoice.Lite,
+                model = LLMModelChoice.Lite,
                 retries = 2
             )
         )

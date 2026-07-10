@@ -9,7 +9,7 @@ import kotlinx.serialization.json.*
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import uesugi.common.LLMProviderChoice
+import uesugi.common.LLMModelChoice
 import uesugi.common.toolkit.ConfigHolder
 import kotlin.math.round
 import kotlin.time.Clock
@@ -229,9 +229,9 @@ class TokenUsageRepository {
         Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
 
     private fun resolveTier(model: LLModel): String = when {
-        model.matchesConfiguredTier { LLMProviderChoice.Lite } -> "lite"
-        model.matchesConfiguredTier { LLMProviderChoice.Flash } -> "flash"
-        model.matchesConfiguredTier { LLMProviderChoice.Pro } -> "pro"
+        model.matchesConfiguredTier { LLMModelChoice.Lite } -> "lite"
+        model.matchesConfiguredTier { LLMModelChoice.Flash } -> "flash"
+        model.matchesConfiguredTier { LLMModelChoice.Pro } -> "pro"
         else -> model.id
     }
 
