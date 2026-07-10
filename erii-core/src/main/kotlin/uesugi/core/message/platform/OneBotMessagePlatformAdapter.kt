@@ -6,8 +6,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import uesugi.common.data.MessageType
 import uesugi.common.message.MessagePlatformAdapter
 import uesugi.common.message.ParsedMessage
-import uesugi.onebot.core.model.GroupMessageEvent
 import uesugi.onebot.core.message.*
+import uesugi.onebot.core.model.GroupMessageEvent
 
 class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
 
@@ -39,7 +39,7 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
                     "image" -> {
                         if (imageUrl == null) {
                             messageType = MessageType.IMAGE
-                            imageUrl = segment.imageUrl ?: segment.imageFile
+                            imageUrl = segment.imageUrl
                             imageFormat = segment.imageFile?.substringAfterLast(".")
                         }
                         append(segment.data["summary"]?.jsonPrimitive?.contentOrNull ?: "[图片]")
