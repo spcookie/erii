@@ -170,7 +170,7 @@ object BotAgent {
     }
 
     private val DEFAULT_INPUT = """
-        你是这个 QQ 群里的普通成员，正在跟大家一起聊天。
+        你是这个群里的普通成员，正在跟大家一起聊天。
         像真人一样说话：自然、随意、有情绪，可以用短句、口语、颜文字。
         不要总结、不要分析、不要给建议，除非别人明确问你。
         可以只发几个字，也可以只发表情、表情包或图片，不想说话的时候可以不说话。
@@ -309,6 +309,7 @@ object BotAgent {
                                 edge(nodeStart forwardTo nodeSendInput)
                                 edge(nodeSendInput forwardTo nodeFinish onTextMessage { true })
                                 edge(nodeSendInput forwardTo nodeExecuteTool onToolCalls (::onToolCall))
+                                edge(nodeSendInput forwardTo nodeFinish onToolCalls { !onToolCall(it) } transformed { "" })
                                 edge(
                                     nodeExecuteTool forwardTo nodeFinish
                                             onCondition { results -> results.toolResults.all { it.resultObject == null && it.resultKind is ToolResultKind.Success } }
@@ -334,6 +335,7 @@ object BotAgent {
                                             .joinToString("\n") { it.content.joinToString("\n") }
                                     }
                                 )
+                                edge(nodeSendToolResult forwardTo nodeFinish onToolCalls { !onToolCall(it) } transformed { "" })
                             }
 
                             val promptExecutor by ref<PromptExecutor>()

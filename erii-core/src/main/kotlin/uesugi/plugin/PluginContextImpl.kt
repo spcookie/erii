@@ -12,11 +12,11 @@ import io.ktor.client.*
 import kotlinx.coroutines.*
 import uesugi.common.BotManage
 import uesugi.common.EventBus
+import uesugi.common.IntegrationEvent
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
-import uesugi.common.IntegrationEvent
 import uesugi.spi.*
 
 class PluginContextImpl(
@@ -78,7 +78,7 @@ class PluginContextImpl(
             scope.launch {
                 UsageContext.withUsage(event.botId, event.groupId) {
                     for (rk in defined.routeKeys) {
-                        if (event hit rk.key) {
+                        if (event hit rk) {
                             val meta = MetaImpl(
                                 botId = event.botId,
                                 groupId = event.groupId,

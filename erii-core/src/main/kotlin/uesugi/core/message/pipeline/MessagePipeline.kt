@@ -126,7 +126,10 @@ class MessagePipeline(
 
         if (parsed.isAtBot) {
             if (CommandUtil.isAtCommand(parsed.content)) {
-                dispatchCommand(context, CommandUtil.parseAtCommand(parsed.content)!!)
+                dispatchCommand(
+                    context.copy(parsedMessage = parsed.copy(content = CommandUtil.removeAtPrefix(parsed.content))),
+                    CommandUtil.parseAtCommand(parsed.content)!!
+                )
             } else {
                 dispatchRoute(context, roleName)
             }

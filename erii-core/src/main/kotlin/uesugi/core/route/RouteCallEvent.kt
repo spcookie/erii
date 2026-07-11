@@ -1,5 +1,8 @@
 package uesugi.core.route
 
+import uesugi.spi.CmdRouteKey
+import uesugi.spi.LLMRouteKey
+import uesugi.spi.RouteKey
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -16,7 +19,15 @@ data class RouteCallEvent(
         return this.hit == rule
     }
 
-    infix fun hit(name: String): Boolean {
-        return this.hit.name.equals(name, ignoreCase = true)
+    infix fun hit(key: RouteKey): Boolean {
+        return when (key) {
+            is LLMRouteKey -> {
+                this.hit is LLMRouteRule && this.hit.name.equals(key.key, ignoreCase = true)
+            }
+
+            is CmdRouteKey -> {
+                this.hit is CmdRouteRule && this.hit.name.equals(key.key, ignoreCase = true)
+            }
+        }
     }
 }
