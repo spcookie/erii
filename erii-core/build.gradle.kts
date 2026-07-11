@@ -141,18 +141,6 @@ tasks.run {
     workingDir = rootProject.projectDir
 }
 
-tasks.register<JavaExec>("rebuildFactEntities") {
-    group = "maintenance"
-    description = "Re-analyze memory_facts.entities from existing fact records."
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("uesugi.core.state.memory.FactEntityRebuildKt")
-    workingDir = rootProject.projectDir
-    val localConfig = rootProject.file(".uesugi/conf/application.conf")
-    if (localConfig.exists()) {
-        systemProperty("config.path", localConfig.absolutePath)
-    }
-}
-
 tasks.test {
     dependsOn(tasks.precompileJte)
 }
