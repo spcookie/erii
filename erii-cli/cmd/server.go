@@ -31,6 +31,9 @@ Subcommands:
   restart   Restart the server
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if hasHelpFlag(args) {
+			return cmd.Help()
+		}
 		return runServerStart()
 	},
 }
@@ -40,6 +43,9 @@ var serverStartCmd = &cobra.Command{
 	Short:              "Start the Erii backend server",
 	DisableFlagParsing: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if hasHelpFlag(args) {
+			return cmd.Help()
+		}
 		return runServerStart()
 	},
 }
@@ -65,11 +71,21 @@ var serverRestartCmd = &cobra.Command{
 	Short:              "Restart the Erii backend server",
 	DisableFlagParsing: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if hasHelpFlag(args) {
+			return cmd.Help()
+		}
 		return runServerRestart()
 	},
 }
 
 func init() {
+	// These flags are documentation-only: the server commands use
+	// DisableFlagParsing (to forward args to Java), so cobra does not parse
+	// them — passthroughArgs handles -f/--foreground manually. Registering
+	// them here makes them show up in `-h` output.
+	serverCmd.Flags().BoolP("foreground", "f", false, "Run in the foreground (do not daemonize)")
+	serverStartCmd.Flags().BoolP("foreground", "f", false, "Run in the foreground (do not daemonize)")
+
 	serverCmd.AddCommand(serverStartCmd)
 	serverCmd.AddCommand(serverStopCmd)
 	serverCmd.AddCommand(serverStatusCmd)
@@ -231,6 +247,18 @@ func isEnvVarKey(s string) bool {
 }
 
 // ---- passthrough args ----
+
+// hasHelpFlag reports whether -h/--help appears in the raw args. Needed because
+// the server commands use DisableFlagParsing to forward args to Java, which also
+// suppresses cobra's built-in help handling.
+func hasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if a == "-h" || a == "--help" {
+			return true
+		}
+	}
+	return false
+}
 
 // passthroughArgs extracts args after "server <subcommand>" from os.Args.
 // Returns the filtered args and whether --foreground/-f was set.

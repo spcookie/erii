@@ -191,6 +191,9 @@ func InitializePluginConfigs(pluginDir, pluginConfigDir, pluginSchemaDir string)
 	if err := os.MkdirAll(pluginSchemaDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create plugin-config/schema dir: %w", err)
 	}
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create plugin dir: %w", err)
+	}
 
 	entries, err := os.ReadDir(pluginDir)
 	if err != nil {
