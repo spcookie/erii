@@ -4,10 +4,10 @@ import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.mcp.McpToolRegistryProvider
 import ai.koog.agents.mcp.defaultStdioTransport
 import ai.koog.agents.mcp.metadata.McpServerInfo
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.sse.SSE
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.request.headers
+import io.ktor.client.*
+import io.ktor.client.plugins.sse.*
+import io.ktor.client.plugins.websocket.*
+import io.ktor.client.request.*
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.SseClientTransport
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
@@ -47,6 +47,9 @@ object McpManager {
             ensureLoaded()
         }
     }
+
+    /** 当前已加载的 MCP server 数量。 */
+    suspend fun count(): Int = lock.withLock { runtimes.size }
 
     suspend fun close() {
         lock.withLock {

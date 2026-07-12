@@ -22,6 +22,7 @@ interface IBotManage {
     fun getAllBots(): Collection<RoledBot>
     fun getAllBotIds(): Set<String>
     fun refreshBotRole(configKey: String, role: BotRole)
+    fun removeBot(configKey: String)
 }
 
 object BotManage : IBotManage {
@@ -65,6 +66,13 @@ object BotManage : IBotManage {
         bots[botId]?.let {
             bots[botId] = it.copy(role = role)
         }
+    }
+
+    override fun removeBot(configKey: String) {
+        val selfId = configKeys.remove(configKey) ?: return
+        bots.remove(selfId)
+        botKeys.remove(selfId)
+        log.info("Robot unregistered: configKey=$configKey botId=$selfId")
     }
 
     fun closeAll() {

@@ -1,10 +1,7 @@
 package uesugi.core
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 import uesugi.common.message.MessageContext
 import uesugi.common.toolkit.ConfigHolder
@@ -61,6 +58,11 @@ class GroupMessageEventListener(
         client.onMessageSent { event ->
             event.tryAsGroupMessage()?.let { serialHandle(it) }
         }
+    }
+
+    fun close() {
+        scope.cancel()
+        serial.clear()
     }
 
     private suspend fun handleEvent(event: GroupMessageEvent) {

@@ -12,6 +12,7 @@ import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.config.ConfigHolderImpl
 import uesugi.config.configureH2Console
+import uesugi.config.registerRefreshers
 import uesugi.core.bot.configureBotAgent
 import uesugi.core.bot.configureConnectBots
 import uesugi.core.bot.disconnectBots
@@ -62,6 +63,8 @@ fun Application.module() {
     monitor.subscribe(ApplicationStopPreparing) {
         disconnectBots()
     }
+
+    registerRefreshers()
 
     configureH2Console()
     configureChatBridge()
