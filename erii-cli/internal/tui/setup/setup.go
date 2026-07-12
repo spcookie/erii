@@ -613,9 +613,7 @@ func (m Model) renderSummary() string {
 
 	b.WriteString(style.Subtitle("Groups"))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  Debug Group: %s\n", d.DebugGroupID))
 	b.WriteString(fmt.Sprintf("  Enabled Groups: %s\n", d.EnableGroups))
-	b.WriteString(fmt.Sprintf("  Message Redirect: %s\n", d.MessageRedirectMap))
 
 	b.WriteString("\n")
 	b.WriteString(style.Title("Save configuration? (Y/n)"))

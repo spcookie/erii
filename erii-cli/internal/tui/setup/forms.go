@@ -260,16 +260,6 @@ func buildGroupsForm(d *SetupData) *huh.Form {
 				Value(&d.EnableGroups).
 				Placeholder(placeholderOrValue(d.EnableGroups)).
 				Validate(validateCommaSeparatedNumbers("group ID")),
-			huh.NewInput().
-				Title("Message Redirect Map (comma-separated, optional)").
-				Value(&d.MessageRedirectMap).
-				Placeholder(placeholderOrValue(d.MessageRedirectMap)).
-				Validate(validateMessageRedirectMap()),
-			huh.NewInput().
-				Title("Debug Group ID").
-				Value(&d.DebugGroupID).
-				Placeholder(placeholderOrValue(d.DebugGroupID)).
-				Validate(validateOptionalNumber("debug group ID")),
 		).WithShowHelp(false),
 	)
 }
@@ -294,48 +284,6 @@ func validateCommaSeparatedNumbers(label string) func(string) error {
 				if r < '0' || r > '9' {
 					return fmt.Errorf("invalid %s: %q (must be numeric)", label, p)
 				}
-			}
-		}
-		return nil
-	}
-}
-
-func validateMessageRedirectMap() func(string) error {
-	return func(s string) error {
-		if s == "" {
-			return nil
-		}
-		parts := splitByCommas(s)
-		for _, p := range parts {
-			p = strings.TrimSpace(p)
-			if p == "" {
-				return fmt.Errorf("empty redirect pair in list")
-			}
-			sub := strings.Split(p, ":")
-			if len(sub) != 2 {
-				return fmt.Errorf("invalid redirect pair: %q (expected source:target)", p)
-			}
-			for _, num := range sub {
-				num = strings.TrimSpace(num)
-				for _, r := range num {
-					if r < '0' || r > '9' {
-						return fmt.Errorf("invalid group ID in pair: %q (must be numeric)", num)
-					}
-				}
-			}
-		}
-		return nil
-	}
-}
-
-func validateOptionalNumber(label string) func(string) error {
-	return func(s string) error {
-		if s == "" {
-			return nil
-		}
-		for _, r := range s {
-			if r < '0' || r > '9' {
-				return fmt.Errorf("invalid %s: %q (must be numeric)", label, s)
 			}
 		}
 		return nil
