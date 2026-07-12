@@ -125,8 +125,26 @@ func buildClasspath(root string) string {
 		filepath.Join(libDir, "browser", "base", "*"),
 		filepath.Join(libDir, "browser", "driver", "*"),
 		filepath.Join(libDir, "core", "*"),
-		filepath.Join(libDir, "deps", "*"),
 	}
+
+	// deps are split into sub-packages, each symlinked as lib/deps/<name>.
+	// Java's classpath wildcard only expands a single trailing "/*", so每个子目录
+	// 都要单独作为一条 "<dir>/*" 加入。动态枚举以适配任意分片数量/命名。
+	depsDir := filepath.Join(libDir, "deps")
+	hasSubDir := false
+	if entries, err := os.ReadDir(depsDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() || (e.Type()&os.ModeSymlink != 0) {
+				parts = append(parts, filepath.Join(depsDir, e.Name(), "*"))
+				hasSubDir = true
+			}
+		}
+	}
+	// Fallback to the legacy flat layout (jars directly under lib/deps).
+	if !hasSubDir {
+		parts = append(parts, filepath.Join(depsDir, "*"))
+	}
+
 	return strings.Join(parts, string(filepath.ListSeparator))
 }
 
