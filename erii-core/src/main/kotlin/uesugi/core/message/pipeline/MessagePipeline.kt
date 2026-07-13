@@ -9,6 +9,7 @@ import okio.buffer
 import okio.source
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.common.BotManage
 import uesugi.common.EventBus
 import uesugi.common.data.*
 import uesugi.common.message.CommandUtil
@@ -159,10 +160,10 @@ class MessagePipeline(
     }
 
     private fun dispatchCommand(context: MessageContext, command: String) {
-        log.info("Robot receives the command $command")
+        log.info("Robot(${BotManage.getConfigKey(context.botId)}) receives the command $command")
         val cmd = CmdRuleRegister.getRuleForBot(command, context.botId)
         if (cmd == null) {
-            log.warn("Unknown command $command, skip processing")
+            log.warn("Unknown command $command (${BotManage.getConfigKey(context.botId)}) , skip processing")
             return
         }
         EventBus.postAsync(
