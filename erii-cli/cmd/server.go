@@ -25,16 +25,13 @@ var serverCmd = &cobra.Command{
 	Long: `Manage the Erii backend Java server.
 
 Subcommands:
-  start     Start the server (default)
+  start     Start the server
   stop      Stop a running server
   status    Show server status
   restart   Restart the server
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if hasHelpFlag(args) {
-			return cmd.Help()
-		}
-		return runServerStart()
+		return cmd.Help()
 	},
 }
 
@@ -450,10 +447,34 @@ func runServerStart() error {
 		return nil
 	}
 
-	return daemonStartOrRestart(javaBin, args, env)
+	return daemonStart(javaBin, args, env)
 }
 
-func daemonStartOrRestart(javaBin string, args []string, env []string) error {
+func daemonStart(javaBin string, args []string, env []string) error {
+	existingPid, err := readPidFile()
+	if err != nil {
+		return fmt.Errorf("reading PID file: %w", err)
+	}
+
+	if existingPid > 0 && isProcessRunning(existingPid) {
+		return fmt.Errorf("server is already running (PID: %d). Use 'erii server restart' to restart", existingPid)
+	}
+	if existingPid > 0 {
+		removePidFile()
+	}
+
+	pid, err := spawnDaemon(javaBin, args, env)
+	if err != nil {
+		return fmt.Errorf("starting server: %w", err)
+	}
+	if err := writePidFile(pid); err != nil {
+		return fmt.Errorf("writing PID file: %w", err)
+	}
+	fmt.Printf("Server started in background. PID: %d\n", pid)
+	return nil
+}
+
+func daemonRestart(javaBin string, args []string, env []string) error {
 	existingPid, err := readPidFile()
 	if err != nil {
 		return fmt.Errorf("reading PID file: %w", err)
@@ -536,5 +557,5 @@ func runServerRestart() error {
 	}
 	env := loadServerEnv()
 
-	return daemonStartOrRestart(javaBin, args, env)
+	return daemonRestart(javaBin, args, env)
 }
