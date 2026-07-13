@@ -1,5 +1,6 @@
 package uesugi.core.component.browser
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.pool2.BasePooledObjectFactory
 import org.apache.commons.pool2.PooledObject
 import org.apache.commons.pool2.impl.DefaultPooledObject
@@ -40,7 +41,15 @@ class BrowserSessionPool(
     }
 
     private class BrowserSessionFactory : BasePooledObjectFactory<BrowserSession>() {
-        override fun create(): BrowserSession = BrowserSession()
+
+        val log = KotlinLogging.logger {}
+
+        override fun create(): BrowserSession = try {
+            BrowserSession()
+        } catch (e: Exception) {
+            log.error(e) { "Failed to create BrowserSession" }
+            throw e
+        }
 
         override fun wrap(obj: BrowserSession): PooledObject<BrowserSession> =
             DefaultPooledObject(obj)

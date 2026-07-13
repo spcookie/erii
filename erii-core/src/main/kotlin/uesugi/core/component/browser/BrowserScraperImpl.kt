@@ -65,7 +65,7 @@ class BrowserScraperImpl : BrowserScraper {
     ): ByteArray {
         return useContext { context ->
             val page = context.newPage()
-            try {
+            page.use { page ->
                 page.setViewportSize((width * scaleFactor).toInt(), (height * scaleFactor).toInt())
 
                 // --- 资源过滤优化 ---
@@ -97,24 +97,24 @@ class BrowserScraperImpl : BrowserScraper {
                 // --- 滚动加载 ---
                 page.evaluate(
                     """
-                async () => {
-                    await new Promise((resolve) => {
-                        let totalHeight = 0;
-                        const distance = 300;
-                        const timer = setInterval(() => {
-                            const scrollHeight = document.body.scrollHeight;
-                            window.scrollBy(0, distance);
-                            totalHeight += distance;
-
-                            if(totalHeight >= scrollHeight){
-                                clearInterval(timer);
-                                window.scrollTo(0, 0);
-                                resolve();
-                            }
-                        }, 50);
-                    });
-                }
-            """
+                        async () => {
+                            await new Promise((resolve) => {
+                                let totalHeight = 0;
+                                const distance = 300;
+                                const timer = setInterval(() => {
+                                    const scrollHeight = document.body.scrollHeight;
+                                    window.scrollBy(0, distance);
+                                    totalHeight += distance;
+        
+                                    if(totalHeight >= scrollHeight){
+                                        clearInterval(timer);
+                                        window.scrollTo(0, 0);
+                                        resolve();
+                                    }
+                                }, 50);
+                            });
+                        }
+                    """
                 )
 
                 page.waitForTimeout(500.0)
@@ -152,8 +152,6 @@ class BrowserScraperImpl : BrowserScraper {
                     }
                     page.screenshot(pageOpts)
                 }
-            } finally {
-                page.close()
             }
         }
     }
