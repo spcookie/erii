@@ -153,12 +153,14 @@ class KspAnnotationProcessor(
         generateCmdExtensions(cmdFunctions, pkgName, namedOnLoad, namedOnUnload, globalOnLoad, globalOnUnload, globalOnEvent)
         generatePassiveExtensions(passiveFunctions, pkgName, namedOnLoad, namedOnUnload, globalOnLoad, globalOnUnload, globalOnEvent)
 
+        val hasLifecycle = globalOnLoad.isNotEmpty() || globalOnUnload.isNotEmpty() || globalOnEvent.isNotEmpty()
         val hasExtension = routeFunctions.isNotEmpty() || cmdFunctions.isNotEmpty() || passiveFunctions.isNotEmpty()
-        if (!hasExtension && toolFunctions.isNotEmpty()) {
-            generateDefaultPassive(toolFunctions, pkgName, globalOnEvent)
+        val needsDefaultPassive = !hasExtension && (toolFunctions.isNotEmpty() || hasLifecycle)
+        if (needsDefaultPassive) {
+            generateDefaultPassive(toolFunctions, pkgName, globalOnLoad, globalOnUnload, globalOnEvent)
         }
 
-        generatePf4jExtensionsFile(routeFunctions, cmdFunctions, passiveFunctions, toolFunctions, pkgName, hasExtension)
+        generatePf4jExtensionsFile(routeFunctions, cmdFunctions, passiveFunctions, pkgName, needsDefaultPassive)
 
         processed = true
         return emptyList()
@@ -453,8 +455,8 @@ class KspAnnotationProcessor(
                     appendLine("    override val matcher: Pair<String, String>")
                     appendLine(
                         "        get() = \"${
-                            routeAnno.stringArg("path").escapeForLiteral()
-                        }\" to \"${routeAnno.stringArg("method").escapeForLiteral()}\""
+                            routeAnno.stringArg("key").escapeForLiteral()
+                        }\" to \"${routeAnno.stringArg("desc").escapeForLiteral()}\""
                     )
                     appendLine()
                 }
@@ -545,20 +547,31 @@ class KspAnnotationProcessor(
         }
     }
 
-    // ========== Default Passive (auto-generated for tool-only plugins) ==========
+    // ========== Default Passive (auto-generated for tool-only/lifecycle-only plugins) ==========
 
-    private fun generateDefaultPassive(toolFunctions: List<KSFunctionDeclaration>, pkgName: String, globalOnEvent: List<String>) {
+    private fun generateDefaultPassive(
+        toolFunctions: List<KSFunctionDeclaration>,
+        pkgName: String,
+        globalOnLoad: List<String>,
+        globalOnUnload: List<String>,
+        globalOnEvent: List<String>,
+    ) {
         val toolSetClasses = toolFunctions
             .map { it.findAnnotation(ANN_TOOL)?.stringArg("set")?.takeUnless { s -> s.isEmpty() } ?: DEFAULT_TOOLSET }
             .distinct()
             .filter { it in availableToolSets }
             .map { toolSetClassName(it) }
 
+        val hasLifecycle = globalOnLoad.isNotEmpty() || globalOnUnload.isNotEmpty()
         val className = "GeneratedPassive_default"
 
         val content = buildString {
             appendLine("package $pkgName")
             appendLine()
+            if (hasLifecycle) {
+                appendLine("import kotlinx.coroutines.runBlocking")
+                appendLine("import uesugi.spi.annotation.withPluginContext")
+            }
             appendLine("import org.pf4j.Extension")
             appendLine("import uesugi.spi.PassiveExtension")
             appendLine("import uesugi.spi.PluginContext")
@@ -566,15 +579,22 @@ class KspAnnotationProcessor(
             appendLine("@Extension")
             appendLine("class $className : PassiveExtension<GeneratedPlugin> {")
             appendLine("    override fun onLoad(context: PluginContext) {")
+            for (call in globalOnLoad + globalOnEvent) {
+                if (hasLifecycle) {
+                    appendLine("        runBlocking { withPluginContext(context) { $call } }")
+                } else {
+                    appendLine("        $call")
+                }
+            }
             for (tsClass in toolSetClasses) {
                 appendLine("        context.tool { { $pkgName.$tsClass(context) } }")
-            }
-            for (eventSub in globalOnEvent) {
-                appendLine("        $eventSub")
             }
             appendLine("    }")
             appendLine()
             appendLine("    override fun onUnload() {")
+            for (call in globalOnUnload) {
+                appendLine("        $call")
+            }
             appendLine("    }")
             appendLine("}")
         }
@@ -588,9 +608,8 @@ class KspAnnotationProcessor(
         routeFunctions: List<KSFunctionDeclaration>,
         cmdFunctions: List<KSFunctionDeclaration>,
         passiveFunctions: List<KSFunctionDeclaration>,
-        toolFunctions: List<KSFunctionDeclaration>,
         pkgName: String,
-        hasExtension: Boolean,
+        needsDefaultPassive: Boolean,
     ) {
         val extensionClasses = buildList {
             for (func in routeFunctions) {
@@ -603,7 +622,7 @@ class KspAnnotationProcessor(
             for (func in passiveFunctions) {
                 add("$pkgName.GeneratedPassive_${func.simpleName.asString()}")
             }
-            if (!hasExtension && toolFunctions.isNotEmpty()) {
+            if (needsDefaultPassive) {
                 add("$pkgName.GeneratedPassive_default")
             }
         }
