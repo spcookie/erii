@@ -2,8 +2,8 @@ package uesugi.core.component.storage
 
 import org.mapdb.DB
 import org.mapdb.DBMaker
+import uesugi.config.StorePathConfig
 import java.nio.file.Files
-import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 
 object MapDB {
@@ -12,7 +12,7 @@ object MapDB {
     private val plugins = ConcurrentHashMap<String, DB>()
 
     fun module(name: String): DB = modules.getOrPut(name) {
-        val dbFile = Paths.get("./store/cache/$name.cache")
+        val dbFile = StorePathConfig.resolve("cache", "$name.cache")
         Files.createDirectories(dbFile.parent)
         val db = DBMaker
             .fileDB(dbFile.toFile())
@@ -28,7 +28,7 @@ object MapDB {
     }
 
     fun plugin(name: String): DB = plugins.getOrPut(name) {
-        val dbFile = Paths.get("./store/cache/plugin/$name.cache")
+        val dbFile = StorePathConfig.resolve("cache", "plugin", "$name.cache")
         Files.createDirectories(dbFile.parent)
         val db = DBMaker
             .fileDB(dbFile.toFile())

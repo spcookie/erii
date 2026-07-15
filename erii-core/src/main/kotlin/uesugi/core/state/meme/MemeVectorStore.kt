@@ -3,9 +3,9 @@ package uesugi.core.state.meme
 import org.koin.core.context.GlobalContext
 import org.koin.core.parameter.parametersOf
 import uesugi.common.extend.EmbeddingInput
+import uesugi.config.StorePathConfig
 import uesugi.core.component.embedding.EmbeddingManager
 import uesugi.core.component.storage.VectorStore
-import java.nio.file.Paths
 
 /**
  * 表情包向量存储工厂
@@ -23,7 +23,7 @@ class MemoVectorStore {
     fun getStore(botMark: String, groupId: String): VectorStore {
         val key = "${botMark}_$groupId"
         return stores.getOrPut(key) {
-            val path = Paths.get("./store/vector/meme/$key")
+            val path = StorePathConfig.resolve("vector", "meme", key)
             GlobalContext.get().get { parametersOf(path, DIMENSION) }
         }
     }

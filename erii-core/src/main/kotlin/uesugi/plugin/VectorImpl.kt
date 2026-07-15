@@ -1,7 +1,7 @@
 package uesugi.plugin
 
-import okio.Path.Companion.toPath
 import uesugi.common.extend.EmbeddingInput
+import uesugi.config.StorePathConfig
 import uesugi.core.component.embedding.EmbeddingManager
 import uesugi.core.component.storage.EmbeddedVectorStore
 import uesugi.spi.PluginDef
@@ -11,7 +11,7 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
 
     private val default by lazy {
         EmbeddedVectorStore(
-            path = "./store/vector/plugins".toPath().resolve(defined.name).toNioPath(),
+            path = StorePathConfig.resolve("vector", "plugins", defined.name),
             dimension = 1024
         )
     }

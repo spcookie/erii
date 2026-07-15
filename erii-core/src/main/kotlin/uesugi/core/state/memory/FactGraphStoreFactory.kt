@@ -2,8 +2,8 @@ package uesugi.core.state.memory
 
 import org.koin.core.context.GlobalContext
 import org.koin.core.parameter.parametersOf
+import uesugi.config.StorePathConfig
 import uesugi.core.component.storage.GraphStore
-import java.nio.file.Paths
 
 /**
  * 图存储工厂，按 botMark + groupId 管理多实例 GraphStore，封装存储操作。
@@ -15,7 +15,7 @@ open class FactGraphStoreFactory {
     open fun getStore(botMark: String, groupId: String): GraphStore {
         val key = "${botMark}_$groupId"
         return stores.getOrPut(key) {
-            val path = Paths.get("./store/graph/fact/$key")
+            val path = StorePathConfig.resolve("graph", "fact", key)
             GlobalContext.get().get { parametersOf(path, botMark, groupId) }
         }
     }

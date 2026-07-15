@@ -2,30 +2,31 @@ package uesugi.plugin
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.Path.Companion.toPath
 import okio.buffer
-import org.jetbrains.exposed.v1.jdbc.Query
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.core.Schema
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.Query
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryRecord
 import uesugi.common.data.HistoryTable
 import uesugi.common.data.ResourceRecord
 import uesugi.common.data.ResourceTable
 import uesugi.common.toolkit.ref
+import uesugi.config.StorePathConfig
 import uesugi.core.component.storage.ObjectStorage
-import kotlinx.atomicfu.atomic
-import uesugi.spi.Database as SpiDatabase
 import javax.sql.DataSource
+import uesugi.spi.Database as SpiDatabase
 
 internal class PluginDatabaseImpl(private val pluginName: String) : SpiDatabase {
 
     private val dataSource: DataSource by lazy {
         val config = HikariConfig().apply {
-            jdbcUrl = "jdbc:h2:file:./store/data;MODE=PostgreSQL;AUTO_SERVER=TRUE;NON_KEYWORDS=VALUE"
+            jdbcUrl = StorePathConfig.h2JdbcUrl("MODE=PostgreSQL;AUTO_SERVER=TRUE;NON_KEYWORDS=VALUE")
             driverClassName = "org.h2.Driver"
             maximumPoolSize = 2
             poolName = "plugin-$pluginName"

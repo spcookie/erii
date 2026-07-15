@@ -3,9 +3,9 @@ package uesugi.plugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.Path
-import okio.Path.Companion.toPath
 import okio.buffer
 import okio.source
+import uesugi.config.StorePathConfig
 import uesugi.core.component.storage.LocalObjectStorage
 import uesugi.spi.Blob
 import uesugi.spi.PluginDef
@@ -15,7 +15,7 @@ internal class BlobImpl(val defined: PluginDef) : Blob {
 
     private val default by lazy {
         LocalObjectStorage(
-            baseDir = "./store/object/plugins".toPath().resolve(defined.name)
+            baseDir = StorePathConfig.resolveOkio("object", "plugins", defined.name)
         )
     }
 

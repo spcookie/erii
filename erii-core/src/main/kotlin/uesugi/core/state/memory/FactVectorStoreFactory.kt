@@ -5,10 +5,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.koin.core.context.GlobalContext
 import org.koin.core.parameter.parametersOf
+import uesugi.config.StorePathConfig
 import uesugi.core.component.embedding.EmbeddingManager
 import uesugi.core.component.storage.VectorStore
 import uesugi.core.component.storage.VectorStoreItem
-import java.nio.file.Paths
 
 internal fun pairFactsWithVectorsForRebuild(
     orderedFacts: List<FactsRecord>,
@@ -48,7 +48,7 @@ open class FactVectorStoreFactory {
     open fun getStore(botMark: String, groupId: String): VectorStore {
         val key = "${botMark}_$groupId"
         return stores.getOrPut(key) {
-            val path = Paths.get("./store/vector/fact/$key")
+            val path = StorePathConfig.resolve("vector", "fact", key)
             GlobalContext.get().get { parametersOf(path, DIMENSION) }
         }
     }

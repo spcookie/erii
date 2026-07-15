@@ -1,8 +1,6 @@
 package uesugi.config
 
 import io.ktor.server.application.*
-import kotlinx.coroutines.runBlocking
-import okio.Path.Companion.toPath
 import org.jetbrains.exposed.v1.core.DatabaseConfig
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
@@ -15,16 +13,10 @@ import uesugi.core.cleanup.ResourceCleanupJob
 import uesugi.core.cleanup.cleanupModule
 import uesugi.core.component.llm.AnthropicClientProvider
 import uesugi.core.component.llm.OpenAIClientProvider
-import uesugi.core.component.storage.EmbeddedVectorStore
-import uesugi.core.component.storage.GraphStore
-import uesugi.core.component.storage.LocalObjectStorage
-import uesugi.core.component.storage.ObjectStorage
-import uesugi.core.component.storage.Rdf4jGraphStore
-import uesugi.core.component.storage.VectorStore
+import uesugi.core.component.storage.*
 import uesugi.core.component.usage.TokenUsageRepository
 import uesugi.core.cron.CronService
 import uesugi.core.cron.cronModule
-import uesugi.core.mcp.McpManager
 import uesugi.core.message.messageModule
 import uesugi.core.state.dispatch.StateDispatchJob
 import uesugi.core.state.dispatch.stateDispatchModule
@@ -63,7 +55,7 @@ fun Application.warmUp() {
 fun Application.configBaseModule() = koinModule {
     single<ObjectStorage> {
         LocalObjectStorage(
-            baseDir = "./store/object".toPath()
+            baseDir = StorePathConfig.resolveOkio("object")
         )
     }
     factory<VectorStore> {
