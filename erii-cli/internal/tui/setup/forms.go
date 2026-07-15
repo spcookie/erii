@@ -191,7 +191,7 @@ func buildBrowserForm(d *SetupData) *huh.Form {
 		huh.NewGroup(
 			huh.NewSelect[bool]().
 				Title("Download").
-				Options(huh.NewOption("Enable", true), huh.NewOption("Disable", false)).
+				Options(huh.NewOption("Disable", false), huh.NewOption("Enable", true)).
 				Value(&d.BrowserDownload),
 			huh.NewInput().
 				Title("Playwright URL").

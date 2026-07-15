@@ -40,8 +40,8 @@
       "message-redirect-map": ""
     },
     "browser": {
-      "download": false,
-      "playwright-url": "ws://127.0.0.1:13001",
+      "download": true,
+      "playwright-url": "ws://127.0.0.1:3001",
       "external-host": "localhost"
     },
     "proxy": {
@@ -89,7 +89,7 @@
     "browser": [
       {
         "name": "Playwright",
-        "url": "ws://127.0.0.1:13001"
+        "url": "ws://127.0.0.1:3001"
       }
     ]
   }
