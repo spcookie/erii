@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/paginator"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
@@ -24,6 +25,7 @@ import (
 type Provider struct {
 	Name    string `json:"name"`
 	Key     string `json:"key"`
+	API     string `json:"api"`
 	Desc    string `json:"desc"`
 	BaseURL string `json:"base-url"`
 }
@@ -35,12 +37,46 @@ type ToolProvider struct {
 }
 
 type LLMDefaults struct {
-	BaseURL    string `json:"base-url"`
-	ModelMode  string `json:"model-mode"`
-	LiteModel  string `json:"lite-model"`
-	FlashModel string `json:"flash-model"`
-	ProModel   string `json:"pro-model"`
-	AllModel   string `json:"all-model"`
+	BaseURL      string                   `json:"base-url"`
+	ModelMode    string                   `json:"model-mode"`
+	LiteModel    string                   `json:"lite-model"`
+	FlashModel   string                   `json:"flash-model"`
+	ProModel     string                   `json:"pro-model"`
+	AllModel     string                   `json:"all-model"`
+	Settings     map[string]string        `json:"settings"`
+	Capability   *LLMCapabilityDefaults   `json:"capability"`
+	UsagePricing *LLMUsagePricingDefaults `json:"usage-pricing"`
+}
+
+type LLMCapabilitySet struct {
+	Completion      bool `json:"completion"`
+	PromptCaching   bool `json:"prompt-caching"`
+	Temperature     bool `json:"temperature"`
+	Tools           bool `json:"tools"`
+	ToolChoice      bool `json:"tool-choice"`
+	MultipleChoices bool `json:"multiple-choices"`
+	Thinking        bool `json:"thinking"`
+	VisionImage     bool `json:"vision-image"`
+}
+
+type LLMCapabilityDefaults struct {
+	Default LLMCapabilitySet `json:"default"`
+	Lite    LLMCapabilitySet `json:"lite"`
+	Flash   LLMCapabilitySet `json:"flash"`
+	Pro     LLMCapabilitySet `json:"pro"`
+}
+
+type LLMPricingTierDefaults struct {
+	InputCacheHit  float64 `json:"input-cache-hit"`
+	InputCacheMiss float64 `json:"input-cache-miss"`
+	Output         float64 `json:"output"`
+}
+
+type LLMUsagePricingDefaults struct {
+	PriceUnit string                 `json:"price-unit"`
+	Lite      LLMPricingTierDefaults `json:"lite"`
+	Flash     LLMPricingTierDefaults `json:"flash"`
+	Pro       LLMPricingTierDefaults `json:"pro"`
 }
 
 type BotDefaults struct {
@@ -66,11 +102,13 @@ type ProxyDefaults struct {
 }
 
 type DefaultsConfig struct {
-	LLM     map[string]LLMDefaults `json:"llm"`
-	Bot     BotDefaults            `json:"bot"`
-	Groups  GroupsDefaults         `json:"groups"`
-	Browser BrowserDefaults        `json:"browser"`
-	Proxy   ProxyDefaults          `json:"proxy"`
+	LLM             map[string]LLMDefaults  `json:"llm"`
+	LLMCapability   LLMCapabilityDefaults   `json:"llm-capability"`
+	LLMUsagePricing LLMUsagePricingDefaults `json:"llm-usage-pricing"`
+	Bot             BotDefaults             `json:"bot"`
+	Groups          GroupsDefaults          `json:"groups"`
+	Browser         BrowserDefaults         `json:"browser"`
+	Proxy           ProxyDefaults           `json:"proxy"`
 }
 
 type ToolProvidersConfig struct {
@@ -87,16 +125,21 @@ type SetupFile struct {
 }
 
 type SetupData struct {
-	Providers    []Provider
-	SelectedProv int
-	LLMDefaults  map[string]LLMDefaults
-	APIKey       string
-	BaseURL      string
-	ModelMode    string
-	AllModel     string
-	LiteModel    string
-	FlashModel   string
-	ProModel     string
+	Providers         []Provider
+	SelectedProv      int
+	LLMDefaults       map[string]LLMDefaults
+	APIKey            string
+	BaseURL           string
+	ModelMode         string
+	AllModel          string
+	LiteModel         string
+	FlashModel        string
+	ProModel          string
+	AdvancedLLM       bool
+	LLMSettings       map[string]string
+	LLMCapability     LLMCapabilityDefaults
+	LLMUsagePricing   LLMUsagePricingDefaults
+	ValidationMessage string
 
 	EmbeddingEnabled  bool
 	EmbeddingAPIKey   string
@@ -137,6 +180,13 @@ type Step int
 const (
 	StepProviderSelect Step = iota
 	StepLLMConfig
+	StepLLMAdvancedAsk
+	StepLLMProviderSettings
+	StepLLMCapabilityDefault
+	StepLLMCapabilityLite
+	StepLLMCapabilityFlash
+	StepLLMCapabilityPro
+	StepLLMUsagePricing
 	StepToolsMenu
 	StepToolsEmbedding
 	StepToolsSearch
@@ -152,7 +202,7 @@ var nodeLabels = []string{"LLM Configuration", "Tools & Features", "Default Bot 
 
 func (s Step) node() int {
 	switch {
-	case s <= StepLLMConfig:
+	case s <= StepLLMUsagePricing:
 		return 0
 	case s <= StepToolsProxy:
 		return 1
@@ -176,8 +226,10 @@ func (s Step) prevMainStep() Step {
 	switch s {
 	case StepProviderSelect:
 		return StepProviderSelect
-	case StepLLMConfig:
+	case StepLLMConfig, StepLLMAdvancedAsk:
 		return StepProviderSelect
+	case StepLLMProviderSettings, StepLLMCapabilityDefault, StepLLMCapabilityLite, StepLLMCapabilityFlash, StepLLMCapabilityPro, StepLLMUsagePricing:
+		return StepLLMAdvancedAsk
 	case StepToolsMenu:
 		return StepProviderSelect
 	case StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy:
@@ -191,8 +243,118 @@ func (s Step) prevMainStep() Step {
 	}
 }
 
+var llmAdvancedTabDefs = []struct {
+	label string
+	step  Step
+}{
+	{label: "All", step: StepLLMCapabilityDefault},
+	{label: "Lite", step: StepLLMCapabilityLite},
+	{label: "Flash", step: StepLLMCapabilityFlash},
+	{label: "Pro", step: StepLLMCapabilityPro},
+}
+
+func newLLMTabs() paginator.Model {
+	p := paginator.New(
+		paginator.WithPerPage(1),
+		paginator.WithTotalPages(len(llmAdvancedTabDefs)),
+	)
+	p.Type = paginator.Dots
+	p.KeyMap = paginator.KeyMap{
+		PrevPage: key.NewBinding(
+			key.WithKeys("["),
+			key.WithHelp("[", "prev tab"),
+		),
+		NextPage: key.NewBinding(
+			key.WithKeys("]"),
+			key.WithHelp("]", "next tab"),
+		),
+	}
+	return p
+}
+
+func (s Step) llmAdvancedTabPage() int {
+	for i, tab := range llmAdvancedTabDefs {
+		if tab.step == s {
+			return i
+		}
+	}
+	return -1
+}
+
+func llmAdvancedStepForPage(page int) Step {
+	if page < 0 || page >= len(llmAdvancedTabDefs) {
+		return StepLLMCapabilityDefault
+	}
+	return llmAdvancedTabDefs[page].step
+}
+
 func hoconKeyToChoiceModel(key string) string {
 	return strings.ReplaceAll(strings.ToUpper(key), "-", "_")
+}
+
+func providerAPI(p Provider) string {
+	api := strings.ToLower(strings.TrimSpace(p.API))
+	if api != "" {
+		return api
+	}
+	switch strings.ToLower(strings.TrimSpace(p.Key)) {
+	case "openai":
+		return "openai"
+	case "anthropic":
+		return "anthropic"
+	default:
+		return ""
+	}
+}
+
+func providerCoreKey(p Provider) string {
+	return providerAPI(p)
+}
+
+func validProviderAPI(api string) bool {
+	switch strings.ToLower(strings.TrimSpace(api)) {
+	case "openai", "anthropic":
+		return true
+	default:
+		return false
+	}
+}
+
+func defaultLLMCapability() LLMCapabilityDefaults {
+	all := LLMCapabilitySet{
+		Completion: true, PromptCaching: true, Temperature: true, Tools: true,
+		ToolChoice: true, MultipleChoices: true, Thinking: true, VisionImage: true,
+	}
+	lite := all
+	lite.Thinking = false
+	lite.VisionImage = false
+	return LLMCapabilityDefaults{Default: all, Lite: lite, Flash: all, Pro: all}
+}
+
+func defaultLLMUsagePricing() LLMUsagePricingDefaults {
+	return LLMUsagePricingDefaults{
+		PriceUnit: "USD",
+		Lite:      LLMPricingTierDefaults{InputCacheHit: 0.01875, InputCacheMiss: 0.075, Output: 0.30},
+		Flash:     LLMPricingTierDefaults{InputCacheHit: 0.025, InputCacheMiss: 0.10, Output: 0.40},
+		Pro:       LLMPricingTierDefaults{InputCacheHit: 0.3125, InputCacheMiss: 1.25, Output: 10.00},
+	}
+}
+
+func mergeCapabilityDefaults(v LLMCapabilityDefaults) LLMCapabilityDefaults {
+	if v == (LLMCapabilityDefaults{}) {
+		return defaultLLMCapability()
+	}
+	return v
+}
+
+func mergeUsagePricingDefaults(v LLMUsagePricingDefaults) LLMUsagePricingDefaults {
+	if v.PriceUnit == "" && v.Lite == (LLMPricingTierDefaults{}) && v.Flash == (LLMPricingTierDefaults{}) && v.Pro == (LLMPricingTierDefaults{}) {
+		return defaultLLMUsagePricing()
+	}
+	if v.PriceUnit == "" {
+		v.PriceUnit = "USD"
+	}
+	return v
 }
 
 // ---- Key bindings ----
@@ -200,16 +362,26 @@ func hoconKeyToChoiceModel(key string) string {
 type SetupKeyMap struct {
 	Enter key.Binding
 	Nav   key.Binding
+	Tab   key.Binding
 	Back  key.Binding
 	Quit  key.Binding
 	Help  key.Binding
 }
 
 func (k SetupKeyMap) ShortHelp() []key.Binding {
+	if k.Tab.Enabled() {
+		return []key.Binding{k.Enter, k.Nav, k.Tab, k.Back, k.Quit, k.Help}
+	}
 	return []key.Binding{k.Enter, k.Nav, k.Back, k.Quit, k.Help}
 }
 
 func (k SetupKeyMap) FullHelp() [][]key.Binding {
+	if k.Tab.Enabled() {
+		return [][]key.Binding{
+			{k.Enter, k.Nav, k.Tab},
+			{k.Back, k.Quit, k.Help},
+		}
+	}
 	return [][]key.Binding{
 		{k.Enter, k.Nav},
 		{k.Back, k.Quit, k.Help},
@@ -262,6 +434,18 @@ var FormKeys = SetupKeyMap{
 	),
 }
 
+var AdvancedFormKeys = SetupKeyMap{
+	Enter: FormKeys.Enter,
+	Nav:   FormKeys.Nav,
+	Tab: key.NewBinding(
+		key.WithKeys("[", "]"),
+		key.WithHelp("[/]", "switch tab"),
+	),
+	Back: FormKeys.Back,
+	Quit: FormKeys.Quit,
+	Help: FormKeys.Help,
+}
+
 var DoneKeys = SetupKeyMap{
 	Enter: key.NewBinding(
 		key.WithKeys("y"),
@@ -292,6 +476,9 @@ func (m Model) currentKeys() SetupKeyMap {
 	if m.step == StepDone {
 		return DoneKeys
 	}
+	if m.isLLMAdvancedStep() {
+		return AdvancedFormKeys
+	}
 	return FormKeys
 }
 
@@ -300,13 +487,16 @@ func (m Model) currentKeys() SetupKeyMap {
 type providerItem struct {
 	name    string
 	key     string
+	api     string
 	desc    string
 	baseURL string
 	index   int
 }
 
-func (i providerItem) Title() string       { return i.name }
-func (i providerItem) Description() string { return fmt.Sprintf("%s  |  %s", i.desc, i.baseURL) }
+func (i providerItem) Title() string { return i.name }
+func (i providerItem) Description() string {
+	return fmt.Sprintf("%s  |  api=%s  |  %s", i.desc, i.api, i.baseURL)
+}
 func (i providerItem) FilterValue() string { return i.name }
 
 type toolItem struct {
@@ -348,13 +538,19 @@ type Model struct {
 	lastEmbeddingProvider string
 	lastSearchProvider    string
 	lastVisionProvider    string
+	llmTabs               paginator.Model
 	vp                    viewport.Model
 }
 
 func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolProvidersConfig) Model {
+	defaults.LLMCapability = mergeCapabilityDefaults(defaults.LLMCapability)
+	defaults.LLMUsagePricing = mergeUsagePricingDefaults(defaults.LLMUsagePricing)
 	data := &SetupData{
 		Providers:          providers,
 		LLMDefaults:        defaults.LLM,
+		LLMCapability:      defaults.LLMCapability,
+		LLMUsagePricing:    defaults.LLMUsagePricing,
+		LLMSettings:        map[string]string{},
 		BotWS:              defaults.Bot.WS,
 		BotToken:           defaults.Bot.Token,
 		BrowserDownload:    defaults.Browser.Download,
@@ -369,11 +565,12 @@ func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolP
 	}
 
 	m := Model{
-		step: StepProviderSelect,
-		data: data,
-		help: help.New(),
-		keys: DefaultSetupKeys,
-		vp:   viewport.New(0, 0),
+		step:    StepProviderSelect,
+		data:    data,
+		help:    help.New(),
+		keys:    DefaultSetupKeys,
+		llmTabs: newLLMTabs(),
+		vp:      viewport.New(0, 0),
 	}
 	m.buildProviderList()
 	return m
@@ -395,6 +592,14 @@ func Start() error {
 
 	if len(sf.Providers) == 0 {
 		return fmt.Errorf("no providers configured in setup.json")
+	}
+	for i := range sf.Providers {
+		if sf.Providers[i].API == "" {
+			sf.Providers[i].API = providerAPI(sf.Providers[i])
+		}
+		if !validProviderAPI(sf.Providers[i].API) {
+			return fmt.Errorf("invalid api for provider %q: %q (must be openai or anthropic)", sf.Providers[i].Key, sf.Providers[i].API)
+		}
 	}
 
 	m := newModel(sf.Providers, sf.Defaults, sf.ToolProviders)
@@ -461,6 +666,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		if handled, cmd := m.handleLLMTabKey(msg); handled {
+			return m, cmd
+		}
+
 		if key.Matches(msg, m.keys.Back) {
 			if (m.step.isMainStep() && m.step > StepProviderSelect) || !m.step.isMainStep() {
 				m.step = m.step.prevMainStep()
@@ -475,6 +684,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StepProviderSelect:
 		return m.updateProviderSelect(msg)
 	case StepLLMConfig:
+		return m.updateForm(msg, StepLLMAdvancedAsk)
+	case StepLLMAdvancedAsk:
+		return m.updateLLMAdvancedAsk(msg)
+	case StepLLMProviderSettings:
+		return m.updateForm(msg, StepLLMCapabilityDefault)
+	case StepLLMCapabilityDefault:
+		return m.updateForm(msg, StepLLMCapabilityLite)
+	case StepLLMCapabilityLite:
+		return m.updateForm(msg, StepLLMCapabilityFlash)
+	case StepLLMCapabilityFlash:
+		return m.updateForm(msg, StepLLMCapabilityPro)
+	case StepLLMCapabilityPro:
+		return m.updateForm(msg, StepLLMUsagePricing)
+	case StepLLMUsagePricing:
 		return m.updateForm(msg, StepToolsMenu)
 	case StepToolsMenu:
 		return m.updateToolsMenu(msg)
@@ -522,7 +745,7 @@ func (m Model) stepTitle() string {
 	switch m.step {
 	case StepProviderSelect:
 		return "LLM Configuration"
-	case StepLLMConfig:
+	case StepLLMConfig, StepLLMAdvancedAsk, StepLLMProviderSettings, StepLLMCapabilityDefault, StepLLMCapabilityLite, StepLLMCapabilityFlash, StepLLMCapabilityPro, StepLLMUsagePricing:
 		return "LLM Configuration"
 	case StepToolsMenu:
 		return "Tools & Features"
@@ -549,12 +772,24 @@ func (m Model) renderContent() string {
 	switch m.step {
 	case StepProviderSelect, StepToolsMenu:
 		return renderStepPage(m.stepTitle(), m.list.View())
-	case StepLLMConfig, StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy, StepBot, StepGroups:
-		return renderFormStep(m.stepTitle(), m.form)
+	case StepLLMConfig, StepLLMAdvancedAsk, StepLLMProviderSettings, StepLLMCapabilityDefault, StepLLMCapabilityLite, StepLLMCapabilityFlash, StepLLMCapabilityPro, StepLLMUsagePricing, StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy, StepBot, StepGroups:
+		return renderFormStep(m.stepTitle(), m.form, m.data.ValidationMessage, m.llmAdvancedTabs())
 	case StepDone:
 		return m.renderSummary()
 	}
 	return ""
+}
+
+func (m Model) llmAdvancedTabs() []tabItem {
+	activePage := m.step.llmAdvancedTabPage()
+	if activePage < 0 {
+		return nil
+	}
+	tabs := make([]tabItem, 0, len(llmAdvancedTabDefs))
+	for i, tab := range llmAdvancedTabDefs {
+		tabs = append(tabs, tabItem{Label: tab.label, Active: i == activePage})
+	}
+	return tabs
 }
 
 // ---- Summary ----
@@ -577,6 +812,9 @@ func (m Model) renderSummary() string {
 		b.WriteString(fmt.Sprintf("  Lite: %s\n", d.LiteModel))
 		b.WriteString(fmt.Sprintf("  Flash: %s\n", d.FlashModel))
 		b.WriteString(fmt.Sprintf("  Pro: %s\n", d.ProModel))
+	}
+	if d.AdvancedLLM {
+		b.WriteString(fmt.Sprintf("  Advanced: configured (price-unit=%s)\n", d.LLMUsagePricing.PriceUnit))
 	}
 	b.WriteString("\n")
 
@@ -633,16 +871,33 @@ func (m *Model) updateProviderSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if item, ok := m.list.SelectedItem().(providerItem); ok {
 				m.data.SelectedProv = item.index
+				prov := m.data.Providers[item.index]
 				if item.baseURL != "" {
 					m.data.BaseURL = item.baseURL
 				}
 				// Populate model defaults for the selected provider
 				if cfg, ok := m.data.LLMDefaults[item.key]; ok {
+					if cfg.BaseURL != "" {
+						m.data.BaseURL = cfg.BaseURL
+					}
 					m.data.ModelMode = cfg.ModelMode
 					m.data.LiteModel = cfg.LiteModel
 					m.data.FlashModel = cfg.FlashModel
 					m.data.ProModel = cfg.ProModel
 					m.data.AllModel = cfg.AllModel
+					m.data.LLMSettings = copyStringMap(cfg.Settings)
+					if cfg.Capability != nil {
+						m.data.LLMCapability = mergeCapabilityDefaults(*cfg.Capability)
+					}
+					if cfg.UsagePricing != nil {
+						m.data.LLMUsagePricing = mergeUsagePricingDefaults(*cfg.UsagePricing)
+					}
+				}
+				if m.data.ModelMode == "" {
+					m.data.ModelMode = "separate"
+				}
+				if m.data.LLMSettings == nil {
+					m.data.LLMSettings = defaultSettingsForAPI(providerAPI(prov))
 				}
 				m.step = StepLLMConfig
 				m.rebuildCurrentStep()
@@ -679,6 +934,69 @@ func (m *Model) updateToolsMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *Model) updateLLMAdvancedAsk(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.form == nil {
+		return m, nil
+	}
+
+	m.clearValidationOnEdit(msg)
+	f, cmd := m.form.Update(msg)
+	if f2, ok := f.(*huh.Form); ok {
+		m.form = f2
+	}
+
+	if m.form.State == huh.StateCompleted {
+		m.data.ValidationMessage = ""
+		if m.data.AdvancedLLM {
+			m.step = StepLLMProviderSettings
+		} else {
+			m.step = StepToolsMenu
+		}
+		m.rebuildCurrentStep()
+		return m, m.currentInitCmd()
+	}
+
+	if m.form.State == huh.StateAborted {
+		m.data.ValidationMessage = ""
+		m.step = m.step.prevMainStep()
+		m.rebuildCurrentStep()
+		return m, m.currentInitCmd()
+	}
+
+	m.syncViewportContent()
+	return m, cmd
+}
+
+func (m Model) isLLMAdvancedStep() bool {
+	return m.step.llmAdvancedTabPage() >= 0
+}
+
+func (m *Model) handleLLMTabKey(msg tea.KeyMsg) (bool, tea.Cmd) {
+	if !m.isLLMAdvancedStep() {
+		return false, nil
+	}
+	if !key.Matches(msg, m.llmTabs.KeyMap.PrevPage, m.llmTabs.KeyMap.NextPage) {
+		return false, nil
+	}
+
+	if page := m.step.llmAdvancedTabPage(); page >= 0 {
+		m.llmTabs.Page = page
+	}
+
+	var cmd tea.Cmd
+	m.llmTabs, cmd = m.llmTabs.Update(msg)
+	nextStep := llmAdvancedStepForPage(m.llmTabs.Page)
+	if nextStep == m.step {
+		m.syncViewportContent()
+		return true, cmd
+	}
+
+	m.data.ValidationMessage = ""
+	m.step = nextStep
+	m.rebuildCurrentStep()
+	return true, tea.Batch(cmd, m.currentInitCmd())
+}
+
 func (m *Model) setToolEnabled(step Step) {
 	switch step {
 	case StepToolsEmbedding:
@@ -701,6 +1019,7 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	m.clearValidationOnEdit(msg)
 	f, cmd := m.form.Update(msg)
 	if f2, ok := f.(*huh.Form); ok {
 		m.form = f2
@@ -712,6 +1031,7 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form.State == huh.StateCompleted {
+		m.data.ValidationMessage = ""
 		m.collectFormData()
 		m.step = nextStep
 		m.rebuildCurrentStep()
@@ -719,6 +1039,7 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form.State == huh.StateAborted {
+		m.data.ValidationMessage = ""
 		m.step = m.step.prevMainStep()
 		m.rebuildCurrentStep()
 		return m, m.currentInitCmd()
@@ -726,6 +1047,19 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 
 	m.syncViewportContent()
 	return m, cmd
+}
+
+func (m *Model) clearValidationOnEdit(msg tea.Msg) {
+	key, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return
+	}
+	switch key.String() {
+	case "enter":
+		return
+	default:
+		m.data.ValidationMessage = ""
+	}
 }
 
 func (m *Model) collectFormData() {
@@ -769,7 +1103,7 @@ func (m *Model) syncToolURL(providers []ToolProvider, lastProv, curProv, curURL 
 func (m *Model) buildProviderList() {
 	items := make([]list.Item, len(m.data.Providers))
 	for i, p := range m.data.Providers {
-		items[i] = providerItem{name: p.Name, key: p.Key, desc: p.Desc, baseURL: p.BaseURL, index: i}
+		items[i] = providerItem{name: p.Name, key: p.Key, api: providerAPI(p), desc: p.Desc, baseURL: p.BaseURL, index: i}
 	}
 	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 	l := list.New(items, delegate, 0, 0)
@@ -837,12 +1171,30 @@ func (m *Model) syncViewportContent() {
 func (m *Model) rebuildCurrentStep() {
 	m.vp.GotoTop()
 	m.keys = m.currentKeys()
+	if page := m.step.llmAdvancedTabPage(); page >= 0 {
+		m.llmTabs.TotalPages = len(llmAdvancedTabDefs)
+		m.llmTabs.Page = page
+	}
 	switch m.step {
 	case StepProviderSelect:
 		m.form = nil
 		m.buildProviderList()
 	case StepLLMConfig:
 		m.form = buildLLMForm(m.data)
+	case StepLLMAdvancedAsk:
+		m.form = buildLLMAdvancedAskForm(m.data)
+	case StepLLMProviderSettings:
+		m.form = buildLLMProviderSettingsForm(m.data, providerAPI(m.data.Providers[m.data.SelectedProv]))
+	case StepLLMCapabilityDefault:
+		m.form = buildLLMCapabilityForm("All", &m.data.LLMCapability.Default)
+	case StepLLMCapabilityLite:
+		m.form = buildLLMCapabilityForm("Lite", &m.data.LLMCapability.Lite)
+	case StepLLMCapabilityFlash:
+		m.form = buildLLMCapabilityForm("Flash", &m.data.LLMCapability.Flash)
+	case StepLLMCapabilityPro:
+		m.form = buildLLMCapabilityForm("Pro", &m.data.LLMCapability.Pro)
+	case StepLLMUsagePricing:
+		m.form = buildLLMUsagePricingForm(m.data)
 	case StepToolsMenu:
 		m.form = nil
 		m.buildToolsList()

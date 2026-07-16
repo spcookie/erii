@@ -68,6 +68,10 @@ func buildEnvVars(d *SetupData) map[string]string {
 	vars := make(map[string]string)
 	prov := d.Providers[d.SelectedProv]
 	provKey := prov.Key
+	coreKey := providerCoreKey(prov)
+	if coreKey == "" {
+		coreKey = provKey
+	}
 
 	envKey := strings.ReplaceAll(strings.ToUpper(provKey), "-", "_") + "_API_KEY"
 	if d.APIKey != "" {
@@ -122,7 +126,12 @@ func modifyConfig(d *SetupData, filePath string) error {
 	ctx := pathStack{}
 	prov := d.Providers[d.SelectedProv]
 	provKey := prov.Key
-	choiceModel := hoconKeyToChoiceModel(prov.Key)
+	coreKey := providerCoreKey(prov)
+	if coreKey == "" {
+		coreKey = provKey
+	}
+	choiceModel := hoconKeyToChoiceModel(coreKey)
+	envKey := strings.ReplaceAll(strings.ToUpper(provKey), "-", "_") + "_API_KEY"
 
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
@@ -147,9 +156,8 @@ func modifyConfig(d *SetupData, filePath string) error {
 		}
 
 		// Provider-specific llm blocks (new nested providers structure)
-		if ctx.match("llm", "providers", provKey) {
+		if ctx.match("llm", "providers", coreKey) {
 			if isKey(trimmed, "api-key") {
-				envKey := strings.ReplaceAll(strings.ToUpper(provKey), "-", "_") + "_API_KEY"
 				lines[i] = migrateSensitiveToEnv(line, &d.APIKey, "${?"+envKey+"}")
 			}
 			if isKey(trimmed, "base-url") && d.BaseURL != "" {
@@ -158,7 +166,7 @@ func modifyConfig(d *SetupData, filePath string) error {
 		}
 
 		// Provider models
-		if ctx.match("llm", "providers", provKey, "models") {
+		if ctx.match("llm", "providers", coreKey, "models") {
 			if d.ModelMode == "all" && d.AllModel != "" {
 				if isKey(trimmed, "lite") {
 					lines[i] = replaceHoconValue(line, d.AllModel)
@@ -180,6 +188,45 @@ func modifyConfig(d *SetupData, filePath string) error {
 					lines[i] = replaceHoconValue(line, d.ProModel)
 				}
 			}
+		}
+
+		// Provider settings
+		if ctx.match("llm", "providers", coreKey, "settings") {
+			for key, value := range d.LLMSettings {
+				if isKey(trimmed, key) && value != "" {
+					lines[i] = replaceHoconValue(line, value)
+				}
+			}
+		}
+
+		// LLM capabilities
+		if ctx.exact("llm", "capability") {
+			lines[i] = replaceCapabilityLine(line, trimmed, d.LLMCapability.Default)
+		}
+		if ctx.exact("llm", "capability", "lite") {
+			lines[i] = replaceCapabilityLine(line, trimmed, d.LLMCapability.Lite)
+		}
+		if ctx.exact("llm", "capability", "flash") {
+			lines[i] = replaceCapabilityLine(line, trimmed, d.LLMCapability.Flash)
+		}
+		if ctx.exact("llm", "capability", "pro") {
+			lines[i] = replaceCapabilityLine(line, trimmed, d.LLMCapability.Pro)
+		}
+
+		// LLM usage pricing
+		if ctx.exact("llm", "usage-pricing") {
+			if isKey(trimmed, "price-unit") && d.LLMUsagePricing.PriceUnit != "" {
+				lines[i] = replaceHoconValue(line, d.LLMUsagePricing.PriceUnit)
+			}
+		}
+		if ctx.exact("llm", "usage-pricing", "lite") {
+			lines[i] = replacePricingLine(line, trimmed, d.LLMUsagePricing.Lite)
+		}
+		if ctx.exact("llm", "usage-pricing", "flash") {
+			lines[i] = replacePricingLine(line, trimmed, d.LLMUsagePricing.Flash)
+		}
+		if ctx.exact("llm", "usage-pricing", "pro") {
+			lines[i] = replacePricingLine(line, trimmed, d.LLMUsagePricing.Pro)
 		}
 
 		// embedding
@@ -420,6 +467,13 @@ func (p pathStack) match(path ...string) bool {
 	return true
 }
 
+func (p pathStack) exact(path ...string) bool {
+	if len(p) != len(path) {
+		return false
+	}
+	return p.match(path...)
+}
+
 // ---- Helpers ----
 
 var (
@@ -464,9 +518,9 @@ func migrateSensitiveToEnv(line string, target *string, envRef string) string {
 		return line
 	}
 	origValue := strings.TrimSpace(matches[2])
-	// Already an env reference — keep as-is
+	// Already an env reference — switch to the selected provider preset's env var.
 	if strings.HasPrefix(origValue, "${") {
-		return line
+		return matches[1] + envRef
 	}
 	// Plaintext — strip quotes and capture
 	val := strings.Trim(origValue, "\"")
@@ -474,6 +528,42 @@ func migrateSensitiveToEnv(line string, target *string, envRef string) string {
 		*target = val
 	}
 	return matches[1] + envRef
+}
+
+func replaceCapabilityLine(line string, trimmed string, c LLMCapabilitySet) string {
+	switch {
+	case isKey(trimmed, "completion"):
+		return replaceHoconValue(line, fmt.Sprintf("%v", c.Completion))
+	case isKey(trimmed, "prompt-caching"):
+		return replaceHoconValue(line, fmt.Sprintf("%v", c.PromptCaching))
+	case isKey(trimmed, "temperature"):
+		return replaceHoconValue(line, fmt.Sprintf("%v", c.Temperature))
+	case isKey(trimmed, "tools"):
+		return replaceHoconValue(line, fmt.Sprintf("%v", c.Tools))
+	case isKey(trimmed, "tool-choice"):
+		return replaceHoconValue(line, fmt.Sprintf("%v", c.ToolChoice))
+	case isKey(trimmed, "multiple-choices"):
+		return replaceHoconValue(line, fmt.Sprintf("%v", c.MultipleChoices))
+	case isKey(trimmed, "thinking"):
+		return replaceHoconValue(line, fmt.Sprintf("%v", c.Thinking))
+	case isKey(trimmed, "vision-image"):
+		return replaceHoconValue(line, fmt.Sprintf("%v", c.VisionImage))
+	default:
+		return line
+	}
+}
+
+func replacePricingLine(line string, trimmed string, p LLMPricingTierDefaults) string {
+	switch {
+	case isKey(trimmed, "input-cache-hit"):
+		return replaceHoconValue(line, fmt.Sprintf("%g", p.InputCacheHit))
+	case isKey(trimmed, "input-cache-miss"):
+		return replaceHoconValue(line, fmt.Sprintf("%g", p.InputCacheMiss))
+	case isKey(trimmed, "output"):
+		return replaceHoconValue(line, fmt.Sprintf("%g", p.Output))
+	default:
+		return line
+	}
 }
 
 func replaceHoconArray(line string, csv string) string {

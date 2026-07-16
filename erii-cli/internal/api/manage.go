@@ -1,7 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -206,7 +208,40 @@ func (c *Client) GetUsage(botID, groupID string) (*TokenUsageSummary, error) {
 	return doJSONRequest[*TokenUsageSummary](c, "GET", path, nil)
 }
 
-func (c *Client) RefreshConfig() error {
-	_, err := c.doRequest("POST", "/api/config/refresh", nil)
-	return err
+func (c *Client) RefreshConfig() (*ConfigRefreshResponse, error) {
+	data, statusCode, err := c.doRequestWithStatus("POST", "/api/config/refresh", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result ConfigRefreshResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		if statusCode >= 400 {
+			return nil, fmt.Errorf("HTTP %d: %s", statusCode, string(data))
+		}
+		return nil, err
+	}
+	result.HTTPStatus = statusCode
+	return &result, nil
+}
+
+func (c *Client) RefreshPlugins(pluginID string) (*PluginRefreshResponse, error) {
+	path := "/api/plugins/refresh"
+	if strings.TrimSpace(pluginID) != "" {
+		path = fmt.Sprintf("/api/plugins/%s/refresh", url.PathEscape(pluginID))
+	}
+	data, statusCode, err := c.doRequestWithStatus("POST", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result PluginRefreshResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		if statusCode >= 400 {
+			return nil, fmt.Errorf("HTTP %d: %s", statusCode, string(data))
+		}
+		return nil, err
+	}
+	result.HTTPStatus = statusCode
+	return &result, nil
 }

@@ -17,6 +17,9 @@ import (
 func Reload() error {
 	var created, merged, skipped, errors int
 
+	fmt.Println()
+	fmt.Println(reloadTitleStyle.Render("Reload configuration") + " " + reloadStatusBadge("running"))
+
 	if err := reloadConfigDirs(&created, &merged, &skipped, &errors); err != nil {
 		return err
 	}
@@ -28,14 +31,18 @@ func Reload() error {
 	}
 
 	total := created + merged + skipped + errors
-	fmt.Printf("\n%s\n", sectionStyle.Render("=== Summary ==="))
-	fmt.Printf("Total: %d | %s: %d | %s: %d | %s: %d | %s: %d\n",
-		total,
-		createdStyle.Render("Created"), created,
-		mergedStyle.Render("Merged"), merged,
-		skippedStyle.Render("Skipped"), skipped,
-		errorStyle.Render("Errors"), errors,
-	)
+	status := "ok"
+	if errors > 0 {
+		status = "error"
+	}
+	fmt.Println()
+	fmt.Println(reloadTitleStyle.Render("Reload result") + " " + reloadStatusBadge(status))
+	fmt.Println(reloadSectionStyle.Render("Summary"))
+	fmt.Print(reloadRow("Total", fmt.Sprintf("%d files", total)))
+	fmt.Print(reloadRow("Created", fmt.Sprintf("%d files", created)))
+	fmt.Print(reloadRow("Merged", fmt.Sprintf("%d files", merged)))
+	fmt.Print(reloadRow("Skipped", fmt.Sprintf("%d files", skipped)))
+	fmt.Print(reloadRow("Errors", fmt.Sprintf("%d files", errors)))
 
 	return nil
 }
@@ -56,19 +63,22 @@ func reloadPlugins(created, merged, skipped, errors *int) error {
 func reloadConfigDirs(created, merged, skipped, errors *int) error {
 	updateDir := FindUpdateConfDir()
 	if _, err := os.Stat(updateDir); os.IsNotExist(err) {
-		fmt.Println("\n" + sectionStyle.Render("=== Config Directory Merge ==="))
-		fmt.Println("  " + skippedStyle.Render("skipped") + " (.update-conf/ not found)")
+		fmt.Println()
+		fmt.Println(reloadSectionStyle.Render("Config directory merge"))
+		fmt.Print(reloadRow("Status", "skipped"))
+		fmt.Print(reloadRow("Reason", ".update-conf/ not found"))
 		return nil
 	}
 
-	fmt.Println("\n" + sectionStyle.Render("=== Config Directory Merge ==="))
+	fmt.Println()
+	fmt.Println(reloadSectionStyle.Render("Config directory merge"))
 
 	metaResults, err := ReloadMetaDir(
 		filepath.Join(updateDir, ".conf"),
 		path.ConfMetaDir,
 	)
 	if err != nil {
-		fmt.Printf("  Meta merge error: %v\n", err)
+		fmt.Print(reloadRow("Meta", "error: "+err.Error()))
 	}
 
 	confResult, err := ReloadConfDirs(
@@ -76,7 +86,7 @@ func reloadConfigDirs(created, merged, skipped, errors *int) error {
 		path.ConfDir,
 	)
 	if err != nil {
-		fmt.Printf("  Conf merge error: %v\n", err)
+		fmt.Print(reloadRow("Conf", "error: "+err.Error()))
 	} else {
 		printFileResult("application.conf", confResult.AppConfResult)
 		printFileResult(".env.local", confResult.EnvResult)
@@ -103,7 +113,7 @@ func reloadConfigDirs(created, merged, skipped, errors *int) error {
 		*created, *merged, *skipped, *errors = tally(*created, *merged, *skipped, *errors, r.Action)
 	}
 
-	fmt.Println("\n" + createdStyle.Render("✓") + " Config directory merge completed.")
+	fmt.Print(reloadRow("Status", "completed"))
 	return nil
 }
 
@@ -111,18 +121,49 @@ func reloadMetadata() error {
 	if err := LoadMetadata(path.ConfMetaDir); err != nil {
 		return fmt.Errorf("metadata reload failed: %w", err)
 	}
-	fmt.Println("\n" + createdStyle.Render("✓") + " Metadata schemas reloaded successfully.")
+	fmt.Println()
+	fmt.Println(reloadSectionStyle.Render("Metadata schemas"))
+	fmt.Print(reloadRow("Status", "reloaded"))
 	return nil
 }
 
 var (
-	sectionStyle = lipgloss.NewStyle().Foreground(style.Primary).Bold(true)
-	pluginStyle  = lipgloss.NewStyle().Foreground(style.Secondary).Bold(true)
-	createdStyle = lipgloss.NewStyle().Foreground(style.Success)
-	mergedStyle  = lipgloss.NewStyle().Foreground(style.Info)
-	skippedStyle = lipgloss.NewStyle().Foreground(style.Warning)
-	errorStyle   = lipgloss.NewStyle().Foreground(style.Error).Bold(true)
-	mutedStyle   = lipgloss.NewStyle().Foreground(style.TextMuted)
+	reloadTitleStyle = lipgloss.NewStyle().
+				Foreground(style.Primary).
+				Bold(true)
+	reloadMutedStyle = lipgloss.NewStyle().
+				Foreground(style.TextMuted)
+	reloadLabelStyle = lipgloss.NewStyle().
+				Foreground(style.TextMuted).
+				Width(14)
+	reloadValueStyle = lipgloss.NewStyle().
+				Foreground(style.Text).
+				Bold(true)
+	reloadSectionStyle = lipgloss.NewStyle().
+				Foreground(style.Secondary).
+				Bold(true)
+	reloadPluginStyle = lipgloss.NewStyle().
+				Foreground(style.Info).
+				Bold(true)
+	reloadOkBadge = lipgloss.NewStyle().
+			Foreground(style.Background).
+			Background(style.Success).
+			Bold(true).
+			Padding(0, 1)
+	reloadErrorBadge = lipgloss.NewStyle().
+				Foreground(style.Background).
+				Background(style.Error).
+				Bold(true).
+				Padding(0, 1)
+	reloadWarningBadge = lipgloss.NewStyle().
+				Foreground(style.Background).
+				Background(style.Warning).
+				Bold(true).
+				Padding(0, 1)
+	reloadCreatedStyle = lipgloss.NewStyle().Foreground(style.Success).Bold(true)
+	reloadMergedStyle  = lipgloss.NewStyle().Foreground(style.Info).Bold(true)
+	reloadSkippedStyle = lipgloss.NewStyle().Foreground(style.Warning).Bold(true)
+	reloadErrorStyle   = lipgloss.NewStyle().Foreground(style.Error).Bold(true)
 )
 
 func printPluginSummary(summary *PluginInitSummary, created, merged, skipped, errors *int) {
@@ -130,13 +171,15 @@ func printPluginSummary(summary *PluginInitSummary, created, merged, skipped, er
 		return
 	}
 
-	fmt.Println("\n" + sectionStyle.Render("=== Plugin Configuration Reload ==="))
+	fmt.Println()
+	fmt.Println(reloadSectionStyle.Render("Plugin configuration reload"))
 
 	for _, r := range summary.Results {
-		fmt.Printf("\n%s\n", pluginStyle.Render("["+r.PluginID+"]"))
+		fmt.Println()
+		fmt.Println("  " + reloadPluginStyle.Render(r.PluginID))
 
 		if r.Error != nil {
-			fmt.Printf("  %s: %v\n", errorStyle.Render("Error"), r.Error)
+			fmt.Print(reloadIndentedRow("Error", r.Error.Error()))
 			*errors++
 			continue
 		}
@@ -170,15 +213,15 @@ func tally(created, merged, skipped, errors int, actions ...string) (int, int, i
 func printFileResult(label string, r FileMergeResult) {
 	switch r.Action {
 	case "created":
-		fmt.Printf("  %s: %s (keys: %v)\n", label, createdStyle.Render("created"), r.AddedKeys)
+		fmt.Print(reloadIndentedRow(label, reloadCreatedStyle.Render("created")+reloadKeysSuffix("keys", r.AddedKeys)))
 	case "merged":
-		fmt.Printf("  %s: %s (new keys: %v)\n", label, mergedStyle.Render("merged"), r.AddedKeys)
+		fmt.Print(reloadIndentedRow(label, reloadMergedStyle.Render("merged")+reloadKeysSuffix("new keys", r.AddedKeys)))
 	case "skipped":
-		fmt.Printf("  %s: %s (up to date)\n", label, skippedStyle.Render("skipped"))
+		fmt.Print(reloadIndentedRow(label, reloadSkippedStyle.Render("skipped")+" "+reloadMutedStyle.Render("up to date")))
 	case "source_missing":
-		fmt.Printf("  %s: %s (%s)\n", label, skippedStyle.Render("skipped"), mutedStyle.Render("source not found"))
+		fmt.Print(reloadIndentedRow(label, reloadSkippedStyle.Render("skipped")+" "+reloadMutedStyle.Render("source not found")))
 	case "error":
-		fmt.Printf("  %s: %s - %v\n", label, errorStyle.Render("error"), r.Error)
+		fmt.Print(reloadIndentedRow(label, reloadErrorStyle.Render("error")+" "+r.Error.Error()))
 	}
 }
 
@@ -191,13 +234,39 @@ func printFileResults(label string, results []FileMergeResult) {
 		created, merged, skipped, errors = tally(created, merged, skipped, errors, r.Action)
 	}
 	parts := []string{
-		createdStyle.Render("created") + " " + fmt.Sprint(created),
-		mergedStyle.Render("merged") + " " + fmt.Sprint(merged),
-		skippedStyle.Render("skipped") + " " + fmt.Sprint(skipped),
+		reloadCreatedStyle.Render("created") + " " + fmt.Sprint(created),
+		reloadMergedStyle.Render("merged") + " " + fmt.Sprint(merged),
+		reloadSkippedStyle.Render("skipped") + " " + fmt.Sprint(skipped),
 	}
 	if errors > 0 {
-		parts = append(parts, errorStyle.Render("errors")+" "+fmt.Sprint(errors))
+		parts = append(parts, reloadErrorStyle.Render("errors")+" "+fmt.Sprint(errors))
 	}
-	fmt.Printf("  %s: %s\n", label, strings.Join(parts, ", "))
+	fmt.Print(reloadIndentedRow(label, strings.Join(parts, ", ")))
 }
 
+func reloadStatusBadge(status string) string {
+	label := strings.ToUpper(status)
+	switch strings.ToLower(status) {
+	case "ok", "success", "completed":
+		return reloadOkBadge.Render(label)
+	case "error", "failed":
+		return reloadErrorBadge.Render(label)
+	default:
+		return reloadWarningBadge.Render(label)
+	}
+}
+
+func reloadRow(label, value string) string {
+	return "  " + reloadLabelStyle.Render(label) + reloadValueStyle.Render(value) + "\n"
+}
+
+func reloadIndentedRow(label, value string) string {
+	return "    " + reloadLabelStyle.Render(label) + value + "\n"
+}
+
+func reloadKeysSuffix(label string, keys []string) string {
+	if len(keys) == 0 {
+		return ""
+	}
+	return " " + reloadMutedStyle.Render(fmt.Sprintf("%s: %s", label, strings.Join(keys, ", ")))
+}

@@ -1,5 +1,10 @@
 package api
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // ── Paginated Response ──
 
 type PaginatedResponse[T any] struct {
@@ -360,6 +365,62 @@ type PluginStats struct {
 	CmdExtensions     int `json:"cmdExtensions"`
 	RouteExtensions   int `json:"routeExtensions"`
 	PassiveExtensions int `json:"passiveExtensions"`
+}
+
+type PluginRefreshResponse struct {
+	Status            string            `json:"status"`
+	Message           string            `json:"message"`
+	RequestedPluginID string            `json:"requestedPluginId,omitempty"`
+	RefreshedPlugins  []string          `json:"refreshedPlugins"`
+	LoadedExtensions  int               `json:"loadedExtensions"`
+	FailedPlugins     map[string]string `json:"failedPlugins"`
+	HTTPStatus        int               `json:"-"`
+}
+
+type ConfigRefreshResponse struct {
+	Status     string                 `json:"status"`
+	Message    string                 `json:"message"`
+	Reloaded   ConfigReloadedSummary  `json:"reloaded"`
+	Bots       BotRefreshSummary      `json:"bots"`
+	Extra      map[string]interface{} `json:"-"`
+	HTTPStatus int                    `json:"-"`
+}
+
+type ConfigReloadedSummary struct {
+	Config bool `json:"config"`
+	Roles  int  `json:"roles"`
+	Rules  int  `json:"rules"`
+	MCP    int  `json:"mcp"`
+}
+
+type BotRefreshSummary struct {
+	Added       BotRefreshItems `json:"added"`
+	Removed     BotRefreshItems `json:"removed"`
+	Reconnected BotRefreshItems `json:"reconnected"`
+	RoleUpdated BotRefreshItems `json:"roleUpdated"`
+	Failed      BotRefreshItems `json:"failed"`
+}
+
+type BotRefreshItems []string
+
+func (items *BotRefreshItems) UnmarshalJSON(data []byte) error {
+	var names []string
+	if err := json.Unmarshal(data, &names); err == nil {
+		*items = names
+		return nil
+	}
+
+	var count int
+	if err := json.Unmarshal(data, &count); err == nil {
+		*items = make([]string, count)
+		return nil
+	}
+
+	return fmt.Errorf("expected bot refresh items as array or count")
+}
+
+func (items BotRefreshItems) Count() int {
+	return len(items)
 }
 
 // ── Cron Tasks ──

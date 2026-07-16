@@ -20,11 +20,54 @@ func renderStepPage(title, content string) string {
 	return b.String()
 }
 
-func renderFormStep(title string, form *huh.Form) string {
+type tabItem struct {
+	Label  string
+	Active bool
+}
+
+func renderFormStep(title string, form *huh.Form, validationMessage string, tabs []tabItem) string {
 	if form == nil {
 		return renderStepPage(title, "")
 	}
-	return style.Title(title) + "\n\n" + form.View()
+	parts := []string{style.Title(title)}
+	if len(tabs) > 0 {
+		parts = append(parts, renderTabs(tabs))
+	}
+	if validationMessage != "" {
+		parts = append(parts, renderValidationMessage(validationMessage))
+	}
+	parts = append(parts, form.View())
+	return strings.Join(parts, "\n\n")
+}
+
+func renderTabs(tabs []tabItem) string {
+	parts := make([]string, 0, len(tabs))
+	for _, tab := range tabs {
+		label := " " + tab.Label + " "
+		if tab.Active {
+			parts = append(parts, lipgloss.NewStyle().
+				Foreground(style.SurfaceAlt).
+				Background(style.Primary).
+				Bold(true).
+				Render(label))
+		} else {
+			parts = append(parts, lipgloss.NewStyle().
+				Foreground(style.TextMuted).
+				Border(lipgloss.NormalBorder(), false, false, true, false).
+				BorderForeground(style.BorderColor).
+				Render(label))
+		}
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+}
+
+func renderValidationMessage(message string) string {
+	return lipgloss.NewStyle().
+		Foreground(style.Error).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(style.Error).
+		Padding(0, 1).
+		Render("Validation failed: " + message)
 }
 
 // ---- Timeline ----

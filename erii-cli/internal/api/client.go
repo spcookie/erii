@@ -31,20 +31,32 @@ func NewClient(port int, username, password string) *Client {
 }
 
 func (c *Client) doRequest(method, path string, body any) ([]byte, error) {
+	respBody, statusCode, err := c.doRequestWithStatus(method, path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	if statusCode >= 400 {
+		return nil, fmt.Errorf("HTTP %d: %s", statusCode, string(respBody))
+	}
+	return respBody, nil
+}
+
+func (c *Client) doRequestWithStatus(method, path string, body any) ([]byte, int, error) {
 	url := c.baseURL + path
 
 	var bodyReader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		bodyReader = bytes.NewReader(data)
 	}
 
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	req.SetBasicAuth(c.username, c.password)
 	if body != nil {
@@ -53,7 +65,7 @@ func (c *Client) doRequest(method, path string, body any) ([]byte, error) {
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, friendlyRequestError(err)
+		return nil, 0, friendlyRequestError(err)
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
@@ -61,13 +73,10 @@ func (c *Client) doRequest(method, path string, body any) ([]byte, error) {
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
-	}
-	return respBody, nil
+	return respBody, resp.StatusCode, nil
 }
 
 func doJSONRequest[T any](c *Client, method, path string, body any) (T, error) {
