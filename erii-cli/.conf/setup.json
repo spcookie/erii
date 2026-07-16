@@ -3,14 +3,30 @@
     {
       "name": "OpenAI",
       "key": "openai",
+      "api": "openai",
       "desc": "OpenAI models",
       "base-url": "https://api.openai.com/v1"
     },
     {
       "name": "Anthropic",
       "key": "anthropic",
+      "api": "anthropic",
       "desc": "Anthropic Claude models",
       "base-url": "https://api.anthropic.com"
+    },
+    {
+      "name": "DeepSeek",
+      "key": "deepseek",
+      "api": "openai",
+      "desc": "DeepSeek OpenAI-compatible models",
+      "base-url": "https://api.deepseek.com"
+    },
+    {
+      "name": "SiliconFlow",
+      "key": "siliconflow",
+      "api": "openai",
+      "desc": "SiliconFlow OpenAI-compatible models",
+      "base-url": "https://api.siliconflow.cn/v1"
     }
   ],
   "defaults": {
@@ -20,14 +36,114 @@
         "lite-model": "gpt-4.1-nano",
         "flash-model": "gpt-4.1-mini",
         "pro-model": "gpt-4.1",
-        "all-model": "gpt-4.1"
+        "all-model": "gpt-4.1",
+        "settings": {
+          "chat-completions": "v1/chat/completions",
+          "responses-api": "v1/responses",
+          "embeddings": "v1/embeddings",
+          "moderations": "v1/moderations",
+          "models": "v1/models"
+        }
       },
       "anthropic": {
         "model-mode": "separate",
         "lite-model": "claude-haiku-4-5-20251001",
         "flash-model": "claude-sonnet-4-6",
         "pro-model": "claude-sonnet-4-6",
-        "all-model": "claude-sonnet-4-6"
+        "all-model": "claude-sonnet-4-6",
+        "settings": {
+          "api-version": "2023-06-01",
+          "messages": "v1/messages",
+          "models": "v1/models"
+        }
+      },
+      "deepseek": {
+        "model-mode": "separate",
+        "lite-model": "deepseek-chat",
+        "flash-model": "deepseek-chat",
+        "pro-model": "deepseek-reasoner",
+        "all-model": "deepseek-chat",
+        "settings": {
+          "chat-completions": "v1/chat/completions",
+          "responses-api": "v1/responses",
+          "embeddings": "v1/embeddings",
+          "moderations": "v1/moderations",
+          "models": "v1/models"
+        }
+      },
+      "siliconflow": {
+        "model-mode": "separate",
+        "lite-model": "Qwen/Qwen3-8B",
+        "flash-model": "Qwen/Qwen3-32B",
+        "pro-model": "deepseek-ai/DeepSeek-V3",
+        "all-model": "Qwen/Qwen3-32B",
+        "settings": {
+          "chat-completions": "v1/chat/completions",
+          "responses-api": "v1/responses",
+          "embeddings": "v1/embeddings",
+          "moderations": "v1/moderations",
+          "models": "v1/models"
+        }
+      }
+    },
+    "llm-capability": {
+      "default": {
+        "completion": true,
+        "prompt-caching": true,
+        "temperature": true,
+        "tools": true,
+        "tool-choice": true,
+        "multiple-choices": true,
+        "thinking": true,
+        "vision-image": true
+      },
+      "lite": {
+        "completion": true,
+        "prompt-caching": true,
+        "temperature": true,
+        "tools": true,
+        "tool-choice": true,
+        "multiple-choices": true,
+        "thinking": false,
+        "vision-image": false
+      },
+      "flash": {
+        "completion": true,
+        "prompt-caching": true,
+        "temperature": true,
+        "tools": true,
+        "tool-choice": true,
+        "multiple-choices": true,
+        "thinking": true,
+        "vision-image": true
+      },
+      "pro": {
+        "completion": true,
+        "prompt-caching": true,
+        "temperature": true,
+        "tools": true,
+        "tool-choice": true,
+        "multiple-choices": true,
+        "thinking": true,
+        "vision-image": true
+      }
+    },
+    "llm-usage-pricing": {
+      "price-unit": "USD",
+      "lite": {
+        "input-cache-hit": 0.01875,
+        "input-cache-miss": 0.075,
+        "output": 0.3
+      },
+      "flash": {
+        "input-cache-hit": 0.025,
+        "input-cache-miss": 0.1,
+        "output": 0.4
+      },
+      "pro": {
+        "input-cache-hit": 0.3125,
+        "input-cache-miss": 1.25,
+        "output": 10
       }
     },
     "bot": {

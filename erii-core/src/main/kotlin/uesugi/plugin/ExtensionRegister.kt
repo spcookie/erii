@@ -19,10 +19,18 @@ object ExtensionRegister {
 
     fun clear() {
         extensions.clear()
+        plugins.clear()
+    }
+
+    fun removePlugin(pluginId: String) {
+        val removed = plugins.remove(pluginId).orEmpty().toSet()
+        if (removed.isNotEmpty()) {
+            extensions.removeAll(removed)
+        }
     }
 
     fun getAllPlugins(): Map<String, List<AgentExtension<*>>> {
-        return plugins
+        return plugins.mapValues { it.value.toList() }
     }
 
     fun getExtensions(pluginId: String): List<AgentExtension<*>> {

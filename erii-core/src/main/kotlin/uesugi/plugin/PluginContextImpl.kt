@@ -18,6 +18,7 @@ import uesugi.core.component.usage.UsageContext
 import uesugi.core.route.MetaToolSetRegister
 import uesugi.core.route.RouteCallEvent
 import uesugi.spi.*
+import kotlin.time.Duration.Companion.milliseconds
 
 class PluginContextImpl(
     override val defined: PluginDef,
@@ -39,8 +40,9 @@ class PluginContextImpl(
         val log = logger()
     }
 
+    private val supervisorJob = SupervisorJob()
     private val scope =
-        CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineName("ImageCreator") + CoroutineExceptionHandler { _, exception ->
+        CoroutineScope(Dispatchers.IO + supervisorJob + CoroutineName("PluginContext-${defined.name}") + CoroutineExceptionHandler { _, exception ->
             log.error("Plugin context detected error: {}", exception.message, exception)
         })
 
@@ -120,6 +122,12 @@ class PluginContextImpl(
         }
         if (this::eventJob.isInitialized) {
             EventBus.unsubscribeAsync(eventJob)
+        }
+        supervisorJob.cancel(CancellationException("Plugin context ${defined.name} closed"))
+        runBlocking {
+            withTimeoutOrNull(3_000.milliseconds) {
+                supervisorJob.children.forEach { it.join() }
+            }
         }
     }
 

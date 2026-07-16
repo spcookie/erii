@@ -13,6 +13,7 @@ import uesugi.config.appModule
 import uesugi.config.configBaseModule
 import uesugi.config.migrationIf
 import uesugi.config.warmUp
+import uesugi.plugin.PluginLifecycleManager
 import uesugi.plugin.pluginModule
 
 fun Application.configureFrameworks() {
@@ -35,4 +36,6 @@ fun Application.configureFrameworks() {
 
     loadKoinModules(pluginModule())
     koin().createEagerInstances()
+
+    koin().get<PluginLifecycleManager>().refreshAll()
 }

@@ -1,16 +1,12 @@
 package uesugi.plugin
 
-import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.dsl.onClose
 import org.pf4j.*
-import uesugi.LOG
 import uesugi.config.HttpClientFactory
-import uesugi.core.route.CmdRuleRegister
-import uesugi.core.route.RouteRuleRegister
-import uesugi.plugin.builtin.BuiltinExtension
-import uesugi.spi.*
+import uesugi.spi.AgentPlugin
+import uesugi.spi.Scheduler
 
 
 class AgentPluginFactory : DefaultPluginFactory() {
@@ -22,11 +18,12 @@ class AgentPluginFactory : DefaultPluginFactory() {
     }
 }
 
-class AgentPluginManager : DefaultPluginManager() {
+class AgentPluginManager : DefaultPluginManager {
+    constructor() : super()
+
     override fun createPluginFactory(): PluginFactory {
         return AgentPluginFactory()
     }
-
 
     override fun createExtensionFactory(): ExtensionFactory {
         return SingletonExtensionFactory(this)
@@ -35,117 +32,33 @@ class AgentPluginManager : DefaultPluginManager() {
     override fun createPluginLoader(): PluginLoader? {
         return super.createPluginLoader()
     }
+
+    fun stopPluginOnly(pluginId: String): PluginState {
+        return stopPlugin(pluginId, false)
+    }
+
+    fun unloadPluginOnly(pluginId: String): Boolean {
+        return unloadPlugin(pluginId, false)
+    }
 }
 
 fun pluginModule() = module(createdAtStart = true) {
     val pluginManager = AgentPluginManager()
 
-    single { pluginManager } onClose {
-        pluginManager.stopPlugins()
-        pluginManager.unloadPlugins()
-    }
+    single { pluginManager }
 
-    pluginManager.loadPlugins()
-    pluginManager.startPlugins()
-
-    LOG.info("Loaded ${pluginManager.startedPlugins.size} plugins")
-
-    val extensions = buildList {
-        val builtinExtensions = pluginManager.getExtensions(BuiltinExtension::class.java)
-        builtinExtensions.forEach { ExtensionRegister.add("builtin", it) }
-        val pluginExtensions = pluginManager.startedPlugins.flatMap { pluginWrapper ->
-            runCatching {
-                val extensions = pluginManager.getExtensions(AgentExtension::class.java, pluginWrapper.pluginId)
-                extensions.forEach { ExtensionRegister.add(pluginWrapper.pluginId, it) }
-                extensions
-            }.onFailure {
-                LOG.warn("Failed to get extensions for ${pluginWrapper.pluginId}", it)
-            }.getOrDefault(emptyList())
-        }
-        addAll(builtinExtensions)
-        addAll(pluginExtensions)
-    }
-
-    LOG.info("Loaded ${extensions.size} extensions")
-
-    ExtensionRegister.getAllPlugins().forEach { (pluginId, extensions) ->
-        extensions.filterIsInstance<RouteExtension<*>>()
-            .forEach { plugin ->
-                val (name, description) = plugin.matcher
-                RouteRuleRegister.addRule(name, description, pluginId)
-            }
-        extensions.filterIsInstance<CmdExtension<*, *, *>>()
-            .forEach { plugin ->
-                val cmdName = plugin.cmd
-                CmdRuleRegister.addRule(cmdName, pluginId)
-                plugin.alias.forEach { alias ->
-                    CmdRuleRegister.addRule(alias, pluginId, cmdName)
-                }
-            }
+    single {
+        PluginLifecycleManager(
+            pluginManager,
+            get(),
+            get(named(HttpClientFactory.Type.NO_PROXY)),
+            get(named(HttpClientFactory.Type.PROXY)),
+        )
+    } onClose {
+        it?.shutdown()
     }
 
     factory<Scheduler> {
         SchedulerImpl(it[0], get())
     }
-
-    extensions.forEach { plugin ->
-        val pluginDef = buildPluginDef(plugin)
-        val mem = MemImpl()
-        val kv = KvImpl(pluginDef)
-        val blob = BlobImpl(pluginDef)
-        val vector = VectorImpl(pluginDef)
-
-        val config = ConfigImpl(plugin)
-
-        val server = ServerImpl(pluginDef)
-
-        var context: PluginContext? = null
-
-        single(named(pluginDef.name)) {
-            runCatching {
-                plugin.apply {
-                    context = PluginContextImpl(
-                        pluginDef,
-                        mem,
-                        kv,
-                        blob,
-                        vector,
-                        config,
-                        get { parametersOf(pluginDef.name) },
-                        get(),
-                        get(named(HttpClientFactory.Type.NO_PROXY)),
-                        server,
-                        get(named(HttpClientFactory.Type.PROXY)),
-                    ).apply {
-                        open()
-                        plugin.onLoad(this)
-                        ready()
-                    }
-                }
-            }.onFailure {
-                LOG.warn("Failed to load extension ${plugin.name}", it)
-            }.getOrDefault(plugin)
-        } onClose {
-            mem.close()
-            kv.close()
-            blob.close()
-            vector.close()
-            context?.close()
-            it?.onUnload()
-        }
-
-    }
-
-}
-
-fun buildPluginDef(plugin: AgentExtension<*>): PluginDef {
-    val routeKeys = buildList {
-        if (plugin is RouteExtension) {
-            add(LLMRouteKey(plugin.matcher.first))
-        }
-        if (plugin is CmdExtension<*, *, *>) {
-            add(CmdRouteKey(plugin.cmd))
-        }
-    }
-    return PluginDefImpl(plugin.name, routeKeys)
 }

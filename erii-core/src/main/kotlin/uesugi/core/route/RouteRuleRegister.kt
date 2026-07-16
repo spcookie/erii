@@ -22,6 +22,14 @@ object RouteRuleRegister {
         rules[name] = pluginId to LLMRouteRule(name, description)
     }
 
+    fun removePlugin(pluginId: String) {
+        rules.entries.removeIf { it.value.first == pluginId }
+    }
+
+    fun clear() {
+        rules.clear()
+    }
+
     fun getRule(name: String): LLMRouteRule? {
         return rules[name]?.second
     }
@@ -44,6 +52,14 @@ object CmdRuleRegister {
 
     fun addRule(name: String, pluginId: String, ruleName: String = name) {
         parsers[name] = pluginId to CmdRouteRule(ruleName)
+    }
+
+    fun removePlugin(pluginId: String) {
+        parsers.entries.removeIf { it.value.first == pluginId }
+    }
+
+    fun clear() {
+        parsers.clear()
     }
 
     fun getRule(name: String): CmdRouteRule? {
@@ -73,6 +89,16 @@ object MetaToolSetRegister {
 
     fun addToolSet(name: String, creator: MetaToolSetCreator) {
         creators[name] = creator
+    }
+
+    fun removePlugin(pluginId: String) {
+        creators.keys.removeIf { pluginName ->
+            pluginName == pluginId || pluginName.startsWith("${pluginId}_")
+        }
+    }
+
+    fun clear() {
+        creators.clear()
     }
 
     fun getToolSet(name: String): (MetaToolSetCreator)? {

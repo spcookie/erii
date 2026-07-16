@@ -10,13 +10,21 @@ import kotlin.time.toJavaDuration
 
 internal class MemImpl : Mem {
 
-    private val default by lazy { Caffeine.newBuilder().build<String, String>() }
+    private val defaultDelegate = lazy { Caffeine.newBuilder().build<String, String>() }
+    private val default by defaultDelegate
 
     private val map = ConcurrentHashMap<String, Cache<String, String>>()
 
-    override suspend fun get(key: String) = default.getIfPresent(key)
+    override suspend fun get(key: String): String? {
+        return default.getIfPresent(key) ?: map.values.firstNotNullOfOrNull { cache ->
+            cache.getIfPresent(key)
+        }
+    }
 
     override suspend fun set(key: String, value: String) {
+        map.values.forEach { cache ->
+            cache.invalidate(key)
+        }
         default.put(key, value)
     }
 
@@ -26,7 +34,14 @@ internal class MemImpl : Mem {
         expire: Duration,
         strategy: ExpireStrategy
     ) {
-        map.getOrPut(strategy.name + "_" + expire.toString()) {
+        default.invalidate(key)
+        val cacheKey = strategy.name + "_" + expire.inWholeMilliseconds
+        map.forEach { (bucket, cache) ->
+            if (bucket != cacheKey) {
+                cache.invalidate(key)
+            }
+        }
+        map.getOrPut(cacheKey) {
             Caffeine.newBuilder()
                 .apply {
                     when (strategy) {
@@ -49,7 +64,9 @@ internal class MemImpl : Mem {
         map.forEach { (_, cache) ->
             cache.invalidateAll()
         }
-        default.invalidateAll()
+        if (defaultDelegate.isInitialized()) {
+            default.invalidateAll()
+        }
     }
 
 }

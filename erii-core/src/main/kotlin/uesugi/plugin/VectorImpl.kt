@@ -9,12 +9,13 @@ import uesugi.spi.Vector
 
 internal class VectorImpl(val defined: PluginDef) : Vector {
 
-    private val default by lazy {
+    private val defaultDelegate = lazy {
         EmbeddedVectorStore(
             path = StorePathConfig.resolve("vector", "plugins", defined.name),
             dimension = 1024
         )
     }
+    private val default by defaultDelegate
 
     override suspend fun embedding(input: List<String>, images: List<ByteArray>): FloatArray {
         val inputs = input.mapIndexed { idx, text ->
@@ -46,6 +47,8 @@ internal class VectorImpl(val defined: PluginDef) : Vector {
     }
 
     override fun close() {
-        default.close()
+        if (defaultDelegate.isInitialized()) {
+            default.close()
+        }
     }
 }

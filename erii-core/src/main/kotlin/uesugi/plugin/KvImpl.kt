@@ -13,23 +13,40 @@ import kotlin.time.Duration
 
 internal class KvImpl(val defined: PluginDef) : Kv {
 
-    private val default by lazy {
-        MapDB.plugin(defined.name).hashMap("kv")
+    private companion object {
+        const val DEFAULT_MAP = "kv"
+        const val EXPIRE_BUCKETS_MAP = "kv_expire_buckets"
+    }
+
+    private val defaultDelegate = lazy {
+        MapDB.plugin(defined.name).hashMap(DEFAULT_MAP)
             .keySerializer(Serializer.STRING)
             .valueSerializer(Serializer.STRING)
             .createOrOpen()
     }
+    private val default by defaultDelegate
+
+    private val bucketIndexDelegate = lazy {
+        MapDB.plugin(defined.name).hashMap(EXPIRE_BUCKETS_MAP)
+            .keySerializer(Serializer.STRING)
+            .valueSerializer(Serializer.STRING)
+            .createOrOpen()
+    }
+    private val bucketIndex by bucketIndexDelegate
 
     private val map = ConcurrentHashMap<String, HTreeMap<String, String>>()
 
     override suspend fun get(key: String): String? {
         return withContext(Dispatchers.IO) {
-            default[key]
+            default[key] ?: bucketKeys().firstNotNullOfOrNull { bucketKey ->
+                bucket(bucketKey)[key]
+            }
         }
     }
 
     override suspend fun set(key: String, value: String) {
         withContext(Dispatchers.IO) {
+            bucketKeys().forEach { bucket(it).remove(key) }
             default[key] = value
         }
     }
@@ -41,26 +58,16 @@ internal class KvImpl(val defined: PluginDef) : Kv {
         strategy: ExpireStrategy
     ) {
         withContext(Dispatchers.IO) {
-            map.getOrPut(strategy.name + "_" + expire.toString()) {
-                MapDB.plugin(defined.name).hashMap("kv")
-                    .keySerializer(Serializer.STRING)
-                    .valueSerializer(Serializer.STRING)
-                    .apply {
-                        when (strategy) {
-                            ExpireStrategy.AFTER_WRITE -> expireAfterCreate(expire.inWholeMilliseconds)
-                            ExpireStrategy.AFTER_ACCESS -> expireAfterGet(expire.inWholeMilliseconds)
-                        }
-                    }
-                    .createOrOpen()
-            }[key] = value
+            default.remove(key)
+            val bucketKey = bucketKey(strategy, expire)
+            bucketIndex[bucketKey] = "1"
+            bucket(bucketKey)[key] = value
         }
     }
 
     override suspend fun delete(key: String) {
         withContext(Dispatchers.IO) {
-            map.forEach { (_, cache) ->
-                cache.remove(key)
-            }
+            bucketKeys().forEach { bucket(it).remove(key) }
             default.remove(key)
         }
     }
@@ -69,7 +76,45 @@ internal class KvImpl(val defined: PluginDef) : Kv {
         map.forEach { (_, cache) ->
             cache.close()
         }
-        default.close()
+        if (defaultDelegate.isInitialized()) {
+            default.close()
+        }
+        if (bucketIndexDelegate.isInitialized()) {
+            bucketIndex.close()
+        }
+    }
+
+    private fun bucket(bucketKey: String): HTreeMap<String, String> {
+        return map.getOrPut(bucketKey) {
+            val (strategy, millis) = parseBucketKey(bucketKey)
+            MapDB.plugin(defined.name).hashMap("kv_$bucketKey")
+                .keySerializer(Serializer.STRING)
+                .valueSerializer(Serializer.STRING)
+                .apply {
+                    when (strategy) {
+                        ExpireStrategy.AFTER_WRITE -> expireAfterCreate(millis)
+                        ExpireStrategy.AFTER_ACCESS -> expireAfterGet(millis)
+                    }
+                }
+                .createOrOpen()
+        }
+    }
+
+    private fun bucketKeys(): Set<String> = buildSet {
+        addAll(map.keys)
+        addAll(bucketIndex.keys)
+    }
+
+    private fun bucketKey(strategy: ExpireStrategy, expire: Duration): String {
+        return "${strategy.name}_${expire.inWholeMilliseconds}"
+    }
+
+    private fun parseBucketKey(bucketKey: String): Pair<ExpireStrategy, Long> {
+        val splitAt = bucketKey.lastIndexOf('_')
+        require(splitAt > 0 && splitAt < bucketKey.length - 1) { "Invalid kv bucket key: $bucketKey" }
+        val strategy = ExpireStrategy.valueOf(bucketKey.substring(0, splitAt))
+        val millis = bucketKey.substring(splitAt + 1).toLong()
+        return strategy to millis
     }
 
 }
