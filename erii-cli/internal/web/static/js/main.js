@@ -3,6 +3,7 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token') || '';
+    const requestedCommandText = (urlParams.get('cmd') || '').trim();
     const requestedTheme = document.documentElement.dataset.theme || 'auto';
     const resolvedTheme = requestedTheme === 'dark' || requestedTheme === 'light'
         ? requestedTheme
@@ -74,6 +75,8 @@
     let runtimeEvents = null;
     let runtimeState = 'checking';
     let cliConnected = false;
+    let autoCommand = null;
+    let autoCommandStarted = false;
 
     // DOM elements
     const terminalContainer = document.getElementById('terminal-container');
@@ -125,6 +128,7 @@
         debugLogButton.disabled = !cliConnected;
         if (!cliConnected) closeServerMenu();
         updateServerActions();
+        maybeRunAutoCommand();
     }
 
     function updateServerActions() {
@@ -225,6 +229,7 @@
             setCommandTag(setupCommand, '', '');
         }
         updateServerActions();
+        maybeRunAutoCommand();
     }
 
     function connectRuntimeStatus() {
@@ -255,6 +260,14 @@
 
     function commandKey(cmd, args) {
         return cmd + (args && args.length ? ' ' + args.join(' ') : '');
+    }
+
+    function findCommandItem(cmd, args) {
+        const key = commandKey(cmd, args || []);
+        for (let i = 0; i < sidebarItems.length; i++) {
+            if (itemCommandKey(sidebarItems[i]) === key) return sidebarItems[i];
+        }
+        return null;
     }
 
     function setActiveCmd(cmd, args, title) {
@@ -451,6 +464,7 @@
             terminalOpened = true;
             activateRenderer();
             scheduleFit(true);
+            maybeRunAutoCommand();
         }
 
         function doOpenLater() {
@@ -521,6 +535,7 @@
             reconnectAttempts = 0;
             socket.send(JSON.stringify({ type: 'auth', token: token }));
             setStatus('connected');
+            maybeRunAutoCommand();
         };
 
         socket.onmessage = function (event) {
@@ -565,6 +580,20 @@
         return value.split(/\s+/).filter(Boolean);
     }
 
+    function parseAutoCommand(value) {
+        const parts = parseArgs(value);
+        if (!parts.length) return null;
+        const cmd = parts[0];
+        if (!/^[A-Za-z0-9_-]+$/.test(cmd)) return null;
+        return {
+            raw: value,
+            cmd: cmd,
+            args: parts.slice(1)
+        };
+    }
+
+    autoCommand = parseAutoCommand(requestedCommandText);
+
     function execCmd(cmd, args, title) {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         args = args || [];
@@ -588,6 +617,18 @@
             rows: term.rows
         }));
         term.focus();
+    }
+
+    function maybeRunAutoCommand() {
+        if (!autoCommand || autoCommandStarted) return;
+        if (!terminalOpened || !cliConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+        const item = findCommandItem(autoCommand.cmd, autoCommand.args);
+        if (item && item.disabled) return;
+
+        autoCommandStarted = true;
+        const title = item ? item.dataset.title : autoCommand.raw;
+        execCmd(autoCommand.cmd, autoCommand.args, title);
     }
 
     // Sidebar click handlers
