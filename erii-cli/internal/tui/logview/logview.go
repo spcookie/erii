@@ -16,7 +16,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 )
 
 var (

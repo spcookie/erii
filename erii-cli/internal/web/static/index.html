@@ -1,102 +1,179 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en" data-theme="__ERII_THEME__">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Erii Console</title>
     <link href="/css/xterm.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preload" href="/fonts/EriiNerdIcons.woff2?v=nerd-v3.4.0-2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/css/style.css?v=__ERII_ASSET_VERSION__">
 </head>
 <body>
     <div id="app">
-        <div id="sidebar">
-            <div id="sidebar-header">
-                <div class="title">Console</div>
+        <div id="console-shell">
+            <div id="topbar">
+                <div class="topbar-brand">
+                    <img class="topbar-mark" src="/img/logo.svg" alt="Erii">
+                    <div>
+                        <div class="topbar-title">Erii Console</div>
+                        <div class="topbar-subtitle">local runtime</div>
+                    </div>
+                </div>
+                <div class="topbar-statuses" aria-live="polite">
+                    <div class="server-control">
+                        <button id="server-menu-button" class="topbar-action" type="button"
+                                aria-haspopup="menu" aria-expanded="false" aria-controls="server-menu"
+                                title="Manage Erii server">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 11-12.8 0"/>
+                            </svg>
+                            <span class="topbar-action-label">Server</span>
+                            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="m6 9 6 6 6-6"/>
+                            </svg>
+                        </button>
+                        <div id="server-menu" class="server-menu" role="menu" aria-label="Server actions" hidden>
+                            <button type="button" role="menuitem" data-server-action="start">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="m8 5 11 7-11 7z"/>
+                                </svg>
+                                <span>Start</span>
+                            </button>
+                            <button type="button" role="menuitem" data-server-action="stop">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <rect x="6" y="6" width="12" height="12" rx="1"/>
+                                </svg>
+                                <span>Stop</span>
+                            </button>
+                            <button type="button" role="menuitem" data-server-action="restart">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M20 11a8 8 0 10-2.34 5.66"/><path d="M20 4v7h-7"/>
+                                </svg>
+                                <span>Restart</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="topbar-status" title="WebSocket connection">
+                        <span id="status-dot" class="status-dot" aria-hidden="true"></span>
+                        <span class="status-label">CLI</span>
+                        <span id="status-text">Connecting</span>
+                    </div>
+                    <div id="core-status" class="topbar-status checking" title="Checking Erii core">
+                        <span id="core-status-dot" class="status-dot" aria-hidden="true"></span>
+                        <span class="status-label">Core</span>
+                        <span id="core-status-text">Checking</span>
+                    </div>
+                </div>
             </div>
-            <nav id="sidebar-nav">
-                <div class="sidebar-group">
-                    <div class="sidebar-group-label">配置</div>
-                    <button class="sidebar-item" data-cmd="setup">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
-                        </svg>
-                        setup
-                    </button>
-                    <button class="sidebar-item" data-cmd="config">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                        </svg>
-                        config
-                    </button>
-                </div>
-                <div class="sidebar-group">
-                    <div class="sidebar-group-label">数据</div>
-                    <button class="sidebar-item" data-cmd="manage">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
-                        </svg>
-                        manage
-                    </button>
-                    <button class="sidebar-item" data-cmd="stats">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-                        </svg>
-                        stats
-                    </button>
-                    <button class="sidebar-item" data-cmd="usage">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="13" width="4" height="7"/><rect x="10" y="8" width="4" height="12"/><rect x="17" y="3" width="4" height="17"/>
-                        </svg>
-                        usage
-                    </button>
-                </div>
-                <div class="sidebar-group">
-                    <div class="sidebar-group-label">对话</div>
-                    <button class="sidebar-item" data-cmd="chat">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                        </svg>
-                        chat
-                    </button>
-                </div>
-                <div class="sidebar-group">
-                    <div class="sidebar-group-label">系统</div>
-                    <button class="sidebar-item" data-cmd="refresh">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
-                        </svg>
-                        refresh
-                    </button>
-                    <button class="sidebar-item" data-cmd="reload">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-                        </svg>
-                        reload
-                    </button>
-                </div>
-            </nav>
-        </div>
-        <div id="resize-handle"></div>
-        <div id="main">
-            <div id="terminal-header">
-                <span class="current-cmd" id="current-cmd">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>
-                    </svg>
-                    erii
-                </span>
-            </div>
-            <div id="terminal-container"></div>
-            <div id="status-bar">
-                <span id="status-dot" class="status-dot"></span>
-                <span id="status-text">未连接</span>
+            <div id="workspace">
+                <aside id="sidebar">
+                    <div id="sidebar-header">
+                        <div class="eyebrow">ERII CLI</div>
+                        <div class="title">Commands</div>
+                    </div>
+                    <nav id="sidebar-nav">
+                        <div class="sidebar-group">
+                            <div class="sidebar-group-label">Configuration</div>
+                            <button id="setup-command" class="sidebar-item" data-cmd="setup">
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+                                </svg>
+                                <span>Setup</span>
+                            </button>
+                            <button class="sidebar-item" data-cmd="config">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                                </svg>
+                                <span>Config</span>
+                            </button>
+                        </div>
+                        <div class="sidebar-group">
+                            <div class="sidebar-group-label">Data</div>
+                            <button class="sidebar-item" data-cmd="manage" data-requires-core="true" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
+                                </svg>
+                                <span>Manage</span>
+                            </button>
+                            <button class="sidebar-item" data-cmd="stats" data-requires-core="true" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                                </svg>
+                                <span>Stats</span>
+                            </button>
+                            <button class="sidebar-item" data-cmd="usage" data-requires-core="true" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="13" width="4" height="7"/><rect x="10" y="8" width="4" height="12"/><rect x="17" y="3" width="4" height="17"/>
+                                </svg>
+                                <span>Usage</span>
+                            </button>
+                        </div>
+                        <div class="sidebar-group">
+                            <div class="sidebar-group-label">Chat</div>
+                            <button class="sidebar-item" data-cmd="chat" data-requires-core="true" disabled>
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                                </svg>
+                                <span>Chat</span>
+                            </button>
+                        </div>
+                        <div class="sidebar-group">
+                            <div class="sidebar-group-label">System</div>
+                            <button class="sidebar-item" data-cmd="refresh" data-requires-core="true" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                                </svg>
+                                <span>Refresh</span>
+                            </button>
+                            <button class="sidebar-item" data-cmd="reload">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                                </svg>
+                                <span>Reload</span>
+                            </button>
+                            <button class="sidebar-item" data-cmd="plugin" data-args="refresh" data-title="Plugin Refresh" data-requires-core="true" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2v6l4-4"/><path d="M20 11a8 8 0 11-2.34-5.66"/><path d="M8 13h8M8 17h5"/>
+                                </svg>
+                                <span>Plugin Refresh</span>
+                            </button>
+                        </div>
+                    </nav>
+                </aside>
+                <div id="resize-handle"></div>
+                <main id="main">
+                    <div id="terminal-header">
+                        <span class="current-cmd" id="current-cmd">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>
+                            </svg>
+                            <span>erii</span>
+                        </span>
+                        <div class="terminal-actions">
+                            <button id="debug-log-button" class="terminal-icon-button" type="button"
+                                    title="Open Erii logs" aria-label="Open Erii logs" aria-pressed="false">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M8 2h8M9 2v3M15 2v3"/><rect x="5" y="5" width="14" height="15" rx="5"/>
+                                    <path d="M3 10h2M19 10h2M3 15h2M19 15h2M8 10h8M8 14h8"/>
+                                </svg>
+                            </button>
+                            <span class="terminal-badge">zsh</span>
+                        </div>
+                    </div>
+                    <div id="terminal-container">
+                        <div id="terminal-mount"></div>
+                    </div>
+                </main>
             </div>
         </div>
     </div>
 
     <script src="/js/xterm.min.js"></script>
     <script src="/js/addon-fit.min.js"></script>
+    <script src="/js/addon-canvas.min.js"></script>
+    <script src="/js/addon-unicode11.min.js"></script>
+    <script src="/js/addon-web-links.min.js"></script>
     <script src="/js/addon-webgl.min.js"></script>
-    <script src="/js/main.js"></script>
+    <script src="/js/main.js?v=__ERII_ASSET_VERSION__"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@ package manage
 
 import (
 	"erii-cli/internal/api"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -40,18 +40,21 @@ func NewStateMenuModel(bot api.BotInfo, group api.GroupInfo) *StateMenuModel {
 	l.Styles.Title = style.ListTitle
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
-	items := []list.Item{
-		stateMenuItem{stateType: StateEmotion, title: StateEmotion.Icon() + "  Emotion", desc: "View and edit emotional state"},
-		stateMenuItem{stateType: StateFlow, title: StateFlow.Icon() + "  Flow", desc: "View and edit flow state"},
-		stateMenuItem{stateType: StateVolition, title: StateVolition.Icon() + "  Volition", desc: "View and edit volition state"},
-	}
-	l.SetItems(items)
+	l.SetItems(stateMenuItems(webMenuIconsEnabled()))
 
 	return &StateMenuModel{
 		bot:   bot,
 		group: group,
 		list:  l,
 		keys:  menuDefaultKeys,
+	}
+}
+
+func stateMenuItems(web bool) []list.Item {
+	return []list.Item{
+		stateMenuItem{stateType: StateEmotion, title: menuTitle(web, "\uf21e", StateEmotion.Icon(), "Emotion"), desc: "View and edit emotional state"},
+		stateMenuItem{stateType: StateFlow, title: menuTitle(web, "\uef30", StateFlow.Icon(), "Flow"), desc: "View and edit flow state"},
+		stateMenuItem{stateType: StateVolition, title: menuTitle(web, "\uf0e7", StateVolition.Icon(), "Volition"), desc: "View and edit volition state"},
 	}
 }
 

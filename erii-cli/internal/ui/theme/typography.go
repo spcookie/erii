@@ -1,34 +1,16 @@
-package style
+package theme
 
 import "github.com/charmbracelet/lipgloss"
 
-// Text styles
 var (
-	TitleStyle = lipgloss.NewStyle().
-			Foreground(Primary).
-			Bold(true)
-
-	SubtitleStyle = lipgloss.NewStyle().
-			Foreground(Secondary)
-
-	MutedStyle = lipgloss.NewStyle().
-			Foreground(TextMuted)
-
-	ErrorStyle = lipgloss.NewStyle().
-			Foreground(Error).
-			Bold(true)
-
-	SuccessStyle = lipgloss.NewStyle().
-			Foreground(Success)
-
-	WarningStyle = lipgloss.NewStyle().
-			Foreground(Warning)
-
-	InfoStyle = lipgloss.NewStyle().
-			Foreground(Info)
+	TitleStyle    = lipgloss.NewStyle().Foreground(Primary).Bold(true)
+	SubtitleStyle = lipgloss.NewStyle().Foreground(Secondary)
+	MutedStyle    = lipgloss.NewStyle().Foreground(TextMuted)
+	ErrorStyle    = lipgloss.NewStyle().Foreground(Error).Bold(true)
+	SuccessStyle  = lipgloss.NewStyle().Foreground(Success)
+	WarningStyle  = lipgloss.NewStyle().Foreground(Warning)
+	InfoStyle     = lipgloss.NewStyle().Foreground(Info)
 )
-
-// Standalone text helpers
 
 func Title(s string) string       { return TitleStyle.Render(s) }
 func Subtitle(s string) string    { return SubtitleStyle.Render(s) }

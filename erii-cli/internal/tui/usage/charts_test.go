@@ -15,16 +15,16 @@ import (
 )
 
 // Legacy color scale for old heatmap.Model tests (expects []lipgloss.Color)
-var heatColorScaleLegacy = []lipgloss.Color{
-	lipgloss.Color("#3a3a3a"),
-	lipgloss.Color("#1e3310"),
-	lipgloss.Color("#2d5016"),
-	lipgloss.Color("#3c6b1d"),
-	lipgloss.Color("#5a8f26"),
-	lipgloss.Color("#7ab530"),
-	lipgloss.Color("#9fd43b"),
-	lipgloss.Color("#C5E803"),
-	lipgloss.Color("#e5ff5c"),
+var heatBlueScaleLegacy = []lipgloss.Color{
+	lipgloss.Color("#1F1F1F"),
+	lipgloss.Color("#10233F"),
+	lipgloss.Color("#12345A"),
+	lipgloss.Color("#174777"),
+	lipgloss.Color("#1C5FA0"),
+	lipgloss.Color("#2377C8"),
+	lipgloss.Color("#2A88E5"),
+	lipgloss.Color("#3291FF"),
+	lipgloss.Color("#79B8FF"),
 }
 
 func mockUsageData() *api.TokenUsageSummary {
@@ -112,7 +112,7 @@ func TestHeatmapCellColoring(t *testing.T) {
 		heatmap.WithStyle(lc),
 		heatmap.WithValueRange(0, maxV),
 	)
-	hm.ColorScale = heatColorScaleLegacy
+	hm.ColorScale = heatBlueScaleLegacy
 
 	gw := hm.GraphWidth()
 	gh := hm.GraphHeight()
@@ -169,7 +169,7 @@ func TestHeatmapWithAutoRange(t *testing.T) {
 		heatmap.WithStyle(lc),
 		heatmap.WithValueRange(0, 100),
 	)
-	hm.ColorScale = heatColorScaleLegacy
+	hm.ColorScale = heatBlueScaleLegacy
 
 	gw := hm.GraphWidth()
 	gh := hm.GraphHeight()
@@ -274,8 +274,8 @@ func TestHeatmap7Days(t *testing.T) {
 // ── TDD tests for new requirements ──
 
 func TestHeatmapZeroIsGrey(t *testing.T) {
-	// heatGreenScale[0] should be a visible grey, not black/navy.
-	c := heatGreenScale[0]
+	// heatBlueScale[0] should be a visible grey, not black/navy.
+	c := heatBlueScale[0]
 	// AdaptiveColor or Color — check by string representation
 	cStr := fmt.Sprintf("%v", c)
 	if strings.Contains(cStr, "1a1a2e") || strings.Contains(cStr, "000000") {
@@ -284,7 +284,7 @@ func TestHeatmapZeroIsGrey(t *testing.T) {
 	// AdaptiveColor should have both Dark and Light fields set
 	acStr := fmt.Sprintf("%T", c)
 	if acStr != "lipgloss.AdaptiveColor" {
-		t.Errorf("heatGreenScale[0] should be AdaptiveColor, got %s", acStr)
+		t.Errorf("heatBlueScale[0] should be AdaptiveColor, got %s", acStr)
 	}
 }
 
@@ -362,8 +362,8 @@ func TestColorsAreAdaptive(t *testing.T) {
 	checkAdaptive("barMissColor", barMissColor)
 	checkAdaptive("barOutColor", barOutColor)
 	checkAdaptive("lineColor", lineColor)
-	for i, c := range heatGreenScale {
-		checkAdaptive(fmt.Sprintf("heatGreenScale[%d]", i), c)
+	for i, c := range heatBlueScale {
+		checkAdaptive(fmt.Sprintf("heatBlueScale[%d]", i), c)
 	}
 }
 

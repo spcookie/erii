@@ -69,37 +69,46 @@ func Start() error {
 			}
 			continue
 		}
-		defer wsConn.Close()
-
 		wsMsgCh := make(chan tea.Msg, 10)
-		go func() {
-			defer func() { recover() }()
-			for {
-				resp, readErr := wsConn.ReadResponse()
-				if readErr != nil {
-					sendNonBlocking(wsMsgCh, chatErrorMsg{err: readErr})
-					return
-				}
-				if resp.Error != "" {
-					sendNonBlocking(wsMsgCh, chatErrorMsg{err: fmt.Errorf("%s", resp.Error)})
-					continue
-				}
-				sendNonBlocking(wsMsgCh, botResponseMsg(resp.Response))
-			}
-		}()
+		startChatWSReader(wsConn, wsMsgCh)
 
 		// Step 4: start chat with selected role
 		chatModel := initialModel(client, wsConn, picker.selectedRole.name, wsMsgCh)
 		chatProg := tea.NewProgram(chatModel, tea.WithAltScreen())
 		finalChat, chatErr := chatProg.Run()
 		if chatErr != nil {
+			_ = chatModel.wsConn.Close()
 			return fmt.Errorf("failed to run chat TUI: %w", chatErr)
 		}
 		if m, ok := finalChat.(*Model); ok && m.BackToRole {
+			_ = m.wsConn.Close()
 			continue
+		}
+		if m, ok := finalChat.(*Model); ok {
+			_ = m.wsConn.Close()
+		} else {
+			_ = wsConn.Close()
 		}
 		return nil
 	}
+}
+
+func startChatWSReader(conn *api.ChatWSConn, ch chan<- tea.Msg) {
+	go func() {
+		defer func() { recover() }()
+		for {
+			resp, readErr := conn.ReadResponse()
+			if readErr != nil {
+				sendNonBlocking(ch, chatErrorMsg{err: readErr, disconnected: true})
+				return
+			}
+			if resp.Error != "" {
+				sendNonBlocking(ch, chatErrorMsg{err: fmt.Errorf("%s", resp.Error), requestID: resp.RequestID})
+				continue
+			}
+			sendNonBlocking(ch, botResponseMsg{requestID: resp.RequestID, response: resp.Response})
+		}
+	}()
 }
 
 func sendNonBlocking(ch chan<- tea.Msg, msg tea.Msg) {

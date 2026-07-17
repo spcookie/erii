@@ -8,7 +8,7 @@ import (
 	"erii-cli/internal/config/tree"
 	"erii-cli/internal/path"
 	"erii-cli/internal/tui/components"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"

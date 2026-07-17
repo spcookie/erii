@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"erii-cli/internal/path"
+	"erii-cli/internal/ui/theme"
 	"erii-cli/internal/web"
 	"os"
 
@@ -38,7 +39,11 @@ access token. Use --host 0.0.0.0 to expose it on the network.`,
 			EriiBin:     eriiBin,
 			ConfDir:     path.ConfDir,
 			MetaConfDir: path.ConfMetaDir,
+			EriiDir:     path.EriiDir,
 			PluginDir:   path.PluginDir,
+			OptsPath:    path.OptsPath,
+			Theme:       string(theme.Requested()),
+			Output:      cmd.OutOrStdout(),
 		}
 
 		return web.Start(cfg)

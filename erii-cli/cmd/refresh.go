@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"erii-cli/internal/api"
+	uioutput "erii-cli/internal/ui/output"
 
 	"github.com/spf13/cobra"
 )
@@ -17,17 +18,17 @@ var refreshCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := api.NewClientFromIPC()
 		if err != nil {
-			fmt.Print(renderRefreshError("Connection", err))
+			fmt.Fprint(cmd.OutOrStdout(), renderRefreshError("Connection", err))
 			return nil
 		}
 
 		result, err := client.RefreshConfig()
 		if err != nil {
-			fmt.Print(renderRefreshError("Backend", err))
+			fmt.Fprint(cmd.OutOrStdout(), renderRefreshError("Backend", err))
 			return nil
 		}
 
-		fmt.Print(renderRefreshSuccess(result))
+		fmt.Fprint(cmd.OutOrStdout(), renderRefreshSuccess(result))
 		return nil
 	},
 }
@@ -38,36 +39,36 @@ func renderRefreshSuccess(result *api.ConfigRefreshResponse) string {
 	if result != nil && result.Status != "" {
 		status = result.Status
 	}
-	b.WriteString(pluginRefreshTitleStyle.Render("Config refresh"))
+	b.WriteString(uioutput.Title("Config refresh"))
 	b.WriteString(" ")
-	b.WriteString(pluginRefreshStatusBadge(status))
+	b.WriteString(uioutput.Status(status))
 	if result != nil && result.HTTPStatus >= 400 {
 		b.WriteString(" ")
-		b.WriteString(pluginRefreshMutedStyle.Render(fmt.Sprintf("HTTP %d", result.HTTPStatus)))
+		b.WriteString(uioutput.HTTPStatus(result.HTTPStatus))
 	}
 	b.WriteString("\n")
 	if result != nil && result.Message != "" {
-		b.WriteString(pluginRefreshRow("Message", result.Message))
+		b.WriteString(uioutput.Row("Message", result.Message))
 	}
 	b.WriteString("\n")
-	b.WriteString(pluginRefreshSectionStyle.Render("Summary"))
+	b.WriteString(uioutput.Section("Summary"))
 	b.WriteString("\n")
-	b.WriteString(pluginRefreshRow("Status", "refreshed"))
-	b.WriteString(pluginRefreshRow("Target", "backend config cache"))
+	b.WriteString(uioutput.Row("Status", "refreshed"))
+	b.WriteString(uioutput.Row("Target", "backend config cache"))
 	if result == nil {
 		return b.String()
 	}
 
 	b.WriteString("\n")
-	b.WriteString(pluginRefreshSectionStyle.Render("Reloaded"))
+	b.WriteString(uioutput.Section("Reloaded"))
 	b.WriteString("\n")
-	b.WriteString(pluginRefreshRow("Config", fmt.Sprintf("%t", result.Reloaded.Config)))
-	b.WriteString(pluginRefreshRow("Roles", fmt.Sprintf("%d", result.Reloaded.Roles)))
-	b.WriteString(pluginRefreshRow("Rules", fmt.Sprintf("%d", result.Reloaded.Rules)))
-	b.WriteString(pluginRefreshRow("MCP", fmt.Sprintf("%d", result.Reloaded.MCP)))
+	b.WriteString(uioutput.Row("Config", fmt.Sprintf("%t", result.Reloaded.Config)))
+	b.WriteString(uioutput.Row("Roles", fmt.Sprintf("%d", result.Reloaded.Roles)))
+	b.WriteString(uioutput.Row("Rules", fmt.Sprintf("%d", result.Reloaded.Rules)))
+	b.WriteString(uioutput.Row("MCP", fmt.Sprintf("%d", result.Reloaded.MCP)))
 
 	b.WriteString("\n")
-	b.WriteString(pluginRefreshSectionStyle.Render("Bots"))
+	b.WriteString(uioutput.Section("Bots"))
 	b.WriteString("\n")
 	b.WriteString(renderBotRefreshItems("Added", result.Bots.Added))
 	b.WriteString(renderBotRefreshItems("Removed", result.Bots.Removed))
@@ -80,22 +81,13 @@ func renderRefreshSuccess(result *api.ConfigRefreshResponse) string {
 func renderBotRefreshItems(label string, items api.BotRefreshItems) string {
 	value := fmt.Sprintf("%d", items.Count())
 	if len(items) > 0 && strings.TrimSpace(strings.Join(items, "")) != "" {
-		value += " " + pluginRefreshMutedStyle.Render(strings.Join(items, ", "))
+		value += " " + uioutput.Muted(strings.Join(items, ", "))
 	}
-	return pluginRefreshRow(label, value)
+	return uioutput.Row(label, value)
 }
 
 func renderRefreshError(scope string, err error) string {
-	var b strings.Builder
-	b.WriteString(pluginRefreshTitleStyle.Render("Config refresh"))
-	b.WriteString(" ")
-	b.WriteString(pluginRefreshStatusBadge("error"))
-	b.WriteString("\n")
-	b.WriteString(pluginRefreshSectionStyle.Render("Error"))
-	b.WriteString("\n")
-	b.WriteString(pluginRefreshRow("Scope", scope))
-	b.WriteString(pluginRefreshRow("Message", err.Error()))
-	return b.String()
+	return uioutput.ErrorResult("Config refresh", scope, err)
 }
 
 func init() {

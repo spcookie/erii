@@ -6,45 +6,8 @@ import (
 	"strings"
 
 	"erii-cli/internal/api"
-	"erii-cli/internal/tui/style"
-
-	"github.com/charmbracelet/lipgloss"
+	uioutput "erii-cli/internal/ui/output"
 	"github.com/spf13/cobra"
-)
-
-var (
-	pluginRefreshTitleStyle = lipgloss.NewStyle().
-				Foreground(style.Primary).
-				Bold(true)
-	pluginRefreshMutedStyle = lipgloss.NewStyle().
-				Foreground(style.TextMuted)
-	pluginRefreshLabelStyle = lipgloss.NewStyle().
-				Foreground(style.TextMuted).
-				Width(14)
-	pluginRefreshValueStyle = lipgloss.NewStyle().
-				Foreground(style.Text).
-				Bold(true)
-	pluginRefreshSectionStyle = lipgloss.NewStyle().
-					Foreground(style.Secondary).
-					Bold(true)
-	pluginRefreshOkBadge = lipgloss.NewStyle().
-				Foreground(style.Background).
-				Background(style.Success).
-				Bold(true).
-				Padding(0, 1)
-	pluginRefreshErrorBadge = lipgloss.NewStyle().
-				Foreground(style.Background).
-				Background(style.Error).
-				Bold(true).
-				Padding(0, 1)
-	pluginRefreshWarningBadge = lipgloss.NewStyle().
-					Foreground(style.Background).
-					Background(style.Warning).
-					Bold(true).
-					Padding(0, 1)
-	pluginRefreshFailedPluginStyle = lipgloss.NewStyle().
-					Foreground(style.Error).
-					Bold(true)
 )
 
 var pluginCmd = &cobra.Command{
@@ -65,17 +28,17 @@ var pluginRefreshCmd = &cobra.Command{
 
 		client, err := api.NewClientFromIPC()
 		if err != nil {
-			fmt.Printf("Plugin refresh error: %v\n", err)
+			fmt.Fprint(cmd.OutOrStdout(), uioutput.ErrorResult("Plugin refresh", "Connection", err))
 			return nil
 		}
 
 		result, err := client.RefreshPlugins(pluginID)
 		if err != nil {
-			fmt.Printf("Plugin refresh error: %v\n", err)
+			fmt.Fprint(cmd.OutOrStdout(), uioutput.ErrorResult("Plugin refresh", "Backend", err))
 			return nil
 		}
 
-		printPluginRefreshResult(result)
+		fmt.Fprint(cmd.OutOrStdout(), renderPluginRefreshResult(result))
 		return nil
 	},
 }
@@ -86,8 +49,7 @@ func printPluginRefreshResult(result *api.PluginRefreshResponse) {
 
 func renderPluginRefreshResult(result *api.PluginRefreshResponse) string {
 	if result == nil {
-		return pluginRefreshTitleStyle.Render("Plugin refresh") + "\n" +
-			pluginRefreshMutedStyle.Render("No result returned.") + "\n"
+		return uioutput.Title("Plugin refresh") + "\n" + uioutput.Muted("No result returned.") + "\n"
 	}
 
 	var b strings.Builder
@@ -95,44 +57,44 @@ func renderPluginRefreshResult(result *api.PluginRefreshResponse) string {
 	if status == "" {
 		status = "unknown"
 	}
-	badge := pluginRefreshStatusBadge(status)
+	badge := uioutput.Status(status)
 
-	b.WriteString(pluginRefreshTitleStyle.Render("Plugin refresh"))
+	b.WriteString(uioutput.Title("Plugin refresh"))
 	b.WriteString("  ")
 	b.WriteString(badge)
 	if result.HTTPStatus >= 400 {
 		b.WriteString(" ")
-		b.WriteString(pluginRefreshMutedStyle.Render(fmt.Sprintf("HTTP %d", result.HTTPStatus)))
+		b.WriteString(uioutput.HTTPStatus(result.HTTPStatus))
 	}
 	b.WriteString("\n")
 
 	if result.Message != "" {
-		b.WriteString(pluginRefreshRow("Message", result.Message))
+		b.WriteString(uioutput.Row("Message", result.Message))
 	}
 	if result.RequestedPluginID != "" {
-		b.WriteString(pluginRefreshRow("Requested", result.RequestedPluginID))
+		b.WriteString(uioutput.Row("Requested", result.RequestedPluginID))
 	}
 	b.WriteString("\n")
-	b.WriteString(pluginRefreshSectionStyle.Render("Summary"))
+	b.WriteString(uioutput.Section("Summary"))
 	b.WriteString("\n")
-	b.WriteString(pluginRefreshRow("Loaded", fmt.Sprintf("%d extensions", result.LoadedExtensions)))
-	b.WriteString(pluginRefreshRow("Refreshed", fmt.Sprintf("%d plugins", len(result.RefreshedPlugins))))
-	b.WriteString(pluginRefreshRow("Failed", fmt.Sprintf("%d plugins", len(result.FailedPlugins))))
+	b.WriteString(uioutput.Row("Loaded", fmt.Sprintf("%d extensions", result.LoadedExtensions)))
+	b.WriteString(uioutput.Row("Refreshed", fmt.Sprintf("%d plugins", len(result.RefreshedPlugins))))
+	b.WriteString(uioutput.Row("Failed", fmt.Sprintf("%d plugins", len(result.FailedPlugins))))
 
 	if len(result.RefreshedPlugins) > 0 {
 		b.WriteString("\n")
-		b.WriteString(pluginRefreshSectionStyle.Render("Refreshed plugins"))
+		b.WriteString(uioutput.Section("Refreshed plugins"))
 		b.WriteString("\n")
 		for _, line := range wrapCommaList(result.RefreshedPlugins, 76) {
 			b.WriteString("  ")
-			b.WriteString(pluginRefreshValueStyle.Render(line))
+			b.WriteString(uioutput.Plugin(line))
 			b.WriteString("\n")
 		}
 	}
 
 	if len(result.FailedPlugins) > 0 {
 		b.WriteString("\n")
-		b.WriteString(pluginRefreshSectionStyle.Render("Failed plugins"))
+		b.WriteString(uioutput.Section("Failed plugins"))
 		b.WriteString("\n")
 		pluginIDs := make([]string, 0, len(result.FailedPlugins))
 		for pluginID := range result.FailedPlugins {
@@ -142,10 +104,10 @@ func renderPluginRefreshResult(result *api.PluginRefreshResponse) string {
 		for _, pluginID := range pluginIDs {
 			reason := result.FailedPlugins[pluginID]
 			b.WriteString("  ")
-			b.WriteString(pluginRefreshFailedPluginStyle.Render(pluginID))
+			b.WriteString(uioutput.Error(pluginID))
 			b.WriteString("\n")
 			b.WriteString("    ")
-			b.WriteString(pluginRefreshMutedStyle.Render(reason))
+			b.WriteString(uioutput.Muted(reason))
 			b.WriteString("\n")
 		}
 	}
@@ -154,19 +116,11 @@ func renderPluginRefreshResult(result *api.PluginRefreshResponse) string {
 }
 
 func pluginRefreshStatusBadge(status string) string {
-	label := strings.ToUpper(status)
-	switch strings.ToLower(status) {
-	case "ok", "success":
-		return pluginRefreshOkBadge.Render(label)
-	case "error", "failed":
-		return pluginRefreshErrorBadge.Render(label)
-	default:
-		return pluginRefreshWarningBadge.Render(label)
-	}
+	return uioutput.Status(status)
 }
 
 func pluginRefreshRow(label, value string) string {
-	return "  " + pluginRefreshLabelStyle.Render(label) + pluginRefreshValueStyle.Render(value) + "\n"
+	return uioutput.Row(label, value)
 }
 
 func wrapCommaList(items []string, maxWidth int) []string {

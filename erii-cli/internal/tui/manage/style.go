@@ -1,37 +1,46 @@
 package manage
 
 import (
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 )
 
+func DataTableStyles() table.Styles {
+	styles := table.DefaultStyles()
+	styles.Header = TableHeaderStyle.Copy().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(style.BorderStrong).
+		BorderBottom(true)
+	styles.Cell = TableRowStyle.Copy()
+	styles.Selected = TableSelectedRowStyle.Copy()
+	return styles
+}
+
 var (
 	TableHeaderStyle = lipgloss.NewStyle().
-				Background(style.SurfaceAlt).
-				Foreground(style.Primary).
+				Foreground(style.Accent).
 				Bold(true).
 				Padding(0, 1)
 
 	TableRowStyle = lipgloss.NewStyle().
-			Foreground(style.Text).
 			Padding(0, 1)
 
 	TableSelectedRowStyle = lipgloss.NewStyle().
-				Background(style.Surface).
-				Foreground(style.Primary).
-				Bold(true).
-				Padding(0, 1)
+				Background(style.Selection).
+				Foreground(style.Accent).
+				Bold(true)
 
 	TableAltRowStyle = lipgloss.NewStyle().
-				Foreground(style.Text).
-				Background(style.SurfaceAlt).
 				Padding(0, 1)
 
 	StatusBarStyle = lipgloss.NewStyle().
-			Background(style.SurfaceAlt).
-			Foreground(style.TextMuted).
+			Background(style.Surface).
+			Foreground(style.Text).
+			Border(lipgloss.NormalBorder(), true, false, false, false).
+			BorderForeground(style.BorderColor).
 			Padding(0, 1)
 
 	SearchActiveStyle = lipgloss.NewStyle().
@@ -39,9 +48,16 @@ var (
 				Bold(true)
 
 	TitleBarStyle = lipgloss.NewStyle().
-			Background(style.SurfaceAlt).
-			Foreground(style.Primary).
+			Foreground(style.Accent).
+			Border(lipgloss.NormalBorder(), false, false, true, false).
+			BorderForeground(style.BorderColor).
 			Bold(true).
+			Padding(0, 1)
+
+	SearchBarStyle = lipgloss.NewStyle().
+			Foreground(style.Text).
+			Border(lipgloss.NormalBorder(), false, false, true, false).
+			BorderForeground(style.Accent).
 			Padding(0, 1)
 )
 

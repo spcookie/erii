@@ -23,6 +23,16 @@ func TestPluginRefreshCommandShape(t *testing.T) {
 	}
 }
 
+func TestRootThemeFlagDefaultsToAuto(t *testing.T) {
+	flag := rootCmd.PersistentFlags().Lookup("theme")
+	if flag == nil {
+		t.Fatal("root command is missing --theme")
+	}
+	if flag.DefValue != "auto" {
+		t.Fatalf("--theme default = %q, want auto", flag.DefValue)
+	}
+}
+
 func TestRenderReloadErrorShowsStyledLayout(t *testing.T) {
 	output := renderReloadError(errors.New("metadata reload failed: broken schema"))
 

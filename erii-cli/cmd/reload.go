@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"erii-cli/internal/config/tree"
+	uioutput "erii-cli/internal/ui/output"
 
 	"github.com/spf13/cobra"
 )
@@ -18,8 +18,8 @@ plugin archives are added. Metadata schemas are reloaded afterward.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := tree.Reload(); err != nil {
-			fmt.Print(renderReloadError(err))
+		if err := tree.Reload(cmd.OutOrStdout()); err != nil {
+			fmt.Fprint(cmd.OutOrStdout(), renderReloadError(err))
 			return err
 		}
 		return nil
@@ -27,15 +27,7 @@ plugin archives are added. Metadata schemas are reloaded afterward.`,
 }
 
 func renderReloadError(err error) string {
-	var b strings.Builder
-	b.WriteString(pluginRefreshTitleStyle.Render("Reload result"))
-	b.WriteString(" ")
-	b.WriteString(pluginRefreshStatusBadge("error"))
-	b.WriteString("\n")
-	b.WriteString(pluginRefreshSectionStyle.Render("Error"))
-	b.WriteString("\n")
-	b.WriteString(pluginRefreshRow("Message", err.Error()))
-	return b.String()
+	return uioutput.ErrorResult("Reload result", "", err)
 }
 
 func init() {

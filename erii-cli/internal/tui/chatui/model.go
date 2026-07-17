@@ -7,7 +7,7 @@ import (
 
 	"erii-cli/internal/api"
 	"erii-cli/internal/tui/components"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -28,21 +28,56 @@ const (
 )
 
 type chatMsg struct {
-	typ       msgType
-	content   string
-	timestamp time.Time
-	duration  time.Duration // bot reply duration from last user send (0 for user msgs)
+	id                 int64
+	typ                msgType
+	content            string
+	timestamp          time.Time
+	duration           time.Duration // bot reply duration from last user send (0 for user msgs)
+	hasImage           bool
+	imageState         historyImageState
+	imageBytes         []byte
+	imageContent       string
+	imageAvailableCols int
+	imageRendering     bool
 }
+
+type historyImageState int
+
+const (
+	historyImageNone historyImageState = iota
+	historyImageLoading
+	historyImageReady
+	historyImageError
+)
 
 // --- tea messages ---
 
-type botResponseMsg string
-type chatErrorMsg struct{ err error }
+type botResponseMsg struct {
+	requestID string
+	response  string
+}
+type chatErrorMsg struct {
+	err          error
+	disconnected bool
+	requestID    string
+}
+type chatReconnectMsg struct {
+	conn *api.ChatWSConn
+	err  error
+}
 type historyLoadedMsg struct {
 	entries []api.ChatHistoryEntry
 	hasMore bool
 }
 type historyErrorMsg struct{ err error }
+type historyImageRenderedMsg struct {
+	id            int64
+	data          []byte
+	rendered      historyImageRender
+	availableCols int
+	refresh       bool
+	err           error
+}
 
 // --- key bindings ---
 
@@ -92,6 +127,32 @@ type errorKeyMap struct {
 	Quit    key.Binding
 }
 
+type connectionErrorKeyMap struct {
+	Dismiss key.Binding
+	Retry   key.Binding
+	Quit    key.Binding
+}
+
+func (k connectionErrorKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Dismiss, k.Retry, k.Quit}
+}
+func (k connectionErrorKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{k.Dismiss, k.Retry, k.Quit}}
+}
+
+type disconnectedKeyMap struct {
+	Retry key.Binding
+	Back  key.Binding
+	Quit  key.Binding
+}
+
+func (k disconnectedKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Retry, k.Back, k.Quit}
+}
+func (k disconnectedKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{k.Retry, k.Back, k.Quit}}
+}
+
 func (k errorKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Dismiss, k.Quit}
 }
@@ -117,8 +178,20 @@ var sendingKeys = sendingKeyMap{
 }
 
 var errorKeys = errorKeyMap{
-	Dismiss: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "dismiss")),
+	Dismiss: key.NewBinding(key.WithKeys("esc", "r"), key.WithHelp("esc/r", "dismiss")),
 	Quit:    key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
+}
+
+var connectionErrorKeys = connectionErrorKeyMap{
+	Dismiss: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "dismiss")),
+	Retry:   key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "retry")),
+	Quit:    key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
+}
+
+var disconnectedKeys = disconnectedKeyMap{
+	Retry: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reconnect")),
+	Back:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+	Quit:  key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
 }
 
 // --- Model ---
@@ -133,7 +206,6 @@ type Model struct {
 	spinner              spinner.Model
 	help                 help.Model
 	sending              bool
-	sendCancelled        bool
 	err                  error
 	width                int
 	height               int
@@ -145,6 +217,12 @@ type Model struct {
 	initialHistoryLoaded bool
 	lastSendTime         time.Time
 	wsMsgCh              chan tea.Msg
+	imageWorkers         chan struct{}
+	wsDisconnected       bool
+	reconnecting         bool
+	dismissOnReconnect   bool
+	requestSequence      int64
+	activeRequestID      string
 }
 
 func initialModel(client *api.Client, wsConn *api.ChatWSConn, roleName string, wsMsgCh chan tea.Msg) *Model {
@@ -154,10 +232,8 @@ func initialModel(client *api.Client, wsConn *api.ChatWSConn, roleName string, w
 	ta.SetHeight(3)
 	ta.CharLimit = 2000
 	ta.KeyMap.InsertNewline = key.NewBinding(key.WithKeys("ctrl+j"), key.WithHelp("ctrl+j", "insert newline"))
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle().
-		Foreground(style.Primary)
-	ta.BlurredStyle.CursorLine = lipgloss.NewStyle().
-		Foreground(style.TextMuted)
+	configureEnabledTextarea(&ta)
+	ta.Cursor.Style = lipgloss.NewStyle().Foreground(style.Accent)
 	ta.Focus()
 
 	vp := viewport.New(0, 0)
@@ -179,6 +255,7 @@ func initialModel(client *api.Client, wsConn *api.ChatWSConn, roleName string, w
 		focused:        true,
 		loadingHistory: true,
 		wsMsgCh:        wsMsgCh,
+		imageWorkers:   make(chan struct{}, 3),
 	}
 }
 
@@ -195,10 +272,15 @@ func (m *Model) wsListen() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		wasAtBottom := m.viewport.AtBottom()
+		savedYOffset := m.viewport.YOffset
 		m.width = msg.Width
 		m.height = msg.Height
 		m.help.Width = msg.Width
 		m.recalcSizes()
+		if !wasAtBottom {
+			m.viewport.YOffset = min(savedYOffset, m.maxViewportYOffset())
+		}
 		if !m.initialHistoryLoaded {
 			m.initialHistoryLoaded = true
 			return m, func() tea.Msg {
@@ -209,7 +291,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return historyLoadedMsg{entries: resp.Entries, hasMore: resp.HasMore}
 			}
 		}
-		return m, nil
+		return m, m.queueHistoryImageRenders()
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -227,9 +309,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.sending {
 			if msg.String() == "esc" {
-				m.sendCancelled = true
 				m.sending = false
-				m.textarea.Focus()
+				m.activeRequestID = ""
+				m.enableInput()
 				m.recalcSizes()
 				return m, textarea.Blink
 			}
@@ -238,11 +320,55 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// error state: limited keys
 		if m.err != nil {
+			if m.wsDisconnected {
+				switch msg.String() {
+				case "esc":
+					m.err = nil
+					m.dismissOnReconnect = m.reconnecting
+					if m.reconnecting {
+						m.disableInput("Reconnecting...", style.Info)
+					} else {
+						m.disableInput("Chat disconnected - press r to reconnect", style.Warning)
+					}
+					m.recalcSizes()
+					return m, nil
+				case "r", "R":
+					m.err = nil
+					m.dismissOnReconnect = true
+					m.disableInput("Reconnecting...", style.Info)
+					m.recalcSizes()
+					if !m.reconnecting {
+						m.reconnecting = true
+						return m, m.reconnectChatCmd()
+					}
+					return m, nil
+				}
+				return m, nil
+			}
 			switch msg.String() {
-			case "r", "R":
+			case "esc", "r", "R":
 				m.err = nil
+				m.enableInput()
 				m.recalcSizes()
 				return m, textarea.Blink
+			}
+			return m, nil
+		}
+
+		if m.wsDisconnected {
+			switch msg.String() {
+			case "r", "R":
+				if !m.reconnecting {
+					m.reconnecting = true
+					m.dismissOnReconnect = true
+					m.disableInput("Reconnecting...", style.Info)
+					m.recalcSizes()
+					return m, m.reconnectChatCmd()
+				}
+				return m, nil
+			case "esc":
+				m.BackToRole = true
+				return m, tea.Quit
 			}
 			return m, nil
 		}
@@ -300,17 +426,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			now := time.Now()
+			m.requestSequence++
+			requestID := fmt.Sprintf("cli-%d", m.requestSequence)
 			m.lastSendTime = now
+			m.activeRequestID = requestID
 			m.messages = append(m.messages, chatMsg{typ: msgUser, content: text, timestamp: now})
 			m.textarea.Reset()
-			m.textarea.Blur()
 			m.sending = true
 			m.err = nil
+			m.disableInput("Waiting for response...", style.Info)
 			m.recalcSizes()
-			if err := m.wsConn.SendMessage(text); err != nil {
+			if err := m.wsConn.SendMessage(requestID, text); err != nil {
 				m.sending = false
-				m.textarea.Focus()
+				m.activeRequestID = ""
 				m.err = err
+				m.disableInput("Dismiss error to continue", style.Error)
 				m.recalcSizes()
 				return m, textarea.Blink
 			}
@@ -324,19 +454,64 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case botResponseMsg:
 		var cmds []tea.Cmd
-		m, cmds = m.finishSending()
+		matchesActiveRequest := msg.requestID == "" || msg.requestID == m.activeRequestID
+		if matchesActiveRequest {
+			m, cmds = m.finishSending()
+			m.activeRequestID = ""
+		}
 		now := time.Now()
-		dur := now.Sub(m.lastSendTime)
-		m.messages = append(m.messages, chatMsg{typ: msgBot, content: string(msg), timestamp: now, duration: dur})
+		var dur time.Duration
+		if matchesActiveRequest {
+			dur = now.Sub(m.lastSendTime)
+		}
+		m.messages = append(m.messages, chatMsg{typ: msgBot, content: msg.response, timestamp: now, duration: dur})
 		m.recalcSizes()
 		return m, tea.Batch(append(cmds, textarea.Blink, m.wsListen())...)
 
 	case chatErrorMsg:
+		if !msg.disconnected && msg.requestID != "" && msg.requestID != m.activeRequestID {
+			return m, m.wsListen()
+		}
 		var cmds []tea.Cmd
 		m, cmds = m.finishSending()
+		m.activeRequestID = ""
 		m.err = msg.err
+		m.wsDisconnected = msg.disconnected
+		if msg.disconnected {
+			m.disableInput("Press r to retry or esc to dismiss", style.Error)
+		} else {
+			m.disableInput("Dismiss error to continue", style.Error)
+		}
 		m.recalcSizes()
-		return m, tea.Batch(append(cmds, textarea.Blink, m.wsListen())...)
+		if msg.disconnected && !m.reconnecting {
+			m.reconnecting = true
+			cmds = append(cmds, m.reconnectChatCmd())
+		} else if !msg.disconnected {
+			cmds = append(cmds, m.wsListen())
+		}
+		return m, tea.Batch(cmds...)
+
+	case chatReconnectMsg:
+		m.reconnecting = false
+		if msg.err != nil {
+			m.wsDisconnected = true
+			m.err = fmt.Errorf("chat reconnect failed: %w", msg.err)
+			m.disableInput("Press r to retry or esc to dismiss", style.Error)
+			m.recalcSizes()
+			return m, nil
+		}
+
+		m.wsConn = msg.conn
+		m.wsDisconnected = false
+		startChatWSReader(m.wsConn, m.wsMsgCh)
+		if m.dismissOnReconnect || m.err == nil {
+			m.dismissOnReconnect = false
+			m.err = nil
+			m.enableInput()
+			m.recalcSizes()
+			return m, tea.Batch(textarea.Blink, m.wsListen())
+		}
+		return m, m.wsListen()
 
 	case historyLoadedMsg:
 		return m.handleHistoryLoaded(msg)
@@ -345,9 +520,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingHistory = false
 		m.recalcSizes()
 		return m, nil
+
+	case historyImageRenderedMsg:
+		return m.handleHistoryImageRendered(msg)
 	}
 
-	return m, nil
+	var cmd tea.Cmd
+	m.textarea, cmd = m.textarea.Update(msg)
+	return m, cmd
+}
+
+func (m *Model) reconnectChatCmd() tea.Cmd {
+	client := m.client
+	return func() tea.Msg {
+		conn, err := api.NewChatWSConn(client.BaseURL(), client.Username(), client.Password())
+		return chatReconnectMsg{conn: conn, err: err}
+	}
 }
 
 func (m *Model) handleHistoryLoaded(msg historyLoadedMsg) (tea.Model, tea.Cmd) {
@@ -363,14 +551,17 @@ func (m *Model) handleHistoryLoaded(msg historyLoadedMsg) (tea.Model, tea.Cmd) {
 		if e.Sender == "user" {
 			typ = msgUser
 		}
-		content := e.Content
-		if typ == msgUser {
-			content = stripBotMention(content, m.roleName)
+		imageState := historyImageNone
+		if e.HasImage {
+			imageState = historyImageLoading
 		}
 		histMsgs = append(histMsgs, chatMsg{
-			typ:       typ,
-			content:   content,
-			timestamp: time.UnixMilli(e.Timestamp),
+			id:         e.ID,
+			typ:        typ,
+			content:    cleanHistoryImagePlaceholder(e.Content, e.HasImage),
+			timestamp:  time.UnixMilli(e.Timestamp),
+			hasImage:   e.HasImage,
+			imageState: imageState,
 		})
 	}
 
@@ -391,7 +582,133 @@ func (m *Model) handleHistoryLoaded(msg historyLoadedMsg) (tea.Model, tea.Cmd) {
 		m.viewport.YOffset = savedYOffset + (newLines - oldLines)
 	}
 
+	return m, m.queueHistoryImageLoads(histMsgs)
+}
+
+func (m *Model) queueHistoryImageLoads(messages []chatMsg) tea.Cmd {
+	availableCols := m.historyImageAvailableCols()
+	var cmds []tea.Cmd
+	for _, msg := range messages {
+		if !msg.hasImage {
+			continue
+		}
+		cmds = append(cmds, m.loadHistoryImageCmd(msg.id, availableCols))
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) loadHistoryImageCmd(historyID int64, availableCols int) tea.Cmd {
+	client := m.client
+	workers := m.imageWorkers
+	return func() tea.Msg {
+		workers <- struct{}{}
+		defer func() { <-workers }()
+
+		data, err := client.GetChatHistoryImage(historyID)
+		if err != nil {
+			return historyImageRenderedMsg{id: historyID, availableCols: availableCols, err: err}
+		}
+		rendered, err := renderHistoryImage(data, availableCols)
+		return historyImageRenderedMsg{
+			id:            historyID,
+			data:          data,
+			rendered:      rendered,
+			availableCols: availableCols,
+			err:           err,
+		}
+	}
+}
+
+func (m *Model) renderCachedHistoryImageCmd(historyID int64, data []byte, availableCols int) tea.Cmd {
+	workers := m.imageWorkers
+	return func() tea.Msg {
+		workers <- struct{}{}
+		defer func() { <-workers }()
+
+		rendered, err := renderHistoryImage(data, availableCols)
+		return historyImageRenderedMsg{
+			id:            historyID,
+			rendered:      rendered,
+			availableCols: availableCols,
+			refresh:       true,
+			err:           err,
+		}
+	}
+}
+
+func (m *Model) queueHistoryImageRenders() tea.Cmd {
+	availableCols := m.historyImageAvailableCols()
+	var cmds []tea.Cmd
+	for i := range m.messages {
+		msg := &m.messages[i]
+		if msg.imageState != historyImageReady || len(msg.imageBytes) == 0 ||
+			msg.imageAvailableCols == availableCols || msg.imageRendering {
+			continue
+		}
+		msg.imageRendering = true
+		cmds = append(cmds, m.renderCachedHistoryImageCmd(msg.id, msg.imageBytes, availableCols))
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) handleHistoryImageRendered(result historyImageRenderedMsg) (tea.Model, tea.Cmd) {
+	index := -1
+	for i := range m.messages {
+		if m.messages[i].id == result.id {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return m, nil
+	}
+
+	oldContent := m.renderMessages()
+	oldHeight := lipgloss.Height(oldContent)
+	oldStartLine := m.messageStartLine(index)
+	savedYOffset := m.viewport.YOffset
+	wasAtBottom := m.viewport.AtBottom()
+
+	msg := &m.messages[index]
+	msg.imageRendering = false
+	if result.err != nil {
+		if !result.refresh {
+			msg.imageState = historyImageError
+		}
+	} else {
+		msg.imageState = historyImageReady
+		if len(result.data) > 0 {
+			msg.imageBytes = result.data
+		}
+		msg.imageContent = result.rendered.content
+		msg.imageAvailableCols = result.availableCols
+	}
+
+	newContent := m.renderMessages()
+	m.viewport.SetContent(newContent)
+	if wasAtBottom {
+		m.viewport.GotoBottom()
+	} else {
+		newYOffset := savedYOffset
+		if oldStartLine < savedYOffset {
+			newYOffset += lipgloss.Height(newContent) - oldHeight
+		}
+		m.viewport.YOffset = min(max(0, newYOffset), m.maxViewportYOffset())
+	}
+
+	if result.err == nil && result.availableCols != m.historyImageAvailableCols() && len(msg.imageBytes) > 0 {
+		msg.imageRendering = true
+		return m, m.renderCachedHistoryImageCmd(msg.id, msg.imageBytes, m.historyImageAvailableCols())
+	}
 	return m, nil
+}
+
+func (m *Model) historyImageAvailableCols() int {
+	return min(historyImageMaxCols, max(1, m.viewport.Width-6))
+}
+
+func (m *Model) maxViewportYOffset() int {
+	return max(0, lipgloss.Height(m.renderMessages())-m.viewport.Height)
 }
 
 func (m *Model) checkHistoryTrigger() tea.Cmd {
@@ -411,14 +728,39 @@ func (m *Model) checkHistoryTrigger() tea.Cmd {
 
 func (m *Model) finishSending() (*Model, []tea.Cmd) {
 	var cmds []tea.Cmd
-	if m.sendCancelled {
-		m.sendCancelled = false
-		cmds = append(cmds, m.wsListen())
-		return m, cmds
-	}
 	m.sending = false
-	m.textarea.Focus()
+	cmds = append(cmds, m.enableInput())
 	return m, cmds
+}
+
+func configureEnabledTextarea(ta *textarea.Model) {
+	ta.Placeholder = "Type a message..."
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle().Foreground(style.Primary)
+	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(style.Accent)
+	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(style.TextMuted)
+	ta.FocusedStyle.Text = lipgloss.NewStyle().Foreground(style.Text)
+	ta.BlurredStyle.CursorLine = lipgloss.NewStyle().Foreground(style.TextMuted)
+	ta.BlurredStyle.Prompt = lipgloss.NewStyle().Foreground(style.BorderStrong)
+	ta.BlurredStyle.Placeholder = lipgloss.NewStyle().Foreground(style.TextMuted)
+	ta.BlurredStyle.Text = lipgloss.NewStyle().Foreground(style.TextMuted)
+}
+
+func (m *Model) enableInput() tea.Cmd {
+	configureEnabledTextarea(&m.textarea)
+	if m.focused {
+		return m.textarea.Focus()
+	}
+	m.textarea.Blur()
+	return nil
+}
+
+func (m *Model) disableInput(placeholder string, tone lipgloss.TerminalColor) {
+	m.textarea.Placeholder = placeholder
+	m.textarea.BlurredStyle.CursorLine = lipgloss.NewStyle().Foreground(style.TextMuted)
+	m.textarea.BlurredStyle.Prompt = lipgloss.NewStyle().Foreground(tone)
+	m.textarea.BlurredStyle.Placeholder = lipgloss.NewStyle().Foreground(style.TextMuted).Italic(true)
+	m.textarea.BlurredStyle.Text = lipgloss.NewStyle().Foreground(style.TextMuted)
+	m.textarea.Blur()
 }
 
 func (m *Model) recalcSizes() {
@@ -448,8 +790,12 @@ func (m *Model) recalcSizes() {
 
 func (m *Model) helpView() string {
 	switch {
+	case m.err != nil && m.wsDisconnected:
+		return m.help.View(connectionErrorKeys)
 	case m.err != nil:
 		return m.help.View(errorKeys)
+	case m.wsDisconnected:
+		return m.help.View(disconnectedKeys)
 	case m.sending:
 		return m.help.View(sendingKeys)
 	case !m.focused:
@@ -479,10 +825,7 @@ func (m *Model) View() string {
 
 	var statusLine string
 	if m.err != nil {
-		statusLine = lipgloss.NewStyle().
-			Foreground(style.Error).
-			Padding(0, 1).
-			Render("✗ " + components.FriendlyErrorMessage(m.err))
+		statusLine = renderChatError(m.err)
 	}
 
 	var inputArea string
@@ -499,6 +842,16 @@ func (m *Model) View() string {
 		inputArea,
 		m.helpView(),
 	)
+}
+
+func renderChatError(err error) string {
+	return lipgloss.NewStyle().
+		Foreground(style.Error).
+		BorderStyle(lipgloss.ThickBorder()).
+		BorderLeft(true).
+		BorderForeground(style.Error).
+		PaddingLeft(1).
+		Render("Error: " + components.FriendlyErrorMessage(err))
 }
 
 // --- message rendering ---
@@ -528,26 +881,7 @@ func (m *Model) renderMessages() string {
 			"")
 	}
 	for _, msg := range m.messages {
-		lines = append(lines, "")
-		wrapped := wrapText(msg.content, msgWidth)
-		if msg.typ == msgUser {
-			lines = append(lines, userLabel(maxWidth, msg.timestamp))
-			for _, line := range strings.Split(wrapped, "\n") {
-				lines = append(lines, lipgloss.NewStyle().
-					Foreground(style.Text).
-					Align(lipgloss.Right).
-					Width(maxWidth).
-					Render(line))
-			}
-		} else {
-			lines = append(lines, botLabel(m.roleName, msg.timestamp, msg.duration))
-			for _, line := range strings.Split(wrapped, "\n") {
-				lines = append(lines, lipgloss.NewStyle().
-					Foreground(style.Text).
-					PaddingLeft(2).
-					Render(line))
-			}
-		}
+		lines = append(lines, m.renderMessageLines(msg, maxWidth, msgWidth)...)
 	}
 
 	if m.sending {
@@ -556,6 +890,78 @@ func (m *Model) renderMessages() string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func (m *Model) renderMessageLines(msg chatMsg, maxWidth, msgWidth int) []string {
+	lines := []string{""}
+	if msg.typ == msgUser {
+		lines = append(lines, userLabel(maxWidth, msg.timestamp))
+	} else {
+		lines = append(lines, botLabel(m.roleName, msg.timestamp, msg.duration))
+	}
+
+	if msg.content != "" {
+		wrapped := wrapText(msg.content, msgWidth)
+		for _, line := range strings.Split(wrapped, "\n") {
+			messageStyle := lipgloss.NewStyle().Foreground(style.Text)
+			if msg.typ == msgUser {
+				messageStyle = messageStyle.Align(lipgloss.Right).Width(maxWidth)
+			} else {
+				messageStyle = messageStyle.PaddingLeft(2)
+			}
+			lines = append(lines, messageStyle.Render(line))
+		}
+	}
+
+	if msg.hasImage {
+		lines = append(lines, renderHistoryImageBlock(msg, maxWidth))
+	}
+	return lines
+}
+
+func renderHistoryImageBlock(msg chatMsg, maxWidth int) string {
+	var block string
+	switch msg.imageState {
+	case historyImageReady:
+		block = msg.imageContent
+	case historyImageError:
+		block = lipgloss.NewStyle().
+			Foreground(style.Warning).
+			Render("Image unavailable")
+	default:
+		block = lipgloss.NewStyle().
+			Foreground(style.TextMuted).
+			Italic(true).
+			Render("Loading image...")
+	}
+
+	if msg.typ == msgUser {
+		return lipgloss.NewStyle().
+			Align(lipgloss.Right).
+			Width(maxWidth).
+			Render(block)
+	}
+	return lipgloss.NewStyle().PaddingLeft(2).Render(block)
+}
+
+func (m *Model) messageStartLine(index int) int {
+	maxWidth := m.viewport.Width - 2
+	msgWidth := maxWidth - 4
+	if msgWidth < 20 {
+		msgWidth = 20
+	}
+
+	var lines []string
+	if m.loadingHistory {
+		lines = append(lines, "Loading history...", "")
+	}
+	for i := 0; i < index && i < len(m.messages); i++ {
+		lines = append(lines, m.renderMessageLines(m.messages[i], maxWidth, msgWidth)...)
+	}
+	if len(lines) == 0 {
+		return 0
+	}
+	return lipgloss.Height(strings.Join(lines, "\n"))
 }
 
 func thinkingBubble(spinnerView string) string {
@@ -658,13 +1064,18 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%dm%ds", mins, secs)
 }
 
-func stripBotMention(text, botName string) string {
-	prefix := "@" + botName
-	text = strings.TrimSpace(text)
-	if after, found := strings.CutPrefix(text, prefix); found {
-		return strings.TrimSpace(after)
+func cleanHistoryImagePlaceholder(text string, hasImage bool) string {
+	if !hasImage {
+		return text
 	}
-	return text
+	parts := strings.Split(text, "[图片]")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part = strings.TrimSpace(part); part != "" {
+			cleaned = append(cleaned, part)
+		}
+	}
+	return strings.Join(cleaned, " ")
 }
 
 func wrapText(text string, width int) string {

@@ -2,7 +2,7 @@ package manage
 
 import (
 	"erii-cli/internal/api"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -40,17 +40,21 @@ func NewMemoryMenuModel(bot api.BotInfo, group api.GroupInfo) *MemoryMenuModel {
 	l.SetShowHelp(false)
 	l.Styles.Title = style.ListTitle
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
-	l.SetItems([]list.Item{
-		memoryMenuItem{action: "record", title: "📋  Record", desc: "Open the existing memory facts table"},
-		memoryMenuItem{action: "search", title: "🧭  Vector", desc: "Embedding search over memory facts", mode: MemorySearchVector},
-		memoryMenuItem{action: "search", title: "🕸️  Graph", desc: "Embedding search plus one-hop entity graph", mode: MemorySearchGraph},
-	})
+	l.SetItems(memoryMenuItems(webMenuIconsEnabled()))
 
 	return &MemoryMenuModel{
 		bot:   bot,
 		group: group,
 		list:  l,
 		keys:  menuDefaultKeys,
+	}
+}
+
+func memoryMenuItems(web bool) []list.Item {
+	return []list.Item{
+		memoryMenuItem{action: "record", title: menuTitle(web, "\uf0ce", "📋", "Record"), desc: "Open the existing memory facts table"},
+		memoryMenuItem{action: "search", title: menuTitle(web, "\uf14e", "🧭", "Vector"), desc: "Embedding search over memory facts", mode: MemorySearchVector},
+		memoryMenuItem{action: "search", title: menuTitle(web, "\uefce", "🕸️", "Graph"), desc: "Embedding search plus one-hop entity graph", mode: MemorySearchGraph},
 	}
 }
 

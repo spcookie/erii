@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"erii-cli/internal/path"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -213,36 +213,6 @@ func (s Step) node() int {
 	}
 }
 
-func (s Step) isMainStep() bool {
-	switch s {
-	case StepProviderSelect, StepToolsMenu, StepBot, StepGroups:
-		return true
-	default:
-		return false
-	}
-}
-
-func (s Step) prevMainStep() Step {
-	switch s {
-	case StepProviderSelect:
-		return StepProviderSelect
-	case StepLLMConfig, StepLLMAdvancedAsk:
-		return StepProviderSelect
-	case StepLLMProviderSettings, StepLLMCapabilityDefault, StepLLMCapabilityLite, StepLLMCapabilityFlash, StepLLMCapabilityPro, StepLLMUsagePricing:
-		return StepLLMAdvancedAsk
-	case StepToolsMenu:
-		return StepProviderSelect
-	case StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy:
-		return StepToolsMenu
-	case StepBot:
-		return StepToolsMenu
-	case StepGroups:
-		return StepBot
-	default:
-		return StepProviderSelect
-	}
-}
-
 var llmAdvancedTabDefs = []struct {
 	label string
 	step  Step
@@ -267,6 +237,26 @@ func newLLMTabs() paginator.Model {
 		NextPage: key.NewBinding(
 			key.WithKeys("]"),
 			key.WithHelp("]", "next tab"),
+		),
+	}
+	return p
+}
+
+func newCapabilityPager() paginator.Model {
+	p := paginator.New(
+		paginator.WithPerPage(capabilityPageSize),
+		paginator.WithTotalPages(capabilityPageCount),
+	)
+	p.Type = paginator.Arabic
+	p.ArabicFormat = "%d/%d"
+	p.KeyMap = paginator.KeyMap{
+		PrevPage: key.NewBinding(
+			key.WithKeys("pgup"),
+			key.WithHelp("pgup", "previous page"),
+		),
+		NextPage: key.NewBinding(
+			key.WithKeys("pgdown"),
+			key.WithHelp("pgdown", "next page"),
 		),
 	}
 	return p
@@ -363,6 +353,7 @@ type SetupKeyMap struct {
 	Enter key.Binding
 	Nav   key.Binding
 	Tab   key.Binding
+	Page  key.Binding
 	Back  key.Binding
 	Quit  key.Binding
 	Help  key.Binding
@@ -370,7 +361,7 @@ type SetupKeyMap struct {
 
 func (k SetupKeyMap) ShortHelp() []key.Binding {
 	if k.Tab.Enabled() {
-		return []key.Binding{k.Enter, k.Nav, k.Tab, k.Back, k.Quit, k.Help}
+		return []key.Binding{k.Enter, k.Nav, k.Tab, k.Page, k.Back, k.Quit, k.Help}
 	}
 	return []key.Binding{k.Enter, k.Nav, k.Back, k.Quit, k.Help}
 }
@@ -378,7 +369,7 @@ func (k SetupKeyMap) ShortHelp() []key.Binding {
 func (k SetupKeyMap) FullHelp() [][]key.Binding {
 	if k.Tab.Enabled() {
 		return [][]key.Binding{
-			{k.Enter, k.Nav, k.Tab},
+			{k.Enter, k.Nav, k.Tab, k.Page},
 			{k.Back, k.Quit, k.Help},
 		}
 	}
@@ -440,6 +431,10 @@ var AdvancedFormKeys = SetupKeyMap{
 	Tab: key.NewBinding(
 		key.WithKeys("[", "]"),
 		key.WithHelp("[/]", "switch tab"),
+	),
+	Page: key.NewBinding(
+		key.WithKeys("pgup", "pgdown"),
+		key.WithHelp("pgup/pgdn", "capability page"),
 	),
 	Back: FormKeys.Back,
 	Quit: FormKeys.Quit,
@@ -539,7 +534,54 @@ type Model struct {
 	lastSearchProvider    string
 	lastVisionProvider    string
 	llmTabs               paginator.Model
+	capabilityPager       paginator.Model
+	history               []setupNavigationState
 	vp                    viewport.Model
+}
+
+type setupNavigationState struct {
+	step           Step
+	capabilityPage int
+}
+
+func (m Model) navigationState() setupNavigationState {
+	return setupNavigationState{
+		step:           m.step,
+		capabilityPage: m.capabilityPager.Page,
+	}
+}
+
+func (m *Model) navigateTo(step Step) {
+	if step == m.step {
+		return
+	}
+	m.history = append(m.history, m.navigationState())
+	m.step = step
+}
+
+func (m *Model) navigateBack() bool {
+	if len(m.history) == 0 {
+		return false
+	}
+	last := len(m.history) - 1
+	state := m.history[last]
+	m.history = m.history[:last]
+	m.step = state.step
+	m.capabilityPager.Page = state.capabilityPage
+	m.data.ValidationMessage = ""
+	return true
+}
+
+func (m *Model) returnToStep(step Step) {
+	if len(m.history) > 0 && m.history[len(m.history)-1].step == step {
+		m.navigateBack()
+		return
+	}
+	m.navigateTo(step)
+}
+
+func isToolConfigurationStep(step Step) bool {
+	return step >= StepToolsEmbedding && step <= StepToolsProxy
 }
 
 func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolProvidersConfig) Model {
@@ -565,12 +607,13 @@ func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolP
 	}
 
 	m := Model{
-		step:    StepProviderSelect,
-		data:    data,
-		help:    help.New(),
-		keys:    DefaultSetupKeys,
-		llmTabs: newLLMTabs(),
-		vp:      viewport.New(0, 0),
+		step:            StepProviderSelect,
+		data:            data,
+		help:            help.New(),
+		keys:            DefaultSetupKeys,
+		llmTabs:         newLLMTabs(),
+		capabilityPager: newCapabilityPager(),
+		vp:              viewport.New(0, 0),
 	}
 	m.buildProviderList()
 	return m
@@ -646,9 +689,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 			if key.Matches(msg, m.keys.Back) {
-				m.step = StepGroups
-				m.rebuildCurrentStep()
-				return m, m.currentInitCmd()
+				if m.navigateBack() {
+					m.rebuildCurrentStep()
+					return m, m.currentInitCmd()
+				}
+				return m, nil
 			}
 
 			var cmd tea.Cmd
@@ -666,13 +711,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		if handled, cmd := m.handleCapabilityPageKey(msg); handled {
+			return m, cmd
+		}
+
 		if handled, cmd := m.handleLLMTabKey(msg); handled {
 			return m, cmd
 		}
 
 		if key.Matches(msg, m.keys.Back) {
-			if (m.step.isMainStep() && m.step > StepProviderSelect) || !m.step.isMainStep() {
-				m.step = m.step.prevMainStep()
+			if m.isLLMAdvancedStep() && !m.capabilityPager.OnFirstPage() {
+				m.capabilityPager.PrevPage()
+				m.rebuildCurrentStep()
+				return m, m.currentInitCmd()
+			}
+			if m.navigateBack() {
 				m.rebuildCurrentStep()
 				return m, m.currentInitCmd()
 			}
@@ -690,13 +743,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StepLLMProviderSettings:
 		return m.updateForm(msg, StepLLMCapabilityDefault)
 	case StepLLMCapabilityDefault:
-		return m.updateForm(msg, StepLLMCapabilityLite)
+		return m.updateCapabilityForm(msg, StepLLMCapabilityLite)
 	case StepLLMCapabilityLite:
-		return m.updateForm(msg, StepLLMCapabilityFlash)
+		return m.updateCapabilityForm(msg, StepLLMCapabilityFlash)
 	case StepLLMCapabilityFlash:
-		return m.updateForm(msg, StepLLMCapabilityPro)
+		return m.updateCapabilityForm(msg, StepLLMCapabilityPro)
 	case StepLLMCapabilityPro:
-		return m.updateForm(msg, StepLLMUsagePricing)
+		return m.updateCapabilityForm(msg, StepLLMUsagePricing)
 	case StepLLMUsagePricing:
 		return m.updateForm(msg, StepToolsMenu)
 	case StepToolsMenu:
@@ -732,11 +785,15 @@ func (m Model) View() string {
 	}
 
 	footer := m.help.View(m.currentKeys())
-
-	return lipgloss.JoinVertical(lipgloss.Left,
+	view := lipgloss.JoinVertical(lipgloss.Left,
 		m.vp.View(),
 		footer,
 	)
+	if m.data.ValidationMessage == "" {
+		return view
+	}
+	toast := renderValidationToast(m.data.ValidationMessage, m.width-4)
+	return overlayBottomToast(view, toast, m.width, lipgloss.Height(footer))
 }
 
 // ---- Step rendering ----
@@ -773,7 +830,7 @@ func (m Model) renderContent() string {
 	case StepProviderSelect, StepToolsMenu:
 		return renderStepPage(m.stepTitle(), m.list.View())
 	case StepLLMConfig, StepLLMAdvancedAsk, StepLLMProviderSettings, StepLLMCapabilityDefault, StepLLMCapabilityLite, StepLLMCapabilityFlash, StepLLMCapabilityPro, StepLLMUsagePricing, StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy, StepBot, StepGroups:
-		return renderFormStep(m.stepTitle(), m.form, m.data.ValidationMessage, m.llmAdvancedTabs())
+		return renderFormStep(m.stepTitle(), m.form, m.llmAdvancedTabs())
 	case StepDone:
 		return m.renderSummary()
 	}
@@ -899,7 +956,7 @@ func (m *Model) updateProviderSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.data.LLMSettings == nil {
 					m.data.LLMSettings = defaultSettingsForAPI(providerAPI(prov))
 				}
-				m.step = StepLLMConfig
+				m.navigateTo(StepLLMConfig)
 				m.rebuildCurrentStep()
 				return m, m.currentInitCmd()
 			}
@@ -919,12 +976,12 @@ func (m *Model) updateToolsMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if item, ok := m.list.SelectedItem().(toolItem); ok {
 				if item.isDone {
-					m.step = StepBot
+					m.navigateTo(StepBot)
 					m.rebuildCurrentStep()
 					return m, m.currentInitCmd()
 				}
 				m.setToolEnabled(item.step)
-				m.step = item.step
+				m.navigateTo(item.step)
 				m.rebuildCurrentStep()
 				return m, m.currentInitCmd()
 			}
@@ -948,9 +1005,9 @@ func (m *Model) updateLLMAdvancedAsk(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.form.State == huh.StateCompleted {
 		m.data.ValidationMessage = ""
 		if m.data.AdvancedLLM {
-			m.step = StepLLMProviderSettings
+			m.navigateTo(StepLLMProviderSettings)
 		} else {
-			m.step = StepToolsMenu
+			m.navigateTo(StepToolsMenu)
 		}
 		m.rebuildCurrentStep()
 		return m, m.currentInitCmd()
@@ -958,7 +1015,7 @@ func (m *Model) updateLLMAdvancedAsk(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.form.State == huh.StateAborted {
 		m.data.ValidationMessage = ""
-		m.step = m.step.prevMainStep()
+		m.navigateBack()
 		m.rebuildCurrentStep()
 		return m, m.currentInitCmd()
 	}
@@ -992,7 +1049,23 @@ func (m *Model) handleLLMTabKey(msg tea.KeyMsg) (bool, tea.Cmd) {
 	}
 
 	m.data.ValidationMessage = ""
+	m.capabilityPager.Page = 0
 	m.step = nextStep
+	m.rebuildCurrentStep()
+	return true, tea.Batch(cmd, m.currentInitCmd())
+}
+
+func (m *Model) handleCapabilityPageKey(msg tea.KeyMsg) (bool, tea.Cmd) {
+	if !m.isLLMAdvancedStep() || !key.Matches(msg, m.keys.Page) {
+		return false, nil
+	}
+	previousPage := m.capabilityPager.Page
+	var cmd tea.Cmd
+	m.capabilityPager, cmd = m.capabilityPager.Update(msg)
+	if m.capabilityPager.Page == previousPage {
+		return true, nil
+	}
+	m.data.ValidationMessage = ""
 	m.rebuildCurrentStep()
 	return true, tea.Batch(cmd, m.currentInitCmd())
 }
@@ -1033,18 +1106,53 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 	if m.form.State == huh.StateCompleted {
 		m.data.ValidationMessage = ""
 		m.collectFormData()
-		m.step = nextStep
+		if isToolConfigurationStep(m.step) && nextStep == StepToolsMenu {
+			m.returnToStep(nextStep)
+		} else {
+			m.navigateTo(nextStep)
+		}
 		m.rebuildCurrentStep()
 		return m, m.currentInitCmd()
 	}
 
 	if m.form.State == huh.StateAborted {
 		m.data.ValidationMessage = ""
-		m.step = m.step.prevMainStep()
+		m.navigateBack()
 		m.rebuildCurrentStep()
 		return m, m.currentInitCmd()
 	}
 
+	m.syncViewportContent()
+	return m, cmd
+}
+
+func (m *Model) updateCapabilityForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
+	if m.form == nil {
+		return m, nil
+	}
+	m.clearValidationOnEdit(msg)
+	f, cmd := m.form.Update(msg)
+	if f2, ok := f.(*huh.Form); ok {
+		m.form = f2
+	}
+	if m.form.State == huh.StateCompleted {
+		m.data.ValidationMessage = ""
+		if !m.capabilityPager.OnLastPage() {
+			m.capabilityPager.NextPage()
+			m.rebuildCurrentStep()
+			return m, m.currentInitCmd()
+		}
+		m.navigateTo(nextStep)
+		m.capabilityPager.Page = 0
+		m.rebuildCurrentStep()
+		return m, m.currentInitCmd()
+	}
+	if m.form.State == huh.StateAborted {
+		m.data.ValidationMessage = ""
+		m.navigateBack()
+		m.rebuildCurrentStep()
+		return m, m.currentInitCmd()
+	}
 	m.syncViewportContent()
 	return m, cmd
 }
@@ -1174,6 +1282,7 @@ func (m *Model) rebuildCurrentStep() {
 	if page := m.step.llmAdvancedTabPage(); page >= 0 {
 		m.llmTabs.TotalPages = len(llmAdvancedTabDefs)
 		m.llmTabs.Page = page
+		m.capabilityPager.TotalPages = capabilityPageCount
 	}
 	switch m.step {
 	case StepProviderSelect:
@@ -1186,13 +1295,13 @@ func (m *Model) rebuildCurrentStep() {
 	case StepLLMProviderSettings:
 		m.form = buildLLMProviderSettingsForm(m.data, providerAPI(m.data.Providers[m.data.SelectedProv]))
 	case StepLLMCapabilityDefault:
-		m.form = buildLLMCapabilityForm("All", &m.data.LLMCapability.Default)
+		m.form = buildLLMCapabilityForm("All", &m.data.LLMCapability.Default, m.capabilityPager)
 	case StepLLMCapabilityLite:
-		m.form = buildLLMCapabilityForm("Lite", &m.data.LLMCapability.Lite)
+		m.form = buildLLMCapabilityForm("Lite", &m.data.LLMCapability.Lite, m.capabilityPager)
 	case StepLLMCapabilityFlash:
-		m.form = buildLLMCapabilityForm("Flash", &m.data.LLMCapability.Flash)
+		m.form = buildLLMCapabilityForm("Flash", &m.data.LLMCapability.Flash, m.capabilityPager)
 	case StepLLMCapabilityPro:
-		m.form = buildLLMCapabilityForm("Pro", &m.data.LLMCapability.Pro)
+		m.form = buildLLMCapabilityForm("Pro", &m.data.LLMCapability.Pro, m.capabilityPager)
 	case StepLLMUsagePricing:
 		m.form = buildLLMUsagePricingForm(m.data)
 	case StepToolsMenu:

@@ -6,6 +6,7 @@ import (
 	"erii-cli/internal/config/setter"
 	"erii-cli/internal/config/tree"
 	"erii-cli/internal/path"
+	uioutput "erii-cli/internal/ui/output"
 
 	"github.com/spf13/cobra"
 )
@@ -41,7 +42,7 @@ numbers → numeric, [a,b] → array, ${X} → substitution.`,
 		if err := setter.HoconSet(path.AppFile, args[0], args[1]); err != nil {
 			return fmt.Errorf("config app set: %w", err)
 		}
-		fmt.Printf("Set %s = %s in application.conf\n", args[0], args[1])
+		printConfigChange(cmd, "Application config", "Key", args[0], "Value", args[1])
 		return nil
 	},
 }
@@ -57,7 +58,7 @@ var configAppGetCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("config app get: %w", err)
 		}
-		fmt.Println(val)
+		fmt.Fprintln(cmd.OutOrStdout(), val)
 		return nil
 	},
 }
@@ -73,7 +74,7 @@ Key must be a single environment variable name (no dots).`,
 		if err := setter.EnvSet(path.EnvFile, args[0], args[1]); err != nil {
 			return fmt.Errorf("config env set: %w", err)
 		}
-		fmt.Printf("Set %s = %s in .env.local\n", args[0], args[1])
+		printConfigChange(cmd, "Environment config", "Key", args[0], "Value", args[1])
 		return nil
 	},
 }
@@ -89,7 +90,7 @@ var configEnvGetCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("config env get: %w", err)
 		}
-		fmt.Println(val)
+		fmt.Fprintln(cmd.OutOrStdout(), val)
 		return nil
 	},
 }
@@ -107,7 +108,7 @@ Value supports the same auto-detection as app config.`,
 		if err := setter.JSONSet(pluginFile, args[1], args[2]); err != nil {
 			return fmt.Errorf("config plugin set: %w", err)
 		}
-		fmt.Printf("Set %s = %s in plugin %s\n", args[1], args[2], args[0])
+		printConfigChange(cmd, "Plugin config", "Plugin", args[0], "Key", args[1], "Value", args[2])
 		return nil
 	},
 }
@@ -124,7 +125,7 @@ var configPluginGetCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("config plugin get: %w", err)
 		}
-		fmt.Println(val)
+		fmt.Fprintln(cmd.OutOrStdout(), val)
 		return nil
 	},
 }
@@ -141,7 +142,7 @@ Example: config app copy llm.providers.openai llm.providers.deepseek`,
 		if err := setter.HoconCopy(path.AppFile, args[0], args[1]); err != nil {
 			return fmt.Errorf("config app copy: %w", err)
 		}
-		fmt.Printf("Copied %s to %s in application.conf\n", args[0], args[1])
+		printConfigChange(cmd, "Application config", "Copied", args[0], "Target", args[1])
 		return nil
 	},
 }
@@ -165,7 +166,7 @@ Example: config app add-item llm.param ultra number "Ultra tier params"`,
 		if err := setter.HoconAddItem(path.AppFile, parentKey, name, valueType, description); err != nil {
 			return fmt.Errorf("config app add-item: %w", err)
 		}
-		fmt.Printf("Added %s (type: %s) under %s in application.conf\n", name, valueType, parentKey)
+		printConfigChange(cmd, "Application config", "Added", name, "Type", valueType, "Parent", parentKey)
 		return nil
 	},
 }
@@ -189,9 +190,17 @@ Example: config app desc llm.providers.openai "OpenAI provider configuration"`,
 		if err := tree.SaveDesc(key, description); err != nil {
 			return fmt.Errorf("config app desc: %w", err)
 		}
-		fmt.Printf("Set description for %s in desc.json\n", key)
+		printConfigChange(cmd, "Config metadata", "Key", key, "Description", description)
 		return nil
 	},
+}
+
+func printConfigChange(cmd *cobra.Command, title string, fields ...string) {
+	w := cmd.OutOrStdout()
+	fmt.Fprintln(w, uioutput.Title(title)+"  "+uioutput.Status("ok"))
+	for i := 0; i+1 < len(fields); i += 2 {
+		fmt.Fprint(w, uioutput.Row(fields[i], fields[i+1]))
+	}
 }
 
 func init() {

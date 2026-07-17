@@ -24,7 +24,14 @@ type ServerConfig struct {
 }
 
 func ReadConfig() (*ServerConfig, error) {
-	var filePath = filepath.Join(path.EriiDir, "erii.sock")
+	return ReadConfigFromDir(path.EriiDir)
+}
+
+// ReadConfigFromDir reads the core connection config from a specific Erii
+// runtime directory. This keeps callers with explicit --erii-dir values from
+// accidentally using the process-global path.
+func ReadConfigFromDir(eriiDir string) (*ServerConfig, error) {
+	filePath := filepath.Join(eriiDir, "erii.sock")
 
 	// 创建父目录
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
@@ -73,13 +80,31 @@ func ReadConfig() (*ServerConfig, error) {
 		}
 	}()
 
-	// Read config length (first 4 bytes) - use big endian to match Kotlin MappedByteBuffer
+	return decodeConfig(data)
+}
+
+// ReadConfigSnapshotFromDir reads the IPC file without resizing or mapping it.
+// Status polling uses this so it cannot modify a file while core is writing it.
+func ReadConfigSnapshotFromDir(eriiDir string) (*ServerConfig, error) {
+	data, err := os.ReadFile(filepath.Join(eriiDir, "erii.sock"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open IPC file: %w", err)
+	}
+	return decodeConfig(data)
+}
+
+func decodeConfig(data []byte) (*ServerConfig, error) {
+	if len(data) < 4 {
+		return nil, fmt.Errorf("IPC data is not ready")
+	}
+
+	// Read config length (first 4 bytes) - use big endian to match Kotlin MappedByteBuffer.
 	configLen := binary.BigEndian.Uint32(data[0:4])
 
 	if configLen == 0 {
 		return nil, fmt.Errorf("config length is 0 - data not written yet")
 	}
-	if configLen > SIZE-4 {
+	if configLen > uint32(len(data)-4) {
 		return nil, fmt.Errorf("invalid config length: %d", configLen)
 	}
 

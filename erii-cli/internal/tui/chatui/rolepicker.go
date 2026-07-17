@@ -3,7 +3,7 @@ package chatui
 import (
 	"erii-cli/internal/api"
 	"erii-cli/internal/tui/components"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -83,7 +83,7 @@ type RolePickerModel struct {
 
 func newRolePickerModel(client *api.Client) *RolePickerModel {
 	del := list.NewDefaultDelegate()
-	style.StyleDelegate(del)
+	del = style.StyleDelegate(del)
 
 	l := list.New([]list.Item{}, del, 0, 0)
 	l.SetShowTitle(false)

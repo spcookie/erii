@@ -2,11 +2,12 @@ package manage
 
 import (
 	"erii-cli/internal/api"
+	"erii-cli/internal/tui/components"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -360,7 +361,7 @@ func (m *StateDetailModel) buildContent() string {
 	content := strings.Join(rows, "\n")
 	panel := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(style.BorderColor).
+		BorderForeground(style.BorderStrong).
 		Padding(0, 1).
 		Width(panelW).
 		Render(content)
@@ -376,14 +377,14 @@ func (m *StateDetailModel) buildEmotionContent(w int) []string {
 	var rows []string
 
 	rows = append(rows, fmt.Sprintf("Tendency: %s %s",
-		lipgloss.NewStyle().Foreground(style.Primary).Bold(true).Render(emotionName(e.EmotionalTendency)),
+		lipgloss.NewStyle().Foreground(style.ChartCyan).Bold(true).Render(emotionName(e.EmotionalTendency)),
 		style.Muted("("+e.EmotionalTendency+")"),
 	))
 
 	bw := w - 22
-	rows = append(rows, padBar(bw, "Mood P", e.Mood.P, lipgloss.Color("#50FA7B")))
-	rows = append(rows, padBar(bw, "Mood A", e.Mood.A, lipgloss.Color("#FFB86C")))
-	rows = append(rows, padBar(bw, "Mood D", e.Mood.D, lipgloss.Color("#BD93F9")))
+	rows = append(rows, padBar(bw, "Mood P", e.Mood.P, style.ChartBlue))
+	rows = append(rows, padBar(bw, "Mood A", e.Mood.A, style.ChartAmber))
+	rows = append(rows, padBar(bw, "Mood D", e.Mood.D, style.ChartViolet))
 
 	rows = append(rows, "")
 	rows = append(rows, lipgloss.NewStyle().Foreground(style.Secondary).Bold(true).Render("Behavior Profile"))
@@ -406,7 +407,7 @@ func (m *StateDetailModel) buildFlowContent(w int) []string {
 	rows = append(rows, fmt.Sprintf("Flow Value: %s",
 		lipgloss.NewStyle().Foreground(fc).Bold(true).Render(fmt.Sprintf("%.1f", f.FlowValue)),
 	))
-	rows = append(rows, renderBar(w-4, f.FlowValue, fc, style.Surface))
+	rows = append(rows, renderBar(w-4, f.FlowValue, fc, style.Track))
 	rows = append(rows, "")
 	rows = append(rows, fmt.Sprintf("Current Topic: %s", style.InfoText(f.CurrentTopic)))
 
@@ -421,8 +422,8 @@ func (m *StateDetailModel) buildVolitionContent(w int) []string {
 	var rows []string
 
 	bw := w - 22
-	rows = append(rows, metricBar(bw, "Stimulus", v.Stimulus, lipgloss.Color("#50FA7B")))
-	rows = append(rows, metricBar(bw, "Fatigue", v.Fatigue, lipgloss.Color("#BD93F9")))
+	rows = append(rows, metricBar(bw, "Stimulus", v.Stimulus, style.ChartBlue))
+	rows = append(rows, metricBar(bw, "Fatigue", v.Fatigue, style.ChartViolet))
 
 	return rows
 }
@@ -438,32 +439,19 @@ func hline(width int) string {
 }
 
 func renderBar(width int, percent float64, filledColor, emptyColor lipgloss.TerminalColor) string {
-	if width < 3 {
-		width = 20
-	}
-	filled := int(float64(width) * percent / 100.0)
-	if filled < 0 {
-		filled = 0
-	}
-	if filled > width {
-		filled = width
-	}
-	empty := width - filled
-	f := lipgloss.NewStyle().Foreground(filledColor).Render(strings.Repeat("■", filled))
-	e := lipgloss.NewStyle().Foreground(emptyColor).Render(strings.Repeat("□", empty))
-	return f + e
+	return components.ProgressBar(width, percent, filledColor, emptyColor)
 }
 
 func padBar(width int, name string, val float64, barColor lipgloss.TerminalColor) string {
 	pct := (val + 4.0) / 8.0 * 100.0
-	bar := renderBar(width, pct, barColor, style.Surface)
+	bar := renderBar(width, pct, barColor, style.Track)
 	ns := lipgloss.NewStyle().Foreground(style.TextMuted).Width(10).Render(name)
 	vs := lipgloss.NewStyle().Foreground(style.Info).Bold(true).Render(fmt.Sprintf("%.2f", val))
 	return fmt.Sprintf("%s  %s  %s", ns, bar, vs)
 }
 
 func metricBar(width int, name string, val float64, barColor lipgloss.TerminalColor) string {
-	bar := renderBar(width, val, barColor, style.Surface)
+	bar := renderBar(width, val, barColor, style.Track)
 	ns := lipgloss.NewStyle().Foreground(style.TextMuted).Width(10).Render(name)
 	vs := lipgloss.NewStyle().Foreground(style.Info).Bold(true).Render(fmt.Sprintf("%.1f", val))
 	return fmt.Sprintf("%s  %s  %s", ns, bar, vs)

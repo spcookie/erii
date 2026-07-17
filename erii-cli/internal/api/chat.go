@@ -7,8 +7,9 @@ import (
 
 // ChatSendResponse is the response body from POST /api/chat/send
 type ChatSendResponse struct {
-	Response string `json:"response"`
-	Error    string `json:"error"`
+	RequestID string `json:"requestId"`
+	Response  string `json:"response"`
+	Error     string `json:"error"`
 }
 
 // ChatHealthResponse is the response body from GET /api/chat/health
@@ -64,10 +65,12 @@ func (c *Client) SelectChatRole(roleId string) (*ChatSelectRoleResponse, error) 
 
 // ChatHistoryEntry represents a single message in the chat history.
 type ChatHistoryEntry struct {
-	ID        int64  `json:"id"`
-	Sender    string `json:"sender"`
-	Content   string `json:"content"`
-	Timestamp int64  `json:"timestamp"`
+	ID          int64  `json:"id"`
+	Sender      string `json:"sender"`
+	Content     string `json:"content"`
+	Timestamp   int64  `json:"timestamp"`
+	MessageType string `json:"messageType"`
+	HasImage    bool   `json:"hasImage"`
 }
 
 // ChatHistoryResponse is the response from GET /api/chat/history
@@ -87,6 +90,15 @@ func (c *Client) GetChatHistory(before int64, limit int) (*ChatHistoryResponse, 
 		return nil, fmt.Errorf("failed to fetch history: %w", err)
 	}
 	return &resp, nil
+}
+
+// GetChatHistoryImage fetches the thumbnail associated with a chat history entry.
+func (c *Client) GetChatHistoryImage(historyID int64) ([]byte, error) {
+	data, err := c.doRequest("GET", fmt.Sprintf("/api/chat/history/%d/image", historyID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch chat history image: %w", err)
+	}
+	return data, nil
 }
 
 // CheckChatHealth checks if the chat bridge is ready.

@@ -4,9 +4,10 @@ import (
 	"os"
 	"strings"
 
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"charm.land/glamour/v2"
+	"charm.land/glamour/v2/ansi"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
@@ -228,9 +229,12 @@ func buildFrontmatterTable(entries [][2]string, width int) table.Model {
 	)
 
 	styles := table.DefaultStyles()
-	styles.Header = styles.Header.Foreground(style.Primary).Bold(true)
+	styles.Header = styles.Header.
+		Foreground(style.Accent).
+		BorderForeground(style.BorderStrong).
+		Bold(true)
 	styles.Cell = styles.Cell.Foreground(style.Text)
-	styles.Selected = styles.Selected.Foreground(style.Text)
+	styles.Selected = styles.Selected.Foreground(style.Accent).Bold(true)
 	t.SetStyles(styles)
 
 	return t
@@ -243,9 +247,41 @@ func createRenderer(width int) (*glamour.TermRenderer, error) {
 		ww = 20
 	}
 	return glamour.NewTermRenderer(
-		glamour.WithStandardStyle("tokyo-night"),
+		glamour.WithStyles(vercelMarkdownStyle()),
 		glamour.WithWordWrap(ww),
 	)
+}
+
+func vercelMarkdownStyle() ansi.StyleConfig {
+	color := func(c lipgloss.AdaptiveColor) *string {
+		value := style.AdaptiveHex(c)
+		return &value
+	}
+	bold := true
+	italic := true
+	underline := true
+	margin := uint(1)
+	indent := uint(2)
+	return ansi.StyleConfig{
+		Document:       ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text)}},
+		Paragraph:      ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text)}},
+		Heading:        ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text), Bold: &bold}},
+		H1:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Accent), Bold: &bold}, Margin: &margin},
+		H2:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.ChartCyan), Bold: &bold}, Margin: &margin},
+		H3:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.ChartViolet), Bold: &bold}},
+		Text:           ansi.StylePrimitive{Color: color(style.Text)},
+		Emph:           ansi.StylePrimitive{Color: color(style.TextMuted), Italic: &italic},
+		Strong:         ansi.StylePrimitive{Color: color(style.Text), Bold: &bold},
+		Link:           ansi.StylePrimitive{Color: color(style.Accent), Underline: &underline},
+		LinkText:       ansi.StylePrimitive{Color: color(style.Accent)},
+		Item:           ansi.StylePrimitive{Color: color(style.Accent)},
+		Enumeration:    ansi.StylePrimitive{Color: color(style.ChartCyan)},
+		HorizontalRule: ansi.StylePrimitive{Color: color(style.BorderStrong)},
+		BlockQuote:     ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.TextMuted)}, Indent: &indent},
+		Code:           ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.ChartCyan)}},
+		CodeBlock:      ansi.StyleCodeBlock{StyleBlock: ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text)}, Margin: &margin}},
+		Table:          ansi.StyleTable{StyleBlock: ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text)}}},
+	}
 }
 
 func NewViewerModel(path, title string) *ViewerModel {
@@ -358,7 +394,7 @@ func (m *ViewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *ViewerModel) View() string {
 	border := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(style.BorderColor).
+		BorderForeground(style.BorderStrong).
 		Padding(0, 2)
 	titleBar := style.Title("Viewing: " + m.title)
 	content := border.Render(m.viewport.View())

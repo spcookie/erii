@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // ---- Unified step layout ----
@@ -25,19 +26,19 @@ type tabItem struct {
 	Active bool
 }
 
-func renderFormStep(title string, form *huh.Form, validationMessage string, tabs []tabItem) string {
+func renderFormStep(title string, form *huh.Form, tabs []tabItem) string {
 	if form == nil {
 		return renderStepPage(title, "")
 	}
-	parts := []string{style.Title(title)}
+	var b strings.Builder
+	b.WriteString(style.Title(title))
+	b.WriteString("\n\n")
 	if len(tabs) > 0 {
-		parts = append(parts, renderTabs(tabs))
+		b.WriteString(renderTabs(tabs))
+		b.WriteString("\n")
 	}
-	if validationMessage != "" {
-		parts = append(parts, renderValidationMessage(validationMessage))
-	}
-	parts = append(parts, form.View())
-	return strings.Join(parts, "\n\n")
+	b.WriteString(form.View())
+	return b.String()
 }
 
 func renderTabs(tabs []tabItem) string {
@@ -46,28 +47,58 @@ func renderTabs(tabs []tabItem) string {
 		label := " " + tab.Label + " "
 		if tab.Active {
 			parts = append(parts, lipgloss.NewStyle().
-				Foreground(style.SurfaceAlt).
-				Background(style.Primary).
+				Foreground(style.Accent).
+				Border(lipgloss.NormalBorder(), false, false, true, false).
+				BorderForeground(style.Accent).
 				Bold(true).
 				Render(label))
 		} else {
 			parts = append(parts, lipgloss.NewStyle().
 				Foreground(style.TextMuted).
 				Border(lipgloss.NormalBorder(), false, false, true, false).
-				BorderForeground(style.BorderColor).
+				BorderForeground(style.BorderStrong).
 				Render(label))
 		}
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 }
 
-func renderValidationMessage(message string) string {
+func renderValidationToast(message string, maxWidth int) string {
+	text := "Validation failed: " + message
+	if maxWidth > 0 {
+		text = truncateToast(text, maxWidth)
+	}
 	return lipgloss.NewStyle().
 		Foreground(style.Error).
-		Border(lipgloss.RoundedBorder()).
+		Background(style.ErrorSurface).
+		Border(lipgloss.ThickBorder(), false, false, false, true).
 		BorderForeground(style.Error).
 		Padding(0, 1).
-		Render("Validation failed: " + message)
+		Render(text)
+}
+
+func truncateToast(text string, maxWidth int) string {
+	contentWidth := maxWidth - 4
+	if contentWidth < 8 {
+		contentWidth = 8
+	}
+	return ansi.Truncate(text, contentWidth, "...")
+}
+
+func overlayBottomToast(base, toast string, width, footerHeight int) string {
+	if toast == "" || width <= 0 {
+		return base
+	}
+	lines := strings.Split(base, "\n")
+	toastLines := strings.Split(toast, "\n")
+	start := len(lines) - footerHeight - len(toastLines)
+	if start < 0 {
+		return base
+	}
+	placed := lipgloss.PlaceHorizontal(width, lipgloss.Left, toast)
+	placedLines := strings.Split(placed, "\n")
+	copy(lines[start:start+len(placedLines)], placedLines)
+	return strings.Join(lines, "\n")
 }
 
 // ---- Timeline ----
@@ -209,44 +240,5 @@ func styleNodeSuffix(suffix string) string {
 // ---- Huh theme (matches style.StyleDelegate color scheme) ----
 
 func huhTheme() *huh.Theme {
-	t := huh.ThemeBase()
-
-	// Tighter field spacing
-	t.FieldSeparator = lipgloss.NewStyle().SetString("\n\n")
-
-	// Focused field: purple titles (matching list desc), green interactive elements (matching list title)
-	t.Focused.Base = t.Focused.Base.BorderForeground(style.Primary)
-	t.Focused.Title = t.Focused.Title.Foreground(style.Secondary).Bold(true).MarginBottom(0)
-	t.Focused.Description = t.Focused.Description.Foreground(style.TextMuted)
-	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(style.Secondary)
-	t.Focused.NextIndicator = t.Focused.NextIndicator.Foreground(style.Secondary)
-	t.Focused.PrevIndicator = t.Focused.PrevIndicator.Foreground(style.Secondary)
-	t.Focused.Option = t.Focused.Option.Foreground(style.Text)
-	t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(style.Secondary)
-	t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(style.Primary)
-	t.Focused.SelectedPrefix = t.Focused.SelectedPrefix.Foreground(style.Primary)
-	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(style.Text)
-	t.Focused.UnselectedPrefix = t.Focused.UnselectedPrefix.Foreground(style.TextMuted)
-	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(style.SurfaceAlt).Background(style.Primary).Bold(true)
-	t.Focused.BlurredButton = t.Focused.BlurredButton.Foreground(style.TextMuted).Background(style.Surface)
-	t.Focused.TextInput.Cursor = t.Focused.TextInput.Cursor.Foreground(style.Primary)
-	t.Focused.TextInput.Placeholder = t.Focused.TextInput.Placeholder.Foreground(style.TextMuted)
-	t.Focused.TextInput.Prompt = t.Focused.TextInput.Prompt.Foreground(style.Primary)
-	t.Focused.TextInput.Text = t.Focused.TextInput.Text.Foreground(style.Text)
-	t.Focused.ErrorIndicator = t.Focused.ErrorIndicator.Foreground(style.Error)
-	t.Focused.ErrorMessage = t.Focused.ErrorMessage.Foreground(style.Error)
-
-	// Blurred fields: hidden border, muted text
-	t.Blurred = t.Focused
-	t.Blurred.Base = t.Blurred.Base.BorderStyle(lipgloss.HiddenBorder())
-	t.Blurred.NextIndicator = lipgloss.NewStyle()
-	t.Blurred.PrevIndicator = lipgloss.NewStyle()
-	t.Blurred.TextInput.Prompt = t.Blurred.TextInput.Prompt.Foreground(style.TextMuted)
-	t.Blurred.TextInput.Text = t.Blurred.TextInput.Text.Foreground(style.Text)
-
-	// Group title — align with style.Title (Primary + Bold)
-	t.Group.Title = lipgloss.NewStyle().Foreground(style.Primary).Bold(true)
-	t.Group.Description = lipgloss.NewStyle().Foreground(style.TextMuted)
-
-	return t
+	return style.HuhTheme()
 }

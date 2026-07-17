@@ -23,6 +23,7 @@ type wsMessage struct {
 	Token string   `json:"token,omitempty"`
 	Cols  int      `json:"cols,omitempty"`
 	Rows  int      `json:"rows,omitempty"`
+	Theme string   `json:"theme,omitempty"`
 }
 
 // wsOut is the JSON protocol message sent to the frontend.
@@ -38,7 +39,10 @@ type WSHandler struct {
 	EriiBin     string
 	ConfDir     string
 	MetaConfDir string
+	EriiDir     string
 	PluginDir   string
+	OptsPath    string
+	Theme       string
 	binPath     string
 	binReady    bool
 }
@@ -88,19 +92,15 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				bin = h.binPath
 			}
 
-			args := []string{"--conf-dir", h.ConfDir}
-			if h.MetaConfDir != "" {
-				args = append(args, "--meta-conf-dir", h.MetaConfDir)
-			}
-			if h.PluginDir != "" {
-				args = append(args, "--plugin-dir", h.PluginDir)
-			}
-			args = append(args, msg.Args...)
+			args := h.commandArgs(msg.Args, msg.Theme)
 			if err := h.Session.Start(bin, msg.Cmd, args, msg.Rows, msg.Cols); err != nil {
 				conn.WriteMessage(websocket.BinaryMessage, []byte("Failed to start: "+err.Error()+"\r\n"))
 				conn.WriteJSON(wsOut{Type: "exit", Code: -1})
 				continue
 			}
+			// The previous command may have used the alternate screen. Clear only
+			// after its PTY has fully shut down so restored content cannot leak.
+			_ = conn.WriteMessage(websocket.BinaryMessage, []byte("\x1b[2J\x1b[H"))
 
 			go h.bridgePtyToWS(conn, h.Session.Generation())
 
@@ -119,6 +119,36 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func (h *WSHandler) commandArgs(extra []string, clientTheme ...string) []string {
+	args := make([]string, 0, 12+len(extra))
+	if h.ConfDir != "" {
+		args = append(args, "--conf-dir", h.ConfDir)
+	}
+	if h.MetaConfDir != "" {
+		args = append(args, "--meta-conf-dir", h.MetaConfDir)
+	}
+	if h.EriiDir != "" {
+		args = append(args, "--erii-dir", h.EriiDir)
+	}
+	if h.PluginDir != "" {
+		args = append(args, "--plugin-dir", h.PluginDir)
+	}
+	if h.OptsPath != "" {
+		args = append(args, "--opts-path", h.OptsPath)
+	}
+	resolvedTheme := h.Theme
+	if resolvedTheme == "" || resolvedTheme == "auto" {
+		resolvedTheme = ""
+		if len(clientTheme) > 0 {
+			resolvedTheme = clientTheme[0]
+		}
+	}
+	if resolvedTheme == "dark" || resolvedTheme == "light" {
+		args = append(args, "--theme", resolvedTheme)
+	}
+	return append(args, extra...)
 }
 
 // bridgePtyToWS reads from PTY and writes to WebSocket until PTY closes.

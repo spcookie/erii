@@ -2,7 +2,7 @@ package manage
 
 import (
 	"erii-cli/internal/api"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 	"fmt"
 	"strings"
 
@@ -33,58 +33,47 @@ var (
 	memorySearchMetaStyle = lipgloss.NewStyle().
 				Foreground(style.TextMuted)
 	memorySearchScoreStyle = lipgloss.NewStyle().
-				Foreground(style.Background).
-				Background(style.Accent).
+				Foreground(style.Accent).
 				Bold(true).
 				Padding(0, 1)
 	memorySearchFactIDStyle = lipgloss.NewStyle().
-				Foreground(style.Background).
-				Background(style.Secondary).
+				Foreground(style.Secondary).
 				Bold(true).
 				Padding(0, 1)
 	memorySearchBM25Style = lipgloss.NewStyle().
-				Foreground(style.Background).
-				Background(style.Warning).
+				Foreground(style.Warning).
 				Bold(true).
 				Padding(0, 1)
 	memorySearchVectorStyle = lipgloss.NewStyle().
-				Foreground(style.Background).
-				Background(style.Info).
+				Foreground(style.Info).
 				Bold(true).
 				Padding(0, 1)
 	memorySearchSourceFallbackStyle = lipgloss.NewStyle().
-					Foreground(style.Text).
-					Background(style.SurfaceAlt).
+					Foreground(style.TextMuted).
 					Bold(true).
 					Padding(0, 1)
 	memorySearchSeedStyle = lipgloss.NewStyle().
-				Foreground(style.Background).
-				Background(style.Primary).
+				Foreground(style.Primary).
 				Bold(true).
 				Padding(0, 1)
 	memorySearchExpandedStyle = lipgloss.NewStyle().
-					Foreground(style.Background).
-					Background(style.Secondary).
+					Foreground(style.Secondary).
 					Bold(true).
 					Padding(0, 1)
 	memorySearchRelatedStyle = lipgloss.NewStyle().
-					Foreground(style.Background).
-					Background(style.Warning).
+					Foreground(style.Warning).
 					Bold(true).
 					Padding(0, 1)
 	memorySearchFactTagStyle = lipgloss.NewStyle().
-					Foreground(style.Background).
-					Background(style.Secondary).
+					Foreground(style.Secondary).
 					Bold(true).
 					Padding(0, 1)
 	memorySearchEntityTagStyle = lipgloss.NewStyle().
-					Foreground(style.Background).
-					Background(style.Info).
+					Foreground(style.Info).
 					Bold(true).
 					Padding(0, 1)
 	memorySearchEdgeTagStyle = lipgloss.NewStyle().
-					Foreground(style.Background).
-					Background(style.Warning).
+					Foreground(style.Warning).
 					Bold(true).
 					Padding(0, 1)
 )
@@ -324,7 +313,7 @@ func (m *MemorySearchModel) leftPane() string {
 		Width(w).
 		Height(m.panelHeight()).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(style.BorderColor).
+		BorderForeground(style.BorderStrong).
 		Padding(0, 1).
 		Render(strings.Join(lines, "\n"))
 }
@@ -343,7 +332,7 @@ func (m *MemorySearchModel) rightPane() string {
 		Width(w).
 		Height(m.panelHeight()).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(style.BorderColor).
+		BorderForeground(style.BorderStrong).
 		Padding(0, 1).
 		Render(m.resultVP.View())
 }

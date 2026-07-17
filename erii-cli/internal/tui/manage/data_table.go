@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -112,19 +112,7 @@ func NewDataTableModel(api *api.Client, rt ResourceType, bot api.BotInfo, group 
 	ti.Cursor.Style = lipgloss.NewStyle().Foreground(style.Accent)
 
 	t := table.New()
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(style.BorderColor).
-		BorderBottom(true).
-		Bold(true).
-		Foreground(style.Primary)
-	s.Cell = s.Cell.
-		Padding(0, 1)
-	s.Selected = s.Selected.
-		Foreground(style.Primary).
-		Bold(true)
-	t.SetStyles(s)
+	t.SetStyles(DataTableStyles())
 
 	km := table.DefaultKeyMap()
 	km.PageDown = key.NewBinding(key.WithKeys("f", "pgdown"))
@@ -152,7 +140,7 @@ func NewDataTableModel(api *api.Client, rt ResourceType, bot api.BotInfo, group 
 }
 
 func newConfirmForm(title, description string, value *bool, width int) *huh.Form {
-	t := huh.ThemeBase()
+	t := style.HuhTheme()
 	redTitle := lipgloss.NewStyle().Align(lipgloss.Center).Foreground(style.Error).Bold(true)
 	redDesc := lipgloss.NewStyle().Align(lipgloss.Center).Foreground(style.Error)
 	t.Focused.Base = lipgloss.NewStyle().Align(lipgloss.Center)
@@ -805,12 +793,12 @@ func (m *DataTableModel) View() string {
 	var parts []string
 	parts = append(parts, m.renderTitleBar())
 	if m.searching {
-		parts = append(parts, "  "+m.searchInput.View())
+		parts = append(parts, SearchBarStyle.Width(m.width).Render(m.searchInput.View()))
 	}
 
 	tableView := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(style.BorderColor).
+		BorderForeground(style.BorderStrong).
 		Render(m.table.View())
 	parts = append(parts, tableView)
 

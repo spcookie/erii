@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"erii-cli/internal/path"
+	uioutput "erii-cli/internal/ui/output"
 
 	"github.com/spf13/cobra"
 )
@@ -43,7 +44,7 @@ var serverStartCmd = &cobra.Command{
 		if hasHelpFlag(args) {
 			return cmd.Help()
 		}
-		return runServerStart()
+		return runServerStart(cmd.OutOrStdout())
 	},
 }
 
@@ -51,7 +52,7 @@ var serverStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the running Erii backend server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runServerStop()
+		return runServerStop(cmd.OutOrStdout())
 	},
 }
 
@@ -59,7 +60,7 @@ var serverStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show Erii backend server status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runServerStatus()
+		return runServerStatus(cmd.OutOrStdout())
 	},
 }
 
@@ -71,7 +72,7 @@ var serverRestartCmd = &cobra.Command{
 		if hasHelpFlag(args) {
 			return cmd.Help()
 		}
-		return runServerRestart()
+		return runServerRestart(cmd.OutOrStdout())
 	},
 }
 
@@ -407,7 +408,7 @@ func spawnDaemon(javaBin string, args []string, env []string) (int, error) {
 
 // ---- command implementations ----
 
-func runServerStart() error {
+func runServerStart(w io.Writer) error {
 	javaBin, err := findJava()
 	if err != nil {
 		return fmt.Errorf("Java not found. Install Java 17+ or set JAVA_HOME: %w", err)
@@ -447,10 +448,10 @@ func runServerStart() error {
 		return nil
 	}
 
-	return daemonStart(javaBin, args, env)
+	return daemonStart(w, javaBin, args, env)
 }
 
-func daemonStart(javaBin string, args []string, env []string) error {
+func daemonStart(w io.Writer, javaBin string, args []string, env []string) error {
 	existingPid, err := readPidFile()
 	if err != nil {
 		return fmt.Errorf("reading PID file: %w", err)
@@ -470,23 +471,24 @@ func daemonStart(javaBin string, args []string, env []string) error {
 	if err := writePidFile(pid); err != nil {
 		return fmt.Errorf("writing PID file: %w", err)
 	}
-	fmt.Printf("Server started in background. PID: %d\n", pid)
+	printServerResult(w, "Server started", "ok", "PID", strconv.Itoa(pid), "Mode", "background")
 	return nil
 }
 
-func daemonRestart(javaBin string, args []string, env []string) error {
+func daemonRestart(w io.Writer, javaBin string, args []string, env []string) error {
 	existingPid, err := readPidFile()
 	if err != nil {
 		return fmt.Errorf("reading PID file: %w", err)
 	}
 
 	if existingPid > 0 && isProcessRunning(existingPid) {
-		fmt.Printf("Server is already running (PID: %d). Restarting...\n", existingPid)
+		fmt.Fprintln(w, uioutput.Title("Server restart")+"  "+uioutput.Status("running"))
+		fmt.Fprint(w, uioutput.Row("PID", strconv.Itoa(existingPid)))
 		if err := stopServer(existingPid); err != nil {
-			fmt.Println("Failed to stop old server. You may need to kill it manually.")
+			fmt.Fprint(w, uioutput.ErrorResult("Server restart", "Stop", err))
 			os.Exit(1)
 		}
-		fmt.Println("Server stopped. Starting server...")
+		fmt.Fprintln(w, uioutput.Muted("Server stopped. Starting server..."))
 	} else if existingPid > 0 {
 		removePidFile()
 	}
@@ -498,53 +500,54 @@ func daemonRestart(javaBin string, args []string, env []string) error {
 	if err := writePidFile(pid); err != nil {
 		return fmt.Errorf("writing PID file: %w", err)
 	}
-	fmt.Printf("Server started in background. PID: %d\n", pid)
+	printServerResult(w, "Server restarted", "ok", "PID", strconv.Itoa(pid), "Mode", "background")
 	return nil
 }
 
-func runServerStop() error {
+func runServerStop(w io.Writer) error {
 	pid, err := readPidFile()
 	if err != nil {
 		return fmt.Errorf("reading PID file: %w", err)
 	}
 	if pid == 0 {
-		fmt.Println("No PID file found. Server is not running in daemon mode.")
+		printServerResult(w, "Server stop", "warning", "Status", "not running", "Reason", "PID file not found")
 		return nil
 	}
 	if !isProcessRunning(pid) {
-		fmt.Printf("Process %d is not running. Cleaning up PID file.\n", pid)
+		printServerResult(w, "Server stop", "warning", "PID", strconv.Itoa(pid), "Status", "stale PID file removed")
 		removePidFile()
 		return nil
 	}
 
-	fmt.Printf("Stopping server (PID: %d)...\n", pid)
+	fmt.Fprintln(w, uioutput.Title("Server stop")+"  "+uioutput.Status("running"))
+	fmt.Fprint(w, uioutput.Row("PID", strconv.Itoa(pid)))
 	if err := stopServer(pid); err != nil {
-		fmt.Println("Server did not stop gracefully. You may need to kill it manually.")
+		fmt.Fprint(w, uioutput.ErrorResult("Server stop", "Process", err))
 		os.Exit(1)
 	}
-	fmt.Println("Server stopped.")
+	printServerResult(w, "Server stopped", "ok", "PID", strconv.Itoa(pid))
 	return nil
 }
 
-func runServerStatus() error {
+func runServerStatus(w io.Writer) error {
 	pid, err := readPidFile()
 	if err != nil {
 		return fmt.Errorf("reading PID file: %w", err)
 	}
 	if pid == 0 {
-		fmt.Println("Server is not running (no PID file).")
+		printServerResult(w, "Server status", "warning", "Status", "not running", "Reason", "PID file not found")
 		return nil
 	}
 	if isProcessRunning(pid) {
-		fmt.Printf("Server is running. PID: %d\n", pid)
+		printServerResult(w, "Server status", "ok", "Status", "running", "PID", strconv.Itoa(pid))
 		return nil
 	}
-	fmt.Printf("Server is not running (stale PID file: %d).\n", pid)
+	printServerResult(w, "Server status", "error", "Status", "not running", "Stale PID", strconv.Itoa(pid))
 	os.Exit(1)
 	return nil
 }
 
-func runServerRestart() error {
+func runServerRestart(w io.Writer) error {
 	javaBin, err := findJava()
 	if err != nil {
 		return fmt.Errorf("Java not found. Install Java 17+ or set JAVA_HOME: %w", err)
@@ -557,5 +560,12 @@ func runServerRestart() error {
 	}
 	env := loadServerEnv()
 
-	return daemonRestart(javaBin, args, env)
+	return daemonRestart(w, javaBin, args, env)
+}
+
+func printServerResult(w io.Writer, title, status string, fields ...string) {
+	fmt.Fprintln(w, uioutput.Title(title)+"  "+uioutput.Status(status))
+	for i := 0; i+1 < len(fields); i += 2 {
+		fmt.Fprint(w, uioutput.Row(fields[i], fields[i+1]))
+	}
 }

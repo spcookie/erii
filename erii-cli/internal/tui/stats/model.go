@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"erii-cli/internal/tui/components"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -54,11 +54,7 @@ func NewGroupListModel(client *api.Client, bot api.BotInfo) *components.GroupLis
 }
 
 // ── Generic Unicode symbols (safe in all fonts) ──
-const (
-	SymArrow    = ">"
-	SymBarFull  = "■"
-	SymBarEmpty = "□"
-)
+const SymArrow = ">"
 
 var (
 	mutedLabelStyle = lipgloss.NewStyle().
@@ -206,15 +202,15 @@ func (m *StatusViewModel) buildContent() string {
 	if s.BehaviorProfile != nil {
 		emoName := emotionName(s.BehaviorProfile.Emotion)
 		rows = append(rows, fmt.Sprintf("Status: %s %s",
-			lipgloss.NewStyle().Foreground(style.Primary).Bold(true).Render(emoName),
+			lipgloss.NewStyle().Foreground(style.ChartCyan).Bold(true).Render(emoName),
 			style.Muted("("+s.BehaviorProfile.Emotion+")"),
 		))
 	}
 	if s.PAD != nil {
 		bw := innerW - 22
-		rows = append(rows, padBar(bw, "Pleasure", s.PAD.P, lipgloss.Color("#50FA7B")))
-		rows = append(rows, padBar(bw, "Arousal", s.PAD.A, lipgloss.Color("#FFB86C")))
-		rows = append(rows, padBar(bw, "Dominance", s.PAD.D, lipgloss.Color("#BD93F9")))
+		rows = append(rows, padBar(bw, "Pleasure", s.PAD.P, style.ChartBlue))
+		rows = append(rows, padBar(bw, "Arousal", s.PAD.A, style.ChartAmber))
+		rows = append(rows, padBar(bw, "Dominance", s.PAD.D, style.ChartViolet))
 	} else {
 		rows = append(rows, style.Muted("No emotion data available"))
 	}
@@ -228,7 +224,7 @@ func (m *StatusViewModel) buildContent() string {
 		style.Muted("("+s.FlowState.State+")"),
 		lipgloss.NewStyle().Foreground(fc).Bold(true).Render(fmt.Sprintf("%.1f", s.FlowState.Meter)),
 	))
-	rows = append(rows, renderBar(innerW-4, s.FlowState.Meter, fc, style.Surface))
+	rows = append(rows, renderBar(innerW-4, s.FlowState.Meter, fc, style.Track))
 	rows = append(rows, flowScale(innerW-4))
 
 	// Volition
@@ -244,8 +240,8 @@ func (m *StatusViewModel) buildContent() string {
 	rows = append(rows, sectionTitle("Volition"))
 	rows = append(rows, "Status: "+lipgloss.NewStyle().Foreground(vcolor).Bold(true).Render(vstatusCN)+" "+style.Muted("("+vstatus+")"))
 	bw := innerW - 22
-	rows = append(rows, metricBar(bw, "Stimulus", s.VolitionState.Stimulus, lipgloss.Color("#50FA7B")))
-	rows = append(rows, metricBar(bw, "Fatigue", s.VolitionState.Fatigue, lipgloss.Color("#BD93F9")))
+	rows = append(rows, metricBar(bw, "Stimulus", s.VolitionState.Stimulus, style.ChartBlue))
+	rows = append(rows, metricBar(bw, "Fatigue", s.VolitionState.Fatigue, style.ChartViolet))
 
 	// Memory (inline)
 	rows = append(rows, hline(innerW))
@@ -269,7 +265,7 @@ func (m *StatusViewModel) buildContent() string {
 
 	panel := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(style.BorderColor).
+		BorderForeground(style.BorderStrong).
 		Padding(0, 1).
 		Width(panelW).
 		Render(content)
@@ -280,20 +276,7 @@ func (m *StatusViewModel) buildContent() string {
 // ── UI helpers ──
 
 func renderBar(width int, percent float64, filledColor, emptyColor lipgloss.TerminalColor) string {
-	if width < 3 {
-		width = 20
-	}
-	filled := int(float64(width) * percent / 100.0)
-	if filled < 0 {
-		filled = 0
-	}
-	if filled > width {
-		filled = width
-	}
-	empty := width - filled
-	f := lipgloss.NewStyle().Foreground(filledColor).Render(strings.Repeat(SymBarFull, filled))
-	e := lipgloss.NewStyle().Foreground(emptyColor).Render(strings.Repeat(SymBarEmpty, empty))
-	return f + e
+	return components.ProgressBar(width, percent, filledColor, emptyColor)
 }
 
 func sectionTitle(title string) string {
@@ -306,14 +289,14 @@ func hline(width int) string {
 
 func padBar(width int, name string, val float64, barColor lipgloss.TerminalColor) string {
 	pct := (val + 4.0) / 8.0 * 100.0
-	bar := renderBar(width, pct, barColor, style.Surface)
+	bar := renderBar(width, pct, barColor, style.Track)
 	ns := mutedLabelStyle.Render(name)
 	vs := infoValueStyle.Render(fmt.Sprintf("%.2f", val))
 	return fmt.Sprintf("%s  %s  %s", ns, bar, vs)
 }
 
 func metricBar(width int, name string, val float64, barColor lipgloss.TerminalColor) string {
-	bar := renderBar(width, val, barColor, style.Surface)
+	bar := renderBar(width, val, barColor, style.Track)
 	ns := mutedLabelStyle.Render(name)
 	vs := infoValueStyle.Render(fmt.Sprintf("%.1f", val))
 	return fmt.Sprintf("%s  %s  %s", ns, bar, vs)

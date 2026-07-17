@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/NimbleMarkets/ntcharts/barchart"
 	"github.com/NimbleMarkets/ntcharts/canvas"
@@ -329,8 +329,8 @@ func (m *UsageViewModel) buildHeatmap(cw int) (string, int) {
 			borderIdx--
 		}
 
-		bg := heatGreenScale[colorIdx]
-		borderBg := heatGreenScale[borderIdx]
+		bg := heatBlueScale[colorIdx]
+		borderBg := heatBlueScale[borderIdx]
 		cellStyle := lipgloss.NewStyle().Background(bg).Foreground(bg)
 		borderStyle := lipgloss.NewStyle().Background(borderBg).Foreground(borderBg)
 
@@ -392,7 +392,7 @@ func (m *UsageViewModel) buildHeatmap(cw int) (string, int) {
 	}
 	cv.SetStringWithStyle(canvas.Point{X: legendX, Y: legendY}, "Less ", style.MutedStyle)
 	legendX += 5
-	for _, c := range heatGreenScale {
+	for _, c := range heatBlueScale {
 		cv.SetCell(canvas.Point{X: legendX, Y: legendY}, canvas.NewCellWithStyle(' ', lipgloss.NewStyle().Background(c)))
 		legendX++
 	}

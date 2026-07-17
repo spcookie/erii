@@ -5,7 +5,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/paginator"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // wrapForm creates a huh.Form with the unified theme and help disabled.
@@ -141,21 +144,123 @@ func buildLLMProviderSettingsForm(d *SetupData, api string) *huh.Form {
 	return wrapForm(huh.NewGroup(fields...).Title("Provider Settings").WithShowHelp(false))
 }
 
-func buildLLMCapabilityForm(label string, c *LLMCapabilitySet) *huh.Form {
-	return wrapForm(capabilityGroup(label+" Capabilities", c))
+const (
+	capabilityPageSize   = 3
+	capabilityFieldCount = 8
+	capabilityPageCount  = (capabilityFieldCount + capabilityPageSize - 1) / capabilityPageSize
+)
+
+func buildLLMCapabilityForm(label string, c *LLMCapabilitySet, pager paginator.Model) *huh.Form {
+	fields := capabilityFields(c)
+	pager.SetTotalPages(len(fields))
+	start, end := pager.GetSliceBounds(len(fields))
+	title := fmt.Sprintf("%s Capabilities  %s", label, pager.View())
+	return wrapForm(huh.NewGroup(fields[start:end]...).Title(title).WithShowHelp(false))
 }
 
-func capabilityGroup(title string, c *LLMCapabilitySet) *huh.Group {
-	return huh.NewGroup(
-		huh.NewConfirm().Title("Completion").Value(&c.Completion),
-		huh.NewConfirm().Title("Prompt Caching").Value(&c.PromptCaching),
-		huh.NewConfirm().Title("Temperature").Value(&c.Temperature),
-		huh.NewConfirm().Title("Tools").Value(&c.Tools),
-		huh.NewConfirm().Title("Tool Choice").Value(&c.ToolChoice),
-		huh.NewConfirm().Title("Multiple Choices").Value(&c.MultipleChoices),
-		huh.NewConfirm().Title("Thinking").Value(&c.Thinking),
-		huh.NewConfirm().Title("Vision Image").Value(&c.VisionImage),
-	).Title(title).WithShowHelp(false)
+func capabilityFields(c *LLMCapabilitySet) []huh.Field {
+	return []huh.Field{
+		compactCapabilityConfirm("Completion", &c.Completion),
+		compactCapabilityConfirm("Prompt Caching", &c.PromptCaching),
+		compactCapabilityConfirm("Temperature", &c.Temperature),
+		compactCapabilityConfirm("Tools", &c.Tools),
+		compactCapabilityConfirm("Tool Choice", &c.ToolChoice),
+		compactCapabilityConfirm("Multiple Choices", &c.MultipleChoices),
+		compactCapabilityConfirm("Thinking", &c.Thinking),
+		compactCapabilityConfirm("Vision Image", &c.VisionImage),
+	}
+}
+
+func compactCapabilityConfirm(title string, value *bool) huh.Field {
+	return &compactConfirm{
+		Confirm: huh.NewConfirm().
+			Title(title).
+			Affirmative("Yes").
+			Negative("No").
+			Value(value),
+		title: title,
+		value: value,
+	}
+}
+
+type compactConfirm struct {
+	*huh.Confirm
+	title   string
+	value   *bool
+	focused bool
+	width   int
+	height  int
+	theme   *huh.Theme
+}
+
+func (c *compactConfirm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	model, cmd := c.Confirm.Update(msg)
+	if confirm, ok := model.(*huh.Confirm); ok {
+		c.Confirm = confirm
+	}
+	return c, cmd
+}
+
+func (c *compactConfirm) View() string {
+	theme := c.theme
+	if theme == nil {
+		theme = huhTheme()
+	}
+	styles := theme.Blurred
+	if c.focused {
+		styles = theme.Focused
+	}
+
+	yesStyle := compactButtonStyle(styles.BlurredButton)
+	noStyle := compactButtonStyle(styles.BlurredButton)
+	if *c.value {
+		yesStyle = compactButtonStyle(styles.FocusedButton)
+	} else {
+		noStyle = compactButtonStyle(styles.FocusedButton)
+	}
+
+	content := styles.Title.Render(c.title) + "\n" +
+		yesStyle.Render("Yes") + "     " + noStyle.Render("No")
+	base := styles.Base
+	if c.width > 0 {
+		base = base.Width(c.width)
+	}
+	if c.height > 0 {
+		base = base.Height(c.height)
+	}
+	return base.Render(content)
+}
+
+func compactButtonStyle(s lipgloss.Style) lipgloss.Style {
+	return s.UnsetBackground().UnsetPadding().UnsetMargins()
+}
+
+func (c *compactConfirm) Focus() tea.Cmd {
+	c.focused = true
+	return c.Confirm.Focus()
+}
+
+func (c *compactConfirm) Blur() tea.Cmd {
+	c.focused = false
+	return c.Confirm.Blur()
+}
+
+func (c *compactConfirm) WithTheme(theme *huh.Theme) huh.Field {
+	c.theme = theme
+	c.Confirm.WithTheme(theme)
+	return c
+}
+
+func (c *compactConfirm) WithWidth(width int) huh.Field {
+	c.width = width
+	c.Confirm.WithWidth(width)
+	return c
+}
+
+func (c *compactConfirm) WithHeight(height int) huh.Field {
+	c.height = height
+	c.Confirm.WithHeight(height)
+	return c
 }
 
 func buildLLMUsagePricingForm(d *SetupData) *huh.Form {

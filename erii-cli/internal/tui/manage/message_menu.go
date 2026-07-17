@@ -2,7 +2,7 @@ package manage
 
 import (
 	"erii-cli/internal/api"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -40,17 +40,20 @@ func NewMessageMenuModel(bot api.BotInfo, group api.GroupInfo) *MessageMenuModel
 	l.Styles.Title = style.ListTitle
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
-	items := []list.Item{
-		messageMenuItem{resourceType: ResourceHistory, title: "📜  History", desc: "View and edit message history"},
-		messageMenuItem{resourceType: ResourceResource, title: "📎  Resources", desc: "View message resources"},
-	}
-	l.SetItems(items)
+	l.SetItems(messageMenuItems(webMenuIconsEnabled()))
 
 	return &MessageMenuModel{
 		bot:   bot,
 		group: group,
 		list:  l,
 		keys:  menuDefaultKeys,
+	}
+}
+
+func messageMenuItems(web bool) []list.Item {
+	return []list.Item{
+		messageMenuItem{resourceType: ResourceHistory, title: menuTitle(web, "\uf1da", "📜", "History"), desc: "View and edit message history"},
+		messageMenuItem{resourceType: ResourceResource, title: menuTitle(web, "\uf0c6", "📎", "Resources"), desc: "View message resources"},
 	}
 }
 

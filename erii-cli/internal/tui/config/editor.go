@@ -10,7 +10,7 @@ import (
 	"erii-cli/internal/config/tree"
 	"erii-cli/internal/path"
 	"erii-cli/internal/tui/components"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -385,9 +385,7 @@ func (m *LeafEditorModel) initEnvList() {
 		items = append(items, it)
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(style.Primary)
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(style.Text)
+	delegate := style.StyleDelegate(list.NewDefaultDelegate())
 
 	l := list.New(items, delegate, 0, 0)
 	l.Title = style.Title("Pick env value")

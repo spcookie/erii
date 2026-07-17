@@ -34,9 +34,10 @@ func NewChatWSConn(baseURL, username, password string) (*ChatWSConn, error) {
 }
 
 // SendMessage sends a chat message over the WebSocket.
-func (w *ChatWSConn) SendMessage(text string) error {
+func (w *ChatWSConn) SendMessage(requestID, text string) error {
 	return w.conn.WriteJSON(map[string]string{
-		"content": text,
+		"requestId": requestID,
+		"content":   text,
 	})
 }
 

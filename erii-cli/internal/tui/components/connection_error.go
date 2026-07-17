@@ -3,7 +3,7 @@ package components
 import (
 	"strings"
 
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,7 +13,7 @@ import (
 var (
 	errCardStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(style.BorderColor).
+			BorderForeground(style.BorderStrong).
 			Padding(1, 3).
 			Width(style.ErrorCardWidth)
 

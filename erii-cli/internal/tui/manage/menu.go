@@ -2,7 +2,7 @@ package manage
 
 import (
 	"erii-cli/internal/api"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -83,23 +83,26 @@ func NewManageMenuModel(bot api.BotInfo, group api.GroupInfo) *ManageMenuModel {
 	l.Styles.Title = style.ListTitle
 	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(style.TextMuted)
 
-	items := []list.Item{
-		menuItem{resourceType: ResourceFacts, action: "pushMemoryMenu", title: "🗂️  Memory", desc: "Manage and search group memory"},
-		menuItem{resourceType: ResourceProfiles, action: "pushTable", title: "🪪  User Profiles", desc: "Manage user profiles"},
-		menuItem{resourceType: ResourceSummaries, action: "pushTable", title: "📑  Summaries", desc: "Manage conversation summaries"},
-		menuItem{resourceType: ResourceMemes, action: "pushTable", title: "🎭  Memes", desc: "Manage meme metadata"},
-		menuItem{resourceType: ResourceVocabularies, action: "pushTable", title: "📖  Vocabulary", desc: "Manage learned vocabulary"},
-		menuItem{action: "pushMessageMenu", title: "💬  Messages", desc: "Manage message history and resources"},
-		menuItem{action: "pushStateMenu", title: "📊  State", desc: "View and edit emotion, flow, volition"},
-		menuItem{resourceType: ResourceCronTasks, action: "pushTable", title: "⏰  Cron Tasks", desc: "Manage scheduled tasks and reminders"},
-	}
-	l.SetItems(items)
+	l.SetItems(manageMenuItems(webMenuIconsEnabled()))
 
 	return &ManageMenuModel{
 		bot:   bot,
 		group: group,
 		list:  l,
 		keys:  menuDefaultKeys,
+	}
+}
+
+func manageMenuItems(web bool) []list.Item {
+	return []list.Item{
+		menuItem{resourceType: ResourceFacts, action: "pushMemoryMenu", title: menuTitle(web, "\uee9c", "🗂️", "Memory"), desc: "Manage and search group memory"},
+		menuItem{resourceType: ResourceProfiles, action: "pushTable", title: menuTitle(web, "\uf0c0", "🪪", "User Profiles"), desc: "Manage user profiles"},
+		menuItem{resourceType: ResourceSummaries, action: "pushTable", title: menuTitle(web, "\uf15c", "📑", "Summaries"), desc: "Manage conversation summaries"},
+		menuItem{resourceType: ResourceMemes, action: "pushTable", title: menuTitle(web, "\uf03e", "🎭", "Memes"), desc: "Manage meme metadata"},
+		menuItem{resourceType: ResourceVocabularies, action: "pushTable", title: menuTitle(web, "\uede2", "📖", "Vocabulary"), desc: "Manage learned vocabulary"},
+		menuItem{action: "pushMessageMenu", title: menuTitle(web, "\uf086", "💬", "Messages"), desc: "Manage message history and resources"},
+		menuItem{action: "pushStateMenu", title: menuTitle(web, "\uf201", "📊", "State"), desc: "View and edit emotion, flow, volition"},
+		menuItem{resourceType: ResourceCronTasks, action: "pushTable", title: menuTitle(web, "\uf017", "⏰", "Cron Tasks"), desc: "Manage scheduled tasks and reminders"},
 	}
 }
 

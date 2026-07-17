@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"erii-cli/internal/tui/components"
-	"erii-cli/internal/tui/style"
+	style "erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -67,7 +67,6 @@ func NewGroupListModel(client *api.Client, bot api.BotInfo) *components.GroupLis
 // ── Symbols ──
 
 const SymArrow = ">"
-
 
 // ── UsageViewModel ──
 
@@ -183,23 +182,13 @@ func (m *UsageViewModel) View() string {
 // ── Chart colors & styles ──
 
 var (
-	barHitColor  = lipgloss.AdaptiveColor{Dark: "#C5E803", Light: "#6B8F00"} // green
-	barMissColor = lipgloss.AdaptiveColor{Dark: "#8BE9FD", Light: "#0288D1"} // cyan
-	barOutColor  = lipgloss.AdaptiveColor{Dark: "#6272A4", Light: "#546E7A"} // grey-blue
-	lineColor    = lipgloss.AdaptiveColor{Dark: "#C5E803", Light: "#558B2F"} // green
+	barHitColor  = style.ChartBlue
+	barMissColor = style.ChartCyan
+	barOutColor  = style.TextMuted
+	lineColor    = style.ChartBlue
 )
 
-var heatGreenScale = []lipgloss.TerminalColor{
-	lipgloss.AdaptiveColor{Dark: "#3a3a3a", Light: "#e0e0e0"}, // empty → grey
-	lipgloss.AdaptiveColor{Dark: "#1e3310", Light: "#dcedc8"},
-	lipgloss.AdaptiveColor{Dark: "#2d5016", Light: "#c5e1a5"},
-	lipgloss.AdaptiveColor{Dark: "#3c6b1d", Light: "#aed581"},
-	lipgloss.AdaptiveColor{Dark: "#5a8f26", Light: "#8bc34a"},
-	lipgloss.AdaptiveColor{Dark: "#7ab530", Light: "#7cb342"},
-	lipgloss.AdaptiveColor{Dark: "#9fd43b", Light: "#689f38"},
-	lipgloss.AdaptiveColor{Dark: "#C5E803", Light: "#558b2f"},
-	lipgloss.AdaptiveColor{Dark: "#e5ff5c", Light: "#33691e"},
-}
+var heatBlueScale = style.HeatScale
 
 var (
 	barHitStyle  = lipgloss.NewStyle().Foreground(barHitColor).Background(barHitColor)
@@ -337,7 +326,7 @@ func (m *UsageViewModel) buildKPIGrid(width int) []string {
 		if accent {
 			s = s.BorderForeground(barHitColor)
 		} else {
-			s = s.BorderForeground(style.BorderColor)
+			s = s.BorderForeground(style.BorderStrong)
 		}
 		return s
 	}
@@ -348,7 +337,7 @@ func (m *UsageViewModel) buildKPIGrid(width int) []string {
 	costSymbol := currencySymbol(d.PriceUnit)
 
 	cols := []string{
-		kpiBox(false).Render(labelStyle.Render("Input Hit/Miss") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheHitInput) + " / " + compactNumber(d.TodayCacheMissInput))),
+		kpiBox(false).Render(labelStyle.Render("Input Hit/Miss") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheHitInput)+" / "+compactNumber(d.TodayCacheMissInput))),
 		kpiBox(false).Render(labelStyle.Render("Output") + "\n" + valueStyle.Render(compactNumber(d.TodayOutput))),
 		kpiBox(false).Render(labelStyle.Render("Total") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheHitInput+d.TodayCacheMissInput+d.TodayOutput))),
 		kpiBox(true).Render(labelStyle.Render("Cost") + "\n" + valueStyle.Render(fmt.Sprintf("%s%.4f", costSymbol, d.TodayCost))),
@@ -368,7 +357,7 @@ func (m *UsageViewModel) buildLedger(width int) []string {
 
 	cell := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(style.BorderColor).
+		BorderForeground(style.BorderStrong).
 		Width(colW)
 
 	labelStyle := lipgloss.NewStyle().Foreground(style.TextMuted).Width(colW - 4)
