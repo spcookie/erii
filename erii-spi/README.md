@@ -225,21 +225,25 @@ KSP 处理时机：发现 `@file:Definition` 的文件。
 
 通过 `useXxx()` 在 suspend 函数中获取：
 
-| 函数               | 类型               | 说明                                  |
-|------------------|------------------|-------------------------------------|
-| `useMem()`       | `Mem`            | Redis 风格的键值存储（支持过期）                 |
-| `useKv()`        | `Kv`             | 持久化键值存储                             |
-| `useBlob()`      | `Blob`           | 文件/二进制存储                            |
-| `useVector()`    | `Vector`         | 向量嵌入和语义搜索                           |
-| `useConfig()`    | `PluginConfig`   | 插件配置（`invoke()` 返回 TypeSafe Config） |
-| `useDatabase()`  | `Database`       | 数据库查询和执行                            |
-| `useScheduler()` | `Scheduler`      | 定时任务调度                              |
-| `useLLM()`       | `PromptExecutor` | LLM 调用                              |
-| `useHttp()`      | `HttpClient`     | HTTP 客户端                            |
-| `useServer()`    | `Server`         | Ktor 路由注册                           |
-| `useMeta()`      | `Meta`           | 当前消息元数据（botId、groupId、input 等）      |
+| 函数                                                | 类型               | 说明                                  |
+|---------------------------------------------------|------------------|-------------------------------------|
+| `useMem()`                                        | `Mem`            | Redis 风格的键值存储（支持过期）                 |
+| `useKv()`                                         | `Kv`             | 持久化键值存储                             |
+| `useBlob()`                                       | `Blob`           | 文件/二进制存储                            |
+| `useVector()`                                     | `Vector`         | 向量嵌入和语义搜索                           |
+| `useConfig()`                                     | `PluginConfig`   | 插件配置（`invoke()` 返回 TypeSafe Config） |
+| `useDatabase()`                                   | `Database`       | 数据库查询和执行                            |
+| `useScheduler()`                                  | `Scheduler`      | 定时任务调度                              |
+| `useLLM()`                                        | `PromptExecutor` | LLM 调用                              |
+| `useHttp()`                                       | `HttpClient`     | HTTP 客户端                            |
+| `useServer()`                                     | `Server`         | Ktor 路由注册                           |
+| `useRegisterCommandExample(example, description)` | `Unit`           | 注册可被 CLI/Web 搜索的插件命令示例              |
+| `useMeta()`                                       | `Meta`           | 当前消息元数据（botId、groupId、input 等）      |
 
 > 这些函数必须在 `withPluginContext {}` 或扩展处理器等框架管理的协程中调用，否则抛出 `NO_CONTEXT_ERROR`。
+
+CLI/Web 插件发送会触发 `CliPluginEvent(input, echo)`；插件如需返回同步结果，可以发布同 `echo` 的
+`CliPluginReplyEvent(echo, message)`。Core 会取最后一条匹配回复作为 send 返回值；没有回复时返回 `null`。
 
 ### Meta 字段
 

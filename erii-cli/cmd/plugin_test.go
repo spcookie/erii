@@ -21,6 +21,15 @@ func TestPluginRefreshCommandShape(t *testing.T) {
 	if err := pluginRefreshCmd.Args(pluginRefreshCmd, []string{"demo", "extra"}); err == nil {
 		t.Fatal("more than one plugin id should be rejected")
 	}
+	if pluginSendCmd.Use != "send -- <input...>" {
+		t.Fatalf("plugin send command use = %q", pluginSendCmd.Use)
+	}
+	if pluginMatchCmd.Use != "match [--] <query...>" {
+		t.Fatalf("plugin match command use = %q", pluginMatchCmd.Use)
+	}
+	if pluginMatchCmd.Flags().Lookup("fromat") != nil {
+		t.Fatal("plugin match must not expose a --fromat compatibility flag")
+	}
 }
 
 func TestRootThemeFlagDefaultsToAuto(t *testing.T) {
@@ -128,6 +137,70 @@ func TestRenderPluginRefreshResultShowsFailureLayout(t *testing.T) {
 		"Failed plugins",
 		"official-qq-adapter_GeneratedPassive_default",
 		"Address already in use",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("rendered output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestRenderPluginSendResultShowsInput(t *testing.T) {
+	reply := "plugin reply"
+	output := renderPluginSendResult(&api.PluginCliSendResponse{
+		Status:  "ok",
+		Message: "plugin event sent",
+		Input:   "hello plugin",
+		Reply:   &reply,
+	})
+
+	for _, want := range []string{
+		"Plugin send",
+		"OK",
+		"plugin event sent",
+		"Summary",
+		"hello plugin",
+		"plugin reply",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("rendered output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestRenderPluginSendResultShowsEmptyReply(t *testing.T) {
+	output := renderPluginSendResult(&api.PluginCliSendResponse{
+		Status:  "ok",
+		Message: "plugin event sent",
+		Input:   "hello plugin",
+	})
+
+	if !strings.Contains(output, "empty response") {
+		t.Fatalf("rendered output should mention empty response:\n%s", output)
+	}
+}
+
+func TestRenderPluginMatchResultShowsMatches(t *testing.T) {
+	output := renderPluginMatchResult(&api.PluginCommandMatchResponse{
+		Status: "ok",
+		Query:  "hello",
+		Matches: []api.PluginCommandExample{
+			{
+				PluginID:      "demo",
+				ExtensionName: "Demo",
+				Example:       "hello plugin",
+				Description:   "demo command",
+			},
+		},
+	})
+
+	for _, want := range []string{
+		"Plugin match",
+		"OK",
+		"Query",
+		"hello",
+		"Matches",
+		"hello plugin",
+		"demo command",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("rendered output missing %q:\n%s", want, output)

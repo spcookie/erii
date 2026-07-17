@@ -164,8 +164,8 @@ func TestStaticConsoleContainsRuntimeStatusContracts(t *testing.T) {
 			t.Fatalf("runtime status markup missing %q", contract)
 		}
 	}
-	if got := strings.Count(html, `data-requires-core="true"`); got != 6 {
-		t.Fatalf("core-dependent command count = %d, want 6", got)
+	if got := strings.Count(html, `data-requires-core="true"`); got != 7 {
+		t.Fatalf("core-dependent command count = %d, want 7", got)
 	}
 
 	for _, contract := range []string{
@@ -195,6 +195,45 @@ func TestStaticConsoleContainsRuntimeStatusContracts(t *testing.T) {
 	} {
 		if !strings.Contains(css, contract) {
 			t.Fatalf("runtime status CSS missing %q", contract)
+		}
+	}
+}
+
+func TestStaticConsoleContainsPluginSendPanel(t *testing.T) {
+	html := string(readStatic(t, "static/index.html"))
+	css := string(readStatic(t, "static/css/style.css"))
+	js := string(readStatic(t, "static/js/main.js"))
+
+	for _, contract := range []string{
+		`<div class="sidebar-group-label">Plugin</div>`,
+		`data-panel="plugin-send"`,
+		`id="plugin-send-modal"`,
+		`id="plugin-send-result"`,
+		`id="plugin-command-input"`,
+	} {
+		if !strings.Contains(html, contract) {
+			t.Fatalf("plugin send markup missing %q", contract)
+		}
+	}
+	for _, contract := range []string{
+		".plugin-modal",
+		".plugin-result-panel",
+		".plugin-command-input:focus",
+		".plugin-match-item",
+	} {
+		if !strings.Contains(css, contract) {
+			t.Fatalf("plugin send CSS missing %q", contract)
+		}
+	}
+	for _, contract := range []string{
+		"showPluginSendPanel",
+		"refreshPluginMatches",
+		"'/api/plugin/match?limit=20&query='",
+		"fetch('/api/plugin/send'",
+		"showPluginSendResult(input, data)",
+	} {
+		if !strings.Contains(js, contract) {
+			t.Fatalf("plugin send JS missing %q", contract)
 		}
 	}
 }

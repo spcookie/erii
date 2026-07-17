@@ -30,6 +30,17 @@ func NewClient(port int, username, password string) *Client {
 	}
 }
 
+func NewClientFromConfig(config *ipc.ServerConfig) (*Client, error) {
+	if config == nil {
+		return nil, fmt.Errorf("server config is nil")
+	}
+	port := config.Port
+	if port == 0 {
+		port = 8080
+	}
+	return NewClient(port, config.Username, config.Password), nil
+}
+
 func (c *Client) doRequest(method, path string, body any) ([]byte, error) {
 	respBody, statusCode, err := c.doRequestWithStatus(method, path, body)
 	if err != nil {
@@ -101,14 +112,15 @@ func NewClientFromIPC() (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read server config: %w", err)
 	}
-	if config == nil {
-		return nil, fmt.Errorf("server config is nil")
+	return NewClientFromConfig(config)
+}
+
+func NewClientFromIPCDir(eriiDir string) (*Client, error) {
+	config, err := ipc.ReadConfigSnapshotFromDir(eriiDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read server config: %w", err)
 	}
-	port := config.Port
-	if port == 0 {
-		port = 8080
-	}
-	return NewClient(port, config.Username, config.Password), nil
+	return NewClientFromConfig(config)
 }
 
 func friendlyRequestError(err error) error {

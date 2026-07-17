@@ -207,6 +207,8 @@ class PluginLifecycleManager(
         var context: PluginContext? = null
         runCatching {
             context = PluginContextImpl(
+                pluginId,
+                extension.name,
                 pluginDef,
                 mem,
                 kv,
@@ -252,6 +254,7 @@ class PluginLifecycleManager(
         RouteRuleRegister.removePlugin(pluginId)
         CmdRuleRegister.removePlugin(pluginId)
         MetaToolSetRegister.removePlugin(pluginId)
+        PluginCommandExampleRegistry.removePlugin(pluginId)
     }
 
     private fun closeAllExtensionHandles() {
@@ -264,6 +267,7 @@ class PluginLifecycleManager(
         RouteRuleRegister.clear()
         CmdRuleRegister.clear()
         MetaToolSetRegister.clear()
+        PluginCommandExampleRegistry.clear()
     }
 
     private data class ExtensionHandle(

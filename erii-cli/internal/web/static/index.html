@@ -132,11 +132,22 @@
                                 </svg>
                                 <span>Reload</span>
                             </button>
+                        </div>
+                        <div class="sidebar-group">
+                            <div class="sidebar-group-label">Plugin</div>
                             <button class="sidebar-item" data-cmd="plugin" data-args="refresh" data-title="Plugin Refresh" data-requires-core="true" disabled>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 2v6l4-4"/><path d="M20 11a8 8 0 11-2.34-5.66"/><path d="M8 13h8M8 17h5"/>
                                 </svg>
-                                <span>Plugin Refresh</span>
+                                <span>Refresh</span>
+                            </button>
+                            <button class="sidebar-item" data-panel="plugin-send" data-requires-core="true"
+                                    data-title="Plugin Send" disabled>
+                                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="m22 2-7 20-4-9-9-4Z"/>
+                                    <path d="M22 2 11 13"/>
+                                </svg>
+                                <span>Send</span>
                             </button>
                         </div>
                     </nav>
@@ -163,6 +174,50 @@
                     </div>
                     <div id="terminal-container">
                         <div id="terminal-mount"></div>
+                    </div>
+                    <section class="plugin-result-panel" hidden id="plugin-send-result">
+                        <div class="plugin-result-card">
+                            <div class="plugin-result-header">
+                                <div>
+                                    <span class="plugin-result-kicker">Plugin Send</span>
+                                    <strong>Send result</strong>
+                                </div>
+                                <span id="plugin-result-status">Ready</span>
+                            </div>
+                            <div class="plugin-result-body">
+                                <div class="plugin-result-row">
+                                    <span>Input</span>
+                                    <code id="plugin-result-input"></code>
+                                </div>
+                                <div class="plugin-result-row">
+                                    <span>Reply</span>
+                                    <pre id="plugin-result-reply"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="plugin-modal" hidden id="plugin-send-modal">
+                        <div class="plugin-modal-backdrop"></div>
+                        <form class="plugin-send-form" id="plugin-send-form">
+                            <div class="plugin-modal-header">
+                                <span>Plugin command</span>
+                                <button aria-label="Close" class="plugin-modal-close" id="plugin-modal-close"
+                                        type="button">x
+                                </button>
+                            </div>
+                            <div class="plugin-input-row">
+                                <input autocomplete="off" class="plugin-command-input" id="plugin-command-input"
+                                       placeholder="Type a command payload" spellcheck="false" type="text">
+                                <button class="plugin-send-button" id="plugin-send-button" type="submit">Send</button>
+                            </div>
+                            <div class="plugin-match-shell">
+                                <div class="plugin-match-header">
+                                    <span>Matches</span>
+                                    <span id="plugin-match-count">0</span>
+                                </div>
+                                <div aria-live="polite" class="plugin-match-results" id="plugin-match-results"></div>
+                            </div>
+                        </form>
                     </div>
                 </main>
             </div>

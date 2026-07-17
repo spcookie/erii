@@ -377,6 +377,33 @@ type PluginRefreshResponse struct {
 	HTTPStatus        int               `json:"-"`
 }
 
+type PluginCliSendRequest struct {
+	Input string `json:"input"`
+}
+
+type PluginCliSendResponse struct {
+	Status     string  `json:"status"`
+	Message    string  `json:"message"`
+	Input      string  `json:"input"`
+	Echo       string  `json:"echo"`
+	Reply      *string `json:"reply"`
+	HTTPStatus int     `json:"-"`
+}
+
+type PluginCommandExample struct {
+	PluginID      string `json:"pluginId"`
+	ExtensionName string `json:"extensionName"`
+	Example       string `json:"example"`
+	Description   string `json:"description"`
+}
+
+type PluginCommandMatchResponse struct {
+	Status     string                 `json:"status"`
+	Query      string                 `json:"query"`
+	Matches    []PluginCommandExample `json:"matches"`
+	HTTPStatus int                    `json:"-"`
+}
+
 type ConfigRefreshResponse struct {
 	Status     string                 `json:"status"`
 	Message    string                 `json:"message"`

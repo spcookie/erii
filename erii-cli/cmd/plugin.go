@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
 	"erii-cli/internal/api"
 	uioutput "erii-cli/internal/ui/output"
+
 	"github.com/spf13/cobra"
 )
 
@@ -14,6 +16,8 @@ var pluginCmd = &cobra.Command{
 	Use:   "plugin",
 	Short: "Manage Erii plugins",
 }
+
+var pluginMatchFormat string
 
 var pluginRefreshCmd = &cobra.Command{
 	Use:   "refresh [plugin-id]",
@@ -39,6 +43,69 @@ var pluginRefreshCmd = &cobra.Command{
 		}
 
 		fmt.Fprint(cmd.OutOrStdout(), renderPluginRefreshResult(result))
+		return nil
+	},
+}
+
+var pluginSendCmd = &cobra.Command{
+	Use:   "send -- <input...>",
+	Short: "Send input to plugin CLI event listeners",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		input := strings.Join(args, " ")
+		client, err := api.NewClientFromIPC()
+		if err != nil {
+			fmt.Fprint(cmd.OutOrStdout(), uioutput.ErrorResult("Plugin send", "Connection", err))
+			return nil
+		}
+
+		result, err := client.SendPluginCli(input)
+		if err != nil {
+			fmt.Fprint(cmd.OutOrStdout(), uioutput.ErrorResult("Plugin send", "Backend", err))
+			return nil
+		}
+
+		fmt.Fprint(cmd.OutOrStdout(), renderPluginSendResult(result))
+		return nil
+	},
+}
+
+var pluginMatchCmd = &cobra.Command{
+	Use:   "match [--] <query...>",
+	Short: "Search registered plugin command examples",
+	Args:  cobra.ArbitraryArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		query := strings.Join(args, " ")
+		format := strings.ToLower(strings.TrimSpace(pluginMatchFormat))
+		if format == "" {
+			format = "text"
+		}
+		if format != "text" && format != "json" {
+			return fmt.Errorf("invalid format %q, valid: text, json", pluginMatchFormat)
+		}
+
+		client, err := api.NewClientFromIPC()
+		if err != nil {
+			fmt.Fprint(cmd.OutOrStdout(), uioutput.ErrorResult("Plugin match", "Connection", err))
+			return nil
+		}
+
+		result, err := client.MatchPluginCommands(query, 20)
+		if err != nil {
+			fmt.Fprint(cmd.OutOrStdout(), uioutput.ErrorResult("Plugin match", "Backend", err))
+			return nil
+		}
+
+		if format == "json" {
+			data, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), string(data))
+			return nil
+		}
+
+		fmt.Fprint(cmd.OutOrStdout(), renderPluginMatchResult(result))
 		return nil
 	},
 }
@@ -115,6 +182,82 @@ func renderPluginRefreshResult(result *api.PluginRefreshResponse) string {
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
+func renderPluginSendResult(result *api.PluginCliSendResponse) string {
+	if result == nil {
+		return uioutput.Title("Plugin send") + "\n" + uioutput.Muted("No result returned.") + "\n"
+	}
+	status := result.Status
+	if status == "" {
+		status = "unknown"
+	}
+	var b strings.Builder
+	b.WriteString(uioutput.Title("Plugin send"))
+	b.WriteString("  ")
+	b.WriteString(uioutput.Status(status))
+	if result.HTTPStatus >= 400 {
+		b.WriteString(" ")
+		b.WriteString(uioutput.HTTPStatus(result.HTTPStatus))
+	}
+	b.WriteString("\n")
+	if result.Message != "" {
+		b.WriteString(uioutput.Row("Message", result.Message))
+	}
+	b.WriteString("\n")
+	b.WriteString(uioutput.Section("Summary"))
+	b.WriteString("\n")
+	b.WriteString(uioutput.Row("Status", "sent"))
+	b.WriteString(uioutput.WrappedRow("Input", result.Input, 72))
+	if result.Reply == nil || strings.TrimSpace(*result.Reply) == "" {
+		b.WriteString(uioutput.Row("Reply", "empty response"))
+	} else {
+		b.WriteString(uioutput.WrappedRow("Reply", *result.Reply, 72))
+	}
+	return b.String()
+}
+
+func renderPluginMatchResult(result *api.PluginCommandMatchResponse) string {
+	if result == nil {
+		return uioutput.Title("Plugin match") + "\n" + uioutput.Muted("No result returned.") + "\n"
+	}
+	status := result.Status
+	if status == "" {
+		status = "unknown"
+	}
+	var b strings.Builder
+	b.WriteString(uioutput.Title("Plugin match"))
+	b.WriteString("  ")
+	b.WriteString(uioutput.Status(status))
+	if result.HTTPStatus >= 400 {
+		b.WriteString(" ")
+		b.WriteString(uioutput.HTTPStatus(result.HTTPStatus))
+	}
+	b.WriteString("\n")
+	b.WriteString(uioutput.Row("Query", result.Query))
+	b.WriteString("\n")
+	b.WriteString(uioutput.Section("Summary"))
+	b.WriteString("\n")
+	b.WriteString(uioutput.Row("Matches", fmt.Sprintf("%d", len(result.Matches))))
+	if len(result.Matches) == 0 {
+		b.WriteString("\n")
+		b.WriteString(uioutput.Muted("No registered plugin command examples matched."))
+		b.WriteString("\n")
+		return b.String()
+	}
+	b.WriteString("\n")
+	b.WriteString(uioutput.Section("Matches"))
+	b.WriteString("\n")
+	for _, item := range result.Matches {
+		b.WriteString("  ")
+		b.WriteString(uioutput.Plugin(item.Example))
+		b.WriteString("\n")
+		b.WriteString(uioutput.IndentedRow("Plugin", item.PluginID))
+		if item.Description != "" {
+			b.WriteString(uioutput.IndentedRow("Description", uioutput.Muted(item.Description)))
+		}
+	}
+	return b.String()
+}
+
 func pluginRefreshStatusBadge(status string) string {
 	return uioutput.Status(status)
 }
@@ -149,6 +292,7 @@ func wrapCommaList(items []string, maxWidth int) []string {
 }
 
 func init() {
-	pluginCmd.AddCommand(pluginRefreshCmd)
+	pluginMatchCmd.Flags().StringVarP(&pluginMatchFormat, "format", "f", "text", "Output format: text or json")
+	pluginCmd.AddCommand(pluginRefreshCmd, pluginSendCmd, pluginMatchCmd)
 	rootCmd.AddCommand(pluginCmd)
 }

@@ -245,3 +245,50 @@ func (c *Client) RefreshPlugins(pluginID string) (*PluginRefreshResponse, error)
 	result.HTTPStatus = statusCode
 	return &result, nil
 }
+
+func (c *Client) SendPluginCli(input string) (*PluginCliSendResponse, error) {
+	data, statusCode, err := c.doRequestWithStatus("POST", "/api/plugins/cli/send", PluginCliSendRequest{Input: input})
+	if err != nil {
+		return nil, err
+	}
+
+	var result PluginCliSendResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		if statusCode >= 400 {
+			return nil, fmt.Errorf("HTTP %d: %s", statusCode, string(data))
+		}
+		return nil, err
+	}
+	result.HTTPStatus = statusCode
+	if statusCode >= 400 {
+		return &result, fmt.Errorf("HTTP %d: %s", statusCode, result.Message)
+	}
+	return &result, nil
+}
+
+func (c *Client) MatchPluginCommands(query string, limit int) (*PluginCommandMatchResponse, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	path := fmt.Sprintf("/api/plugins/cli/match?query=%s&limit=%d", url.QueryEscape(query), limit)
+	data, statusCode, err := c.doRequestWithStatus("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result PluginCommandMatchResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		if statusCode >= 400 {
+			return nil, fmt.Errorf("HTTP %d: %s", statusCode, string(data))
+		}
+		return nil, err
+	}
+	result.HTTPStatus = statusCode
+	if statusCode >= 400 {
+		return &result, fmt.Errorf("HTTP %d", statusCode)
+	}
+	return &result, nil
+}

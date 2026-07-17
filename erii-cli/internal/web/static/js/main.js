@@ -96,6 +96,17 @@
     const serverMenu = document.getElementById('server-menu');
     const serverActionButtons = Array.from(document.querySelectorAll('[data-server-action]'));
     const debugLogButton = document.getElementById('debug-log-button');
+    const pluginSendPanel = document.getElementById('plugin-send-modal');
+    const pluginSendForm = document.getElementById('plugin-send-form');
+    const pluginCommandInput = document.getElementById('plugin-command-input');
+    const pluginSendButton = document.getElementById('plugin-send-button');
+    const pluginMatchResults = document.getElementById('plugin-match-results');
+    const pluginMatchCount = document.getElementById('plugin-match-count');
+    const pluginModalClose = document.getElementById('plugin-modal-close');
+    const pluginSendResult = document.getElementById('plugin-send-result');
+    const pluginResultStatus = document.getElementById('plugin-result-status');
+    const pluginResultInput = document.getElementById('plugin-result-input');
+    const pluginResultReply = document.getElementById('plugin-result-reply');
 
     // Default header content (shown when no command is active)
     const defaultHeaderHTML = currentCmdEl.innerHTML;
@@ -126,6 +137,7 @@
         }
         serverMenuButton.disabled = !cliConnected;
         debugLogButton.disabled = !cliConnected;
+        pluginSendButton.disabled = !cliConnected;
         if (!cliConnected) closeServerMenu();
         updateServerActions();
         maybeRunAutoCommand();
@@ -271,6 +283,7 @@
     }
 
     function setActiveCmd(cmd, args, title) {
+        hidePluginSendPanel(false);
         activeCmd = cmd;
         const logActive = cmd === 'log';
         debugLogButton.setAttribute('aria-pressed', logActive ? 'true' : 'false');
@@ -297,6 +310,155 @@
             const label = currentCmdEl.querySelector('span');
             if (label) label.textContent = title || cmd;
         }
+    }
+
+    function setActivePanel(panelName) {
+        activeCmd = null;
+        debugLogButton.setAttribute('aria-pressed', 'false');
+        debugLogButton.setAttribute('aria-label', 'Open Erii logs');
+        debugLogButton.title = 'Open Erii logs';
+        activeCommandKey = 'panel:' + panelName;
+        let matched = false;
+        sidebarItems.forEach(function (item) {
+            if (item.dataset.panel === panelName) {
+                matched = true;
+                item.classList.add('active');
+                currentCmdEl.innerHTML = item.innerHTML;
+            } else {
+                item.classList.remove('active');
+            }
+        });
+        if (!matched) currentCmdEl.innerHTML = defaultHeaderHTML;
+    }
+
+    function hidePluginSendPanel(restoreTerminal) {
+        if (!pluginSendPanel || pluginSendPanel.hidden) return;
+        pluginSendPanel.hidden = true;
+        if (restoreTerminal) scheduleFit(false);
+    }
+
+    function showPluginSendPanel() {
+        closeServerMenu();
+        setActivePanel('plugin-send');
+        pluginSendPanel.hidden = false;
+        pluginSendButton.disabled = !cliConnected;
+        pluginSendButton.dataset.loading = 'false';
+        pluginSendButton.textContent = 'Send';
+        renderPluginMatches([], pluginCommandInput.value.trim() ? 'Searching...' : 'Type to search registered examples.');
+        requestAnimationFrame(function () {
+            pluginCommandInput.focus();
+            refreshPluginMatches();
+        });
+    }
+
+    function renderPluginMatches(matches, emptyText) {
+        pluginMatchResults.innerHTML = '';
+        pluginMatchCount.textContent = String(matches.length);
+        if (!matches.length) {
+            const empty = document.createElement('div');
+            empty.className = 'plugin-match-empty';
+            empty.textContent = emptyText || 'No matches.';
+            pluginMatchResults.appendChild(empty);
+            return;
+        }
+        matches.forEach(function (match) {
+            const button = document.createElement('button');
+            button.className = 'plugin-match-item';
+            button.type = 'button';
+            button.dataset.example = match.example || '';
+
+            const example = document.createElement('span');
+            example.className = 'plugin-match-example';
+            example.textContent = match.example || '';
+
+            const meta = document.createElement('span');
+            meta.className = 'plugin-match-meta';
+            meta.textContent = [match.pluginId, match.description].filter(Boolean).join(' · ');
+
+            button.appendChild(example);
+            button.appendChild(meta);
+            button.addEventListener('click', function () {
+                pluginCommandInput.value = this.dataset.example;
+                pluginCommandInput.focus();
+                refreshPluginMatches();
+            });
+            pluginMatchResults.appendChild(button);
+        });
+    }
+
+    let pluginMatchTimer = 0;
+    let pluginMatchSeq = 0;
+
+    function schedulePluginMatch() {
+        if (pluginMatchTimer) clearTimeout(pluginMatchTimer);
+        pluginMatchTimer = setTimeout(refreshPluginMatches, 180);
+    }
+
+    function refreshPluginMatches() {
+        if (!pluginSendPanel || pluginSendPanel.hidden) return;
+        const query = pluginCommandInput.value.trim();
+        if (!query) {
+            renderPluginMatches([], 'Type to search registered examples.');
+            return;
+        }
+        const seq = ++pluginMatchSeq;
+        const url = '/api/plugin/match?limit=20&query=' + encodeURIComponent(query);
+        fetch(url, {
+            headers: {'X-Erii-Token': token}
+        }).then(function (response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        }).then(function (data) {
+            if (seq !== pluginMatchSeq) return;
+            renderPluginMatches(data.matches || [], 'No matches.');
+        }).catch(function (error) {
+            if (seq !== pluginMatchSeq) return;
+            renderPluginMatches([], error.message || 'Match request failed.');
+        });
+    }
+
+    function showPluginSendResult(input, response) {
+        terminalContainer.hidden = true;
+        pluginSendResult.hidden = false;
+        const ok = !response || !response.status || response.status.toLowerCase() === 'ok';
+        pluginResultStatus.textContent = ok ? 'OK' : response.status.toUpperCase();
+        pluginResultStatus.classList.toggle('error', !ok);
+        pluginResultInput.textContent = input;
+        const reply = response && typeof response.reply === 'string' ? response.reply.trim() : '';
+        pluginResultReply.classList.toggle('empty', !reply);
+        pluginResultReply.textContent = reply || 'No reply returned';
+        setActivePanel('plugin-send');
+    }
+
+    function submitPluginSend(input) {
+        if (!input || pluginSendButton.disabled || pluginSendButton.dataset.loading === 'true') return;
+        pluginSendButton.disabled = true;
+        pluginSendButton.dataset.loading = 'true';
+        pluginSendButton.textContent = 'Sending';
+        fetch('/api/plugin/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Erii-Token': token
+            },
+            body: JSON.stringify({input: input})
+        }).then(function (response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        }).then(function (data) {
+            hidePluginSendPanel(false);
+            showPluginSendResult(input, data);
+        }).catch(function (error) {
+            hidePluginSendPanel(false);
+            showPluginSendResult(input, {
+                status: 'error',
+                reply: error.message || 'send failed'
+            });
+        }).finally(function () {
+            pluginSendButton.dataset.loading = 'false';
+            pluginSendButton.textContent = 'Send';
+            pluginSendButton.disabled = !cliConnected;
+        });
     }
 
     function showWelcome() {
@@ -597,6 +759,9 @@
     function execCmd(cmd, args, title) {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         args = args || [];
+        hidePluginSendPanel(true);
+        pluginSendResult.hidden = true;
+        terminalContainer.hidden = false;
         closeServerMenu();
         setActiveCmd(cmd, args, title);
         setStatus('running');
@@ -635,9 +800,26 @@
     sidebarItems.forEach(function (item) {
         item.addEventListener('click', function () {
             if (this.disabled) return;
+            if (this.dataset.panel === 'plugin-send') {
+                showPluginSendPanel();
+                return;
+            }
             const cmd = this.dataset.cmd;
             if (cmd) execCmd(cmd, parseArgs(this.dataset.args));
         });
+    });
+
+    pluginCommandInput.addEventListener('input', schedulePluginMatch);
+
+    pluginSendForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const input = pluginCommandInput.value.trim();
+        submitPluginSend(input);
+    });
+
+    pluginModalClose.addEventListener('click', function () {
+        if (pluginSendButton.dataset.loading === 'true') return;
+        hidePluginSendPanel(false);
     });
 
     debugLogButton.addEventListener('click', function () {
@@ -693,6 +875,12 @@
     });
 
     document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && pluginSendPanel && !pluginSendPanel.hidden) {
+            if (pluginSendButton.dataset.loading === 'true') return;
+            event.preventDefault();
+            hidePluginSendPanel(false);
+            return;
+        }
         if (event.key === 'Escape' && !serverMenu.hidden) {
             event.preventDefault();
             closeServerMenu(true);

@@ -21,6 +21,8 @@ import uesugi.spi.*
 import kotlin.time.Duration.Companion.milliseconds
 
 class PluginContextImpl(
+    private val pluginId: String,
+    private val extensionName: String,
     override val defined: PluginDef,
     override val mem: Mem,
     override val kv: Kv,
@@ -48,6 +50,7 @@ class PluginContextImpl(
 
     private lateinit var job: Job
     private lateinit var eventJob: Job
+    private var syncEventHandler: ((IntegrationEvent) -> Unit)? = null
 
     private val eventHandlers = mutableListOf<suspend (IntegrationEvent) -> Unit>()
 
@@ -73,6 +76,10 @@ class PluginContextImpl(
 
     override fun onEvent(handler: suspend (IntegrationEvent) -> Unit) {
         eventHandlers += handler
+    }
+
+    override fun registerCommandExample(example: String, description: String) {
+        PluginCommandExampleRegistry.register(pluginId, extensionName, example, description)
     }
 
     override fun start() {
@@ -108,6 +115,13 @@ class PluginContextImpl(
                 }
             }
         }
+        syncEventHandler = EventBus.subscribeSync<IntegrationEvent> { event ->
+            runBlocking {
+                for (handler in eventHandlers) {
+                    handler(event)
+                }
+            }
+        }
 
         for (toolset in toolsets) {
             MetaToolSetRegister.addToolSet(defined.name, toolset)
@@ -115,11 +129,16 @@ class PluginContextImpl(
     }
 
     override fun close() {
+        PluginCommandExampleRegistry.removeExtension(pluginId, extensionName)
         if (this::job.isInitialized) {
             EventBus.unsubscribeAsync(job)
         }
         if (this::eventJob.isInitialized) {
             EventBus.unsubscribeAsync(eventJob)
+        }
+        syncEventHandler?.let {
+            EventBus.unsubscribeSync(it)
+            syncEventHandler = null
         }
         supervisorJob.cancel(CancellationException("Plugin context ${defined.name} closed"))
         runBlocking {

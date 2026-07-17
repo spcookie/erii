@@ -241,6 +241,8 @@ interface PluginContext : AutoCloseable {
 
     fun onEvent(handler: suspend (IntegrationEvent) -> Unit)
 
+    fun registerCommandExample(example: String, description: String = "")
+
 }
 
 interface PluginContextBootstrap : PluginContext, AutoCloseable {

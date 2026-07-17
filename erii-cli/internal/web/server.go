@@ -79,6 +79,8 @@ func Start(cfg Config) error {
 	mux.Handle("/ws", wsHandler)
 	mux.Handle("/api/runtime/status", runtimeStatusHandler(cfg.Token, monitor.Current))
 	mux.Handle("/api/runtime/events", runtimeEventsHandler(cfg.Token, monitor))
+	mux.Handle("/api/plugin/match", pluginMatchHandler(cfg.Token, cfg.EriiDir))
+	mux.Handle("/api/plugin/send", pluginSendHandler(cfg.Token, cfg.EriiDir))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		requestPath := r.URL.Path
 		// Only validate token for the HTML page, not static assets

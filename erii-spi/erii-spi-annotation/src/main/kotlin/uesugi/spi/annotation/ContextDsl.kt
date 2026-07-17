@@ -45,6 +45,11 @@ suspend fun useServer(): Server =
     currentCoroutineContext()[PluginContextElement]?.context?.server
         ?: error(NO_CONTEXT_ERROR)
 
+suspend fun useRegisterCommandExample(example: String, description: String = "") {
+    currentCoroutineContext()[PluginContextElement]?.context?.registerCommandExample(example, description)
+        ?: error(NO_CONTEXT_ERROR)
+}
+
 suspend fun <T> withPluginContext(context: PluginContext, block: suspend () -> T): T {
     return withContext(PluginContextElement(context)) {
         block()

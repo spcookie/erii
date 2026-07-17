@@ -2,16 +2,24 @@ package uesugi.routing
 
 import io.ktor.http.*
 import io.ktor.server.auth.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
 import org.koin.ktor.ext.inject
+import uesugi.common.EventBus
 import uesugi.common.RefreshManager
+import uesugi.common.event.CliPluginEvent
+import uesugi.common.event.CliPluginReplyEvent
+import uesugi.plugin.PluginCommandExample
+import uesugi.plugin.PluginCommandExampleRegistry
 import uesugi.plugin.PluginLifecycleManager
 import uesugi.plugin.PluginRefreshResult
+import java.util.*
 
 fun Routing.configureBotConfigManager() {
     val pluginLifecycleManager by inject<PluginLifecycleManager>()
@@ -38,8 +46,68 @@ fun Routing.configureBotConfigManager() {
             val result = pluginLifecycleManager.refreshPlugin(pluginId)
             call.respond(result.httpStatus(), result.toJson())
         }
+
+        post("/api/plugins/cli/send") {
+            val request = call.receive<CliPluginSendRequest>()
+            val input = request.input.trim()
+            if (input.isBlank()) {
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    buildJsonObject {
+                        put("status", "error")
+                        put("message", "input must not be blank")
+                    },
+                )
+                return@post
+            }
+
+            val echo = UUID.randomUUID().toString()
+            val replies = mutableListOf<String?>()
+            lateinit var replyHandler: (CliPluginReplyEvent) -> Unit
+            replyHandler = EventBus.subscribeSync<CliPluginReplyEvent> { event ->
+                if (event.echo == echo) {
+                    replies += event.message
+                }
+            }
+            try {
+                EventBus.postSync(CliPluginEvent(input, echo))
+            } finally {
+                EventBus.unsubscribeSync(replyHandler)
+            }
+
+            val reply = replies.lastOrNull()
+            call.respond(
+                buildJsonObject {
+                    put("status", "ok")
+                    put("message", "plugin event sent")
+                    put("input", input)
+                    put("echo", echo)
+                    put("reply", reply?.let { JsonPrimitive(it) } ?: JsonNull)
+                },
+            )
+        }
+
+        get("/api/plugins/cli/match") {
+            val query = call.request.queryParameters["query"].orEmpty()
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(0, 100) ?: 20
+            val matches = PluginCommandExampleRegistry.match(query, limit)
+            call.respond(
+                buildJsonObject {
+                    put("status", "ok")
+                    put("query", query)
+                    putJsonArray("matches") {
+                        matches.forEach { add(it.toJson()) }
+                    }
+                },
+            )
+        }
     }
 }
+
+@Serializable
+data class CliPluginSendRequest(
+    val input: String,
+)
 
 private fun PluginRefreshResult.httpStatus(): HttpStatusCode = when (status) {
     "ok" -> HttpStatusCode.OK
@@ -59,6 +127,13 @@ private fun PluginRefreshResult.toJson(): JsonObject = buildJsonObject {
     putJsonObject("failedPlugins") {
         failedPlugins.forEach { (pluginId, reason) -> put(pluginId, reason) }
     }
+}
+
+private fun PluginCommandExample.toJson(): JsonObject = buildJsonObject {
+    put("pluginId", pluginId)
+    put("extensionName", extensionName)
+    put("example", example)
+    put("description", description)
 }
 
 private fun Any?.toJsonElement(): JsonElement = when (this) {

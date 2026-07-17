@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -104,4 +105,57 @@ func TestRefreshConfigAcceptsLegacyBotCounts(t *testing.T) {
 	if result.Bots.Added.Count() != 1 || result.Bots.Failed.Count() != 5 {
 		t.Fatalf("bots = %+v, want legacy counts accepted", result.Bots)
 	}
+}
+
+func TestSendPluginCliUsesSendEndpoint(t *testing.T) {
+	var gotURI string
+	var gotBody apiBody
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotURI = r.RequestURI
+		if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"status":"ok","message":"plugin event sent","input":"hello plugin","echo":"echo-1","reply":"pong"}`))
+	}))
+	defer server.Close()
+
+	client := &Client{baseURL: server.URL, http: server.Client()}
+	result, err := client.SendPluginCli("hello plugin")
+	if err != nil {
+		t.Fatalf("SendPluginCli returned error: %v", err)
+	}
+	if gotURI != "/api/plugins/cli/send" {
+		t.Fatalf("uri = %q, want /api/plugins/cli/send", gotURI)
+	}
+	if gotBody.Input != "hello plugin" || result.Input != "hello plugin" {
+		t.Fatalf("input body/result = %q/%q, want hello plugin", gotBody.Input, result.Input)
+	}
+	if result.Echo != "echo-1" || result.Reply == nil || *result.Reply != "pong" {
+		t.Fatalf("echo/reply = %q/%v, want echo-1/pong", result.Echo, result.Reply)
+	}
+}
+
+func TestMatchPluginCommandsEscapesQueryAndLimit(t *testing.T) {
+	var gotURI string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotURI = r.RequestURI
+		_, _ = w.Write([]byte(`{"status":"ok","query":"hello plugin","matches":[{"pluginId":"demo","extensionName":"Demo","example":"hello plugin","description":"desc"}]}`))
+	}))
+	defer server.Close()
+
+	client := &Client{baseURL: server.URL, http: server.Client()}
+	result, err := client.MatchPluginCommands("hello plugin", 200)
+	if err != nil {
+		t.Fatalf("MatchPluginCommands returned error: %v", err)
+	}
+	if gotURI != "/api/plugins/cli/match?query=hello+plugin&limit=100" {
+		t.Fatalf("uri = %q, want escaped query and capped limit", gotURI)
+	}
+	if len(result.Matches) != 1 || result.Matches[0].Example != "hello plugin" {
+		t.Fatalf("matches = %+v, want hello plugin", result.Matches)
+	}
+}
+
+type apiBody struct {
+	Input string `json:"input"`
 }
