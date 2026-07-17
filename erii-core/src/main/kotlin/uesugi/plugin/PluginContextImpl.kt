@@ -75,7 +75,7 @@ class PluginContextImpl(
         eventHandlers += handler
     }
 
-    override fun open() {
+    override fun start() {
         job = EventBus.subscribeAsync<RouteCallEvent>(scope) { event ->
             scope.launch {
                 UsageContext.withUsage(event.botId, event.groupId) {
@@ -108,9 +108,7 @@ class PluginContextImpl(
                 }
             }
         }
-    }
 
-    override fun ready() {
         for (toolset in toolsets) {
             MetaToolSetRegister.addToolSet(defined.name, toolset)
         }

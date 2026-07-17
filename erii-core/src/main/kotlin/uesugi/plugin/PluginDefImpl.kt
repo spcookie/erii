@@ -5,5 +5,10 @@ import uesugi.spi.RouteKey
 
 internal class PluginDefImpl(
     override val name: String,
-    override val routeKeys: List<RouteKey>
-) : PluginDef
+    routeKeysProvider: () -> List<RouteKey>,
+) : PluginDef {
+    override val routeKeys: List<RouteKey> by lazy(
+        LazyThreadSafetyMode.PUBLICATION,
+        routeKeysProvider,
+    )
+}

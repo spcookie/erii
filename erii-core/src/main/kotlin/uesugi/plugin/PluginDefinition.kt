@@ -2,8 +2,13 @@ package uesugi.plugin
 
 import uesugi.spi.*
 
-fun buildPluginDef(plugin: AgentExtension<*>): PluginDef {
-    val routeKeys = buildList {
+fun buildPluginDef(plugin: AgentExtension<*>): PluginDef =
+    PluginDefImpl(plugin.name) {
+        buildRouteKeys(plugin)
+    }
+
+private fun buildRouteKeys(plugin: AgentExtension<*>): List<RouteKey> =
+    buildList {
         if (plugin is RouteExtension) {
             add(LLMRouteKey(plugin.matcher.first))
         }
@@ -11,5 +16,3 @@ fun buildPluginDef(plugin: AgentExtension<*>): PluginDef {
             add(CmdRouteKey(plugin.cmd))
         }
     }
-    return PluginDefImpl(plugin.name, routeKeys)
-}

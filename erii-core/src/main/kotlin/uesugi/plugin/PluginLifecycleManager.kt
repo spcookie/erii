@@ -219,9 +219,8 @@ class PluginLifecycleManager(
                 server,
                 httpProxy,
             ).apply {
-                open()
                 extension.onLoad(this)
-                ready()
+                start()
             }
         }.onFailure {
             closeResources(extension, mem, kv, blob, vector, context)

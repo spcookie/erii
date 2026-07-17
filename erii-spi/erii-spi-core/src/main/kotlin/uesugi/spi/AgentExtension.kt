@@ -244,8 +244,7 @@ interface PluginContext : AutoCloseable {
 }
 
 interface PluginContextBootstrap : PluginContext, AutoCloseable {
-    fun open()
-    fun ready()
+    fun start()
 }
 
 interface MetaToolSet : ToolSet {
