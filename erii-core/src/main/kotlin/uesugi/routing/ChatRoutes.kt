@@ -1,5 +1,6 @@
 package uesugi.routing
 
+import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -15,9 +16,11 @@ import uesugi.common.toolkit.logger
 import uesugi.core.bot.BotRoleManager
 import uesugi.core.chat.ChatBridge
 import uesugi.core.chat.ChatHistoryEntry
+import uesugi.core.message.resource.ThumbnailService
 
 @Serializable
 data class ChatSendResponse(
+    val requestId: String? = null,
     val response: String? = null,
     val error: String? = null
 )
@@ -54,6 +57,7 @@ data class ChatHistoryResponse(
 
 fun Routing.configureChatRoutes() {
     val chatBridge by inject<ChatBridge>()
+    val thumbnailService by inject<ThumbnailService>()
 
     authenticate("basic") {
         get("/api/chat/roles") {
@@ -104,6 +108,29 @@ fun Routing.configureChatRoutes() {
             call.respond(ChatHistoryResponse(entries = result.entries, hasMore = result.hasMore))
         }
 
+        get("/api/chat/history/{id}/image") {
+            val historyId = call.parameters["id"]?.toIntOrNull()
+            if (historyId == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "invalid history id"))
+                return@get
+            }
+
+            val resource = chatBridge.getHistoryImage(historyId)
+            if (resource == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "chat image not found"))
+                return@get
+            }
+
+            val bytes = thumbnailService.getThumbnail(resource)
+            if (bytes == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "chat image not available"))
+                return@get
+            }
+
+            call.response.header(HttpHeaders.ETag, "\"${resource.md5}\"")
+            call.respondBytes(bytes, ContentType.Application.OctetStream)
+        }
+
         get("/api/chat/health") {
             call.respond(
                 ChatHealthResponse(
@@ -114,13 +141,13 @@ fun Routing.configureChatRoutes() {
         }
 
         webSocket("/api/chat/ws") {
-            chatBridge.wsResponseCallback = { responseText ->
+            chatBridge.wsResponseCallback = { requestId, responseText ->
                 try {
                     send(
                         Frame.Text(
                             Json.encodeToString(
                                 ChatSendResponse.serializer(),
-                                ChatSendResponse(response = responseText)
+                                ChatSendResponse(requestId = requestId, response = responseText)
                             )
                         )
                     )
@@ -137,15 +164,16 @@ fun Routing.configureChatRoutes() {
                     } catch (_: Exception) {
                         continue
                     }
+                    val requestId = json["requestId"]?.jsonPrimitive?.content
                     val message = json["content"]?.jsonPrimitive?.content ?: continue
                     try {
-                        chatBridge.sendMessage(message)
+                        chatBridge.sendMessage(requestId, message)
                     } catch (e: Exception) {
                         send(
                             Frame.Text(
                                 Json.encodeToString(
                                     ChatSendResponse.serializer(),
-                                    ChatSendResponse(error = e.message ?: "Unknown error")
+                                ChatSendResponse(requestId = requestId, error = e.message ?: "Unknown error")
                                 )
                             )
                         )

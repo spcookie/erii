@@ -1,12 +1,12 @@
 package uesugi.core.chat
 
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.serialization.Serializable
 import uesugi.common.BotManage
 import uesugi.common.data.HistoryRecord
+import uesugi.common.data.MessageType
+import uesugi.common.data.ResourceRecord
 import uesugi.common.toolkit.logger
 import uesugi.config.ChatBridgeConst.MOCK_BOT_ID
 import uesugi.config.ChatBridgeConst.MOCK_CONFIG_KEY
@@ -24,16 +24,16 @@ import uesugi.onebot.sdk.client.OneBotClient
 import uesugi.onebot.core.message.buildMessage
 import uesugi.onebot.core.message.text
 import java.net.ServerSocket
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.seconds
+import java.util.concurrent.atomic.AtomicReference
 
 @Serializable
 data class ChatHistoryEntry(
     val id: Long,
     val sender: String,
     val content: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val messageType: MessageType,
+    val hasImage: Boolean,
 )
 
 class ChatBridge(
@@ -43,7 +43,6 @@ class ChatBridge(
     companion object {
         val MOCK_WS_PORT_RANGE = 6701..6710
         const val HISTORY_LIMIT = 50
-        val RESPONSE_TIMEOUT = 60.seconds
 
         private val log = logger()
 
@@ -66,14 +65,12 @@ class ChatBridge(
     private lateinit var mockBot: MockBot
     private lateinit var client: OneBotClient
 
-    private val responseDeferreds = ConcurrentHashMap<Int, CompletableDeferred<String>>()
-    private val requestIdCounter = AtomicInteger(0)
-
     private var wsPort = 0
     private var messageListener: GroupMessageEventListener? = null
+    private val pendingResponseId = AtomicReference<String?>(null)
 
     @Volatile
-    var wsResponseCallback: (suspend (String) -> Unit)? = null
+    var wsResponseCallback: (suspend (String?, String) -> Unit)? = null
 
     data class HistoryResult(
         val entries: List<ChatHistoryEntry>,
@@ -94,6 +91,9 @@ class ChatBridge(
             hasMore = hasMore
         )
     }
+
+    fun getHistoryImage(historyId: Int): ResourceRecord? =
+        historyService.getHistoryById(historyId)?.chatImageResourceOrNull()
 
     suspend fun start() {
         wsPort = findAvailablePort()
@@ -116,12 +116,8 @@ class ChatBridge(
         mockBot.onBotSendGroupMsg = { event ->
             val text = extractResponse(event)
             if (text.isNotBlank()) {
-                wsResponseCallback?.invoke(text)
-                val entry = responseDeferreds.entries.minByOrNull { it.key }
-                if (entry != null && !entry.value.isCompleted) {
-                    responseDeferreds.remove(entry.key)
-                    entry.value.complete(text)
-                }
+                val requestId = pendingResponseId.getAndSet(null)?.takeIf { it.isNotBlank() }
+                wsResponseCallback?.invoke(requestId, text)
             }
         }
 
@@ -158,32 +154,28 @@ class ChatBridge(
         ).also { it.register(client) }
     }
 
-    suspend fun sendMessage(text: String): String {
-        if (text.isBlank()) return ""
+    suspend fun sendMessage(requestId: String?, text: String) {
+        if (text.isBlank()) return
 
-        val requestId = requestIdCounter.getAndIncrement()
-        val deferred = CompletableDeferred<String>()
-        responseDeferreds[requestId] = deferred
-
+        val responseId = requestId.orEmpty()
+        pendingResponseId.set(responseId)
+        val message: MessageContent = buildMessage {
+            if (!text.startsWith("/")) {
+                at(MOCK_BOT_ID)
+            }
+            text(text)
+        }
         try {
-            val message: MessageContent = buildMessage {
-                if (!text.startsWith("/")) {
-                    at(MOCK_BOT_ID)
-                }
-                text(text)
-            }
             mockBot.simulateGroupMessage(MOCK_GROUP_ID, MOCK_USER_ID, message)
-
-            return withTimeout(RESPONSE_TIMEOUT) {
-                deferred.await()
-            }
-        } finally {
-            responseDeferreds.remove(requestId)
+        } catch (e: Exception) {
+            pendingResponseId.compareAndSet(responseId, null)
+            throw e
         }
     }
 
     suspend fun stop() {
         log.info("ChatBridge: stopping")
+        pendingResponseId.set(null)
         if (::client.isInitialized) {
             client.stop()
         }
@@ -208,7 +200,7 @@ class ChatBridge(
     }
 }
 
-private fun HistoryRecord.toChatHistoryEntry(): ChatHistoryEntry {
+internal fun HistoryRecord.toChatHistoryEntry(): ChatHistoryEntry {
     val sender = when (userId) {
         MOCK_USER_ID.toString() -> "user"
         else -> "bot"
@@ -217,7 +209,24 @@ private fun HistoryRecord.toChatHistoryEntry(): ChatHistoryEntry {
     return ChatHistoryEntry(
         id = (id ?: 0).toLong(),
         sender = sender,
-        content = content ?: "",
-        timestamp = timestamp
+        content = if (sender == "user") content.orEmpty().removeMockBotMention() else content.orEmpty(),
+        timestamp = timestamp,
+        messageType = messageType,
+        hasImage = chatImageResourceOrNull() != null,
     )
+}
+
+internal fun HistoryRecord.chatImageResourceOrNull(): ResourceRecord? =
+    takeIf {
+        botMark == MOCK_BOT_ID.toString() &&
+            groupId == MOCK_GROUP_ID.toString() &&
+            messageType == MessageType.IMAGE
+    }?.resource?.takeIf {
+        it.botMark == MOCK_BOT_ID.toString() && it.groupId == MOCK_GROUP_ID.toString()
+    }
+
+internal fun String.removeMockBotMention(): String {
+    val mention = "@$MOCK_BOT_ID"
+    if (!startsWith(mention)) return this
+    return removePrefix(mention).trimStart()
 }
