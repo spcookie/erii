@@ -466,7 +466,7 @@ func buildBotForm(d *SetupData) *huh.Form {
 				Title("Token").
 				Value(&d.BotToken).
 				EchoMode(huh.EchoModePassword).
-				Placeholder("Enter NapCat token").
+				Placeholder("Enter Onebot token").
 				Validate(func(s string) error {
 					if s == "" {
 						return validationError(d, "Token is required")
