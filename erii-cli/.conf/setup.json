@@ -22,11 +22,67 @@
       "base-url": "https://api.deepseek.com"
     },
     {
-      "name": "SiliconFlow",
-      "key": "siliconflow",
+      "name": "Kimi",
+      "key": "kimi",
       "api": "openai",
-      "desc": "SiliconFlow OpenAI-compatible models",
-      "base-url": "https://api.siliconflow.cn/v1"
+      "desc": "Moonshot Kimi OpenAI-compatible models",
+      "base-url": "https://api.moonshot.ai/v1"
+    },
+    {
+      "name": "Kimi Code",
+      "key": "kimi-code",
+      "api": "openai",
+      "desc": "Moonshot Kimi coding model preset",
+      "base-url": "https://api.moonshot.ai/v1"
+    },
+    {
+      "name": "Xiaomi MiMo",
+      "key": "mimo",
+      "api": "openai",
+      "desc": "Xiaomi MiMo OpenAI-compatible models",
+      "base-url": "https://api.xiaomimimo.com/v1"
+    },
+    {
+      "name": "Xiaomi MiMo Token Plan",
+      "key": "mimo-token-plan",
+      "api": "openai",
+      "desc": "Xiaomi MiMo Token Plan OpenAI-compatible models",
+      "base-url": "https://token-plan-cn.xiaomimimo.com/v1"
+    },
+    {
+      "name": "MiniMax",
+      "key": "minimax",
+      "api": "openai",
+      "desc": "MiniMax OpenAI-compatible models",
+      "base-url": "https://api.minimax.io/v1"
+    },
+    {
+      "name": "MiniMax Token Plan",
+      "key": "minimax-token-plan",
+      "api": "openai",
+      "desc": "MiniMax Token Plan OpenAI-compatible models",
+      "base-url": "https://api.minimax.io/v1"
+    },
+    {
+      "name": "GLM",
+      "key": "glm",
+      "api": "openai",
+      "desc": "Z.AI GLM OpenAI-compatible models",
+      "base-url": "https://api.z.ai/api/paas/v4"
+    },
+    {
+      "name": "Qwen",
+      "key": "qwen",
+      "api": "openai",
+      "desc": "Alibaba Cloud Model Studio Qwen OpenAI-compatible models",
+      "base-url": "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    },
+    {
+      "name": "ByteDance Seed",
+      "key": "bytedance-seed",
+      "api": "openai",
+      "desc": "Volcengine Ark Doubao Seed OpenAI-compatible models",
+      "base-url": "https://ark.cn-beijing.volces.com/api/v3"
     }
   ],
   "defaults": {
@@ -59,30 +115,142 @@
       },
       "deepseek": {
         "model-mode": "separate",
-        "lite-model": "deepseek-chat",
-        "flash-model": "deepseek-chat",
-        "pro-model": "deepseek-reasoner",
-        "all-model": "deepseek-chat",
+        "lite-model": "deepseek-v4-flash",
+        "flash-model": "deepseek-v4-flash",
+        "pro-model": "deepseek-v4-pro",
+        "all-model": "deepseek-v4-flash",
         "settings": {
-          "chat-completions": "v1/chat/completions",
-          "responses-api": "v1/responses",
-          "embeddings": "v1/embeddings",
-          "moderations": "v1/moderations",
-          "models": "v1/models"
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
         }
       },
-      "siliconflow": {
+      "kimi": {
         "model-mode": "separate",
-        "lite-model": "Qwen/Qwen3-8B",
-        "flash-model": "Qwen/Qwen3-32B",
-        "pro-model": "deepseek-ai/DeepSeek-V3",
-        "all-model": "Qwen/Qwen3-32B",
+        "lite-model": "kimi-k2.6",
+        "flash-model": "kimi-k2.7-code-highspeed",
+        "pro-model": "kimi-k3",
+        "all-model": "kimi-k3",
         "settings": {
-          "chat-completions": "v1/chat/completions",
-          "responses-api": "v1/responses",
-          "embeddings": "v1/embeddings",
-          "moderations": "v1/moderations",
-          "models": "v1/models"
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
+        }
+      },
+      "kimi-code": {
+        "model-mode": "all",
+        "lite-model": "kimi-k2.7-code-highspeed",
+        "flash-model": "kimi-k2.7-code-highspeed",
+        "pro-model": "kimi-k2.7-code-highspeed",
+        "all-model": "kimi-k2.7-code-highspeed",
+        "settings": {
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
+        }
+      },
+      "mimo": {
+        "model-mode": "separate",
+        "lite-model": "mimo-v2.5",
+        "flash-model": "mimo-v2.5",
+        "pro-model": "mimo-v2.5-pro",
+        "all-model": "mimo-v2.5-pro",
+        "settings": {
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
+        }
+      },
+      "mimo-token-plan": {
+        "model-mode": "separate",
+        "lite-model": "mimo-v2.5",
+        "flash-model": "mimo-v2.5",
+        "pro-model": "mimo-v2.5-pro",
+        "all-model": "mimo-v2.5-pro",
+        "settings": {
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
+        }
+      },
+      "minimax": {
+        "model-mode": "separate",
+        "lite-model": "MiniMax-M2.7-highspeed",
+        "flash-model": "MiniMax-M2.7",
+        "pro-model": "MiniMax-M3",
+        "all-model": "MiniMax-M3",
+        "settings": {
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
+        }
+      },
+      "minimax-token-plan": {
+        "model-mode": "all",
+        "lite-model": "MiniMax-M3",
+        "flash-model": "MiniMax-M3",
+        "pro-model": "MiniMax-M3",
+        "all-model": "MiniMax-M3",
+        "settings": {
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
+        }
+      },
+      "glm": {
+        "model-mode": "separate",
+        "lite-model": "glm-5.2",
+        "flash-model": "glm-5.2",
+        "pro-model": "glm-5.2",
+        "all-model": "glm-5.2",
+        "settings": {
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
+        }
+      },
+      "qwen": {
+        "model-mode": "separate",
+        "lite-model": "qwen3.6-flash",
+        "flash-model": "qwen3.7-plus",
+        "pro-model": "qwen3.7-max",
+        "all-model": "qwen3.7-plus",
+        "settings": {
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
+        }
+      },
+      "bytedance-seed": {
+        "model-mode": "separate",
+        "lite-model": "doubao-seed-2-1-turbo-260628",
+        "flash-model": "doubao-seed-2-1-turbo-260628",
+        "pro-model": "doubao-seed-2-1-pro-260628",
+        "all-model": "doubao-seed-2-1-pro-260628",
+        "settings": {
+          "chat-completions": "chat/completions",
+          "responses-api": "responses",
+          "embeddings": "embeddings",
+          "moderations": "moderations",
+          "models": "models"
         }
       }
     },
