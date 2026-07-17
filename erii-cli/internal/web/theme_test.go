@@ -188,6 +188,28 @@ func TestStaticConsoleContainsRuntimeStatusContracts(t *testing.T) {
 	}
 }
 
+func TestStaticConsoleContainsAutoCommandContracts(t *testing.T) {
+	js := string(readStatic(t, "static/js/main.js"))
+
+	for _, contract := range []string{
+		"const requestedCommandText = (urlParams.get('cmd') || '').trim()",
+		"function parseAutoCommand(value)",
+		"const parts = parseArgs(value)",
+		"if (!/^[A-Za-z0-9_-]+$/.test(cmd)) return null",
+		"autoCommand = parseAutoCommand(requestedCommandText)",
+		"function findCommandItem(cmd, args)",
+		"function maybeRunAutoCommand()",
+		"if (!terminalOpened || !cliConnected || !ws || ws.readyState !== WebSocket.OPEN) return",
+		"if (item && item.disabled) return",
+		"autoCommandStarted = true",
+		"execCmd(autoCommand.cmd, autoCommand.args, title)",
+	} {
+		if !strings.Contains(js, contract) {
+			t.Fatalf("auto-command JS missing %q", contract)
+		}
+	}
+}
+
 func TestStaticConsoleReconnectsUntilCLIReturns(t *testing.T) {
 	js := string(readStatic(t, "static/js/main.js"))
 	for _, contract := range []string{
