@@ -54,6 +54,17 @@ func TestIndexPageReceivesThemeAndAssetVersion(t *testing.T) {
 	}
 }
 
+func TestStaticConsoleUsesLogoAsFavicon(t *testing.T) {
+	html := string(readStatic(t, "static/index.html"))
+	logo := readStatic(t, "static/img/logo.svg")
+	if !strings.Contains(html, `<link rel="icon" href="/img/logo.svg" type="image/svg+xml">`) {
+		t.Fatal("console markup should use logo.svg as the favicon")
+	}
+	if !strings.Contains(string(logo), `<svg`) {
+		t.Fatal("embedded logo.svg should be an SVG image")
+	}
+}
+
 func TestStaticConsoleContainsAdaptiveThemeContracts(t *testing.T) {
 	html := readStatic(t, "static/index.html")
 	css := readStatic(t, "static/css/style.css")

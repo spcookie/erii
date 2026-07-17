@@ -22,22 +22,35 @@ func TestSetupJSONSupportsProviderPresetsAndAdvancedDefaults(t *testing.T) {
 		t.Fatalf("expected at least 4 provider presets, got %d", len(sf.Providers))
 	}
 
-	foundDeepSeek := false
+	anthropicPresets := map[string]bool{
+		"deepseek":           false,
+		"kimi":               false,
+		"kimi-code":          false,
+		"mimo":               false,
+		"mimo-token-plan":    false,
+		"minimax":            false,
+		"minimax-token-plan": false,
+		"glm":                false,
+		"qwen":               false,
+		"bytedance-seed":     false,
+	}
 	for _, p := range sf.Providers {
-		if p.Key == "deepseek" {
-			foundDeepSeek = true
-			if p.API != "openai" {
-				t.Fatalf("deepseek api = %q, want openai", p.API)
-			}
+		if _, ok := anthropicPresets[p.Key]; !ok {
+			continue
+		}
+		anthropicPresets[p.Key] = true
+		if p.API != "anthropic" {
+			t.Errorf("%s api = %q, want anthropic", p.Key, p.API)
+		}
+		defaults := sf.Defaults.LLM[p.Key]
+		if defaults.Settings["messages"] != "v1/messages" {
+			t.Errorf("%s messages path = %q, want v1/messages", p.Key, defaults.Settings["messages"])
 		}
 	}
-	if !foundDeepSeek {
-		t.Fatal("deepseek provider preset missing")
-	}
-
-	deepseek := sf.Defaults.LLM["deepseek"]
-	if deepseek.Settings["chat-completions"] == "" {
-		t.Fatal("deepseek openai-compatible settings missing")
+	for key, found := range anthropicPresets {
+		if !found {
+			t.Errorf("%s provider preset missing", key)
+		}
 	}
 	if !sf.Defaults.LLMCapability.Default.Tools {
 		t.Fatal("llm capability defaults missing")
