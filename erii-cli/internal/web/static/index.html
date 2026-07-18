@@ -46,26 +46,6 @@
                                 <path d="m6 9 6 6 6-6"/>
                             </svg>
                         </button>
-                        <div id="server-menu" class="server-menu" role="menu" aria-label="Server actions" hidden>
-                            <button type="button" role="menuitem" data-server-action="start">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                    <path d="m8 5 11 7-11 7z"/>
-                                </svg>
-                                <span>Start</span>
-                            </button>
-                            <button type="button" role="menuitem" data-server-action="stop">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                    <rect x="6" y="6" width="12" height="12" rx="1"/>
-                                </svg>
-                                <span>Stop</span>
-                            </button>
-                            <button type="button" role="menuitem" data-server-action="restart">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                    <path d="M20 11a8 8 0 10-2.34 5.66"/><path d="M20 4v7h-7"/>
-                                </svg>
-                                <span>Restart</span>
-                            </button>
-                        </div>
                     </div>
                     <div class="topbar-status" title="WebSocket connection">
                         <span id="status-dot" class="status-dot" aria-hidden="true"></span>
@@ -273,6 +253,27 @@
                     </div>
                 </main>
             </div>
+        </div>
+        <div aria-label="Server actions" class="server-menu" hidden id="server-menu" role="menu">
+            <button data-server-action="start" role="menuitem" type="button">
+                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="m8 5 11 7-11 7z"/>
+                </svg>
+                <span>Start</span>
+            </button>
+            <button data-server-action="stop" role="menuitem" type="button">
+                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect height="12" rx="1" width="12" x="6" y="6"/>
+                </svg>
+                <span>Stop</span>
+            </button>
+            <button data-server-action="restart" role="menuitem" type="button">
+                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M20 11a8 8 0 10-2.34 5.66"/>
+                    <path d="M20 4v7h-7"/>
+                </svg>
+                <span>Restart</span>
+            </button>
         </div>
     </div>
 
