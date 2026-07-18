@@ -26,7 +26,7 @@ func buildLLMForm(d *SetupData) *huh.Form {
 				Placeholder("Enter API key (leave empty for env var)").
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "API Key is required")
+						return validationError("API Key is required")
 					}
 					return nil
 				}),
@@ -38,7 +38,7 @@ func buildLLMForm(d *SetupData) *huh.Form {
 				Placeholder(placeholderOrValue(d.BaseURL)).
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "Base URL is required")
+						return validationError("Base URL is required")
 					}
 					return nil
 				}),
@@ -57,7 +57,7 @@ func buildLLMForm(d *SetupData) *huh.Form {
 				Placeholder(placeholderOrValue(d.AllModel)).
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "Model is required")
+						return validationError("Model is required")
 					}
 					return nil
 				}),
@@ -72,7 +72,7 @@ func buildLLMForm(d *SetupData) *huh.Form {
 				Placeholder(placeholderOrValue(d.LiteModel)).
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "Lite Model is required")
+						return validationError("Lite Model is required")
 					}
 					return nil
 				}),
@@ -82,7 +82,7 @@ func buildLLMForm(d *SetupData) *huh.Form {
 				Placeholder(placeholderOrValue(d.FlashModel)).
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "Flash Model is required")
+						return validationError("Flash Model is required")
 					}
 					return nil
 				}),
@@ -92,7 +92,7 @@ func buildLLMForm(d *SetupData) *huh.Form {
 				Placeholder(placeholderOrValue(d.ProModel)).
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "Pro Model is required")
+						return validationError("Pro Model is required")
 					}
 					return nil
 				}),
@@ -135,7 +135,7 @@ func buildLLMProviderSettingsForm(d *SetupData, api string) *huh.Form {
 			Placeholder(placeholderOrValue(d.LLMSettings[k])).
 			Validate(func(s string) error {
 				if s == "" {
-					return validationError(d, "%s is required", k)
+					return validationError("%s is required", k)
 				}
 				d.LLMSettings[k] = s
 				return nil
@@ -272,18 +272,18 @@ func buildLLMUsagePricingForm(d *SetupData) *huh.Form {
 				Placeholder(placeholderOrValue(d.LLMUsagePricing.PriceUnit)).
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "Price Unit is required")
+						return validationError("Price Unit is required")
 					}
 					return nil
 				}),
 		).Title("Currency").WithShowHelp(false),
-		pricingGroup(d, "Lite Pricing", &d.LLMUsagePricing.Lite),
-		pricingGroup(d, "Flash Pricing", &d.LLMUsagePricing.Flash),
-		pricingGroup(d, "Pro Pricing", &d.LLMUsagePricing.Pro),
+		pricingGroup("Lite Pricing", &d.LLMUsagePricing.Lite),
+		pricingGroup("Flash Pricing", &d.LLMUsagePricing.Flash),
+		pricingGroup("Pro Pricing", &d.LLMUsagePricing.Pro),
 	)
 }
 
-func pricingGroup(d *SetupData, title string, p *LLMPricingTierDefaults) *huh.Group {
+func pricingGroup(title string, p *LLMPricingTierDefaults) *huh.Group {
 	inputHit := fmt.Sprintf("%g", p.InputCacheHit)
 	inputMiss := fmt.Sprintf("%g", p.InputCacheMiss)
 	output := fmt.Sprintf("%g", p.Output)
@@ -292,7 +292,7 @@ func pricingGroup(d *SetupData, title string, p *LLMPricingTierDefaults) *huh.Gr
 			Title("Input Cache Hit").
 			Value(&inputHit).
 			Validate(func(s string) error {
-				v, err := parseRequiredFloat(d, "Input Cache Hit", s)
+				v, err := parseRequiredFloat("Input Cache Hit", s)
 				if err != nil {
 					return err
 				}
@@ -304,7 +304,7 @@ func pricingGroup(d *SetupData, title string, p *LLMPricingTierDefaults) *huh.Gr
 			Title("Input Cache Miss").
 			Value(&inputMiss).
 			Validate(func(s string) error {
-				v, err := parseRequiredFloat(d, "Input Cache Miss", s)
+				v, err := parseRequiredFloat("Input Cache Miss", s)
 				if err != nil {
 					return err
 				}
@@ -316,7 +316,7 @@ func pricingGroup(d *SetupData, title string, p *LLMPricingTierDefaults) *huh.Gr
 			Title("Output").
 			Value(&output).
 			Validate(func(s string) error {
-				v, err := parseRequiredFloat(d, "Output", s)
+				v, err := parseRequiredFloat("Output", s)
 				if err != nil {
 					return err
 				}
@@ -458,7 +458,7 @@ func buildBotForm(d *SetupData) *huh.Form {
 				Placeholder(placeholderOrValue(d.BotWS)).
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "WebSocket Address is required")
+						return validationError("WebSocket Address is required")
 					}
 					return nil
 				}),
@@ -469,7 +469,7 @@ func buildBotForm(d *SetupData) *huh.Form {
 				Placeholder("Enter Onebot token").
 				Validate(func(s string) error {
 					if s == "" {
-						return validationError(d, "Token is required")
+						return validationError("Token is required")
 					}
 					return nil
 				}),
@@ -488,7 +488,35 @@ func buildGroupsForm(d *SetupData) *huh.Form {
 				Title("Enabled Groups (comma-separated, optional)").
 				Value(&d.EnableGroups).
 				Placeholder(placeholderOrValue(d.EnableGroups)).
-				Validate(validateCommaSeparatedNumbers(d, "group ID")),
+				Validate(validateCommaSeparatedNumbers("group ID")),
+		).WithShowHelp(false),
+	)
+}
+
+func buildCoreAuthForm(d *SetupData) *huh.Form {
+	return wrapForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Username").
+				Value(&d.ServerUsername).
+				Placeholder(defaultServerUsername).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return validationError("Username is required")
+					}
+					return nil
+				}),
+			huh.NewInput().
+				Title("Password").
+				Value(&d.ServerPassword).
+				EchoMode(huh.EchoModePassword).
+				Placeholder("Enter Core server password").
+				Validate(func(s string) error {
+					if s == "" {
+						return validationError("Password is required")
+					}
+					return nil
+				}),
 		).WithShowHelp(false),
 	)
 }
@@ -498,7 +526,7 @@ func splitByCommas(s string) []string {
 	return strings.Split(strings.ReplaceAll(s, "，", ","), ",")
 }
 
-func validateCommaSeparatedNumbers(d *SetupData, label string) func(string) error {
+func validateCommaSeparatedNumbers(label string) func(string) error {
 	return func(s string) error {
 		if s == "" {
 			return nil
@@ -507,11 +535,11 @@ func validateCommaSeparatedNumbers(d *SetupData, label string) func(string) erro
 		for _, p := range parts {
 			p = strings.TrimSpace(p)
 			if p == "" {
-				return validationError(d, "empty %s in list", label)
+				return validationError("empty %s in list", label)
 			}
 			for _, r := range p {
 				if r < '0' || r > '9' {
-					return validationError(d, "invalid %s: %q (must be numeric)", label, p)
+					return validationError("invalid %s: %q (must be numeric)", label, p)
 				}
 			}
 		}
@@ -521,28 +549,24 @@ func validateCommaSeparatedNumbers(d *SetupData, label string) func(string) erro
 
 func validateFloat(label string) func(string) error {
 	return func(s string) error {
-		_, err := parseRequiredFloat(nil, label, s)
+		_, err := parseRequiredFloat(label, s)
 		return err
 	}
 }
 
-func parseRequiredFloat(d *SetupData, label string, s string) (float64, error) {
+func parseRequiredFloat(label string, s string) (float64, error) {
 	if s == "" {
-		return 0, validationError(d, "%s is required", label)
+		return 0, validationError("%s is required", label)
 	}
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return 0, validationError(d, "%s must be a number", label)
+		return 0, validationError("%s must be a number", label)
 	}
 	return v, nil
 }
 
-func validationError(d *SetupData, format string, args ...any) error {
-	msg := fmt.Sprintf(format, args...)
-	if d != nil {
-		d.ValidationMessage = msg
-	}
-	return fmt.Errorf("%s", msg)
+func validationError(format string, args ...any) error {
+	return fmt.Errorf(format, args...)
 }
 
 // ---- Helpers ----

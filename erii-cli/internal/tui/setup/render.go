@@ -8,7 +8,6 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // ---- Unified step layout ----
@@ -63,44 +62,6 @@ func renderTabs(tabs []tabItem) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 }
 
-func renderValidationToast(message string, maxWidth int) string {
-	text := "Validation failed: " + message
-	if maxWidth > 0 {
-		text = truncateToast(text, maxWidth)
-	}
-	return lipgloss.NewStyle().
-		Foreground(style.Error).
-		Background(style.ErrorSurface).
-		Border(lipgloss.ThickBorder(), false, false, false, true).
-		BorderForeground(style.Error).
-		Padding(0, 1).
-		Render(text)
-}
-
-func truncateToast(text string, maxWidth int) string {
-	contentWidth := maxWidth - 4
-	if contentWidth < 8 {
-		contentWidth = 8
-	}
-	return ansi.Truncate(text, contentWidth, "...")
-}
-
-func overlayBottomToast(base, toast string, width, footerHeight int) string {
-	if toast == "" || width <= 0 {
-		return base
-	}
-	lines := strings.Split(base, "\n")
-	toastLines := strings.Split(toast, "\n")
-	start := len(lines) - footerHeight - len(toastLines)
-	if start < 0 {
-		return base
-	}
-	placed := lipgloss.PlaceHorizontal(width, lipgloss.Left, toast)
-	placedLines := strings.Split(placed, "\n")
-	copy(lines[start:start+len(placedLines)], placedLines)
-	return strings.Join(lines, "\n")
-}
-
 // ---- Timeline ----
 
 func renderTimeline(currentNode int, data *SetupData) string {
@@ -110,19 +71,19 @@ func renderTimeline(currentNode int, data *SetupData) string {
 		status := getNodeStatus(i, currentNode)
 		icon := nodeIcon(status)
 		suffix := nodeSuffix(i, status, data)
-		connector := nodeConnector(i, len(nodeLabels))
-
 		iconStyled := styleNodeIcon(icon, status)
 		labelStyled := styleNodeLabel(label, status)
 		suffixStyled := styleNodeSuffix(suffix)
 
-		line := fmt.Sprintf("  %s %s %s", iconStyled, labelStyled, suffixStyled)
+		prefix := "  "
+		if i > 0 && i < len(nodeLabels)-1 {
+			prefix = "  " + style.StepPending.Render("├─") + " "
+		} else if i == len(nodeLabels)-1 {
+			prefix = "  " + style.StepPending.Render("└─") + " "
+		}
+		line := fmt.Sprintf("%s%s %s %s", prefix, iconStyled, labelStyled, suffixStyled)
 		b.WriteString(line)
-		b.WriteString("\n")
-
-		if connector != "" {
-			b.WriteString("  ")
-			b.WriteString(style.StepPending.Render(connector))
+		if i < len(nodeLabels)-1 {
 			b.WriteString("\n")
 		}
 	}
@@ -157,13 +118,6 @@ func nodeIcon(status nodeStatus) string {
 	default:
 		return "○"
 	}
-}
-
-func nodeConnector(idx int, total int) string {
-	if idx < total-1 {
-		return "│"
-	}
-	return ""
 }
 
 func nodeSuffix(idx int, status nodeStatus, data *SetupData) string {
@@ -203,6 +157,10 @@ func nodeSuffix(idx int, status nodeStatus, data *SetupData) string {
 	case 3:
 		if data.EnableGroups != "" {
 			return "→ " + data.EnableGroups
+		}
+	case 4:
+		if data.ServerUsername != "" {
+			return "→ " + data.ServerUsername
 		}
 	}
 	return ""

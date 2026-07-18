@@ -42,6 +42,7 @@ type WSHandler struct {
 	EriiDir     string
 	PluginDir   string
 	OptsPath    string
+	LogsPath    string
 	Theme       string
 	binPath     string
 	binReady    bool
@@ -137,6 +138,9 @@ func (h *WSHandler) commandArgs(extra []string, clientTheme ...string) []string 
 	}
 	if h.OptsPath != "" {
 		args = append(args, "--opts-path", h.OptsPath)
+	}
+	if h.LogsPath != "" {
+		args = append(args, "--logs-path", h.LogsPath)
 	}
 	resolvedTheme := h.Theme
 	if resolvedTheme == "" || resolvedTheme == "auto" {

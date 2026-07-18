@@ -34,8 +34,10 @@ type Config struct {
 	EriiDir     string
 	PluginDir   string
 	OptsPath    string
+	LogsPath    string
 	Theme       string
 	Output      io.Writer
+	Detached    bool
 }
 
 // Start starts the HTTP + WebSocket server. Blocks until SIGINT/SIGTERM.
@@ -60,6 +62,7 @@ func Start(cfg Config) error {
 		EriiDir:     cfg.EriiDir,
 		PluginDir:   cfg.PluginDir,
 		OptsPath:    cfg.OptsPath,
+		LogsPath:    cfg.LogsPath,
 		Theme:       normalizedTheme(cfg.Theme),
 	}
 
@@ -103,26 +106,17 @@ func Start(cfg Config) error {
 		Addr:    addr,
 		Handler: mux,
 	}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", addr, err)
+	}
+	defer listener.Close()
 
 	output := cfg.Output
 	if output == nil {
 		output = os.Stdout
 	}
-	localURL := fmt.Sprintf("http://localhost:%s/?token=%s", cfg.Port, cfg.Token)
-	fmt.Fprintln(output)
-	fmt.Fprintln(output, uioutput.Title("Erii Console")+"  "+uioutput.Status("ready"))
-	fmt.Fprint(output, uioutput.Row("Local", localURL))
-	if cfg.Host != "127.0.0.1" {
-		networkHost := cfg.Host
-		if networkHost == "0.0.0.0" {
-			if ip := getLocalIP(); ip != "" {
-				networkHost = ip
-			}
-		}
-		networkURL := fmt.Sprintf("http://%s:%s/?token=%s", networkHost, cfg.Port, cfg.Token)
-		fmt.Fprint(output, uioutput.Row("Network", networkURL))
-	}
-	fmt.Fprintln(output, uioutput.Muted("Press Ctrl+C to stop"))
+	PrintReady(output, cfg, !cfg.Detached)
 
 	// Graceful shutdown on SIGINT/SIGTERM.
 	go func() {
@@ -136,10 +130,44 @@ func Start(cfg Config) error {
 		server.Shutdown(ctx)
 	}()
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
+}
+
+// PrintReady prints the web console access URLs after the listener is ready.
+func PrintReady(output io.Writer, cfg Config, includeStopHint bool) {
+	if output == nil {
+		output = os.Stdout
+	}
+	localURL := fmt.Sprintf("http://localhost:%s/?token=%s", cfg.Port, cfg.Token)
+	fmt.Fprintln(output, uioutput.Title("Erii Console")+"  "+uioutput.Status("ready"))
+	fmt.Fprint(output, uioutput.Row("Local", localURL))
+	if shouldPrintNetworkURL(cfg.Host) {
+		networkHost := cfg.Host
+		if networkHost == "0.0.0.0" || networkHost == "::" || networkHost == "[::]" {
+			if ip := getLocalIP(); ip != "" {
+				networkHost = ip
+			}
+		}
+		networkURL := fmt.Sprintf("http://%s/?token=%s", net.JoinHostPort(strings.Trim(networkHost, "[]"), cfg.Port), cfg.Token)
+		fmt.Fprint(output, uioutput.Row("Network", networkURL))
+	}
+	if includeStopHint {
+		fmt.Fprintln(output, uioutput.Muted("Press Ctrl+C to stop"))
+	}
+}
+
+func shouldPrintNetworkURL(host string) bool {
+	normalized := strings.Trim(strings.ToLower(strings.TrimSpace(host)), "[]")
+	if normalized == "" || normalized == "localhost" {
+		return false
+	}
+	if ip := net.ParseIP(normalized); ip != nil {
+		return !ip.IsLoopback()
+	}
+	return true
 }
 
 // contentTypeHandler sets Content-Type based on file extension to avoid

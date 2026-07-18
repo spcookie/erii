@@ -5,7 +5,13 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+)
+
+const (
+	defaultServerUsername = "eriix"
+	defaultServerPassword = "@Aa123!"
 )
 
 // writeEnvLocal writes sensitive values (API keys, tokens, proxy config) to .env.local.
@@ -28,27 +34,34 @@ func writeEnvLocal(d *SetupData, envFilePath string) error {
 			continue
 		}
 		found := false
-		for i, line := range lines {
+		updated := make([]string, 0, len(lines)+1)
+		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
 			// Skip comments and empty lines
 			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				updated = append(updated, line)
 				continue
 			}
 			// Extract key before '=' and compare exactly
 			eqIdx := strings.Index(trimmed, "=")
 			if eqIdx < 0 {
+				updated = append(updated, line)
 				continue
 			}
 			lineKey := strings.TrimSpace(trimmed[:eqIdx])
 			if lineKey == key {
-				lines[i] = key + "=" + value
-				found = true
-				break
+				if !found {
+					updated = append(updated, key+"="+value)
+					found = true
+				}
+				continue
 			}
+			updated = append(updated, line)
 		}
 		if !found {
-			lines = append(lines, key+"="+value)
+			updated = append(updated, key+"="+value)
 		}
+		lines = updated
 	}
 
 	out, err := os.Create(envFilePath)
@@ -99,8 +112,49 @@ func buildEnvVars(d *SetupData) map[string]string {
 	if d.BotToken != "" {
 		vars["NAPCAT_TOKEN"] = d.BotToken
 	}
+	if d.ServerUsername != "" {
+		vars["ERII_SERVER_USERNAME"] = d.ServerUsername
+	}
+	if d.ServerPassword != "" {
+		vars["ERII_SERVER_PASSWORD"] = d.ServerPassword
+	}
 
 	return vars
+}
+
+func readCoreCredentials(envFilePath string) (string, string) {
+	f, err := os.Open(envFilePath)
+	if err != nil {
+		return "", ""
+	}
+	defer f.Close()
+
+	values := map[string]string{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		eqIdx := strings.IndexByte(line, '=')
+		if eqIdx <= 0 {
+			continue
+		}
+		key := strings.TrimSpace(line[:eqIdx])
+		if key != "ERII_SERVER_USERNAME" && key != "ERII_SERVER_PASSWORD" {
+			continue
+		}
+		value := strings.TrimSpace(line[eqIdx+1:])
+		if unquoted, err := strconv.Unquote(value); err == nil {
+			value = unquoted
+		} else if len(value) >= 2 && value[0] == '\'' && value[len(value)-1] == '\'' {
+			value = value[1 : len(value)-1]
+		}
+		if value != "" {
+			values[key] = value
+		}
+	}
+	return values["ERII_SERVER_USERNAME"], values["ERII_SERVER_PASSWORD"]
 }
 
 // modifyConfig reads the existing application.conf, updates configured values in-place,

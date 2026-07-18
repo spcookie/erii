@@ -12,6 +12,7 @@ func TestWSHandlerCommandArgsIncludesGlobalPathFlags(t *testing.T) {
 		EriiDir:     "./.uesugi/.erii",
 		PluginDir:   "./erii-plugins/build/plugins",
 		OptsPath:    "./.uesugi/opts",
+		LogsPath:    "./.uesugi/logs",
 	}
 
 	got := h.commandArgs([]string{"refresh"})
@@ -21,6 +22,7 @@ func TestWSHandlerCommandArgsIncludesGlobalPathFlags(t *testing.T) {
 		"--erii-dir", "./.uesugi/.erii",
 		"--plugin-dir", "./erii-plugins/build/plugins",
 		"--opts-path", "./.uesugi/opts",
+		"--logs-path", "./.uesugi/logs",
 		"refresh",
 	}
 

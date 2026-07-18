@@ -6,7 +6,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -49,28 +48,12 @@ func TestFormValidation(t *testing.T) {
 	form.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	view := form.View()
 
-	if !strings.Contains(view, "API Key is required") {
-		t.Error("View should contain validation error 'API Key is required'")
-	}
-	if d.ValidationMessage != "API Key is required" {
-		t.Errorf("ValidationMessage = %q", d.ValidationMessage)
+	if got := strings.Count(view, "API Key is required"); got != 1 {
+		t.Errorf("huh form should render exactly one validation error, got %d", got)
 	}
 	rendered := renderFormStep("LLM Configuration", form, nil)
-	if strings.Contains(rendered, "Validation failed: API Key is required") {
-		t.Error("validation message should not be inserted above the form")
-	}
-	base := "form line 1\nform line 2\nhelp"
-	toast := renderValidationToast(d.ValidationMessage, 60)
-	overlaid := overlayBottomToast(base, toast, 60, 1)
-	if !strings.Contains(overlaid, "Validation failed: API Key is required") {
-		t.Error("bottom validation toast should contain the validation message")
-	}
-	if got, want := lipgloss.Height(overlaid), lipgloss.Height(base); got != want {
-		t.Errorf("validation toast changed view height: got %d, want %d", got, want)
-	}
-	toastLine := strings.Split(ansi.Strip(overlaid), "\n")[1]
-	if column := strings.Index(toastLine, "Validation failed:"); column < 0 || column > 4 {
-		t.Errorf("validation toast should be left aligned, starts at column %d", column)
+	if strings.Contains(rendered, "Validation failed:") {
+		t.Error("setup should not render a custom validation message")
 	}
 	if form.State != huh.StateNormal {
 		t.Errorf("Form state should be StateNormal after failed validation, got %v", form.State)
@@ -193,6 +176,64 @@ func TestAdvancedTabsOnlyRenderForCapabilityPages(t *testing.T) {
 		if m.currentKeys().Tab.Enabled() {
 			t.Fatalf("step %v should not show switch-tab help", step)
 		}
+	}
+}
+
+func TestCoreAuthenticationDefaultsAndTimeline(t *testing.T) {
+	m := newModel(
+		[]Provider{{Name: "Test", Key: "test", API: "openai"}},
+		DefaultsConfig{},
+		ToolProvidersConfig{},
+	)
+	if m.data.ServerUsername != defaultServerUsername {
+		t.Fatalf("server username = %q, want %q", m.data.ServerUsername, defaultServerUsername)
+	}
+	if m.data.ServerPassword != defaultServerPassword {
+		t.Fatalf("server password = %q, want default", m.data.ServerPassword)
+	}
+
+	m.step = StepCoreAuth
+	m.rebuildCurrentStep()
+	if cmd := m.form.Init(); cmd != nil {
+		if msg := cmd(); msg != nil {
+			updated, _ := m.form.Update(msg)
+			m.form = updated.(*huh.Form)
+		}
+	}
+	rendered := ansi.Strip(m.renderContent())
+	if !strings.Contains(rendered, "Core Authentication") ||
+		!strings.Contains(rendered, "Username") ||
+		!strings.Contains(rendered, "Password") {
+		t.Fatalf("core authentication form is incomplete:\n%s", rendered)
+	}
+
+	timeline := ansi.Strip(renderTimeline(m.step.node(), m.data))
+	lines := strings.Split(timeline, "\n")
+	if len(lines) != 5 {
+		t.Fatalf("timeline has %d lines, want 5:\n%s", len(lines), timeline)
+	}
+	for _, want := range []string{"LLM Configuration", "Tools & Features", "Default Bot (erii)", "Groups", "Core Authentication", "├─", "└─"} {
+		if !strings.Contains(timeline, want) {
+			t.Fatalf("timeline missing %q:\n%s", want, timeline)
+		}
+	}
+}
+
+func TestCoreAuthenticationNavigationHistory(t *testing.T) {
+	m := newModel(
+		[]Provider{{Name: "Test", Key: "test", API: "openai"}},
+		DefaultsConfig{},
+		ToolProvidersConfig{},
+	)
+	m.navigateTo(StepGroups)
+	m.navigateTo(StepCoreAuth)
+	m.navigateTo(StepDone)
+
+	if !m.navigateBack() || m.step != StepCoreAuth {
+		t.Fatalf("summary back step = %v, want Core Authentication", m.step)
+	}
+	if !m.navigateBack() || m.step != StepGroups {
+		t.Fatalf("Core Authentication back step = %v, want Groups", m.step)
 	}
 }
 

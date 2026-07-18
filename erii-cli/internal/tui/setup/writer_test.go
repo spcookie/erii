@@ -44,6 +44,8 @@ func makeTestData() *SetupData {
 		BotWS:             "ws://bot.test.com:3001",
 		BotToken:          "test-bot-token",
 		EnableGroups:      "123456,789012",
+		ServerUsername:    defaultServerUsername,
+		ServerPassword:    defaultServerPassword,
 		LLMSettings: map[string]string{
 			"chat-completions": "v1/chat/completions",
 			"responses-api":    "v1/responses",
@@ -82,6 +84,12 @@ func TestBuildEnvVars(t *testing.T) {
 	}
 	if vars["NAPCAT_TOKEN"] != "test-bot-token" {
 		t.Errorf("NAPCAT_TOKEN = %q, want %q", vars["NAPCAT_TOKEN"], "test-bot-token")
+	}
+	if vars["ERII_SERVER_USERNAME"] != defaultServerUsername {
+		t.Errorf("ERII_SERVER_USERNAME = %q, want %q", vars["ERII_SERVER_USERNAME"], defaultServerUsername)
+	}
+	if vars["ERII_SERVER_PASSWORD"] != defaultServerPassword {
+		t.Errorf("ERII_SERVER_PASSWORD = %q, want %q", vars["ERII_SERVER_PASSWORD"], defaultServerPassword)
 	}
 	// Non-sensitive should not be in env vars
 	if _, ok := vars["PLAYWRIGHT_HOST"]; ok {
@@ -164,10 +172,63 @@ func TestWriteEnvLocal_Create(t *testing.T) {
 		"EMBEDDING_API_KEY=test-embedding-key",
 		"NAPCAT_TOKEN=test-bot-token",
 		"HTTP_PROXY=http://proxy.test.com:8080",
+		"ERII_SERVER_USERNAME=eriix",
+		"ERII_SERVER_PASSWORD=@Aa123!",
 	} {
 		if !strings.Contains(contentStr, want) {
 			t.Errorf(".env.local should contain %q", want)
 		}
+	}
+}
+
+func TestReadCoreCredentials(t *testing.T) {
+	envFile := filepath.Join(t.TempDir(), ".env.local")
+	content := `# Core credentials
+ERII_SERVER_USERNAME="custom-user"
+ERII_SERVER_PASSWORD='custom-pass'
+ERII_SERVER_USERNAME=latest-user
+`
+	if err := os.WriteFile(envFile, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	username, password := readCoreCredentials(envFile)
+	if username != "latest-user" {
+		t.Fatalf("username = %q, want latest-user", username)
+	}
+	if password != "custom-pass" {
+		t.Fatalf("password = %q, want custom-pass", password)
+	}
+}
+
+func TestWriteEnvLocalRemovesDuplicateCoreCredentials(t *testing.T) {
+	d := makeTestData()
+	envFile := filepath.Join(t.TempDir(), ".env.local")
+	initial := `ERII_SERVER_USERNAME=old-one
+UNCHANGED=value
+ERII_SERVER_USERNAME=old-two
+ERII_SERVER_PASSWORD=old-password
+`
+	if err := os.WriteFile(envFile, []byte(initial), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeEnvLocal(d, envFile); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(envFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	if strings.Count(text, "ERII_SERVER_USERNAME=") != 1 {
+		t.Fatalf("username should be de-duplicated:\n%s", text)
+	}
+	if !strings.Contains(text, "ERII_SERVER_PASSWORD="+defaultServerPassword) {
+		t.Fatalf("password was not updated:\n%s", text)
+	}
+	if !strings.Contains(text, "UNCHANGED=value") {
+		t.Fatalf("unrelated value was removed:\n%s", text)
 	}
 }
 

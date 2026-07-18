@@ -125,21 +125,20 @@ type SetupFile struct {
 }
 
 type SetupData struct {
-	Providers         []Provider
-	SelectedProv      int
-	LLMDefaults       map[string]LLMDefaults
-	APIKey            string
-	BaseURL           string
-	ModelMode         string
-	AllModel          string
-	LiteModel         string
-	FlashModel        string
-	ProModel          string
-	AdvancedLLM       bool
-	LLMSettings       map[string]string
-	LLMCapability     LLMCapabilityDefaults
-	LLMUsagePricing   LLMUsagePricingDefaults
-	ValidationMessage string
+	Providers       []Provider
+	SelectedProv    int
+	LLMDefaults     map[string]LLMDefaults
+	APIKey          string
+	BaseURL         string
+	ModelMode       string
+	AllModel        string
+	LiteModel       string
+	FlashModel      string
+	ProModel        string
+	AdvancedLLM     bool
+	LLMSettings     map[string]string
+	LLMCapability   LLMCapabilityDefaults
+	LLMUsagePricing LLMUsagePricingDefaults
 
 	EmbeddingEnabled  bool
 	EmbeddingAPIKey   string
@@ -169,6 +168,8 @@ type SetupData struct {
 	DebugGroupID       string
 	EnableGroups       string
 	MessageRedirectMap string
+	ServerUsername     string
+	ServerPassword     string
 
 	ToolProviders ToolProvidersConfig
 }
@@ -195,10 +196,11 @@ const (
 	StepToolsProxy
 	StepBot
 	StepGroups
+	StepCoreAuth
 	StepDone
 )
 
-var nodeLabels = []string{"LLM Configuration", "Tools & Features", "Default Bot (erii)", "Groups"}
+var nodeLabels = []string{"LLM Configuration", "Tools & Features", "Default Bot (erii)", "Groups", "Core Authentication"}
 
 func (s Step) node() int {
 	switch {
@@ -208,8 +210,12 @@ func (s Step) node() int {
 		return 1
 	case s <= StepBot:
 		return 2
-	default:
+	case s <= StepGroups:
 		return 3
+	case s <= StepCoreAuth:
+		return 4
+	default:
+		return len(nodeLabels)
 	}
 }
 
@@ -568,7 +574,6 @@ func (m *Model) navigateBack() bool {
 	m.history = m.history[:last]
 	m.step = state.step
 	m.capabilityPager.Page = state.capabilityPage
-	m.data.ValidationMessage = ""
 	return true
 }
 
@@ -603,6 +608,8 @@ func newModel(providers []Provider, defaults DefaultsConfig, toolProviders ToolP
 		DebugGroupID:       defaults.Groups.DebugGroupID,
 		EnableGroups:       defaults.Groups.EnableGroups,
 		MessageRedirectMap: defaults.Groups.MessageRedirectMap,
+		ServerUsername:     defaultServerUsername,
+		ServerPassword:     defaultServerPassword,
 		ToolProviders:      toolProviders,
 	}
 
@@ -646,6 +653,14 @@ func Start() error {
 	}
 
 	m := newModel(sf.Providers, sf.Defaults, sf.ToolProviders)
+	if username, password := readCoreCredentials(path.EnvFile); username != "" || password != "" {
+		if username != "" {
+			m.data.ServerUsername = username
+		}
+		if password != "" {
+			m.data.ServerPassword = password
+		}
+	}
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	_, err = p.Run()
 	return err
@@ -759,6 +774,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StepBot:
 		return m.updateForm(msg, StepGroups)
 	case StepGroups:
+		return m.updateForm(msg, StepCoreAuth)
+	case StepCoreAuth:
 		return m.updateForm(msg, StepDone)
 	case StepDone:
 		// All interactions handled in tea.KeyMsg block above
@@ -789,11 +806,7 @@ func (m Model) View() string {
 		m.vp.View(),
 		footer,
 	)
-	if m.data.ValidationMessage == "" {
-		return view
-	}
-	toast := renderValidationToast(m.data.ValidationMessage, m.width-4)
-	return overlayBottomToast(view, toast, m.width, lipgloss.Height(footer))
+	return view
 }
 
 // ---- Step rendering ----
@@ -820,6 +833,8 @@ func (m Model) stepTitle() string {
 		return "Default Bot (erii)"
 	case StepGroups:
 		return "Groups"
+	case StepCoreAuth:
+		return "Core Authentication"
 	default:
 		return ""
 	}
@@ -829,7 +844,7 @@ func (m Model) renderContent() string {
 	switch m.step {
 	case StepProviderSelect, StepToolsMenu:
 		return renderStepPage(m.stepTitle(), m.list.View())
-	case StepLLMConfig, StepLLMAdvancedAsk, StepLLMProviderSettings, StepLLMCapabilityDefault, StepLLMCapabilityLite, StepLLMCapabilityFlash, StepLLMCapabilityPro, StepLLMUsagePricing, StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy, StepBot, StepGroups:
+	case StepLLMConfig, StepLLMAdvancedAsk, StepLLMProviderSettings, StepLLMCapabilityDefault, StepLLMCapabilityLite, StepLLMCapabilityFlash, StepLLMCapabilityPro, StepLLMUsagePricing, StepToolsEmbedding, StepToolsSearch, StepToolsVision, StepToolsBrowser, StepToolsProxy, StepBot, StepGroups, StepCoreAuth:
 		return renderFormStep(m.stepTitle(), m.form, m.llmAdvancedTabs())
 	case StepDone:
 		return m.renderSummary()
@@ -909,6 +924,12 @@ func (m Model) renderSummary() string {
 	b.WriteString(style.Subtitle("Groups"))
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("  Enabled Groups: %s\n", d.EnableGroups))
+	b.WriteString("\n")
+
+	b.WriteString(style.Subtitle("Core Authentication"))
+	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf("  Username: %s\n", d.ServerUsername))
+	b.WriteString(fmt.Sprintf("  Password: %s\n", maskString(d.ServerPassword)))
 
 	b.WriteString("\n")
 	b.WriteString(style.Title("Save configuration? (Y/n)"))
@@ -996,14 +1017,12 @@ func (m *Model) updateLLMAdvancedAsk(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.clearValidationOnEdit(msg)
 	f, cmd := m.form.Update(msg)
 	if f2, ok := f.(*huh.Form); ok {
 		m.form = f2
 	}
 
 	if m.form.State == huh.StateCompleted {
-		m.data.ValidationMessage = ""
 		if m.data.AdvancedLLM {
 			m.navigateTo(StepLLMProviderSettings)
 		} else {
@@ -1014,7 +1033,6 @@ func (m *Model) updateLLMAdvancedAsk(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form.State == huh.StateAborted {
-		m.data.ValidationMessage = ""
 		m.navigateBack()
 		m.rebuildCurrentStep()
 		return m, m.currentInitCmd()
@@ -1048,7 +1066,6 @@ func (m *Model) handleLLMTabKey(msg tea.KeyMsg) (bool, tea.Cmd) {
 		return true, cmd
 	}
 
-	m.data.ValidationMessage = ""
 	m.capabilityPager.Page = 0
 	m.step = nextStep
 	m.rebuildCurrentStep()
@@ -1065,7 +1082,6 @@ func (m *Model) handleCapabilityPageKey(msg tea.KeyMsg) (bool, tea.Cmd) {
 	if m.capabilityPager.Page == previousPage {
 		return true, nil
 	}
-	m.data.ValidationMessage = ""
 	m.rebuildCurrentStep()
 	return true, tea.Batch(cmd, m.currentInitCmd())
 }
@@ -1092,7 +1108,6 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.clearValidationOnEdit(msg)
 	f, cmd := m.form.Update(msg)
 	if f2, ok := f.(*huh.Form); ok {
 		m.form = f2
@@ -1104,7 +1119,6 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form.State == huh.StateCompleted {
-		m.data.ValidationMessage = ""
 		m.collectFormData()
 		if isToolConfigurationStep(m.step) && nextStep == StepToolsMenu {
 			m.returnToStep(nextStep)
@@ -1116,7 +1130,6 @@ func (m *Model) updateForm(msg tea.Msg, nextStep Step) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form.State == huh.StateAborted {
-		m.data.ValidationMessage = ""
 		m.navigateBack()
 		m.rebuildCurrentStep()
 		return m, m.currentInitCmd()
@@ -1130,13 +1143,11 @@ func (m *Model) updateCapabilityForm(msg tea.Msg, nextStep Step) (tea.Model, tea
 	if m.form == nil {
 		return m, nil
 	}
-	m.clearValidationOnEdit(msg)
 	f, cmd := m.form.Update(msg)
 	if f2, ok := f.(*huh.Form); ok {
 		m.form = f2
 	}
 	if m.form.State == huh.StateCompleted {
-		m.data.ValidationMessage = ""
 		if !m.capabilityPager.OnLastPage() {
 			m.capabilityPager.NextPage()
 			m.rebuildCurrentStep()
@@ -1148,26 +1159,12 @@ func (m *Model) updateCapabilityForm(msg tea.Msg, nextStep Step) (tea.Model, tea
 		return m, m.currentInitCmd()
 	}
 	if m.form.State == huh.StateAborted {
-		m.data.ValidationMessage = ""
 		m.navigateBack()
 		m.rebuildCurrentStep()
 		return m, m.currentInitCmd()
 	}
 	m.syncViewportContent()
 	return m, cmd
-}
-
-func (m *Model) clearValidationOnEdit(msg tea.Msg) {
-	key, ok := msg.(tea.KeyMsg)
-	if !ok {
-		return
-	}
-	switch key.String() {
-	case "enter":
-		return
-	default:
-		m.data.ValidationMessage = ""
-	}
 }
 
 func (m *Model) collectFormData() {
@@ -1324,6 +1321,8 @@ func (m *Model) rebuildCurrentStep() {
 		m.form = buildBotForm(m.data)
 	case StepGroups:
 		m.form = buildGroupsForm(m.data)
+	case StepCoreAuth:
+		m.form = buildCoreAuthForm(m.data)
 	default:
 		m.form = nil
 	}
