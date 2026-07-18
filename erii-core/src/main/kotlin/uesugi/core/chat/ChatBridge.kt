@@ -16,13 +16,13 @@ import uesugi.core.GroupMessageEventListener
 import uesugi.core.bot.BotRoleManager
 import uesugi.core.message.history.HistoryService
 import uesugi.onebot.core.config.OneBotConfig
+import uesugi.onebot.core.message.buildMessage
+import uesugi.onebot.core.message.text
 import uesugi.onebot.core.model.GroupMessageEvent
 import uesugi.onebot.core.model.MessageContent
 import uesugi.onebot.mock.MockBot
 import uesugi.onebot.mock.storage.InMemoryStorage
 import uesugi.onebot.sdk.client.OneBotClient
-import uesugi.onebot.core.message.buildMessage
-import uesugi.onebot.core.message.text
 import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicReference
 
@@ -147,10 +147,14 @@ class ChatBridge(
     }
 
     private fun registerListener(roleName: String) {
+        if (messageListener != null) {
+            messageListener!!.roleName = roleName
+            return
+        }
         messageListener = GroupMessageEventListener(
             botId = MOCK_BOT_ID.toString(),
-            roleName = roleName,
-            botConfigKey = MOCK_CONFIG_KEY
+            botConfigKey = MOCK_CONFIG_KEY,
+            initialRoleName = roleName,
         ).also { it.register(client) }
     }
 
@@ -219,8 +223,7 @@ internal fun HistoryRecord.toChatHistoryEntry(): ChatHistoryEntry {
 internal fun HistoryRecord.chatImageResourceOrNull(): ResourceRecord? =
     takeIf {
         botMark == MOCK_BOT_ID.toString() &&
-            groupId == MOCK_GROUP_ID.toString() &&
-            messageType == MessageType.IMAGE
+                groupId == MOCK_GROUP_ID.toString()
     }?.resource?.takeIf {
         it.botMark == MOCK_BOT_ID.toString() && it.groupId == MOCK_GROUP_ID.toString()
     }

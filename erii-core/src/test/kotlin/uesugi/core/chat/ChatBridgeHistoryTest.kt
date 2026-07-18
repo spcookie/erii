@@ -1,14 +1,8 @@
 package uesugi.core.chat
 
-import kotlinx.datetime.LocalDateTime
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import kotlinx.datetime.LocalDateTime
 import uesugi.common.data.HistoryRecord
 import uesugi.common.data.MessageType
 import uesugi.common.data.ResourceRecord
@@ -19,6 +13,7 @@ import uesugi.core.message.history.HistoryService
 import uesugi.onebot.core.config.OneBotConfig
 import uesugi.onebot.mock.MockBot
 import uesugi.onebot.mock.storage.InMemoryStorage
+import kotlin.test.*
 
 class ChatBridgeHistoryTest {
 
@@ -78,7 +73,8 @@ class ChatBridgeHistoryTest {
         val resource = resource()
 
         assertSame(resource, history(messageType = MessageType.IMAGE, resource = resource).chatImageResourceOrNull())
-        assertNull(history(messageType = MessageType.TEXT, resource = resource).chatImageResourceOrNull())
+        assertSame(resource, history(messageType = MessageType.TEXT, resource = resource).chatImageResourceOrNull())
+        assertTrue(history(messageType = MessageType.TEXT, resource = resource).toChatHistoryEntry().hasImage)
         assertNull(history(botMark = "other", messageType = MessageType.IMAGE, resource = resource).chatImageResourceOrNull())
         assertNull(history(groupId = "other", messageType = MessageType.IMAGE, resource = resource).chatImageResourceOrNull())
         assertFalse(history(messageType = MessageType.IMAGE).toChatHistoryEntry().hasImage)

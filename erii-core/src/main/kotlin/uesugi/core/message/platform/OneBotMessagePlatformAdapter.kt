@@ -39,8 +39,8 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
                     "image" -> {
                         if (imageUrl == null) {
                             messageType = MessageType.IMAGE
-                            imageUrl = segment.imageUrl
-                            imageFormat = segment.imageFile?.substringAfterLast(".")
+                            imageUrl = segment.imageUrl ?: segment.imageFile
+                            imageFormat = inferImageFormat(segment.imageFile ?: segment.imageUrl)
                         }
                         append(segment.data["summary"]?.jsonPrimitive?.contentOrNull ?: "[图片]")
                     }
@@ -70,5 +70,19 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
             imageUrl = imageUrl,
             imageFormat = imageFormat
         )
+    }
+
+    private fun inferImageFormat(source: String?): String? {
+        val cleanSource = source
+            ?.substringBefore("?")
+            ?.substringBefore("#")
+            ?.removePrefix("file://")
+            ?: return null
+        if (cleanSource.startsWith("base64://")) {
+            return null
+        }
+        val extension = cleanSource.substringAfterLast(".", missingDelimiterValue = "")
+            .lowercase()
+        return extension.takeIf { it in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp") }
     }
 }

@@ -114,7 +114,7 @@ object OneBotConnectionManager {
                 )
             )
 
-            listener = GroupMessageEventListener(selfId, role.name, configKey).also {
+            listener = GroupMessageEventListener(selfId, configKey, role.name).also {
                 it.register(client)
             }
 

@@ -7,12 +7,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import uesugi.common.ChatMessage
 import uesugi.common.ChatToolSet
+import uesugi.onebot.core.message.buildMessage
 import uesugi.onebot.core.model.MessageContent
 import uesugi.onebot.sdk.client.OneBotClient
-import uesugi.onebot.sdk.client.api.sendGroupMsg
 import uesugi.onebot.sdk.client.api.canSendImage
 import uesugi.onebot.sdk.client.api.canSendMarkdown
-import uesugi.onebot.core.message.buildMessage
+import uesugi.onebot.sdk.client.api.sendGroupMsg
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.net.URL
@@ -113,7 +113,7 @@ class AgentChatToolSet(
 
         try {
             sendGroupMessage(buildMessage {
-                image(file = url)
+                image(file = url, url = url)
             })
         } catch (e: Exception) {
             return "发送图片失败，原因：" + e.message

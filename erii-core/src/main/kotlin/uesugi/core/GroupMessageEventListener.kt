@@ -15,9 +15,12 @@ import uesugi.onebot.sdk.client.event.onMessageSent
 
 class GroupMessageEventListener(
     private val botId: String,
-    private val roleName: String,
-    private val botConfigKey: String
+    private val botConfigKey: String,
+    initialRoleName: String = "",
 ) {
+
+    @Volatile
+    var roleName: String = initialRoleName
 
     companion object {
         private val log = logger()
