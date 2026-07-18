@@ -42,6 +42,20 @@ func TestRootThemeFlagDefaultsToAuto(t *testing.T) {
 	}
 }
 
+func TestRootChatImageFlagsExist(t *testing.T) {
+	for _, name := range []string{
+		"chat-image-max-cols",
+		"chat-image-max-rows",
+		"chat-image-fit",
+		"chat-image-background",
+		"chat-image-mode",
+	} {
+		if rootCmd.PersistentFlags().Lookup(name) == nil {
+			t.Fatalf("root command is missing --%s", name)
+		}
+	}
+}
+
 func TestRenderReloadErrorShowsStyledLayout(t *testing.T) {
 	output := renderReloadError(errors.New("metadata reload failed: broken schema"))
 

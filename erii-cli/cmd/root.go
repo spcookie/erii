@@ -14,13 +14,18 @@ import (
 )
 
 var (
-	confDirFlag     string
-	confMetaDirFlag string
-	eriiDirFlag     string
-	pluginDirFlag   string
-	optsPathFlag    string
-	logsPathFlag    string
-	themeFlag       string
+	confDirFlag             string
+	confMetaDirFlag         string
+	eriiDirFlag             string
+	pluginDirFlag           string
+	optsPathFlag            string
+	logsPathFlag            string
+	themeFlag               string
+	chatImageMaxColsFlag    int
+	chatImageMaxRowsFlag    int
+	chatImageFitFlag        string
+	chatImageBackgroundFlag string
+	chatImageModeFlag       string
 )
 
 var rootCmd = &cobra.Command{
@@ -61,6 +66,11 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&logsPathFlag, "logs-path", "", "Path to logs directory (default: ./logs)")
 	rootCmd.PersistentFlags().StringVar(&optsPathFlag, "opts-path", "", "Path to JVM opts directory (default: auto-detected)")
 	rootCmd.PersistentFlags().StringVar(&themeFlag, "theme", "auto", "Color theme: auto, dark, or light")
+	rootCmd.PersistentFlags().IntVar(&chatImageMaxColsFlag, "chat-image-max-cols", 0, "erii chat image max width in terminal columns (env: ERII_CHAT_IMAGE_MAX_COLS)")
+	rootCmd.PersistentFlags().IntVar(&chatImageMaxRowsFlag, "chat-image-max-rows", 0, "erii chat image max height in terminal rows (env: ERII_CHAT_IMAGE_MAX_ROWS)")
+	rootCmd.PersistentFlags().StringVar(&chatImageFitFlag, "chat-image-fit", "", "erii chat image fit: contain, fill, or cover (env: ERII_CHAT_IMAGE_FIT)")
+	rootCmd.PersistentFlags().StringVar(&chatImageBackgroundFlag, "chat-image-background", "", "erii chat image background: transparent, black, white, or #RRGGBB (env: ERII_CHAT_IMAGE_BACKGROUND)")
+	rootCmd.PersistentFlags().StringVar(&chatImageModeFlag, "chat-image-mode", "", "erii chat image mode: glyph, kitty, iterm, or auto (env: ERII_CHAT_IMAGE_MODE)")
 
 	defaultHelp := rootCmd.HelpFunc()
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {

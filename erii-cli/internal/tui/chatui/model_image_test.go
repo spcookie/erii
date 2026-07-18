@@ -2,6 +2,7 @@ package chatui
 
 import (
 	"bytes"
+	"encoding/base64"
 	"image"
 	"image/color"
 	"image/png"
@@ -15,6 +16,7 @@ import (
 
 	"erii-cli/internal/api"
 
+	"github.com/NimbleMarkets/ntcharts/v2/picture"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -25,6 +27,186 @@ func TestCleanHistoryImagePlaceholderPreservesCaption(t *testing.T) {
 	}
 	if got := cleanHistoryImagePlaceholder("literal [图片]", false); got != "literal [图片]" {
 		t.Fatalf("non-image content changed to %q", got)
+	}
+}
+
+func TestExtractCQImageFindsURLAndRemovesSegment(t *testing.T) {
+	cleaned, imageURL, ok := extractCQImage("look [CQ:image,file=https://example.com/fallback.jpg,url=https://example.com/cat.jpg] here")
+	if !ok {
+		t.Fatal("expected CQ image to be detected")
+	}
+	if cleaned != "look here" {
+		t.Fatalf("cleaned content = %q", cleaned)
+	}
+	if imageURL != "https://example.com/cat.jpg" {
+		t.Fatalf("image URL = %q", imageURL)
+	}
+}
+
+func TestExtractCQImageFallsBackToFileURL(t *testing.T) {
+	cleaned, imageURL, ok := extractCQImage("[CQ:image,file=https://example.com/fallback.jpg]")
+	if !ok {
+		t.Fatal("expected CQ image to be detected")
+	}
+	if cleaned != "" {
+		t.Fatalf("cleaned content = %q", cleaned)
+	}
+	if imageURL != "https://example.com/fallback.jpg" {
+		t.Fatalf("image URL = %q", imageURL)
+	}
+}
+
+func TestExtractCQImageAcceptsBase64File(t *testing.T) {
+	source := "base64://" + base64.StdEncoding.EncodeToString(testPNG(t))
+	cleaned, imageSource, ok := extractCQImage("seedream [CQ:image,file=" + source + "]")
+	if !ok {
+		t.Fatal("expected base64 CQ image to be detected")
+	}
+	if cleaned != "seedream" {
+		t.Fatalf("cleaned content = %q", cleaned)
+	}
+	if imageSource != source {
+		t.Fatalf("image source was not preserved")
+	}
+}
+
+func TestExtractCQImageAcceptsDataURLFile(t *testing.T) {
+	source := "data:image/png;base64," + base64.StdEncoding.EncodeToString(testPNG(t))
+	cleaned, imageSource, ok := extractCQImage("seedream [CQ:image,file=" + source + "]")
+	if !ok {
+		t.Fatal("expected data URL CQ image to be detected")
+	}
+	if cleaned != "seedream" {
+		t.Fatalf("cleaned content = %q", cleaned)
+	}
+	if imageSource != source {
+		t.Fatalf("image source was not preserved")
+	}
+}
+
+func TestBotResponseWithCQImageQueuesLiveRender(t *testing.T) {
+	m := initialModel(nil, nil, "Erii", make(chan tea.Msg))
+	m.viewport.Width = 80
+	m.viewport.Height = 20
+
+	updated, cmd := m.Update(botResponseMsg{
+		response: "cat [CQ:image,file=https://example.com/fallback.jpg,url=https://example.com/cat.jpg]",
+	})
+	next := updated.(*Model)
+	if len(next.messages) != 1 {
+		t.Fatalf("messages length = %d, want 1", len(next.messages))
+	}
+	message := next.messages[0]
+	if !message.hasImage {
+		t.Fatal("expected live bot message to have image")
+	}
+	if message.id >= 0 {
+		t.Fatalf("live image message id = %d, want negative id", message.id)
+	}
+	if message.content != "cat" {
+		t.Fatalf("message content = %q", message.content)
+	}
+	if message.imageState != historyImageLoading {
+		t.Fatalf("image state = %v, want loading", message.imageState)
+	}
+	if cmd == nil {
+		t.Fatal("expected live image render command")
+	}
+}
+
+func TestLoadLiveImageCmdRendersBase64Image(t *testing.T) {
+	source := "base64://" + base64.StdEncoding.EncodeToString(testPNG(t))
+	m := initialModel(nil, nil, "Erii", make(chan tea.Msg))
+	msg := m.loadLiveImageCmd(-1, source, 20)()
+	result, ok := msg.(historyImageRenderedMsg)
+	if !ok {
+		t.Fatalf("message type = %T, want historyImageRenderedMsg", msg)
+	}
+	if result.err != nil {
+		t.Fatalf("render error = %v", result.err)
+	}
+	if len(result.data) == 0 {
+		t.Fatal("expected image data")
+	}
+	if result.rendered.content == "" {
+		t.Fatal("expected rendered image content")
+	}
+}
+
+func TestLoadLiveImageCmdRendersImage(t *testing.T) {
+	imageData := testPNG(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(imageData)
+	}))
+	defer server.Close()
+
+	m := initialModel(nil, nil, "Erii", make(chan tea.Msg))
+	msg := m.loadLiveImageCmd(-1, server.URL, 20)()
+	result, ok := msg.(historyImageRenderedMsg)
+	if !ok {
+		t.Fatalf("message type = %T, want historyImageRenderedMsg", msg)
+	}
+	if result.err != nil {
+		t.Fatalf("render error = %v", result.err)
+	}
+	if result.id != -1 {
+		t.Fatalf("message id = %d, want -1", result.id)
+	}
+	if len(result.data) == 0 {
+		t.Fatal("expected image data")
+	}
+	if result.rendered.content == "" {
+		t.Fatal("expected rendered image content")
+	}
+}
+
+func TestLoadImageConfigFromEnv(t *testing.T) {
+	t.Setenv("ERII_CHAT_IMAGE_MAX_COLS", "64")
+	t.Setenv("ERII_CHAT_IMAGE_MAX_ROWS", "18")
+	t.Setenv("ERII_CHAT_IMAGE_FIT", "cover")
+	t.Setenv("ERII_CHAT_IMAGE_BACKGROUND", "#101820")
+	t.Setenv("ERII_CHAT_IMAGE_MODE", "auto")
+
+	cfg := LoadImageConfigFromEnv()
+	if cfg.MaxCols != 64 {
+		t.Fatalf("MaxCols = %d, want 64", cfg.MaxCols)
+	}
+	if cfg.MaxRows != 18 {
+		t.Fatalf("MaxRows = %d, want 18", cfg.MaxRows)
+	}
+	if cfg.Fit != picture.FitCover {
+		t.Fatalf("Fit = %v, want cover", cfg.Fit)
+	}
+	if cfg.Mode != ImageModeAuto {
+		t.Fatalf("Mode = %q, want auto", cfg.Mode)
+	}
+	if got := color.RGBAModel.Convert(cfg.Background).(color.RGBA); got != (color.RGBA{R: 0x10, G: 0x18, B: 0x20, A: 0xff}) {
+		t.Fatalf("Background = %#v", got)
+	}
+}
+
+func TestLoadImageConfigAcceptsItermAlias(t *testing.T) {
+	t.Setenv("ERII_CHAT_IMAGE_MODE", "iterm2")
+
+	cfg := LoadImageConfigFromEnv()
+	if cfg.Mode != ImageModeIterm {
+		t.Fatalf("Mode = %q, want iterm", cfg.Mode)
+	}
+}
+
+func TestHistoryImageSizeUsesConfigLimits(t *testing.T) {
+	cols, rows := historyImageSizeWithConfig(160, 90, 120, ImageConfig{
+		MaxCols: 64,
+		MaxRows: 18,
+	})
+	if cols > 64 {
+		t.Fatalf("cols = %d, want <= 64", cols)
+	}
+	if rows > 18 {
+		t.Fatalf("rows = %d, want <= 18", rows)
+	}
+	if cols <= 40 {
+		t.Fatalf("cols = %d, want config to allow wider than default", cols)
 	}
 }
 

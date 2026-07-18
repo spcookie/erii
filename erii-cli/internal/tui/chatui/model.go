@@ -1,7 +1,11 @@
 package chatui
 
 import (
+	"encoding/base64"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -222,7 +226,9 @@ type Model struct {
 	reconnecting         bool
 	dismissOnReconnect   bool
 	requestSequence      int64
+	liveImageSequence    int64
 	activeRequestID      string
+	imageConfig          ImageConfig
 }
 
 func initialModel(client *api.Client, wsConn *api.ChatWSConn, roleName string, wsMsgCh chan tea.Msg) *Model {
@@ -256,6 +262,7 @@ func initialModel(client *api.Client, wsConn *api.ChatWSConn, roleName string, w
 		loadingHistory: true,
 		wsMsgCh:        wsMsgCh,
 		imageWorkers:   make(chan struct{}, 3),
+		imageConfig:    DefaultImageConfig(),
 	}
 }
 
@@ -464,9 +471,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if matchesActiveRequest {
 			dur = now.Sub(m.lastSendTime)
 		}
-		m.messages = append(m.messages, chatMsg{typ: msgBot, content: msg.response, timestamp: now, duration: dur})
+		content, imageSource, hasImage := extractCQImage(msg.response)
+		reply := chatMsg{typ: msgBot, content: content, timestamp: now, duration: dur}
+		if hasImage {
+			m.liveImageSequence++
+			reply.id = -m.liveImageSequence
+			reply.hasImage = true
+			reply.imageState = historyImageLoading
+		}
+		m.messages = append(m.messages, reply)
 		m.recalcSizes()
-		return m, tea.Batch(append(cmds, textarea.Blink, m.wsListen())...)
+		cmds = append(cmds, textarea.Blink, m.wsListen())
+		if hasImage {
+			cmds = append(cmds, m.loadLiveImageCmd(reply.id, imageSource, m.historyImageAvailableCols()))
+		}
+		return m, tea.Batch(cmds...)
 
 	case chatErrorMsg:
 		if !msg.disconnected && msg.requestID != "" && msg.requestID != m.activeRequestID {
@@ -600,6 +619,7 @@ func (m *Model) queueHistoryImageLoads(messages []chatMsg) tea.Cmd {
 func (m *Model) loadHistoryImageCmd(historyID int64, availableCols int) tea.Cmd {
 	client := m.client
 	workers := m.imageWorkers
+	cfg := m.imageConfig
 	return func() tea.Msg {
 		workers <- struct{}{}
 		defer func() { <-workers }()
@@ -608,7 +628,7 @@ func (m *Model) loadHistoryImageCmd(historyID int64, availableCols int) tea.Cmd 
 		if err != nil {
 			return historyImageRenderedMsg{id: historyID, availableCols: availableCols, err: err}
 		}
-		rendered, err := renderHistoryImage(data, availableCols)
+		rendered, err := renderHistoryImageWithConfig(data, availableCols, cfg)
 		return historyImageRenderedMsg{
 			id:            historyID,
 			data:          data,
@@ -619,13 +639,60 @@ func (m *Model) loadHistoryImageCmd(historyID int64, availableCols int) tea.Cmd 
 	}
 }
 
-func (m *Model) renderCachedHistoryImageCmd(historyID int64, data []byte, availableCols int) tea.Cmd {
+func (m *Model) loadLiveImageCmd(messageID int64, imageSource string, availableCols int) tea.Cmd {
 	workers := m.imageWorkers
+	cfg := m.imageConfig
 	return func() tea.Msg {
 		workers <- struct{}{}
 		defer func() { <-workers }()
 
-		rendered, err := renderHistoryImage(data, availableCols)
+		data, err := loadLiveImageBytes(imageSource)
+		if err != nil {
+			return historyImageRenderedMsg{id: messageID, availableCols: availableCols, err: err}
+		}
+		rendered, err := renderHistoryImageWithConfig(data, availableCols, cfg)
+		return historyImageRenderedMsg{
+			id:            messageID,
+			data:          data,
+			rendered:      rendered,
+			availableCols: availableCols,
+			err:           err,
+		}
+	}
+}
+
+func loadLiveImageBytes(imageSource string) ([]byte, error) {
+	switch {
+	case strings.HasPrefix(imageSource, "base64://"):
+		return base64.StdEncoding.DecodeString(strings.TrimPrefix(imageSource, "base64://"))
+	case strings.HasPrefix(imageSource, "data:image/"):
+		_, encoded, ok := strings.Cut(imageSource, "base64,")
+		if !ok {
+			return nil, fmt.Errorf("decode image data url: missing base64 payload")
+		}
+		return base64.StdEncoding.DecodeString(encoded)
+	default:
+		client := http.Client{Timeout: 15 * time.Second}
+		resp, err := client.Get(imageSource)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, fmt.Errorf("download image: http %d", resp.StatusCode)
+		}
+		return io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	}
+}
+
+func (m *Model) renderCachedHistoryImageCmd(historyID int64, data []byte, availableCols int) tea.Cmd {
+	workers := m.imageWorkers
+	cfg := m.imageConfig
+	return func() tea.Msg {
+		workers <- struct{}{}
+		defer func() { <-workers }()
+
+		rendered, err := renderHistoryImageWithConfig(data, availableCols, cfg)
 		return historyImageRenderedMsg{
 			id:            historyID,
 			rendered:      rendered,
@@ -704,7 +771,7 @@ func (m *Model) handleHistoryImageRendered(result historyImageRenderedMsg) (tea.
 }
 
 func (m *Model) historyImageAvailableCols() int {
-	return min(historyImageMaxCols, max(1, m.viewport.Width-6))
+	return min(max(1, m.imageConfig.MaxCols), max(1, m.viewport.Width-6))
 }
 
 func (m *Model) maxViewportYOffset() int {
@@ -1076,6 +1143,98 @@ func cleanHistoryImagePlaceholder(text string, hasImage bool) string {
 		}
 	}
 	return strings.Join(cleaned, " ")
+}
+
+func extractCQImage(text string) (string, string, bool) {
+	const prefix = "[CQ:image"
+	start := strings.Index(text, prefix)
+	if start < 0 {
+		return text, "", false
+	}
+	endRel := strings.Index(text[start:], "]")
+	if endRel < 0 {
+		return text, "", false
+	}
+	end := start + endRel
+	rawAttrs := strings.TrimPrefix(text[start+len(prefix):end], ",")
+	attrs := parseCQAttributes(rawAttrs)
+	imageSource := attrs["url"]
+	if imageSource == "" {
+		imageSource = attrs["file"]
+	}
+	if !isSupportedLiveImageSource(imageSource) {
+		return text, "", false
+	}
+
+	cleaned := strings.Join(strings.Fields(strings.TrimSpace(text[:start]+" "+text[end+1:])), " ")
+	return cleaned, imageSource, true
+}
+
+func parseCQAttributes(raw string) map[string]string {
+	attrs := make(map[string]string)
+	for _, part := range splitCQAttributeParts(raw) {
+		key, value, ok := strings.Cut(part, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		attrs[key] = unescapeCQValue(strings.TrimSpace(value))
+	}
+	return attrs
+}
+
+func splitCQAttributeParts(raw string) []string {
+	var parts []string
+	for _, part := range strings.Split(raw, ",") {
+		if len(parts) == 0 || looksLikeCQAttributeStart(part) {
+			parts = append(parts, part)
+			continue
+		}
+		parts[len(parts)-1] += "," + part
+	}
+	return parts
+}
+
+func looksLikeCQAttributeStart(part string) bool {
+	key, _, ok := strings.Cut(part, "=")
+	if !ok {
+		return false
+	}
+	key = strings.TrimSpace(key)
+	if key == "" || len(key) > 32 {
+		return false
+	}
+	for _, r := range key {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func unescapeCQValue(value string) string {
+	return strings.NewReplacer(
+		"&#44;", ",",
+		"&#91;", "[",
+		"&#93;", "]",
+		"&amp;", "&",
+	).Replace(value)
+}
+
+func isSupportedLiveImageSource(value string) bool {
+	return isHTTPImageURL(value) || strings.HasPrefix(value, "base64://") || strings.HasPrefix(value, "data:image/")
+}
+
+func isHTTPImageURL(value string) bool {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return false
+	}
+	return (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 }
 
 func wrapText(text string, width int) string {

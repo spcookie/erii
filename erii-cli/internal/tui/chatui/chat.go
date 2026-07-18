@@ -11,6 +11,10 @@ import (
 
 // Start initializes and runs the chat TUI with role selection.
 func Start() error {
+	return StartWithImageConfig(DefaultImageConfig())
+}
+
+func StartWithImageConfig(imageConfig ImageConfig) error {
 	for {
 		client, err := api.NewClientFromIPC()
 		if err != nil {
@@ -74,6 +78,7 @@ func Start() error {
 
 		// Step 4: start chat with selected role
 		chatModel := initialModel(client, wsConn, picker.selectedRole.name, wsMsgCh)
+		chatModel.imageConfig = imageConfig
 		chatProg := tea.NewProgram(chatModel, tea.WithAltScreen())
 		finalChat, chatErr := chatProg.Run()
 		if chatErr != nil {
