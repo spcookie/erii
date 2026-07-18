@@ -286,6 +286,7 @@ interface ConfigProvider {
     fun isLlmCapabilityEnabled(name: String): Boolean
     fun isLlmCapabilityEnabled(tier: String, name: String): Boolean
     fun getLlmDefaultParams(): Map<String, Map<String, JsonElement>>
+    fun isLlmProxyEnabled(): Boolean
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String
@@ -376,6 +377,7 @@ object ConfigHolder {
     fun isLlmCapabilityEnabled(name: String): Boolean = provider.isLlmCapabilityEnabled(name)
     fun isLlmCapabilityEnabled(tier: String, name: String): Boolean = provider.isLlmCapabilityEnabled(tier, name)
     fun getLlmDefaultParams(): Map<String, Map<String, JsonElement>> = provider.getLlmDefaultParams()
+    fun isLlmProxyEnabled(): Boolean = provider.isLlmProxyEnabled()
 
     // ===== 第三方服务 =====
     fun getEmbeddingApiKey(): String = provider.getEmbeddingApiKey()

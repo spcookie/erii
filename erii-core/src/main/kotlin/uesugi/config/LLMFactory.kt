@@ -42,9 +42,11 @@ class LLMFactory(
 
     fun getBaseClient(isDebug: Boolean): HttpClient = HttpClient {
         engine {
-            val httpProxy = ConfigHolder.getProxyHttp()
-            if (httpProxy != null) {
-                proxy = ProxyBuilder.http(httpProxy)
+            if (ConfigHolder.isLlmProxyEnabled()) {
+                val httpProxy = ConfigHolder.getProxyHttp()
+                if (httpProxy != null) {
+                    proxy = ProxyBuilder.http(httpProxy)
+                }
             }
             if (isDebug) {
                 install(Logging) {

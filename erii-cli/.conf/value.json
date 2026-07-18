@@ -42,6 +42,10 @@
     "type": "array",
     "default": []
   },
+  "llm.proxy": {
+    "type": "boolean",
+    "default": false
+  },
   "llm.choice-provider": {
     "type": "enum",
     "default": "none"

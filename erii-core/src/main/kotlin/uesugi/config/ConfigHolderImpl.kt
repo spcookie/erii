@@ -183,6 +183,9 @@ class ConfigHolderImpl : ConfigProvider {
 
     override fun getVisionModel(): String = config.tryGetString("vision.model") ?: "doubao-seed-2-0-lite-260215"
 
+    override fun isLlmProxyEnabled(): Boolean =
+        if (config.hasPath("llm.proxy")) config.getBoolean("llm.proxy") else true
+
     override fun getProxyHttp(): String? = config.tryGetString("proxy.http")
     override fun getProxySocks(): String? = config.tryGetString("proxy.socks")
 

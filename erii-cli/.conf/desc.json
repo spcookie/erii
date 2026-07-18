@@ -14,6 +14,7 @@
   "groups.enable-groups": "List of enabled group IDs",
   "groups.message-redirect-map": "Message redirect mapping",
   "llm": "LLM configuration",
+  "llm.proxy": "Whether LLM requests go through HTTP proxy",
   "llm.choice-provider": "Select the LLM provider",
   "llm.capability": "LLM capability toggles (completion, tools, vision, etc.)",
   "llm.capability.completion": "Enable text completion capability",
