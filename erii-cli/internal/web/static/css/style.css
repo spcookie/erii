@@ -201,7 +201,7 @@ button {
 
 #topbar {
     position: relative;
-    z-index: 30;
+    z-index: auto;
     height: 56px;
     display: flex;
     align-items: center;
@@ -211,10 +211,6 @@ button {
     border-bottom: 1px solid var(--hairline-soft);
     background: var(--topbar);
     backdrop-filter: blur(16px);
-}
-
-#topbar:has(#server-menu:not([hidden])) {
-    z-index: 50;
 }
 
 .topbar-brand {
@@ -260,6 +256,7 @@ button {
 
 .server-control {
     position: relative;
+    z-index: 50;
 }
 
 .topbar-action {
@@ -317,10 +314,10 @@ button {
 }
 
 .server-menu {
-    position: absolute;
-    z-index: 20;
-    top: calc(100% + 7px);
-    right: 0;
+    position: fixed;
+    z-index: 60;
+    top: 0;
+    left: 0;
     width: 164px;
     padding: 5px;
     border: 1px solid var(--hairline);

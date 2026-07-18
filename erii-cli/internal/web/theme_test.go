@@ -440,16 +440,29 @@ func TestStaticConsoleContainsLogAndServerControls(t *testing.T) {
 		"logActive ? 'true' : 'false'",
 		"const exitedCmd = activeCmd",
 		"tuiCommands.indexOf(exitedCmd) !== -1",
+		"function terminalHasVisibleOutput()",
+		"line.translateToString(true).trim()",
+		"term.write('', finishExit)",
+		"!hasVisibleOutput",
 		"showWelcome()",
 		"execCmd('server', [action], title)",
-		"runtimeState !== 'offline'",
-		"runtimeState !== 'online'",
+		"runtimeState !== 'offline' || runtimeHasPid",
+		"runtimeState === 'starting' || runtimeState === 'unavailable' || runtimeState === 'online'",
+		"runtimeHasPid = status.pidFile === true",
+		"function positionServerMenu()",
+		"serverMenu.contains(event.target)",
 		"const tuiCommands = ['config', 'setup', 'manage', 'stats', 'chat', 'usage', 'log']",
 		"closeServerMenu(true)",
 	} {
 		if !strings.Contains(js, contract) {
 			t.Fatalf("command control JS missing %q", contract)
 		}
+	}
+	if strings.Contains(js, "showWelcome(false)") {
+		t.Fatal("command switching must not pre-fill the terminal main buffer with the welcome screen")
+	}
+	if strings.Contains(js, "const banner = [") || strings.Contains(js, "████") {
+		t.Fatal("the legacy xterm ASCII welcome screen must not remain behind the HTML welcome layer")
 	}
 
 	for _, contract := range []string{
@@ -460,6 +473,19 @@ func TestStaticConsoleContainsLogAndServerControls(t *testing.T) {
 	} {
 		if !strings.Contains(css, contract) {
 			t.Fatalf("command control CSS missing %q", contract)
+		}
+	}
+	if strings.Contains(css, "#topbar:has(#server-menu:not([hidden]))") {
+		t.Fatal("opening the server menu must not change the topbar stacking context")
+	}
+	for _, contract := range []string{
+		".side-rays-container {\n    position: fixed;\n    z-index: 40;",
+		"#topbar {\n    position: relative;\n    z-index: auto;",
+		".server-control {\n    position: relative;\n    z-index: 50;",
+		".server-menu {\n    position: fixed;\n    z-index: 60;",
+	} {
+		if !strings.Contains(css, contract) {
+			t.Fatalf("server menu and foreground effect stacking contract missing %q", contract)
 		}
 	}
 }

@@ -78,6 +78,8 @@
     let cliConnected = false;
     let autoCommand = null;
     let autoCommandStarted = false;
+    let runtimeHasPid = false;
+    let activeCommandRun = 0;
 
     // DOM elements
     const terminalContainer = document.getElementById('terminal-container');
@@ -234,12 +236,18 @@
     }
 
     function updateServerActions() {
+        const runtimeCanBeManaged = runtimeHasPid &&
+            (runtimeState === 'starting' || runtimeState === 'unavailable' || runtimeState === 'online');
         serverActionButtons.forEach(function (button) {
             const action = button.dataset.serverAction;
             if (action === 'start') {
-                button.disabled = !cliConnected || runtimeState !== 'offline';
+                button.disabled = !cliConnected || runtimeState !== 'offline' || runtimeHasPid;
+                button.title = button.disabled && cliConnected && runtimeHasPid
+                    ? 'A server process already exists; use Restart'
+                    : '';
             } else {
-                button.disabled = !cliConnected || runtimeState !== 'online';
+                button.disabled = !cliConnected || !runtimeCanBeManaged;
+                button.title = '';
             }
         });
         serverMenuButton.title = cliConnected
@@ -254,9 +262,27 @@
         if (restoreFocus) serverMenuButton.focus();
     }
 
+    function positionServerMenu() {
+        if (serverMenu.hidden) return;
+        const anchor = serverMenuButton.getBoundingClientRect();
+        const viewportPadding = 8;
+        const gap = 7;
+        const menuWidth = serverMenu.offsetWidth;
+        const menuHeight = serverMenu.offsetHeight;
+        const maxLeft = Math.max(viewportPadding, window.innerWidth - viewportPadding - menuWidth);
+        const left = Math.min(maxLeft, Math.max(viewportPadding, anchor.right - menuWidth));
+        let top = anchor.bottom + gap;
+        if (top + menuHeight > window.innerHeight - viewportPadding) {
+            top = Math.max(viewportPadding, anchor.top - gap - menuHeight);
+        }
+        serverMenu.style.left = left + 'px';
+        serverMenu.style.top = top + 'px';
+    }
+
     function openServerMenu(focusFirst) {
         if (serverMenuButton.disabled) return;
         serverMenu.hidden = false;
+        positionServerMenu();
         serverMenuButton.setAttribute('aria-expanded', 'true');
         if (focusFirst) {
             const firstEnabled = serverActionButtons.find(function (button) {
@@ -284,6 +310,7 @@
         const knownStates = ['checking', 'offline', 'starting', 'unavailable', 'online'];
         const state = knownStates.indexOf(status.state) === -1 ? 'unavailable' : status.state;
         runtimeState = state;
+        runtimeHasPid = status.pidFile === true;
         const coreAvailable = state === 'online' && status.coreReachable;
         let statusLabel = 'Unavailable';
         let commandLabel = 'UNAVAILABLE';
@@ -572,59 +599,10 @@
         }
     }
 
-    function showWelcome(showEffect) {
-        let i;
+    function showWelcome() {
         if (!term) return;
-        term.clear();
-        const cols = term.cols || 80;
-        const rows = term.rows || 24;
-        const banner = [
-            '███████╗██████╗ ██╗██╗██████╗  ██████╗ ████████╗',
-            '██╔════╝██╔══██╗██║██║██╔══██╗██╔═══██╗╚══██╔══╝',
-            '█████╗  ██████╔╝██║██║██████╔╝██║   ██║   ██║',
-            '██╔══╝  ██╔══██╗██║██║██╔══██╗██║   ██║   ██║',
-            '███████╗██║  ██║██║██║██████╔╝╚██████╔╝   ██║',
-            '╚══════╝╚═╝  ╚═╝╚═╝╚═╝╚═════╝  ╚═════╝    ╚═╝',
-        ];
-        const subtitle1 = 'Erii Console';
-        const subtitle2 = 'Ready for local bot operations';
-
-        // Compute max visible widths, pad shorter lines for perfect alignment
-        let maxBanner = 0;
-        for (i = 0; i < banner.length; i++) {
-            if (banner[i].length > maxBanner) maxBanner = banner[i].length;
-        }
-        for (i = 0; i < banner.length; i++) {
-            while (banner[i].length < maxBanner) banner[i] += ' ';
-        }
-
-        // Build all output lines
-        const lines = [];
-        lines.push(''); // blank line before banner
-        for (i = 0; i < banner.length; i++) {
-            const pad = Math.max(0, Math.floor((cols - banner[i].length) / 2));
-            lines.push(' '.repeat(pad) + '\x1b[1m' + banner[i] + '\x1b[0m');
-        }
-        lines.push(''); // blank separator
-        lines.push(' '.repeat(Math.max(0, Math.floor((cols - subtitle1.length) / 2))) + '\x1b[90m' + subtitle1 + '\x1b[0m');
-        lines.push(' '.repeat(Math.max(0, Math.floor((cols - subtitle2.length) / 2))) + '\x1b[90m' + subtitle2 + '\x1b[0m');
-
-        // Vertical centering: prepend blank lines
-        const vpad = Math.max(0, Math.floor((rows - lines.length) / 2));
-        for (let j = 0; j < vpad; j++) {
-            term.writeln('');
-        }
-
-        // Write all content lines
-        for (let k = 0; k < lines.length; k++) {
-            term.writeln(lines[k]);
-        }
-
-        if (showEffect === false) {
-            hideTerminalWelcome();
-        } else {
-            showTerminalWelcome('ERIIBOT');
-        }
+        term.reset();
+        showTerminalWelcome('ERIIBOT');
     }
 
     function setRenderer(name) {
@@ -829,10 +807,24 @@
             switch (msg.type) {
                 case 'exit':
                     const exitedCmd = activeCmd;
-                    setActiveCmd(null, []);
-                    setStatus('connected');
-                    if (tuiCommands.indexOf(exitedCmd) !== -1) {
-                        showWelcome();
+                    const exitedRun = activeCommandRun;
+                    const finishExit = function () {
+                        if (exitedRun !== activeCommandRun || activeCmd !== exitedCmd) return;
+                        const hasVisibleOutput = terminalHasVisibleOutput();
+                        setActiveCmd(null, []);
+                        setStatus('connected');
+                        if (tuiCommands.indexOf(exitedCmd) !== -1 && !hasVisibleOutput) {
+                            showWelcome();
+                        } else {
+                            hideTerminalWelcome();
+                        }
+                    };
+                    if (term) {
+                        // Queue behind all preceding PTY writes so the final
+                        // rendered output is present before deciding what to show.
+                        term.write('', finishExit);
+                    } else {
+                        finishExit();
                     }
                     break;
                 case 'error':
@@ -845,6 +837,7 @@
         socket.onclose = function () {
             if (ws !== socket) return;
             ws = null;
+            activeCommandRun++;
             setActiveCmd(null, []);
             scheduleReconnect();
         };
@@ -856,6 +849,16 @@
 
     // Commands that use BubbleTea TUI (alternate screen)
     const tuiCommands = ['config', 'setup', 'manage', 'stats', 'chat', 'usage', 'log'];
+
+    function terminalHasVisibleOutput() {
+        if (!term || !term.buffer || !term.buffer.active) return false;
+        const buffer = term.buffer.active;
+        for (let index = 0; index < buffer.length; index++) {
+            const line = buffer.getLine(index);
+            if (line && line.translateToString(true).trim()) return true;
+        }
+        return false;
+    }
 
     function parseArgs(value) {
         if (!value) return [];
@@ -884,16 +887,13 @@
         pluginSendResult.hidden = true;
         terminalContainer.hidden = false;
         closeServerMenu();
+        activeCommandRun++;
         setActiveCmd(cmd, args, title);
         setStatus('running');
-        if (tuiCommands.indexOf(cmd) !== -1) {
-            // TUI: refresh banner on main screen (alt-screen covers it while TUI runs)
-            showWelcome(false);
-        } else {
-            // Reset viewport and scrollback; the backend clears again after
-            // the previous alternate-screen process has fully exited.
-            term.reset();
-        }
+        // Keep the main buffer empty while commands switch. TUI processes use
+        // the alternate screen, so pre-filling the main buffer with the welcome
+        // banner would expose it briefly when the previous process exits.
+        term.reset();
         ws.send(JSON.stringify({
             type: 'exec',
             cmd: cmd,
@@ -1001,8 +1001,12 @@
     });
 
     document.addEventListener('click', function (event) {
-        if (!serverControl.contains(event.target)) closeServerMenu(false);
+        if (!serverControl.contains(event.target) && !serverMenu.contains(event.target)) {
+            closeServerMenu(false);
+        }
     });
+
+    window.addEventListener('resize', positionServerMenu);
 
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && pluginSendPanel && !pluginSendPanel.hidden) {
