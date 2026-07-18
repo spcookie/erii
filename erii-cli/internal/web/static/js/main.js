@@ -82,6 +82,8 @@
     // DOM elements
     const terminalContainer = document.getElementById('terminal-container');
     const terminalMount = document.getElementById('terminal-mount');
+    const terminalWelcome = document.getElementById('terminal-welcome');
+    const welcomeShuffleElement = document.getElementById('welcome-shuffle');
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
     const coreStatus = document.getElementById('core-status');
@@ -110,6 +112,18 @@
     const pluginResultStatus = document.getElementById('plugin-result-status');
     const pluginResultInput = document.getElementById('plugin-result-input');
     const pluginResultReply = document.getElementById('plugin-result-reply');
+    const welcomeShuffle = window.Shuffle && welcomeShuffleElement
+        ? new window.Shuffle(welcomeShuffleElement, {
+            shuffleDirection: 'right',
+            duration: 0.35,
+            animationMode: 'evenodd',
+            shuffleTimes: 1,
+            stagger: 0.03,
+            scrambleCharset: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+            respectReducedMotion: true,
+            triggerOnHover: true
+        })
+        : null;
 
     // Default header content (shown when no command is active)
     const defaultHeaderHTML = currentCmdEl.innerHTML;
@@ -540,7 +554,25 @@
         });
     }
 
-    function showWelcome() {
+    function hideTerminalWelcome() {
+        if (!terminalWelcome || terminalWelcome.hidden) return;
+        terminalWelcome.hidden = true;
+        welcomeShuffle?.cancel();
+    }
+
+    function showTerminalWelcome(text) {
+        if (!terminalWelcome || !welcomeShuffleElement) return;
+        terminalWelcome.hidden = false;
+        if (welcomeShuffle) {
+            welcomeShuffle.setText(text);
+            welcomeShuffle.play();
+        } else {
+            welcomeShuffleElement.textContent = text;
+            welcomeShuffleElement.classList.add('is-ready');
+        }
+    }
+
+    function showWelcome(showEffect) {
         let i;
         if (!term) return;
         term.clear();
@@ -586,6 +618,12 @@
         // Write all content lines
         for (let k = 0; k < lines.length; k++) {
             term.writeln(lines[k]);
+        }
+
+        if (showEffect === false) {
+            hideTerminalWelcome();
+        } else {
+            showTerminalWelcome('ERIIBOT');
         }
     }
 
@@ -721,6 +759,7 @@
         }
 
         term.onData(function (data) {
+            hideTerminalWelcome();
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'input', data: data }));
             }
@@ -782,6 +821,7 @@
         socket.onmessage = function (event) {
             if (ws !== socket) return;
             if (event.data instanceof ArrayBuffer) {
+                hideTerminalWelcome();
                 if (term) term.write(new Uint8Array(event.data));
                 return;
             }
@@ -796,6 +836,7 @@
                     }
                     break;
                 case 'error':
+                    hideTerminalWelcome();
                     if (term) term.writeln('\r\n\x1b[31m' + msg.data + '\x1b[0m');
                     break;
             }
@@ -838,6 +879,7 @@
     function execCmd(cmd, args, title) {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         args = args || [];
+        hideTerminalWelcome();
         hidePluginSendPanel(true);
         pluginSendResult.hidden = true;
         terminalContainer.hidden = false;
@@ -846,7 +888,7 @@
         setStatus('running');
         if (tuiCommands.indexOf(cmd) !== -1) {
             // TUI: refresh banner on main screen (alt-screen covers it while TUI runs)
-            showWelcome();
+            showWelcome(false);
         } else {
             // Reset viewport and scrollback; the backend clears again after
             // the previous alternate-screen process has fully exited.

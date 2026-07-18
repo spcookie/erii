@@ -49,6 +49,7 @@ func TestIndexPageReceivesThemeAndAssetVersion(t *testing.T) {
 	}
 	for _, asset := range []string{
 		"/css/style.css?v=build-123",
+		"/js/shuffle.js?v=build-123",
 		"/js/side-rays.js?v=build-123",
 		"/js/main.js?v=build-123",
 	} {
@@ -66,6 +67,7 @@ func TestStaticConsoleLoadsLocalSideRaysEffect(t *testing.T) {
 
 	for _, want := range []string{
 		`id="side-rays"`,
+		`data-opacity="1"`,
 		`type="module" src="/js/side-rays.js?v=__ERII_ASSET_VERSION__"`,
 	} {
 		if !strings.Contains(html, want) {
@@ -74,6 +76,7 @@ func TestStaticConsoleLoadsLocalSideRaysEffect(t *testing.T) {
 	}
 	for _, want := range []string{
 		".side-rays-container",
+		`.side-rays-container[data-webgl="ready"]`,
 		"pointer-events: none",
 		"prefers-reduced-motion: reduce",
 		"#topbar:has(#server-menu:not([hidden]))",
@@ -97,6 +100,60 @@ func TestStaticConsoleLoadsLocalSideRaysEffect(t *testing.T) {
 	}
 	if strings.Contains(html, "cdn.") || strings.Contains(js, "https://") {
 		t.Fatal("side rays effect should not depend on a CDN")
+	}
+}
+
+func TestStaticConsoleLoadsWelcomeShuffleEffect(t *testing.T) {
+	html := string(readStatic(t, "static/index.html"))
+	css := string(readStatic(t, "static/css/style.css"))
+	mainJS := string(readStatic(t, "static/js/main.js"))
+	shuffleJS := string(readStatic(t, "static/js/shuffle.js"))
+
+	for _, want := range []string{
+		`id="terminal-welcome"`,
+		`id="welcome-shuffle"`,
+		`href="/fonts/PressStart2P-Regular.woff2"`,
+		`src="/js/shuffle.js?v=__ERII_ASSET_VERSION__"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("welcome shuffle markup missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		".terminal-welcome",
+		".shuffle-char-wrapper",
+		".shuffle-parent.is-ready",
+		"font-family: 'Press Start 2P'",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("welcome shuffle CSS missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		"new window.Shuffle",
+		"scrambleCharset: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'",
+		"showTerminalWelcome('ERIIBOT')",
+		"hideTerminalWelcome()",
+	} {
+		if !strings.Contains(mainJS, want) {
+			t.Fatalf("welcome shuffle integration missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		"class Shuffle",
+		"strip.animate",
+		"prefers-reduced-motion: reduce",
+		"mouseenter",
+	} {
+		if !strings.Contains(shuffleJS, want) {
+			t.Fatalf("native shuffle implementation missing %q", want)
+		}
+	}
+	if strings.Contains(shuffleJS, "https://") {
+		t.Fatal("welcome shuffle effect should not depend on a CDN")
+	}
+	if len(readStatic(t, "static/fonts/PressStart2P-Regular.woff2")) < 1000 {
+		t.Fatal("local Press Start 2P font should not be empty")
 	}
 }
 

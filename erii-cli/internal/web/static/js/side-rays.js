@@ -17,7 +17,7 @@ const DEFAULTS = Object.freeze({
 const THEME_RAY_COLORS = Object.freeze({
     light: Object.freeze({
         rayColor1: '#D97706',
-        rayColor2: '#3B82F6'
+        rayColor2: '#FBBF24'
     }),
     dark: Object.freeze({
         rayColor1: '#EAB308',

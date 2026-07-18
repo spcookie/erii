@@ -7,6 +7,7 @@
     <link href="/img/logo.svg" rel="icon" type="image/svg+xml">
     <link href="/css/xterm.min.css" rel="stylesheet">
     <link rel="preload" href="/fonts/EriiNerdIcons.woff2?v=nerd-v3.4.0-2" as="font" type="font/woff2" crossorigin>
+    <link as="font" crossorigin href="/fonts/PressStart2P-Regular.woff2" rel="preload" type="font/woff2">
     <link rel="stylesheet" href="/css/style.css?v=__ERII_ASSET_VERSION__">
 </head>
 <body>
@@ -14,7 +15,7 @@
         <div aria-hidden="true" class="side-rays-container" data-blend="0.75"
              data-falloff="1.6"
              data-intensity="2"
-             data-opacity="0.72"
+             data-opacity="1"
              data-origin="top-left"
              data-ray-color-1="#EAB308"
              data-ray-color-2="#96C8FF"
@@ -215,7 +216,16 @@
                         </div>
                     </div>
                     <div id="terminal-container">
-                        <div id="terminal-mount"></div>
+                        <div id="terminal-mount">
+                            <div aria-hidden="true" class="terminal-welcome" hidden id="terminal-welcome">
+                                <p aria-label="ERIIBOT" class="shuffle-parent terminal-welcome-banner"
+                                   id="welcome-shuffle">ERIIBOT</p>
+                                <div class="terminal-welcome-copy">
+                                    <span>Erii Console</span>
+                                    <span>Ready for local bot operations</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <section class="plugin-result-panel" hidden id="plugin-send-result">
                         <div class="plugin-result-card">
@@ -272,6 +282,7 @@
     <script src="/js/vendor/addon-unicode11.min.js"></script>
     <script src="/js/vendor/addon-web-links.min.js"></script>
     <script src="/js/vendor/addon-webgl.min.js"></script>
+    <script src="/js/shuffle.js?v=__ERII_ASSET_VERSION__"></script>
     <script src="/js/side-rays.js?v=__ERII_ASSET_VERSION__" type="module"></script>
     <script src="/js/main.js?v=__ERII_ASSET_VERSION__"></script>
 </body>
