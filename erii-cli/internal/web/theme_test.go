@@ -47,10 +47,56 @@ func TestIndexPageReceivesThemeAndAssetVersion(t *testing.T) {
 			t.Fatalf("rendered index still contains %s", marker)
 		}
 	}
-	for _, asset := range []string{"/css/style.css?v=build-123", "/js/main.js?v=build-123"} {
+	for _, asset := range []string{
+		"/css/style.css?v=build-123",
+		"/js/side-rays.js?v=build-123",
+		"/js/main.js?v=build-123",
+	} {
 		if !strings.Contains(page, asset) {
 			t.Fatalf("rendered index missing versioned asset %q", asset)
 		}
+	}
+}
+
+func TestStaticConsoleLoadsLocalSideRaysEffect(t *testing.T) {
+	html := string(readStatic(t, "static/index.html"))
+	css := string(readStatic(t, "static/css/style.css"))
+	js := string(readStatic(t, "static/js/side-rays.js"))
+	ogl := readStatic(t, "static/js/vendor/ogl.min.mjs")
+
+	for _, want := range []string{
+		`id="side-rays"`,
+		`type="module" src="/js/side-rays.js?v=__ERII_ASSET_VERSION__"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("side rays markup missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		".side-rays-container",
+		"pointer-events: none",
+		"prefers-reduced-motion: reduce",
+		"#topbar:has(#server-menu:not([hidden]))",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("side rays CSS missing %q", want)
+		}
+	}
+	for _, want := range []string{
+		"from './vendor/ogl.min.mjs'",
+		"IntersectionObserver",
+		"visibilitychange",
+		"prefers-reduced-motion: reduce",
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("side rays JS missing %q", want)
+		}
+	}
+	if len(ogl) == 0 {
+		t.Fatal("local OGL browser module should not be empty")
+	}
+	if strings.Contains(html, "cdn.") || strings.Contains(js, "https://") {
+		t.Fatal("side rays effect should not depend on a CDN")
 	}
 }
 
@@ -98,16 +144,18 @@ func TestStaticConsoleLoadsRenderingAddons(t *testing.T) {
 	js := string(readStatic(t, "static/js/main.js"))
 
 	for _, addon := range []string{
+		"xterm.min.js",
 		"addon-fit.min.js",
 		"addon-canvas.min.js",
 		"addon-unicode11.min.js",
 		"addon-web-links.min.js",
 		"addon-webgl.min.js",
 	} {
-		if !strings.Contains(html, addon) {
-			t.Fatalf("console markup does not load %s", addon)
+		assetPath := "/js/vendor/" + addon
+		if !strings.Contains(html, assetPath) {
+			t.Fatalf("console markup does not load %s", assetPath)
 		}
-		if len(readStatic(t, "static/js/"+addon)) < 1000 {
+		if len(readStatic(t, "static/js/vendor/"+addon)) < 1000 {
 			t.Fatalf("embedded addon %s is unexpectedly small", addon)
 		}
 	}
@@ -124,6 +172,37 @@ func TestStaticConsoleLoadsRenderingAddons(t *testing.T) {
 	} {
 		if !strings.Contains(js, contract) {
 			t.Fatalf("xterm addon contract missing %q", contract)
+		}
+	}
+}
+
+func TestStaticConsoleContainsCollapsibleSidebarGroups(t *testing.T) {
+	html := string(readStatic(t, "static/index.html"))
+	css := string(readStatic(t, "static/css/style.css"))
+	js := string(readStatic(t, "static/js/main.js"))
+
+	if got := strings.Count(html, `class="sidebar-group-toggle"`); got != 5 {
+		t.Fatalf("sidebar group toggle count = %d, want 5", got)
+	}
+	if got := strings.Count(html, `data-sidebar-group=`); got != 5 {
+		t.Fatalf("sidebar group key count = %d, want 5", got)
+	}
+	for _, contract := range []string{
+		`class="sidebar-group collapsed"`,
+		`aria-expanded="false"`,
+		".sidebar-group.collapsed",
+		".sidebar-group.collapsed > .sidebar-item",
+		".sidebar-group-toggle:focus-visible",
+		"erii.console.sidebar.expanded.v2",
+		"function setSidebarGroupCollapsed(group, collapsed, persist)",
+		"if (otherGroup !== group)",
+		"window.localStorage.setItem",
+		"window.localStorage.removeItem",
+		"revealSidebarItem(item)",
+		"initializeSidebarGroups()",
+	} {
+		if !strings.Contains(html+css+js, contract) {
+			t.Fatalf("collapsible sidebar contract missing %q", contract)
 		}
 	}
 }
@@ -174,6 +253,7 @@ func TestStaticConsoleContainsRuntimeStatusContracts(t *testing.T) {
 		"connectRuntimeStatus",
 		"applyRuntimeStatus",
 		"START HERE",
+		"revealSidebarItem(setupCommand)",
 		"CORE OFFLINE",
 	} {
 		if !strings.Contains(js, contract) {
@@ -205,7 +285,7 @@ func TestStaticConsoleContainsPluginSendPanel(t *testing.T) {
 	js := string(readStatic(t, "static/js/main.js"))
 
 	for _, contract := range []string{
-		`<div class="sidebar-group-label">Plugin</div>`,
+		`data-sidebar-group="plugin"`,
 		`data-panel="plugin-send"`,
 		`id="plugin-send-modal"`,
 		`id="plugin-send-result"`,

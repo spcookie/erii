@@ -11,6 +11,18 @@
 </head>
 <body>
     <div id="app">
+        <div aria-hidden="true" class="side-rays-container" data-blend="0.75"
+             data-falloff="1.6"
+             data-intensity="2"
+             data-opacity="0.72"
+             data-origin="top-left"
+             data-ray-color-1="#EAB308"
+             data-ray-color-2="#96C8FF"
+             data-saturation="1.5"
+             data-speed="2.5"
+             data-spread="2"
+             data-tilt="0"
+             id="side-rays"></div>
         <div id="console-shell">
             <div id="topbar">
                 <div class="topbar-brand">
@@ -73,8 +85,14 @@
                         <div class="title">Commands</div>
                     </div>
                     <nav id="sidebar-nav">
-                        <div class="sidebar-group">
-                            <div class="sidebar-group-label">Configuration</div>
+                        <div class="sidebar-group collapsed" data-sidebar-group="configuration">
+                            <button aria-expanded="false" class="sidebar-group-toggle" type="button">
+                                <span>Configuration</span>
+                                <svg aria-hidden="true" fill="none" stroke="currentColor"
+                                     stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="m6 9 6 6 6-6"/>
+                                </svg>
+                            </button>
                             <button id="setup-command" class="sidebar-item" data-cmd="setup">
                                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
@@ -88,8 +106,14 @@
                                 <span>Config</span>
                             </button>
                         </div>
-                        <div class="sidebar-group">
-                            <div class="sidebar-group-label">Data</div>
+                        <div class="sidebar-group collapsed" data-sidebar-group="data">
+                            <button aria-expanded="false" class="sidebar-group-toggle" type="button">
+                                <span>Data</span>
+                                <svg aria-hidden="true" fill="none" stroke="currentColor"
+                                     stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="m6 9 6 6 6-6"/>
+                                </svg>
+                            </button>
                             <button class="sidebar-item" data-cmd="manage" data-requires-core="true" disabled>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
@@ -109,8 +133,14 @@
                                 <span>Usage</span>
                             </button>
                         </div>
-                        <div class="sidebar-group">
-                            <div class="sidebar-group-label">Chat</div>
+                        <div class="sidebar-group collapsed" data-sidebar-group="chat">
+                            <button aria-expanded="false" class="sidebar-group-toggle" type="button">
+                                <span>Chat</span>
+                                <svg aria-hidden="true" fill="none" stroke="currentColor"
+                                     stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="m6 9 6 6 6-6"/>
+                                </svg>
+                            </button>
                             <button class="sidebar-item" data-cmd="chat" data-requires-core="true" disabled>
                                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -118,8 +148,14 @@
                                 <span>Chat</span>
                             </button>
                         </div>
-                        <div class="sidebar-group">
-                            <div class="sidebar-group-label">System</div>
+                        <div class="sidebar-group collapsed" data-sidebar-group="system">
+                            <button aria-expanded="false" class="sidebar-group-toggle" type="button">
+                                <span>System</span>
+                                <svg aria-hidden="true" fill="none" stroke="currentColor"
+                                     stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="m6 9 6 6 6-6"/>
+                                </svg>
+                            </button>
                             <button class="sidebar-item" data-cmd="refresh" data-requires-core="true" disabled>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
@@ -133,8 +169,14 @@
                                 <span>Reload</span>
                             </button>
                         </div>
-                        <div class="sidebar-group">
-                            <div class="sidebar-group-label">Plugin</div>
+                        <div class="sidebar-group collapsed" data-sidebar-group="plugin">
+                            <button aria-expanded="false" class="sidebar-group-toggle" type="button">
+                                <span>Plugin</span>
+                                <svg aria-hidden="true" fill="none" stroke="currentColor"
+                                     stroke-width="2" viewBox="0 0 24 24">
+                                    <path d="m6 9 6 6 6-6"/>
+                                </svg>
+                            </button>
                             <button class="sidebar-item" data-cmd="plugin" data-args="refresh" data-title="Plugin Refresh" data-requires-core="true" disabled>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 2v6l4-4"/><path d="M20 11a8 8 0 11-2.34-5.66"/><path d="M8 13h8M8 17h5"/>
@@ -224,12 +266,13 @@
         </div>
     </div>
 
-    <script src="/js/xterm.min.js"></script>
-    <script src="/js/addon-fit.min.js"></script>
-    <script src="/js/addon-canvas.min.js"></script>
-    <script src="/js/addon-unicode11.min.js"></script>
-    <script src="/js/addon-web-links.min.js"></script>
-    <script src="/js/addon-webgl.min.js"></script>
+    <script src="/js/vendor/xterm.min.js"></script>
+    <script src="/js/vendor/addon-fit.min.js"></script>
+    <script src="/js/vendor/addon-canvas.min.js"></script>
+    <script src="/js/vendor/addon-unicode11.min.js"></script>
+    <script src="/js/vendor/addon-web-links.min.js"></script>
+    <script src="/js/vendor/addon-webgl.min.js"></script>
+    <script src="/js/side-rays.js?v=__ERII_ASSET_VERSION__" type="module"></script>
     <script src="/js/main.js?v=__ERII_ASSET_VERSION__"></script>
 </body>
 </html>

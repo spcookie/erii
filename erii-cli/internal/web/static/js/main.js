@@ -70,6 +70,7 @@
     let reconnectTimer = 0;
     const MAX_RECONNECT_DELAY = 10000;
     const MIN_COLS = 40;
+    const SIDEBAR_GROUP_STORAGE_KEY = 'erii.console.sidebar.expanded.v2';
     let activeCmd = null;
     let activeCommandKey = null;
     let runtimeEvents = null;
@@ -88,6 +89,8 @@
     const coreStatusText = document.getElementById('core-status-text');
     const currentCmdEl = document.getElementById('current-cmd');
     const sidebarItems = document.querySelectorAll('.sidebar-item');
+    const sidebarGroups = Array.from(document.querySelectorAll('.sidebar-group'));
+    const sidebarGroupToggles = Array.from(document.querySelectorAll('.sidebar-group-toggle'));
     const coreDependentItems = document.querySelectorAll('[data-requires-core="true"]');
     const setupCommand = document.getElementById('setup-command');
     const resizeHandle = document.getElementById('resize-handle');
@@ -110,6 +113,79 @@
 
     // Default header content (shown when no command is active)
     const defaultHeaderHTML = currentCmdEl.innerHTML;
+    let expandedSidebarGroup = readExpandedSidebarGroup();
+
+    function readExpandedSidebarGroup() {
+        try {
+            return window.localStorage.getItem(SIDEBAR_GROUP_STORAGE_KEY) || null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function saveExpandedSidebarGroup() {
+        try {
+            if (expandedSidebarGroup) {
+                window.localStorage.setItem(SIDEBAR_GROUP_STORAGE_KEY, expandedSidebarGroup);
+            } else {
+                window.localStorage.removeItem(SIDEBAR_GROUP_STORAGE_KEY);
+            }
+        } catch (error) {
+            // The accordion still works when persistent storage is unavailable.
+        }
+    }
+
+    function setSidebarGroupCollapsed(group, collapsed, persist) {
+        const toggle = group.querySelector('.sidebar-group-toggle');
+        if (!toggle) return;
+
+        const groupKey = group.dataset.sidebarGroup;
+        const groupLabel = toggle.querySelector('span')?.textContent.trim() || 'section';
+
+        if (!collapsed) {
+            sidebarGroups.forEach(function (otherGroup) {
+                if (otherGroup !== group) {
+                    setSidebarGroupCollapsed(otherGroup, true, false);
+                }
+            });
+        }
+
+        group.classList.toggle('collapsed', collapsed);
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        toggle.title = (collapsed ? 'Expand ' : 'Collapse ') + groupLabel;
+
+        Array.from(group.children).forEach(function (child) {
+            if (child.classList && child.classList.contains('sidebar-item')) {
+                child.hidden = collapsed;
+            }
+        });
+
+        if (!persist || !groupKey) return;
+        expandedSidebarGroup = collapsed ? null : groupKey;
+        saveExpandedSidebarGroup();
+    }
+
+    function initializeSidebarGroups() {
+        const hasSavedGroup = sidebarGroups.some(function (group) {
+            return group.dataset.sidebarGroup === expandedSidebarGroup;
+        });
+        if (!hasSavedGroup) expandedSidebarGroup = null;
+
+        sidebarGroups.forEach(function (group) {
+            setSidebarGroupCollapsed(
+                group,
+                group.dataset.sidebarGroup !== expandedSidebarGroup,
+                false
+            );
+        });
+    }
+
+    function revealSidebarItem(item) {
+        const group = item.closest('.sidebar-group');
+        if (group && group.classList.contains('collapsed')) {
+            setSidebarGroupCollapsed(group, false, true);
+        }
+    }
 
     function setStatus(state) {
         cliConnected = state === 'connected' || state === 'running';
@@ -236,6 +312,7 @@
         if (status.setupRequired) {
             setupCommand.title = 'Run setup to create the Erii core connection configuration';
             setCommandTag(setupCommand, 'START HERE', 'guide');
+            revealSidebarItem(setupCommand);
         } else {
             setupCommand.removeAttribute('title');
             setCommandTag(setupCommand, '', '');
@@ -294,6 +371,7 @@
         sidebarItems.forEach(function (item) {
             if (itemCommandKey(item) === activeCommandKey) {
                 matched = true;
+                revealSidebarItem(item);
                 item.classList.add('active');
                 currentCmdEl.innerHTML = item.innerHTML;
                 currentCmdEl.querySelectorAll('.command-tag').forEach(function (tag) {
@@ -322,6 +400,7 @@
         sidebarItems.forEach(function (item) {
             if (item.dataset.panel === panelName) {
                 matched = true;
+                revealSidebarItem(item);
                 item.classList.add('active');
                 currentCmdEl.innerHTML = item.innerHTML;
             } else {
@@ -797,6 +876,15 @@
     }
 
     // Sidebar click handlers
+    sidebarGroupToggles.forEach(function (toggle) {
+        toggle.addEventListener('click', function () {
+            const group = this.closest('.sidebar-group');
+            if (!group) return;
+            const collapse = this.getAttribute('aria-expanded') === 'true';
+            setSidebarGroupCollapsed(group, collapse, true);
+        });
+    });
+
     sidebarItems.forEach(function (item) {
         item.addEventListener('click', function () {
             if (this.disabled) return;
@@ -918,6 +1006,7 @@
     });
 
     // Init
+    initializeSidebarGroups();
     applyRuntimeStatus({
         state: 'checking',
         pidFile: false,
