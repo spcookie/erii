@@ -3,5 +3,5 @@
 -Dconfig.path=./conf/application.conf
 -Dconfig.souls.dir=./conf/souls
 -Dconfig.rules.dir=./conf/rules
--Derii.ipc.path=./.conf
+-Derii.ipc.path=./.erii
 -Dconfig.mcp.dir=./conf/mcp
