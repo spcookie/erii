@@ -58,6 +58,10 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
                         append("[引用消息 id: ${segment.replyId}]")
                     }
 
+                    "markdown" -> {
+                        append(segment.data["content"]?.jsonPrimitive?.contentOrNull ?: "")
+                    }
+
                     else -> append("[${segment.type}]")
                 }
             }
@@ -84,5 +88,22 @@ class OneBotMessagePlatformAdapter : MessagePlatformAdapter<GroupMessageEvent> {
         val extension = cleanSource.substringAfterLast(".", missingDelimiterValue = "")
             .lowercase()
         return extension.takeIf { it in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp") }
+    }
+}
+
+/**
+ * 对字符串做 CQ 码 value 转义，与 Go 端 [unescapeCQValue] 配对。
+ * `&` → `&amp;`, `[` → `&#91;`, `]` → `&#93;`, `,` → `&#44;`
+ */
+internal fun String.toCQEscaped(): String = buildString {
+    val input = this@toCQEscaped
+    for (i in input.indices) {
+        when (input[i]) {
+            '&' -> append("&amp;")
+            '[' -> append("&#91;")
+            ']' -> append("&#93;")
+            ',' -> append("&#44;")
+            else -> append(input[i])
+        }
     }
 }

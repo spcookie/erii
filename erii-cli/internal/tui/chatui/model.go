@@ -11,8 +11,10 @@ import (
 
 	"erii-cli/internal/api"
 	"erii-cli/internal/tui/components"
+	"erii-cli/internal/tui/components/md"
 	style "erii-cli/internal/ui/theme"
 
+	"charm.land/glamour/v2"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -35,6 +37,7 @@ type chatMsg struct {
 	id                 int64
 	typ                msgType
 	content            string
+	markdownContent    string
 	timestamp          time.Time
 	duration           time.Duration // bot reply duration from last user send (0 for user msgs)
 	hasImage           bool
@@ -229,6 +232,8 @@ type Model struct {
 	liveImageSequence    int64
 	activeRequestID      string
 	imageConfig          ImageConfig
+	mdRenderer           *glamour.TermRenderer
+	mdRendererWidth      int
 }
 
 func initialModel(client *api.Client, wsConn *api.ChatWSConn, roleName string, wsMsgCh chan tea.Msg) *Model {
@@ -472,7 +477,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			dur = now.Sub(m.lastSendTime)
 		}
 		content, imageSource, hasImage := extractCQImage(msg.response)
-		reply := chatMsg{typ: msgBot, content: content, timestamp: now, duration: dur}
+		content, mdContent, _ := extractCQMarkdown(content)
+		reply := chatMsg{typ: msgBot, content: content, markdownContent: mdContent, timestamp: now, duration: dur}
 		if hasImage {
 			m.liveImageSequence++
 			reply.id = -m.liveImageSequence
@@ -574,13 +580,19 @@ func (m *Model) handleHistoryLoaded(msg historyLoadedMsg) (tea.Model, tea.Cmd) {
 		if e.HasImage {
 			imageState = historyImageLoading
 		}
+		content := cleanHistoryImagePlaceholder(e.Content, e.HasImage)
+		mdContent := ""
+		if typ == msgBot && content != "" {
+			mdContent = content
+		}
 		histMsgs = append(histMsgs, chatMsg{
-			id:         e.ID,
-			typ:        typ,
-			content:    cleanHistoryImagePlaceholder(e.Content, e.HasImage),
-			timestamp:  time.UnixMilli(e.Timestamp),
-			hasImage:   e.HasImage,
-			imageState: imageState,
+			id:              e.ID,
+			typ:             typ,
+			content:         content,
+			markdownContent: mdContent,
+			timestamp:       time.UnixMilli(e.Timestamp),
+			hasImage:        e.HasImage,
+			imageState:      imageState,
 		})
 	}
 
@@ -851,6 +863,16 @@ func (m *Model) recalcSizes() {
 		m.viewport.Height = 2
 	}
 	m.textarea.SetWidth(m.width - 4)
+
+	msgWidth := m.viewport.Width - 6
+	if msgWidth < 20 {
+		msgWidth = 20
+	}
+	if m.mdRenderer == nil || m.mdRendererWidth != msgWidth {
+		m.mdRenderer, _ = createChatRenderer(msgWidth)
+		m.mdRendererWidth = msgWidth
+	}
+
 	m.viewport.SetContent(m.renderMessages())
 	m.viewport.GotoBottom()
 }
@@ -967,7 +989,17 @@ func (m *Model) renderMessageLines(msg chatMsg, maxWidth, msgWidth int) []string
 		lines = append(lines, botLabel(m.roleName, msg.timestamp, msg.duration))
 	}
 
-	if msg.content != "" {
+	if msg.markdownContent != "" && m.mdRenderer != nil {
+		rendered, err := m.mdRenderer.Render(msg.markdownContent)
+		if err == nil {
+			trimmed := strings.TrimSpace(rendered)
+			for _, line := range strings.Split(trimmed, "\n") {
+				line = strings.TrimRight(line, " ")
+				messageStyle := lipgloss.NewStyle().PaddingLeft(2)
+				lines = append(lines, messageStyle.Render(line))
+			}
+		}
+	} else if msg.content != "" {
 		wrapped := wrapText(msg.content, msgWidth)
 		for _, line := range strings.Split(wrapped, "\n") {
 			messageStyle := lipgloss.NewStyle().Foreground(style.Text)
@@ -1263,4 +1295,36 @@ func wrapText(text string, width int) string {
 		}
 	}
 	return strings.Join(result, "\n")
+}
+
+func extractCQMarkdown(text string) (string, string, bool) {
+	const prefix = "[CQ:markdown"
+	start := strings.Index(text, prefix)
+	if start < 0 {
+		return text, "", false
+	}
+	endRel := strings.Index(text[start:], "]")
+	if endRel < 0 {
+		return text, "", false
+	}
+	end := start + endRel
+	rawAttrs := strings.TrimPrefix(text[start+len(prefix):end], ",")
+	attrs := parseCQAttributes(rawAttrs)
+	mdContent := attrs["content"]
+	if mdContent == "" {
+		return text, "", false
+	}
+	cleaned := strings.Join(strings.Fields(strings.TrimSpace(text[:start]+" "+text[end+1:])), " ")
+	return cleaned, mdContent, true
+}
+
+func createChatRenderer(width int) (*glamour.TermRenderer, error) {
+	ww := width
+	if ww < 20 {
+		ww = 20
+	}
+	return glamour.NewTermRenderer(
+		glamour.WithStyles(md.VercelMarkdownStyle()),
+		glamour.WithWordWrap(ww),
+	)
 }

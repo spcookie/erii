@@ -3,6 +3,8 @@ package uesugi.core.chat
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import uesugi.common.BotManage
 import uesugi.common.data.HistoryRecord
 import uesugi.common.data.MessageType
@@ -15,6 +17,7 @@ import uesugi.config.ChatBridgeConst.MOCK_USER_ID
 import uesugi.core.GroupMessageEventListener
 import uesugi.core.bot.BotRoleManager
 import uesugi.core.message.history.HistoryService
+import uesugi.core.message.platform.toCQEscaped
 import uesugi.onebot.core.config.OneBotConfig
 import uesugi.onebot.core.message.buildMessage
 import uesugi.onebot.core.message.text
@@ -198,6 +201,10 @@ class ChatBridge(
                 "text" -> segment.text?.let { if (it.isNotBlank()) sb.append(it) }
                 "image" -> sb.append("[图片]")
                 "record", "voice" -> sb.append("[语音]")
+                "markdown" -> {
+                    val raw = segment.data["content"]?.jsonPrimitive?.contentOrNull ?: ""
+                    if (raw.isNotBlank()) sb.append("[CQ:markdown,content=${raw.toCQEscaped()}]")
+                }
             }
         }
         return sb.toString()

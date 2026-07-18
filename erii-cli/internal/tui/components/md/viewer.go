@@ -247,40 +247,98 @@ func createRenderer(width int) (*glamour.TermRenderer, error) {
 		ww = 20
 	}
 	return glamour.NewTermRenderer(
-		glamour.WithStyles(vercelMarkdownStyle()),
+		glamour.WithStyles(VercelMarkdownStyle()),
 		glamour.WithWordWrap(ww),
 	)
 }
 
-func vercelMarkdownStyle() ansi.StyleConfig {
-	color := func(c lipgloss.AdaptiveColor) *string {
-		value := style.AdaptiveHex(c)
-		return &value
+func VercelMarkdownStyle() ansi.StyleConfig {
+	c := func(clr lipgloss.AdaptiveColor) *string {
+		s := style.AdaptiveHex(clr)
+		return &s
 	}
-	bold := true
-	italic := true
-	underline := true
-	margin := uint(1)
-	indent := uint(2)
+	b := boolPtr(true)
+	m2 := uintPtr(2)
+	m0 := uintPtr(0)
+
 	return ansi.StyleConfig{
-		Document:       ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text)}},
-		Paragraph:      ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text)}},
-		Heading:        ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text), Bold: &bold}},
-		H1:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Accent), Bold: &bold}, Margin: &margin},
-		H2:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.ChartCyan), Bold: &bold}, Margin: &margin},
-		H3:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.ChartViolet), Bold: &bold}},
-		Text:           ansi.StylePrimitive{Color: color(style.Text)},
-		Emph:           ansi.StylePrimitive{Color: color(style.TextMuted), Italic: &italic},
-		Strong:         ansi.StylePrimitive{Color: color(style.Text), Bold: &bold},
-		Link:           ansi.StylePrimitive{Color: color(style.Accent), Underline: &underline},
-		LinkText:       ansi.StylePrimitive{Color: color(style.Accent)},
-		Item:           ansi.StylePrimitive{Color: color(style.Accent)},
-		Enumeration:    ansi.StylePrimitive{Color: color(style.ChartCyan)},
-		HorizontalRule: ansi.StylePrimitive{Color: color(style.BorderStrong)},
-		BlockQuote:     ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.TextMuted)}, Indent: &indent},
-		Code:           ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.ChartCyan)}},
-		CodeBlock:      ansi.StyleCodeBlock{StyleBlock: ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text)}, Margin: &margin}},
-		Table:          ansi.StyleTable{StyleBlock: ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: color(style.Text)}}},
+		// --- 结构布局来自 DarkStyle，色值来自 Erii Vercel 主题 ---
+
+		Document: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{BlockPrefix: "\n", BlockSuffix: "\n", Color: c(style.Text)},
+			Margin:         m2,
+		},
+		BlockQuote: ansi.StyleBlock{
+			Indent:      uintPtr(1),
+			IndentToken: stringPtr("│ "),
+		},
+		List:           ansi.StyleList{LevelIndent: 2},
+		Paragraph:      ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: c(style.Text)}},
+		Heading:        ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{BlockSuffix: "\n", Color: c(style.Accent), Bold: b}},
+		H1:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Prefix: " ", Suffix: " ", Color: c(style.Background), BackgroundColor: c(style.Accent), Bold: b}},
+		H2:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Prefix: "## ", Color: c(style.Accent)}},
+		H3:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Prefix: "### ", Color: c(style.ChartCyan)}},
+		H4:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Prefix: "#### ", Color: c(style.ChartViolet)}},
+		H5:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Prefix: "##### "}},
+		H6:             ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Prefix: "###### ", Color: c(style.ChartViolet), Bold: boolPtr(false)}},
+		Text:           ansi.StylePrimitive{Color: c(style.Text)},
+		Strikethrough:  ansi.StylePrimitive{CrossedOut: b},
+		Emph:           ansi.StylePrimitive{Italic: b, Color: c(style.TextMuted)},
+		Strong:         ansi.StylePrimitive{Bold: b},
+		HorizontalRule: ansi.StylePrimitive{Color: c(style.BorderStrong), Format: "\n--------\n"},
+		Item:           ansi.StylePrimitive{BlockPrefix: "• ", Color: c(style.Accent)},
+		Enumeration:    ansi.StylePrimitive{BlockPrefix: ". ", Color: c(style.ChartCyan)},
+		Task:           ansi.StyleTask{Ticked: "[✓] ", Unticked: "[ ] "},
+		Link:           ansi.StylePrimitive{Color: c(style.Accent), Underline: b},
+		LinkText:       ansi.StylePrimitive{Color: c(style.ChartViolet), Bold: b},
+		Image:          ansi.StylePrimitive{Color: c(style.ChartCyan), Underline: b},
+		ImageText:      ansi.StylePrimitive{Color: c(style.TextMuted), Format: "Image: {{.text}} →"},
+		Code: ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{
+			Prefix: " ", Suffix: " ",
+			Color: c(style.Error), BackgroundColor: c(style.SurfaceAlt),
+		}},
+		CodeBlock: ansi.StyleCodeBlock{
+			StyleBlock: ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{Color: c(style.TextMuted)}, Margin: m2},
+			Chroma:     chromaVercel(c),
+		},
+		Table:                 ansi.StyleTable{StyleBlock: ansi.StyleBlock{StylePrimitive: ansi.StylePrimitive{}}},
+		DefinitionDescription: ansi.StylePrimitive{BlockPrefix: "\n🠶 "},
+		HTMLBlock:             ansi.StyleBlock{Margin: m0},
+	}
+}
+
+func chromaVercel(c func(lipgloss.AdaptiveColor) *string) *ansi.Chroma {
+	b := boolPtr(true)
+	return &ansi.Chroma{
+		Text:                ansi.StylePrimitive{Color: c(style.Text)},
+		Error:               ansi.StylePrimitive{Color: c(style.Background), BackgroundColor: c(style.Error)},
+		Comment:             ansi.StylePrimitive{Color: c(style.TextMuted)},
+		CommentPreproc:      ansi.StylePrimitive{Color: c(style.Warning)},
+		Keyword:             ansi.StylePrimitive{Color: c(style.Accent)},
+		KeywordReserved:     ansi.StylePrimitive{Color: c(style.ChartViolet)},
+		KeywordNamespace:    ansi.StylePrimitive{Color: c(style.Error)},
+		KeywordType:         ansi.StylePrimitive{Color: c(style.ChartViolet)},
+		Operator:            ansi.StylePrimitive{Color: c(style.Warning)},
+		Punctuation:         ansi.StylePrimitive{Color: c(style.TextMuted)},
+		Name:                ansi.StylePrimitive{Color: c(style.Text)},
+		NameBuiltin:         ansi.StylePrimitive{Color: c(style.ChartCyan)},
+		NameTag:             ansi.StylePrimitive{Color: c(style.ChartViolet)},
+		NameAttribute:       ansi.StylePrimitive{Color: c(style.Accent)},
+		NameClass:           ansi.StylePrimitive{Color: c(style.Text), Underline: b, Bold: b},
+		NameDecorator:       ansi.StylePrimitive{Color: c(style.Warning)},
+		NameFunction:        ansi.StylePrimitive{Color: c(style.Success)},
+		NameOther:           ansi.StylePrimitive{Color: c(style.Text)},
+		Literal:             ansi.StylePrimitive{Color: c(style.Text)},
+		LiteralNumber:       ansi.StylePrimitive{Color: c(style.ChartCyan)},
+		LiteralDate:         ansi.StylePrimitive{Color: c(style.ChartCyan)},
+		LiteralString:       ansi.StylePrimitive{Color: c(style.Warning)},
+		LiteralStringEscape: ansi.StylePrimitive{Color: c(style.ChartCyan)},
+		GenericDeleted:      ansi.StylePrimitive{Color: c(style.Error)},
+		GenericEmph:         ansi.StylePrimitive{Italic: b},
+		GenericInserted:     ansi.StylePrimitive{Color: c(style.Success)},
+		GenericStrong:       ansi.StylePrimitive{Bold: b},
+		GenericSubheading:   ansi.StylePrimitive{Color: c(style.TextMuted)},
+		Background:          ansi.StylePrimitive{BackgroundColor: c(style.SurfaceAlt)},
 	}
 }
 
@@ -400,3 +458,7 @@ func (m *ViewerModel) View() string {
 	content := border.Render(m.viewport.View())
 	return titleBar + "\n" + content + "\n" + m.help.View(m.keys)
 }
+
+func boolPtr(b bool) *bool       { return &b }
+func stringPtr(s string) *string { return &s }
+func uintPtr(u uint) *uint       { return &u }
