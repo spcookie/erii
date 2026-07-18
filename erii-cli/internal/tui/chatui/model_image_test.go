@@ -84,6 +84,66 @@ func TestExtractCQImageAcceptsDataURLFile(t *testing.T) {
 	}
 }
 
+func TestParseCQImageRefDetectsHistoryImage(t *testing.T) {
+	ref := parseCQImageRef("caption [CQ:image,file=erii-history://42,historyId=42]")
+	if !ref.found {
+		t.Fatal("expected history CQ image to be detected")
+	}
+	if ref.cleaned != "caption" {
+		t.Fatalf("cleaned content = %q", ref.cleaned)
+	}
+	if ref.historyID != 42 {
+		t.Fatalf("history id = %d, want 42", ref.historyID)
+	}
+	if ref.supported {
+		t.Fatal("history image source should not be treated as a live image source")
+	}
+}
+
+func TestExtractCQImageIgnoresHistoryImageForLiveRendering(t *testing.T) {
+	text := "caption [CQ:image,file=erii-history://42,historyId=42]"
+	cleaned, imageSource, ok := extractCQImage(text)
+	if ok {
+		t.Fatal("history image should not be accepted as a live image")
+	}
+	if cleaned != text {
+		t.Fatalf("cleaned content = %q, want original", cleaned)
+	}
+	if imageSource != "" {
+		t.Fatalf("image source = %q, want empty", imageSource)
+	}
+}
+
+func TestHistoryLoadedUsesCQParsing(t *testing.T) {
+	m := initialModel(nil, nil, "Erii", nil)
+	m.viewport.Width = 80
+	m.viewport.Height = 20
+
+	updated, _ := m.handleHistoryLoaded(historyLoadedMsg{
+		entries: []api.ChatHistoryEntry{{
+			ID:        42,
+			Sender:    "bot",
+			Content:   "caption [CQ:image,file=erii-history://42,historyId=42]",
+			Timestamp: time.Now().UnixMilli(),
+			HasImage:  true,
+		}},
+	})
+	next := updated.(*Model)
+	if len(next.messages) != 1 {
+		t.Fatalf("messages length = %d, want 1", len(next.messages))
+	}
+	msg := next.messages[0]
+	if msg.content != "caption" {
+		t.Fatalf("message content = %q", msg.content)
+	}
+	if !msg.hasImage {
+		t.Fatal("expected history message to have image")
+	}
+	if msg.imageState != historyImageLoading {
+		t.Fatalf("image state = %v, want loading", msg.imageState)
+	}
+}
+
 func TestBotResponseWithCQImageQueuesLiveRender(t *testing.T) {
 	m := initialModel(nil, nil, "Erii", make(chan tea.Msg))
 	m.viewport.Width = 80

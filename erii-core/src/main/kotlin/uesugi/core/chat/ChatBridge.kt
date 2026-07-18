@@ -220,7 +220,7 @@ internal fun HistoryRecord.toChatHistoryEntry(): ChatHistoryEntry {
     return ChatHistoryEntry(
         id = (id ?: 0).toLong(),
         sender = sender,
-        content = if (sender == "user") content.orEmpty().removeMockBotMention() else content.orEmpty(),
+        content = toChatHistoryCqContent(sender),
         timestamp = timestamp,
         messageType = messageType,
         hasImage = chatImageResourceOrNull() != null,
@@ -239,4 +239,29 @@ internal fun String.removeMockBotMention(): String {
     val mention = "@$MOCK_BOT_ID"
     if (!startsWith(mention)) return this
     return removePrefix(mention).trimStart()
+}
+
+private fun HistoryRecord.toChatHistoryCqContent(sender: String): String {
+    val text = if (sender == "user") {
+        content.orEmpty().removeMockBotMention()
+    } else {
+        content.orEmpty()
+    }
+    val image = chatImageResourceOrNull() ?: return text
+    return text.withHistoryImageCqCode(historyImageCqCode(image))
+}
+
+private fun HistoryRecord.historyImageCqCode(resource: ResourceRecord): String {
+    val historyId = id?.takeIf { it > 0 }
+    val file = historyId?.let { "erii-history://$it" } ?: resource.url
+    return "[CQ:image,file=${file.toCQEscaped()},historyId=${historyId?.toString().orEmpty().toCQEscaped()}]"
+}
+
+private fun String.withHistoryImageCqCode(imageCq: String): String {
+    val placeholder = "[图片]"
+    val index = indexOf(placeholder)
+    if (index < 0) {
+        return if (isBlank()) imageCq else "$this $imageCq"
+    }
+    return replaceRange(index, index + placeholder.length, imageCq)
 }

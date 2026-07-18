@@ -66,6 +66,16 @@ class ChatBridgeHistoryTest {
 
         assertEquals(MessageType.IMAGE, entry.messageType)
         assertTrue(entry.hasImage)
+        assertEquals("[CQ:image,file=erii-history://42,historyId=42]", entry.content)
+        assertFalse(entry.content.contains(resource.url))
+    }
+
+    @Test
+    fun `history entry keeps caption while converting image placeholder to cq segment`() {
+        val entry = history(content = "look [图片] here", messageType = MessageType.IMAGE, resource = resource())
+            .toChatHistoryEntry()
+
+        assertEquals("look [CQ:image,file=erii-history://42,historyId=42] here", entry.content)
     }
 
     @Test

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -576,13 +577,17 @@ func (m *Model) handleHistoryLoaded(msg historyLoadedMsg) (tea.Model, tea.Cmd) {
 		if e.Sender == "user" {
 			typ = msgUser
 		}
+		content := e.Content
+		if imageRef := parseCQImageRef(content); imageRef.found {
+			content = imageRef.cleaned
+		}
+		content, mdContent, _ := extractCQMarkdown(content)
+		content = cleanHistoryImagePlaceholder(content, e.HasImage)
 		imageState := historyImageNone
 		if e.HasImage {
 			imageState = historyImageLoading
 		}
-		content := cleanHistoryImagePlaceholder(e.Content, e.HasImage)
-		mdContent := ""
-		if typ == msgBot && content != "" {
+		if typ == msgBot && mdContent == "" && content != "" {
 			mdContent = content
 		}
 		histMsgs = append(histMsgs, chatMsg{
@@ -1178,14 +1183,30 @@ func cleanHistoryImagePlaceholder(text string, hasImage bool) string {
 }
 
 func extractCQImage(text string) (string, string, bool) {
+	imageRef := parseCQImageRef(text)
+	if !imageRef.found || !imageRef.supported {
+		return text, "", false
+	}
+	return imageRef.cleaned, imageRef.source, true
+}
+
+type cqImageRef struct {
+	cleaned   string
+	source    string
+	historyID int64
+	found     bool
+	supported bool
+}
+
+func parseCQImageRef(text string) cqImageRef {
 	const prefix = "[CQ:image"
 	start := strings.Index(text, prefix)
 	if start < 0 {
-		return text, "", false
+		return cqImageRef{cleaned: text}
 	}
 	endRel := strings.Index(text[start:], "]")
 	if endRel < 0 {
-		return text, "", false
+		return cqImageRef{cleaned: text}
 	}
 	end := start + endRel
 	rawAttrs := strings.TrimPrefix(text[start+len(prefix):end], ",")
@@ -1194,12 +1215,28 @@ func extractCQImage(text string) (string, string, bool) {
 	if imageSource == "" {
 		imageSource = attrs["file"]
 	}
-	if !isSupportedLiveImageSource(imageSource) {
-		return text, "", false
-	}
-
 	cleaned := strings.Join(strings.Fields(strings.TrimSpace(text[:start]+" "+text[end+1:])), " ")
-	return cleaned, imageSource, true
+	return cqImageRef{
+		cleaned:   cleaned,
+		source:    imageSource,
+		historyID: parseCQHistoryImageID(attrs, imageSource),
+		found:     true,
+		supported: isSupportedLiveImageSource(imageSource),
+	}
+}
+
+func parseCQHistoryImageID(attrs map[string]string, imageSource string) int64 {
+	if raw := attrs["historyId"]; raw != "" {
+		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			return id
+		}
+	}
+	if strings.HasPrefix(imageSource, "erii-history://") {
+		if id, err := strconv.ParseInt(strings.TrimPrefix(imageSource, "erii-history://"), 10, 64); err == nil {
+			return id
+		}
+	}
+	return 0
 }
 
 func parseCQAttributes(raw string) map[string]string {
