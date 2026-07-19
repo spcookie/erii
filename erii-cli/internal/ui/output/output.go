@@ -7,7 +7,6 @@ import (
 	"erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 )
 
 var (
@@ -54,7 +53,11 @@ func WrappedRow(label, value string, valueWidth int) string {
 }
 
 func IndentedRow(label, value string) string {
-	return "    " + labelStyle.Render(label) + value + "\n"
+	return IndentedRowWithWidth(label, value, 14)
+}
+
+func IndentedRowWithWidth(label, value string, labelWidth int) string {
+	return "    " + labelStyle.Width(labelWidth).Render(label) + value + "\n"
 }
 
 func Status(status string) string {

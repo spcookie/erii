@@ -7,6 +7,7 @@ import (
 	"erii-cli/internal/ui/theme"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
 )
 
@@ -38,6 +39,16 @@ func TestErrorResultIndentsWrappedMessage(t *testing.T) {
 	got := ErrorResult("Plugin refresh", "Connection", assertError(strings.Repeat("x", 90)))
 	if !strings.Contains(got, "\n                ") {
 		t.Fatalf("wrapped error continuation is not indented: %q", got)
+	}
+}
+
+func TestIndentedRowWithWidthKeepsLongLabelOnOneLine(t *testing.T) {
+	got := ansi.Strip(IndentedRowWithWidth("application.conf", "skipped", 18))
+	if strings.Count(got, "\n") != 1 {
+		t.Fatalf("long label wrapped unexpectedly: %q", got)
+	}
+	if !strings.Contains(got, "application.conf  skipped") {
+		t.Fatalf("label and value should remain on one line: %q", got)
 	}
 }
 

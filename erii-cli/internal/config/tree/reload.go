@@ -213,7 +213,7 @@ func reloadRow(label, value string) string {
 }
 
 func reloadIndentedRow(label, value string) string {
-	return uioutput.IndentedRow(label, value)
+	return uioutput.IndentedRowWithWidth(label, value, 18)
 }
 
 func reloadKeysSuffix(label string, keys []string) string {
