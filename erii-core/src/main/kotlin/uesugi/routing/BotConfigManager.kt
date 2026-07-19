@@ -63,8 +63,7 @@ fun Routing.configureBotConfigManager() {
 
             val echo = UUID.randomUUID().toString()
             val replies = mutableListOf<String?>()
-            lateinit var replyHandler: (CliPluginReplyEvent) -> Unit
-            replyHandler = EventBus.subscribeSync<CliPluginReplyEvent> { event ->
+            val replyHandler: (CliPluginReplyEvent) -> Unit = EventBus.subscribeSync<CliPluginReplyEvent> { event ->
                 if (event.echo == echo) {
                     replies += event.message
                 }
