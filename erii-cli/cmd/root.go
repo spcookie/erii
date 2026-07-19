@@ -35,6 +35,9 @@ var rootCmd = &cobra.Command{
 	Version: version.Version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if err := configureTheme(cmd); err != nil {
+			if cmd.Root().PersistentFlags().Changed("theme") {
+				return asCommandLineError(err)
+			}
 			return err
 		}
 		path.InitPaths(confDirFlag, confMetaDirFlag, eriiDirFlag, pluginDirFlag, optsPathFlag)
@@ -45,9 +48,10 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		_ = configureTheme(rootCmd)
-		fmt.Fprint(rootCmd.ErrOrStderr(), uioutput.ErrorResult("Erii CLI", "Command", err))
+	markCommandLineErrors(rootCmd)
+	executedCmd, err := rootCmd.ExecuteC()
+	if err != nil {
+		printExecutionError(executedCmd, err)
 		os.Exit(1)
 	}
 }

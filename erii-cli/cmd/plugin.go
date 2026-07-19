@@ -81,7 +81,7 @@ var pluginMatchCmd = &cobra.Command{
 			format = "text"
 		}
 		if format != "text" && format != "json" {
-			return fmt.Errorf("invalid format %q, valid: text, json", pluginMatchFormat)
+			return commandLineErrorf("invalid format %q, valid: text, json", pluginMatchFormat)
 		}
 
 		client, err := api.NewClientFromIPC()
