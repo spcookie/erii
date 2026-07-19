@@ -117,7 +117,7 @@ func NewLeafEditorModel(leaf *tree.LeafNode, onSave func() tea.Cmd) *LeafEditorM
 			}
 		case "number":
 			if f, ok := leaf.ValueConfig().Default.(float64); ok {
-				m.formValue = fmt.Sprintf("%v", f)
+				m.formValue = formatNumberValue(f)
 			}
 		case "boolean":
 			if b, ok := leaf.ValueConfig().Default.(bool); ok {
@@ -188,6 +188,9 @@ func (m *LeafEditorModel) placeholder() string {
 	}
 	if m.formValue == "" {
 		if vc := m.leaf.ValueConfig(); vc != nil && vc.Default != nil {
+			if m.leaf.ValueType() == tree.TypeNumber {
+				return fmt.Sprintf("(default: %s)", formatNumberValue(vc.Default))
+			}
 			return fmt.Sprintf("(default: %v)", vc.Default)
 		}
 		return "(empty)"
@@ -247,7 +250,11 @@ func (m *LeafEditorModel) shouldApplyDefaultOnSave() bool {
 
 func leafValueToString(leaf *tree.LeafNode) string {
 	switch leaf.ValueType() {
-	case tree.TypeString, tree.TypeText, tree.TypeNumber:
+	case tree.TypeNumber:
+		if v := leaf.Value(); v != nil {
+			return formatNumberValue(v)
+		}
+	case tree.TypeString, tree.TypeText:
 		if v := leaf.Value(); v != nil {
 			return fmt.Sprintf("%v", v)
 		}

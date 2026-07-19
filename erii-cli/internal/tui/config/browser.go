@@ -130,7 +130,12 @@ func formatLeafValue(leaf *tree.LeafNode) string {
 		return formatArrayValue(leaf.Value())
 	case tree.TypeObject:
 		return "object"
-	case tree.TypeBool, tree.TypeNumber:
+	case tree.TypeNumber:
+		if leaf.Value() == nil {
+			return "(empty)"
+		}
+		return formatNumberValue(leaf.Value())
+	case tree.TypeBool:
 		if leaf.Value() == nil {
 			return "(empty)"
 		}
