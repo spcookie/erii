@@ -14,10 +14,6 @@ import kotlin.reflect.KClass
 
 class ConfigHolderImpl : ConfigProvider {
 
-    companion object {
-        private const val DEFAULT_EMBEDDING_MODEL = "doubao-embedding-vision-251215"
-    }
-
     private val log = KotlinLogging.logger {}
 
     private val pluginConfigCache = ConcurrentHashMap<String, Config>()
@@ -36,7 +32,10 @@ class ConfigHolderImpl : ConfigProvider {
         File(raw).toPath().toAbsolutePath().toString()
     }
 
-    private val config: Config by lazy { loadConfig() }
+    @Volatile
+    private var _config: Config? = null
+
+    private val config: Config get() = _config ?: loadConfig().also { _config = it }
 
     private val resolveOptions: ConfigResolveOptions
         get() = ConfigResolveOptions.defaults().setUseSystemEnvironment(true)
@@ -169,19 +168,19 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getEmbeddingApiKey(): String = config.getString("embedding.api-key")
     override fun getEmbeddingProvider(): String = config.getString("embedding.provider")
     override fun getEmbeddingUrl(): String = config.getString("embedding.url")
-    override fun getEmbeddingModel(): String = config.tryGetString("embedding.model") ?: DEFAULT_EMBEDDING_MODEL
+    override fun getEmbeddingModel(): String = config.tryGetString("embedding.model") ?: ""
 
     override fun getSearchApiKey(): String = config.getString("search.api-key")
     override fun getSearchProvider(): String = config.getString("search.provider")
     override fun getSearchUrl(): String = config.getString("search.url")
 
-    override fun getSearchModel(): String = config.tryGetString("search.model") ?: "doubao-seed-1-6-250615"
+    override fun getSearchModel(): String = config.tryGetString("search.model") ?: ""
 
     override fun getVisionApiKey(): String = config.getString("vision.api-key")
     override fun getVisionProvider(): String = config.getString("vision.provider")
     override fun getVisionUrl(): String = config.getString("vision.url")
 
-    override fun getVisionModel(): String = config.tryGetString("vision.model") ?: "doubao-seed-2-0-lite-260215"
+    override fun getVisionModel(): String = config.tryGetString("vision.model") ?: ""
 
     override fun isLlmProxyEnabled(): Boolean =
         if (config.hasPath("llm.proxy")) config.getBoolean("llm.proxy") else true
@@ -651,8 +650,9 @@ class ConfigHolderImpl : ConfigProvider {
         getOnebotBots()[botKey]?.disabledPlugins
 
     override fun refresh() {
+        _config = null
         pluginConfigCache.clear()
-        log.info { "Plugin config cache cleared" }
+        log.info { "Config and plugin config cache cleared" }
     }
 
     override fun isPluginEnabled(botKey: String, pluginName: String): Boolean {
