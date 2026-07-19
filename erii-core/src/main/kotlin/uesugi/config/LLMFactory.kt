@@ -5,6 +5,7 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import io.ktor.client.*
 import io.ktor.client.engine.*
 import io.ktor.client.plugins.logging.*
+import io.ktor.http.*
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.core.component.llm.DefaultParamPromptExecutor
 import uesugi.core.component.llm.FixingPromptExecutor
@@ -52,6 +53,7 @@ class LLMFactory(
                 install(Logging) {
                     logger = Logger.DEFAULT
                     level = LogLevel.ALL
+                    sanitizeHeader { header -> header == HttpHeaders.Authorization }
                 }
             }
         }
