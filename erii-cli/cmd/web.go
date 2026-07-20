@@ -40,6 +40,7 @@ var webCmd = &cobra.Command{
 Subcommands:
   start     Start the web console
   stop      Stop a background web console
+  status    Show background web console status
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
@@ -62,6 +63,14 @@ var webStopCmd = &cobra.Command{
 	},
 }
 
+var webStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show background Erii web console status",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runWebStatus(cmd.OutOrStdout())
+	},
+}
+
 func init() {
 	webStartCmd.Flags().StringVar(&webPort, "port", "9527", "HTTP listen port")
 	webStartCmd.Flags().StringVar(&webHost, "host", "127.0.0.1", "HTTP listen host")
@@ -70,6 +79,7 @@ func init() {
 
 	webCmd.AddCommand(webStartCmd)
 	webCmd.AddCommand(webStopCmd)
+	webCmd.AddCommand(webStatusCmd)
 	rootCmd.AddCommand(webCmd)
 }
 
@@ -316,6 +326,24 @@ func runWebStop(w io.Writer) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return fmt.Errorf("timeout waiting for web console PID %d to stop", pid)
+}
+
+func runWebStatus(w io.Writer) error {
+	pid, err := readWebPID()
+	if err != nil {
+		return fmt.Errorf("reading web PID file: %w", err)
+	}
+	if pid == 0 {
+		printWebResult(w, "Web console status", "warning", "Status", "not running", "Reason", "PID file not found")
+		return nil
+	}
+	if isProcessRunning(pid) {
+		printWebResult(w, "Web console status", "ok", "Status", "running", "PID", strconv.Itoa(pid))
+		return nil
+	}
+	printWebResult(w, "Web console status", "error", "Status", "not running", "Stale PID", strconv.Itoa(pid))
+	os.Exit(1)
+	return nil
 }
 
 func printWebResult(w io.Writer, title, status string, fields ...string) {

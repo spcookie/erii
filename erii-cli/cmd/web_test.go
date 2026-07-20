@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,8 +21,8 @@ func TestWebCommandShape(t *testing.T) {
 	if webCmd.RunE == nil {
 		t.Fatal("web parent command should render help")
 	}
-	if webStartCmd.Use != "start" || webStopCmd.Use != "stop" {
-		t.Fatalf("unexpected web subcommands: %q %q", webStartCmd.Use, webStopCmd.Use)
+	if webStartCmd.Use != "start" || webStopCmd.Use != "stop" || webStatusCmd.Use != "status" {
+		t.Fatalf("unexpected web subcommands: %q %q %q", webStartCmd.Use, webStopCmd.Use, webStatusCmd.Use)
 	}
 	for _, name := range []string{"host", "port", "token", "daemon"} {
 		if webStartCmd.Flags().Lookup(name) == nil {
@@ -33,10 +34,77 @@ func TestWebCommandShape(t *testing.T) {
 		if webStopCmd.Flags().Lookup(name) != nil {
 			t.Fatalf("web stop must not expose --%s", name)
 		}
+		if webStatusCmd.Flags().Lookup(name) != nil {
+			t.Fatalf("web status must not expose --%s", name)
+		}
 	}
 	daemon := webStartCmd.Flags().Lookup("daemon")
 	if daemon.Shorthand != "d" {
 		t.Fatalf("--daemon shorthand = %q, want d", daemon.Shorthand)
+	}
+}
+
+func TestWebStatusReportsMissingPIDFile(t *testing.T) {
+	oldEriiDir := path.EriiDir
+	t.Cleanup(func() { path.EriiDir = oldEriiDir })
+	path.EriiDir = t.TempDir()
+
+	var output strings.Builder
+	if err := runWebStatus(&output); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Web console status", "not running", "PID file not found"} {
+		if !strings.Contains(output.String(), want) {
+			t.Fatalf("status output missing %q: %s", want, output.String())
+		}
+	}
+}
+
+func TestWebStatusReportsRunningPID(t *testing.T) {
+	oldEriiDir := path.EriiDir
+	t.Cleanup(func() { path.EriiDir = oldEriiDir })
+	path.EriiDir = t.TempDir()
+
+	pid := os.Getpid()
+	if err := os.WriteFile(webPIDFilePath(), []byte(strconv.Itoa(pid)), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var output strings.Builder
+	if err := runWebStatus(&output); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Web console status", "running", strconv.Itoa(pid)} {
+		if !strings.Contains(output.String(), want) {
+			t.Fatalf("status output missing %q: %s", want, output.String())
+		}
+	}
+}
+
+func TestWebStatusReportsStalePIDAndExits(t *testing.T) {
+	if dir := os.Getenv("ERII_TEST_WEB_STATUS_STALE_DIR"); dir != "" {
+		path.EriiDir = dir
+		_ = runWebStatus(os.Stdout)
+		return
+	}
+
+	dir := t.TempDir()
+	const stalePID = "99999999"
+	if err := os.WriteFile(filepath.Join(dir, "erii.web.pid"), []byte(stalePID), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	child := exec.Command(os.Args[0], "-test.run=^TestWebStatusReportsStalePIDAndExits$")
+	child.Env = append(os.Environ(), "ERII_TEST_WEB_STATUS_STALE_DIR="+dir)
+	output, err := child.CombinedOutput()
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok || exitErr.ExitCode() != 1 {
+		t.Fatalf("stale status exit = %v, want code 1; output: %s", err, output)
+	}
+	for _, want := range []string{"Web console status", "not running", "Stale PID", stalePID} {
+		if !strings.Contains(string(output), want) {
+			t.Fatalf("stale status output missing %q: %s", want, output)
+		}
 	}
 }
 
