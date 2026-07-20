@@ -213,13 +213,14 @@ export function autoFillSelections(
         return {...p, strategy, targetVersion: target};
     });
 
-    // erii/create-erii should follow if any other group is bumped, because
+    // erii/create-erii should follow if any depended group is bumped, because
     // sync will update erii/package.json deps to reference the new versions.
+    // Plugins are NOT depended by erii/create-erii, so plugin-only bumps
+    // should not trigger a meta version bump.
     const anyBumped = selDeps.strategy !== 'skip'
         || selCli.strategy !== 'skip'
         || selConfig.strategy !== 'skip'
-        || selCore.strategy !== 'skip'
-        || selPlugins.some(p => p.strategy !== 'skip');
+        || selCore.strategy !== 'skip';
 
     let selMeta: GroupInfo;
     if (anyBumped && groupMeta.strategy !== 'skip' && !groupMeta.versionBumped) {
