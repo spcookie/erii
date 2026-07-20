@@ -5,28 +5,30 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.markdown.markdown
 import ai.koog.prompt.params.LLMParams
 import uesugi.common.LLMModelChoice
+import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
 import uesugi.core.agent.buildHistoriesPrompt
 import uesugi.core.agent.buildSummaryPrompt
+import uesugi.core.agent.truncateContent
 import uesugi.core.message.history.HistoryService
 import uesugi.core.state.memory.MemoryService
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.ExperimentalTime
 
 
 object RoutingAgent {
 
     private val log = logger()
 
-    @OptIn(ExperimentalTime::class)
     suspend fun route(botId: String, groupId: String, message: String): LLMRouteRule {
         val promptExecutor by ref<PromptExecutor>()
         val historyService by ref<HistoryService>()
         val memoryService by ref<MemoryService>()
 
         val summaryEntity = memoryService.getSummary(botId, groupId)
+        val maxLen = ConfigHolder.getAgentMaxMessageLength()
         val latestHistory = historyService.getLatestHistory(botId, groupId, 50, 24.hours)
+            .map { it.truncateContent(maxLen) }
 
         val prompt = prompt("__route__", LLMParams(maxTokens = 16384)) {
             system {
@@ -50,8 +52,8 @@ object RoutingAgent {
                     table(
                         headers = listOf("规则名称", "规则描述"),
                         rows = buildList {
-                            for (rule in RouteRuleRegister.getRulesForBot(botId)) {
-                                add(listOf(rule.name, rule.description))
+                            for ((name, description) in RouteRuleRegister.getRulesForBot(botId)) {
+                                add(listOf(name, description))
                             }
                         }
                     )

@@ -559,7 +559,7 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
     }
 }
 
-private fun HistoryRecord.truncateContent(maxLength: Int): HistoryRecord {
+internal fun HistoryRecord.truncateContent(maxLength: Int): HistoryRecord {
     val content = this.content
     if (content != null && content.length > maxLength) {
         this.content = content.take(maxLength) + "..."

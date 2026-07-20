@@ -6,7 +6,10 @@ import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.*
-import kotlin.time.*
+import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 data class HourlyMessageCount(
     val hourLabel: String,
@@ -15,7 +18,6 @@ data class HourlyMessageCount(
 )
 
 class HistoryService {
-    @OptIn(ExperimentalTime::class)
     fun getLatestHistory(botMark: String, groupId: String, limit: Int, range: Duration): List<HistoryRecord> {
         val now = Clock.System.now()
         val oneDayAgo = now - range

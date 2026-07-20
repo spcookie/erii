@@ -337,15 +337,15 @@ fun MarkdownContentBuilder.buildHistoriesPrompt(histories: List<HistoryRecord>, 
         line { text("图片：包含图片ID：image_id") }
         line { text("注意：带有*号的表示你自己的发言") }
         bulleted {
-            for (history in histories) {
+            for ((id, _, _, userId, nick, messageType, content, _, createdAt) in histories) {
                 item {
                     line {
                         text(
-                            "${DateTimeFormat.format(history.createdAt)} [${
-                                if (currentBotId == history.userId) "*" + BotManage.getBot(
-                                    history.userId
-                                ).role.name else history.nick
-                            }](${history.userId}): ${if (history.messageType == MessageType.IMAGE) "[image_id:" + history.id + "]" else ""} ${history.content}"
+                            "${DateTimeFormat.format(createdAt)} [${
+                                if (currentBotId == userId) "*" + BotManage.getBot(
+                                    userId
+                                ).role.name else nick
+                            }]($userId): ${if (messageType == MessageType.IMAGE) "[image_id:$id]" else ""} $content"
                         )
                     }
                 }
@@ -406,9 +406,9 @@ fun MarkdownContentBuilder.buildMemeInventoryPrompt(memes: Int) {
 fun MarkdownContentBuilder.buildRulesPrompt(rules: List<Rule>) {
     if (rules.isNotEmpty()) {
         h2("当前遵循规则")
-        for (rule in rules) {
-            line { text("[${rule.fileName}]") }
-            line { text(rule.content) }
+        for ((fileName, _, content) in rules) {
+            line { text("[$fileName]") }
+            line { text(content) }
         }
     }
 }
