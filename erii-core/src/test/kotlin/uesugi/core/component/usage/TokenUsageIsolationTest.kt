@@ -1,5 +1,7 @@
 package uesugi.core.component.usage
 
+import kotlinx.datetime.*
+import kotlinx.datetime.TimeZone
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
@@ -8,6 +10,8 @@ import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class TokenUsageIsolationTest {
     @Test
@@ -33,6 +37,73 @@ class TokenUsageIsolationTest {
         }
     }
 
+    @OptIn(ExperimentalTime::class)
+    @Test
+    fun `summary exposes only populated days from the last seven calendar days`() {
+        withUsageDatabase {
+            val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+            val twoDaysAgo = today.minus(DatePeriod(days = 2))
+            val eightDaysAgo = today.minus(DatePeriod(days = 8))
+
+            insertUsage(
+                botId = "bot-a",
+                groupId = "group-1",
+                cacheHit = 80,
+                cacheMiss = 20,
+                output = 10,
+                cost = 0.11,
+                scene = "__bot_chat__",
+                tier = "flash",
+                createdAt = LocalDateTime(today, LocalTime(12, 0))
+            )
+            insertUsage(
+                botId = "bot-a",
+                groupId = "group-1",
+                cacheHit = 30,
+                cacheMiss = 70,
+                output = 25,
+                cost = 0.22,
+                scene = "__search_analysis__",
+                tier = "pro",
+                createdAt = LocalDateTime(twoDaysAgo, LocalTime(12, 0))
+            )
+            insertUsage(
+                botId = "bot-b",
+                groupId = "group-1",
+                cacheMiss = 999,
+                output = 1,
+                cost = 1.0,
+                createdAt = LocalDateTime(today.minus(DatePeriod(days = 1)), LocalTime(12, 0))
+            )
+            insertUsage(
+                botId = "bot-a",
+                groupId = "group-1",
+                cacheMiss = 500,
+                output = 50,
+                cost = 0.5,
+                createdAt = LocalDateTime(eightDaysAgo, LocalTime(12, 0))
+            )
+
+            val summary = TokenUsageRepository().summary(botId = "bot-a", groupId = "group-1")
+
+            assertEquals(listOf(today.toString(), twoDaysAgo.toString()), summary.dailyViews.map { it.date })
+            assertEquals(80, summary.dailyViews[0].cacheHitInput)
+            assertEquals(20, summary.dailyViews[0].cacheMissInput)
+            assertEquals(10, summary.dailyViews[0].output)
+            assertEquals(80.0, summary.dailyViews[0].cacheHitRate)
+            assertEquals(30, summary.dailyViews[1].cacheHitInput)
+            assertEquals(70, summary.dailyViews[1].cacheMissInput)
+            assertEquals(25, summary.dailyViews[1].output)
+            assertEquals(30.0, summary.dailyViews[1].cacheHitRate)
+            assertEquals(125, summary.dailyViews[1].sceneBars.single { it.name == "搜索" }.let {
+                it.cacheHitInput + it.cacheMissInput + it.output
+            })
+            assertEquals(125, summary.dailyViews[1].modelBars.single { it.name == "Pro" }.let {
+                it.cacheHitInput + it.cacheMissInput + it.output
+            })
+        }
+    }
+
     private fun withUsageDatabase(block: () -> Unit) {
         val database = Database.connect(
             url = "jdbc:h2:mem:${UUID.randomUUID()};DB_CLOSE_DELAY=-1",
@@ -48,28 +119,35 @@ class TokenUsageIsolationTest {
     private fun insertUsage(
         botId: String?,
         groupId: String?,
+        cacheHit: Long = 0,
         cacheMiss: Long,
         output: Long,
-        cost: Double
+        cost: Double,
+        scene: String = "__bot_chat__",
+        tier: String = "flash",
+        createdAt: LocalDateTime? = null
     ) {
         transaction {
             val record = TokenUsageEntity.new {
-                promptId = "__bot_chat__"
-                scene = "__bot_chat__"
-                tier = "flash"
+                promptId = scene
+                this.scene = scene
+                this.tier = tier
                 modelId = "test-model"
                 provider = "test-provider"
                 this.botId = botId
                 this.groupId = groupId
-                inputCacheHitTokens = 0
+                inputCacheHitTokens = cacheHit
                 inputCacheMissTokens = cacheMiss
                 outputTokens = output
-                totalTokens = cacheMiss + output
+                totalTokens = cacheHit + cacheMiss + output
                 inputCacheHitPricePerMillion = 0.0
                 inputCacheMissPricePerMillion = 0.0
                 outputPricePerMillion = 0.0
                 priceUnit = "USD"
                 this.cost = cost
+                if (createdAt != null) {
+                    this.createdAt = createdAt
+                }
             }
             assertNotNull(record.id.value)
         }

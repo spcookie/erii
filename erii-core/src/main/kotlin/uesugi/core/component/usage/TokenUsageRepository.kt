@@ -109,8 +109,9 @@ class TokenUsageRepository {
                 TokenUsageEntity.all().map { it.toRecord() }
             }
         }
-        val today = todayKey()
-        val todayRecords = records.filter { it.createdAt.date.toString() == today }
+        val today = LocalDate.parse(todayKey())
+        val recordsByDate = records.groupBy { it.createdAt.date }
+        val todayRecords = recordsByDate[today].orEmpty()
         val unit = configString("llm.usage-pricing.price-unit")
             ?: (todayRecords.firstOrNull() ?: records.lastOrNull())?.priceUnit
             ?: "USD"
@@ -119,9 +120,6 @@ class TokenUsageRepository {
         fun List<TokenUsageRecord>.cacheMiss() = sumOf { it.inputCacheMissTokens }
         fun List<TokenUsageRecord>.output() = sumOf { it.outputTokens }
         fun List<TokenUsageRecord>.cost() = sumOf { it.cost }
-
-        val todayInput = todayRecords.cacheHit() + todayRecords.cacheMiss()
-        val cacheHitRate = if (todayInput == 0L) 0.0 else todayRecords.cacheHit().toDouble() / todayInput * 100.0
 
         val knownScenes = setOf(
             "插件",
@@ -141,21 +139,43 @@ class TokenUsageRepository {
         val knownTiers = setOf("Lite", "Flash", "Pro")
         val tierOrder = mapOf("lite" to 0, "flash" to 1, "pro" to 2)
 
+        fun summarizeDay(date: LocalDate, dayRecords: List<TokenUsageRecord>): DailyTokenUsageSummary {
+            val input = dayRecords.cacheHit() + dayRecords.cacheMiss()
+            val cacheHitRate = if (input == 0L) 0.0 else dayRecords.cacheHit().toDouble() / input * 100.0
+            return DailyTokenUsageSummary(
+                date = date.toString(),
+                cacheHitInput = dayRecords.cacheHit(),
+                cacheMissInput = dayRecords.cacheMiss(),
+                output = dayRecords.output(),
+                cost = roundMoney(dayRecords.cost()),
+                cacheHitRate = round(cacheHitRate * 100) / 100,
+                sceneBars = dayRecords.groupBars { resolveScene(it.scene) }.fillKeys(knownScenes),
+                modelBars = dayRecords.groupBars { displayTier(it.tier) }
+                    .fillKeys(knownTiers)
+                    .sortedBy { tierOrder[it.name.lowercase()] ?: 3 }
+            )
+        }
+
+        val dailyViews = (0 until 7).mapNotNull { daysAgo ->
+            val date = today.minus(DatePeriod(days = daysAgo))
+            val dayRecords = recordsByDate[date].orEmpty()
+            if (daysAgo == 0 || dayRecords.isNotEmpty()) summarizeDay(date, dayRecords) else null
+        }
+        val todayView = dailyViews.first()
+
         return TokenUsageSummary(
-            todayCacheHitInput = todayRecords.cacheHit(),
-            todayCacheMissInput = todayRecords.cacheMiss(),
-            todayOutput = todayRecords.output(),
-            todayCost = roundMoney(todayRecords.cost()),
+            todayCacheHitInput = todayView.cacheHitInput,
+            todayCacheMissInput = todayView.cacheMissInput,
+            todayOutput = todayView.output,
+            todayCost = todayView.cost,
             priceUnit = unit,
             totalCacheHitInput = records.cacheHit(),
             totalCacheMissInput = records.cacheMiss(),
             totalOutput = records.output(),
             totalCost = roundMoney(records.cost()),
-            todayCacheHitRate = round(cacheHitRate * 100) / 100,
-            sceneBars = todayRecords.groupBars { resolveScene(it.scene) }.fillKeys(knownScenes),
-            modelBars = todayRecords.groupBars { displayTier(it.tier) }
-                .fillKeys(knownTiers)
-                .sortedBy { tierOrder[it.name.lowercase()] ?: 3 },
+            todayCacheHitRate = todayView.cacheHitRate,
+            sceneBars = todayView.sceneBars,
+            modelBars = todayView.modelBars,
             dailySeries = records
                 .groupBy { it.createdAt.date.toString() }
                 .map { (date, items) ->
@@ -166,7 +186,8 @@ class TokenUsageRepository {
                     )
                 }
                 .sortedBy { it.date }
-                .fillDailyGaps()
+                .fillDailyGaps(),
+            dailyViews = dailyViews
         )
     }
 

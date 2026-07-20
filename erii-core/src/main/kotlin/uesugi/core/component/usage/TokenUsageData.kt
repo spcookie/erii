@@ -111,6 +111,18 @@ data class DailyTokenUsagePoint(
 )
 
 @Serializable
+data class DailyTokenUsageSummary(
+    val date: String,
+    val cacheHitInput: Long,
+    val cacheMissInput: Long,
+    val output: Long,
+    val cost: Double,
+    val cacheHitRate: Double,
+    val sceneBars: List<TokenUsageChartPoint>,
+    val modelBars: List<TokenUsageChartPoint>
+)
+
+@Serializable
 data class TokenUsageSummary(
     val todayCacheHitInput: Long,
     val todayCacheMissInput: Long,
@@ -124,5 +136,6 @@ data class TokenUsageSummary(
     val todayCacheHitRate: Double,
     val sceneBars: List<TokenUsageChartPoint>,
     val modelBars: List<TokenUsageChartPoint>,
-    val dailySeries: List<DailyTokenUsagePoint>
+    val dailySeries: List<DailyTokenUsagePoint>,
+    val dailyViews: List<DailyTokenUsageSummary> = emptyList()
 )

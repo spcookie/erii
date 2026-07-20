@@ -4,6 +4,7 @@ import (
 	"erii-cli/internal/api"
 	"fmt"
 	"strings"
+	"time"
 
 	"erii-cli/internal/tui/components"
 	style "erii-cli/internal/ui/theme"
@@ -70,20 +71,53 @@ const SymArrow = ">"
 
 // ── UsageViewModel ──
 
+type usageKeyMap struct {
+	components.NavKeys
+	OlderDate key.Binding
+	NewerDate key.Binding
+}
+
+func newUsageKeyMap() usageKeyMap {
+	return usageKeyMap{
+		NavKeys: components.DefaultNavKeys,
+		OlderDate: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "older day"),
+		),
+		NewerDate: key.NewBinding(
+			key.WithKeys("shift+tab"),
+			key.WithHelp("shift+tab", "newer day"),
+		),
+	}
+}
+
+func (k usageKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.OlderDate, k.NewerDate, k.Back, k.Help, k.Quit}
+}
+
+func (k usageKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down},
+		{k.OlderDate, k.NewerDate},
+		{k.Back, k.Help, k.Quit},
+	}
+}
+
 type UsageViewModel struct {
-	api       *api.Client
-	botID     string
-	botName   string
-	groupID   string
-	groupName string
-	data      *api.TokenUsageSummary
-	keys      components.NavKeys
-	help      help.Model
-	viewport  viewport.Model
-	width     int
-	height    int
-	loading   bool
-	err       error
+	api         *api.Client
+	botID       string
+	botName     string
+	groupID     string
+	groupName   string
+	data        *api.TokenUsageSummary
+	keys        usageKeyMap
+	selectedDay int
+	help        help.Model
+	viewport    viewport.Model
+	width       int
+	height      int
+	loading     bool
+	err         error
 
 	// chart strings (built on data load / resize)
 	sceneChart string
@@ -99,7 +133,7 @@ func NewUsageViewModel(api *api.Client, botID, botName, groupID, groupName strin
 		botName:   botName,
 		groupID:   groupID,
 		groupName: groupName,
-		keys:      components.DefaultNavKeys,
+		keys:      newUsageKeyMap(),
 		help:      help.New(),
 		viewport:  viewport.New(0, 0),
 		loading:   true,
@@ -141,6 +175,14 @@ func (m *UsageViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
 		}
+		if key.Matches(msg, m.keys.OlderDate) {
+			m.selectDay(m.selectedDay + 1)
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.NewerDate) {
+			m.selectDay(m.selectedDay - 1)
+			return m, nil
+		}
 		if key.Matches(msg, m.keys.Up) || key.Matches(msg, m.keys.Down) {
 			var cmd tea.Cmd
 			m.viewport, cmd = m.viewport.Update(msg)
@@ -151,6 +193,7 @@ func (m *UsageViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *api.TokenUsageSummary:
 		m.data = msg
 		m.loading = false
+		m.prepareDailyViews()
 		m.buildCharts()
 		m.viewport.SetContent(m.buildContent())
 		return m, nil
@@ -203,11 +246,18 @@ func (m *UsageViewModel) buildCharts() {
 	if m.data == nil {
 		return
 	}
+	if len(m.data.DailyViews) == 0 {
+		m.prepareDailyViews()
+	}
+	day := m.selectedDailyView()
+	if day == nil {
+		return
+	}
 	fullW := m.chartWidth()
 	panelW := fullW - 2
 	halfW := (panelW - 4) / 2
-	m.sceneChart = m.buildBarChart("Scene Tokens", translateSceneNames(sortSceneRows(m.data.SceneBars)), halfW)
-	m.modelChart = m.buildColumnChart("Model Tokens", m.data.ModelBars, halfW)
+	m.sceneChart = m.buildBarChart("Scene Tokens", translateSceneNames(sortSceneRows(day.SceneBars)), halfW)
+	m.modelChart = m.buildColumnChart("Model Tokens", day.ModelBars, halfW)
 	var heatH int
 	m.heatmap, heatH = m.buildHeatmap(halfW)
 	m.lineChart = m.buildLineChart(halfW, heatH)
@@ -233,6 +283,8 @@ func (m *UsageViewModel) buildContent() string {
 	// Header
 	header := lipgloss.NewStyle().Bold(true).Foreground(style.Primary).Render("Token Usage")
 	rows = append(rows, header)
+	rows = append(rows, "")
+	rows = append(rows, m.buildDateNavigator())
 	rows = append(rows, "")
 
 	if m.botName != "" || m.groupName != "" {
@@ -313,7 +365,10 @@ func (m *UsageViewModel) buildContent() string {
 }
 
 func (m *UsageViewModel) buildKPIGrid(width int) []string {
-	d := m.data
+	d := m.selectedDailyView()
+	if d == nil {
+		return nil
+	}
 	colW := width/5 - 2
 	if colW < 12 {
 		colW = 12
@@ -334,14 +389,14 @@ func (m *UsageViewModel) buildKPIGrid(width int) []string {
 	labelStyle := lipgloss.NewStyle().Foreground(style.TextMuted).Width(colW - 4)
 	valueStyle := lipgloss.NewStyle().Bold(true).Foreground(style.Text).Width(colW - 4)
 
-	costSymbol := currencySymbol(d.PriceUnit)
+	costSymbol := currencySymbol(m.data.PriceUnit)
 
 	cols := []string{
-		kpiBox(false).Render(labelStyle.Render("Input Hit/Miss") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheHitInput)+" / "+compactNumber(d.TodayCacheMissInput))),
-		kpiBox(false).Render(labelStyle.Render("Output") + "\n" + valueStyle.Render(compactNumber(d.TodayOutput))),
-		kpiBox(false).Render(labelStyle.Render("Total") + "\n" + valueStyle.Render(compactNumber(d.TodayCacheHitInput+d.TodayCacheMissInput+d.TodayOutput))),
-		kpiBox(true).Render(labelStyle.Render("Cost") + "\n" + valueStyle.Render(fmt.Sprintf("%s%.4f", costSymbol, d.TodayCost))),
-		kpiBox(false).Render(labelStyle.Render("Hit Rate") + "\n" + valueStyle.Render(fmt.Sprintf("%.1f%%", d.TodayCacheHitRate))),
+		kpiBox(false).Render(labelStyle.Render("Input Hit/Miss") + "\n" + valueStyle.Render(compactNumber(d.CacheHitInput)+" / "+compactNumber(d.CacheMissInput))),
+		kpiBox(false).Render(labelStyle.Render("Output") + "\n" + valueStyle.Render(compactNumber(d.Output))),
+		kpiBox(false).Render(labelStyle.Render("Total") + "\n" + valueStyle.Render(compactNumber(d.CacheHitInput+d.CacheMissInput+d.Output))),
+		kpiBox(true).Render(labelStyle.Render("Cost") + "\n" + valueStyle.Render(fmt.Sprintf("%s%.4f", costSymbol, d.Cost))),
+		kpiBox(false).Render(labelStyle.Render("Hit Rate") + "\n" + valueStyle.Render(fmt.Sprintf("%.1f%%", d.CacheHitRate))),
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, cols...)
@@ -378,6 +433,91 @@ func (m *UsageViewModel) buildLedger(width int) []string {
 }
 
 // ── Helpers ──
+
+func (m *UsageViewModel) prepareDailyViews() {
+	if m.data == nil {
+		return
+	}
+	if len(m.data.DailyViews) == 0 {
+		m.data.DailyViews = []api.DailyTokenUsageSummary{{
+			Date:           time.Now().Format("2006-01-02"),
+			CacheHitInput:  m.data.TodayCacheHitInput,
+			CacheMissInput: m.data.TodayCacheMissInput,
+			Output:         m.data.TodayOutput,
+			Cost:           m.data.TodayCost,
+			CacheHitRate:   m.data.TodayCacheHitRate,
+			SceneBars:      m.data.SceneBars,
+			ModelBars:      m.data.ModelBars,
+		}}
+	}
+	if m.selectedDay < 0 || m.selectedDay >= len(m.data.DailyViews) {
+		m.selectedDay = 0
+	}
+	m.syncDateKeys()
+}
+
+func (m *UsageViewModel) selectedDailyView() *api.DailyTokenUsageSummary {
+	if m.data == nil || len(m.data.DailyViews) == 0 {
+		return nil
+	}
+	if m.selectedDay < 0 || m.selectedDay >= len(m.data.DailyViews) {
+		m.selectedDay = 0
+	}
+	return &m.data.DailyViews[m.selectedDay]
+}
+
+func (m *UsageViewModel) selectDay(index int) {
+	if m.data == nil || index < 0 || index >= len(m.data.DailyViews) || index == m.selectedDay {
+		return
+	}
+	m.selectedDay = index
+	m.syncDateKeys()
+	m.buildCharts()
+	m.viewport.SetContent(m.buildContent())
+}
+
+func (m *UsageViewModel) syncDateKeys() {
+	count := 0
+	if m.data != nil {
+		count = len(m.data.DailyViews)
+	}
+	m.keys.OlderDate.SetEnabled(count > 1 && m.selectedDay < count-1)
+	m.keys.NewerDate.SetEnabled(count > 1 && m.selectedDay > 0)
+}
+
+func (m *UsageViewModel) buildDateNavigator() string {
+	if m.data == nil || len(m.data.DailyViews) == 0 {
+		return ""
+	}
+	today := time.Now().Format("2006-01-02")
+	selectedStyle := lipgloss.NewStyle().Bold(true).Foreground(style.Primary)
+	labels := make([]string, 0, len(m.data.DailyViews))
+	for i := len(m.data.DailyViews) - 1; i >= 0; i-- {
+		day := m.data.DailyViews[i]
+		label := formatUsageDate(day.Date, day.Date == today)
+		if i == m.selectedDay {
+			labels = append(labels, selectedStyle.Render("["+label+"]"))
+		} else {
+			labels = append(labels, style.Muted(label))
+		}
+	}
+	return style.Muted("Date:") + " " + strings.Join(labels, "  ")
+}
+
+func formatUsageDate(value string, today bool) string {
+	date, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		if today {
+			return "Today (" + value + ")"
+		}
+		return value
+	}
+	label := date.Format("01-02")
+	if today {
+		return "Today (" + label + ")"
+	}
+	return label
+}
 
 func sectionTitle(title string) string {
 	return lipgloss.NewStyle().Foreground(style.Secondary).Bold(true).Render(title)
