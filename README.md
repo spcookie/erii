@@ -115,8 +115,8 @@ go install ./erii-cli
 
 <a href="https://www.star-history.com/?repos=spcookie%2Ferii&type=date&logscale=&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=spcookie/erii&type=date&theme=dark&logscale&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=spcookie/erii&type=date&logscale&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=spcookie/erii&type=date&logscale&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=spcookie/erii&type=date&theme=dark&logscale&legend=top-left&sealed_token=DwnqgkwsaVAYtjex6DdgP6sAVwy2S-nHEwgvU9uS5nAXHogdCrAl0z1xD05j3qPnmf-bpt787SlCiz2qrmST2bvQAPwaEUKA94ZoUcfkSFivK5W8NGMd4A" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=spcookie/erii&type=date&logscale&legend=top-left&sealed_token=DwnqgkwsaVAYtjex6DdgP6sAVwy2S-nHEwgvU9uS5nAXHogdCrAl0z1xD05j3qPnmf-bpt787SlCiz2qrmST2bvQAPwaEUKA94ZoUcfkSFivK5W8NGMd4A" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=spcookie/erii&type=date&logscale&legend=top-left&sealed_token=DwnqgkwsaVAYtjex6DdgP6sAVwy2S-nHEwgvU9uS5nAXHogdCrAl0z1xD05j3qPnmf-bpt787SlCiz2qrmST2bvQAPwaEUKA94ZoUcfkSFivK5W8NGMd4A" />
  </picture>
 </a>
