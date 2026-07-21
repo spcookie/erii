@@ -67,10 +67,10 @@ erii server    # 启动服务
 
 ```bash
 # Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/spcookie/erii-distribution/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/spcookie/erii-distribution/master/scripts/install.sh | bash
 
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/spcookie/erii-distribution/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/spcookie/erii-distribution/master/scripts/install.ps1 | iex
 ```
 
 ### Docker 部署
