@@ -388,7 +388,7 @@ func (m *BrowserModel) buildAddForm() tea.Cmd {
 	}
 	m.addForm = huh.NewForm(
 		huh.NewGroup(fields...),
-	).WithWidth(w).WithShowHelp(false)
+	).WithWidth(w).WithShowHelp(false).WithTheme(style.HuhTheme())
 	return m.addForm.Init()
 }
 
@@ -407,13 +407,20 @@ func (m *BrowserModel) buildRenameForm() tea.Cmd {
 				Value(&m.renameDesc).
 				Key("desc"),
 		),
-	).WithWidth(w).WithShowHelp(false)
+	).WithWidth(w).WithShowHelp(false).WithTheme(style.HuhTheme())
 	return m.renameForm.Init()
 }
 
 func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 	w := m.formWidth()
 	m.deleteConfirm = false
+
+	t := style.HuhTheme()
+	t.Focused.Title = t.Focused.Title.Foreground(style.Error)
+	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(style.Error)
+	t.Blurred.Title = t.Blurred.Title.Foreground(style.Error)
+	t.Blurred.FocusedButton = t.Blurred.FocusedButton.Foreground(style.Error)
+
 	m.deleteForm = huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
@@ -423,7 +430,7 @@ func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 				Value(&m.deleteConfirm).
 				Key("confirm"),
 		),
-	).WithWidth(w).WithShowHelp(false)
+	).WithWidth(w).WithShowHelp(false).WithTheme(t)
 	return m.deleteForm.Init()
 }
 
@@ -437,7 +444,7 @@ func (m *BrowserModel) buildEditDescForm() tea.Cmd {
 				Value(&m.editDescValue).
 				Key("desc"),
 		),
-	).WithWidth(w).WithShowHelp(false)
+	).WithWidth(w).WithShowHelp(false).WithTheme(style.HuhTheme())
 	return m.editDescForm.Init()
 }
 
