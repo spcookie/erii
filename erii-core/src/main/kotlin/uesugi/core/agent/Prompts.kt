@@ -139,6 +139,27 @@ private fun generateToolCallId(history: HistoryRecord): String {
     return "toolu_history_${history.id}_$suffix"
 }
 
+private val markdownPatterns = listOf(
+    Regex("""#{1,6}\s"""),                 // headers
+    Regex("""\*\*[^*]+\*\*"""),             // bold
+    Regex("""__[^_]+__"""),                 // bold (underscore)
+    Regex("""\*[^*]+\*"""),                 // italic
+    Regex("""_[^_]+_"""),                   // italic (underscore)
+    Regex("""\[.+?]\(.+?\)"""),             // links
+    Regex("""!\[.*?]\(.+?\)"""),            // images
+    Regex("""```[\s\S]*?```"""),           // fenced code blocks
+    Regex("""`[^`]+`"""),                   // inline code
+    Regex("""^\s*[-*+]\s""", RegexOption.MULTILINE),  // unordered lists
+    Regex("""^\s*\d+\.\s""", RegexOption.MULTILINE),  // ordered lists
+    Regex("""\|.*\|"""),                    // tables
+    Regex("""^\s*>\s""", RegexOption.MULTILINE),       // blockquotes
+    Regex("""^[-*_]{3,}\s*$""", RegexOption.MULTILINE), // horizontal rules
+)
+
+private fun isMarkdown(text: String): Boolean {
+    return markdownPatterns.any { it.containsMatchIn(text) }
+}
+
 private fun buildBotToolCall(history: HistoryRecord, callId: String): MessagePart.Tool.Call? {
     return when (history.messageType) {
         MessageType.TEXT, MessageType.IMAGE -> {
@@ -146,9 +167,10 @@ private fun buildBotToolCall(history: HistoryRecord, callId: String): MessagePar
                 MessageType.IMAGE -> "[图片]"
                 else -> history.content ?: ""
             }
+            val tool = if (isMarkdown(text)) "sendMarkdown" else "sendText"
             MessagePart.Tool.Call(
                 id = callId,
-                tool = "sendText",
+                tool = tool,
                 args = buildJsonObject {
                     put("texts", JsonArray(listOf(JsonPrimitive(text))))
                 }
