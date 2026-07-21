@@ -123,6 +123,19 @@ class EriiGradlePlugin : Plugin<Project> {
         }
 
         project.tasks.named("build") { it.dependsOn(assemblePlugin) }
+
+        // kspKotlin / kaptKotlin 是通过反射注册的 task，不在显式依赖链上时
+        // 可能被 Gradle 跳过，导致 pluginZip 打包空内容。这里强制挂载依赖。
+        project.afterEvaluate {
+            val kspTask = project.tasks.findByName("kspKotlin")
+            val kaptTask = project.tasks.findByName("kaptKotlin")
+            if (kspTask != null || kaptTask != null) {
+                pluginZip.configure {
+                    if (kspTask != null) it.dependsOn(kspTask)
+                    if (kaptTask != null) it.dependsOn(kaptTask)
+                }
+            }
+        }
     }
 
     companion object {
