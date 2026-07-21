@@ -39,6 +39,44 @@ func TestTokenErrorPageReceivesTheme(t *testing.T) {
 	}
 }
 
+func TestStaticConsoleLightPaletteMatchesVercelSpec(t *testing.T) {
+	css := string(readStatic(t, "static/css/style.css"))
+	for _, token := range []string{
+		"--page: #fafafa",
+		"--canvas: #ffffff",
+		"--ink: #171717",
+		"--body: #4d4d4d",
+		"--mute: #8f8f8f",
+		"--faint: #a1a1a1",
+		"--hairline: #ebebeb",
+		"--hairline-soft: #f2f2f2",
+		"--link: #0070f3",
+		"--link-deep: #0761d1",
+		"--link-soft: #d3e5ff",
+		"--success: #0070f3",
+		"--error: #ee0000",
+		"--warning: #f5a623",
+		"--warning-soft: #ffefcf",
+	} {
+		if !strings.Contains(css, token) {
+			t.Errorf("light theme is missing %q", token)
+		}
+	}
+
+	page := renderTokenErrorPage("light")
+	for _, token := range []string{
+		"--page: #fafafa",
+		"--surface: #ffffff",
+		"--muted: #8f8f8f",
+		"--border: #ebebeb",
+		"--error: #ee0000",
+	} {
+		if !strings.Contains(page, token) {
+			t.Errorf("token error theme is missing %q", token)
+		}
+	}
+}
+
 func TestIndexPageReceivesThemeAndAssetVersion(t *testing.T) {
 	template := string(readStatic(t, "static/index.html"))
 	page := renderIndexPage(template, "dark", "build-123")

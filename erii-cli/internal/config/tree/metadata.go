@@ -213,72 +213,36 @@ func parseValueConfig(v any) *ValueConfig {
 	return vc
 }
 
-// lookup performs common config lookup: plugin map -> main map -> wildcard fallback.
-// The wildcardFn is called when no exact match is found in either plugin or main maps.
+// lookup performs a metadata lookup in either plugin or main context. Plugin
+// metadata is isolated and never falls back to same-named main config paths.
 func lookup[T any](
 	pluginMap map[string]map[string]T,
 	mainMap map[string]T,
 	pluginName, path string,
-	wildcardFn func(string) T,
 ) T {
-	tryMap := func(m map[string]map[string]T, name, p string) (T, bool) {
-		if m == nil {
-			return *new(T), false
-		}
-		if pm, ok := m[name]; ok {
-			if v, ok := pm[p]; ok {
-				return v, true
-			}
-		}
-		return *new(T), false
-	}
-
-	// Check plugin-specific metadata first
+	path = strings.TrimPrefix(path, "root.")
 	if pluginName != "" {
-		if v, ok := tryMap(pluginMap, pluginName, path); ok {
-			return v
-		}
-		if strings.HasPrefix(path, "root.") {
-			if v, ok := tryMap(pluginMap, pluginName, path[5:]); ok {
-				return v
-			}
-		}
+		return lookupMetadataMap(pluginMap[pluginName], path)
 	}
-
-	// Check main metadata
-	if v, ok := mainMap[path]; ok {
-		return v
-	}
-	if strings.HasPrefix(path, "root.") {
-		path = path[5:]
-		if v, ok := mainMap[path]; ok {
-			return v
-		}
-	}
-	return wildcardFn(path)
+	return lookupMetadataMap(mainMap, path)
 }
 
-// GetValueConfig returns a value config for a dot-separated path, checking plugin context first.
-func GetValueConfig(pluginName, path string) *ValueConfig {
-	return lookup(GlobalValueConfig.Plugin, GlobalValueConfig.Main, pluginName, path, matchWildcardValueConfig)
-}
-
-func matchWildcardValueConfig(path string) *ValueConfig {
+func lookupMetadataMap[T any](metadata map[string]T, path string) T {
+	if value, ok := metadata[path]; ok {
+		return value
+	}
 	parts := strings.Split(path, ".")
-	for pattern, vc := range GlobalValueConfig.Main {
+	for pattern, value := range metadata {
 		if matchWildcardPattern(pattern, parts) {
-			return vc
+			return value
 		}
 	}
-	if strings.HasPrefix(path, "root.") {
-		parts = strings.Split(path[5:], ".")
-		for pattern, vc := range GlobalValueConfig.Main {
-			if matchWildcardPattern(pattern, parts) {
-				return vc
-			}
-		}
-	}
-	return nil
+	return *new(T)
+}
+
+// GetValueConfig returns a value config for a dot-separated path in the selected context.
+func GetValueConfig(pluginName, path string) *ValueConfig {
+	return lookup(GlobalValueConfig.Plugin, GlobalValueConfig.Main, pluginName, path)
 }
 
 func toStringArray(v any) ([]string, bool) {
@@ -298,6 +262,7 @@ func toStringArray(v any) ([]string, bool) {
 }
 
 // SaveDesc updates the description for a path and persists desc.json (flat format).
+// An empty description removes the override.
 func SaveDesc(nodePath, desc string) error {
 	if GlobalMetadata == nil {
 		GlobalMetadata = &Metadata{
@@ -314,7 +279,14 @@ func SaveDesc(nodePath, desc string) error {
 	if strings.HasPrefix(nodePath, "root.") {
 		nodePath = nodePath[5:]
 	}
-	GlobalMetadata.MainDesc[nodePath] = desc
+	if GlobalMetadata.MainDesc == nil {
+		GlobalMetadata.MainDesc = make(map[string]string)
+	}
+	if strings.TrimSpace(desc) == "" {
+		delete(GlobalMetadata.MainDesc, nodePath)
+	} else {
+		GlobalMetadata.MainDesc[nodePath] = desc
+	}
 	if metaDir == "" {
 		return nil
 	}
@@ -326,50 +298,14 @@ func SaveDesc(nodePath, desc string) error {
 	return os.WriteFile(filepath.Join(metaDir, "desc.json"), data, 0644)
 }
 
-// GetEnum returns enum options for a dot-separated path, checking plugin context first.
+// GetEnum returns enum options for a dot-separated path in the selected context.
 func GetEnum(pluginName, path string) []string {
-	return lookup(GlobalMetadata.PluginEnum, GlobalMetadata.MainEnum, pluginName, path, matchWildcardEnum)
-}
-
-func matchWildcardEnum(path string) []string {
-	parts := strings.Split(path, ".")
-	for pattern, opts := range GlobalMetadata.MainEnum {
-		if matchWildcardPattern(pattern, parts) {
-			return opts
-		}
-	}
-	if strings.HasPrefix(path, "root.") {
-		parts = strings.Split(path[5:], ".")
-		for pattern, opts := range GlobalMetadata.MainEnum {
-			if matchWildcardPattern(pattern, parts) {
-				return opts
-			}
-		}
-	}
-	return nil
+	return lookup(GlobalMetadata.PluginEnum, GlobalMetadata.MainEnum, pluginName, path)
 }
 
 // GetDesc returns a description override for a dot-separated path.
 func GetDesc(pluginName, path string) string {
-	return lookup(GlobalMetadata.PluginDesc, GlobalMetadata.MainDesc, pluginName, path, matchWildcardDesc)
-}
-
-func matchWildcardDesc(path string) string {
-	parts := strings.Split(path, ".")
-	for pattern, d := range GlobalMetadata.MainDesc {
-		if matchWildcardPattern(pattern, parts) {
-			return d
-		}
-	}
-	if strings.HasPrefix(path, "root.") {
-		parts = strings.Split(path[5:], ".")
-		for pattern, d := range GlobalMetadata.MainDesc {
-			if matchWildcardPattern(pattern, parts) {
-				return d
-			}
-		}
-	}
-	return ""
+	return lookup(GlobalMetadata.PluginDesc, GlobalMetadata.MainDesc, pluginName, path)
 }
 
 // matchWildcardPattern checks if pattern (with "*" wildcards) matches pathParts.
@@ -393,20 +329,17 @@ func matchWildcardPattern(pattern string, pathParts []string) bool {
 func CanCopy(pluginName, path string) bool {
 	pathParts := strings.Split(path, ".")
 
-	// Check plugin-specific patterns first
 	if pluginName != "" {
-		if patterns, ok := GlobalMetadata.CopyPlugin[pluginName]; ok {
-			for _, p := range patterns {
-				if matchCopyPattern(p, pathParts) {
-					return true
-				}
+		for _, pattern := range GlobalMetadata.CopyPlugin[pluginName] {
+			if matchCopyPattern(pattern, pathParts) {
+				return true
 			}
 		}
+		return false
 	}
 
-	// Check main patterns
-	for _, p := range GlobalMetadata.CopyMain {
-		if matchCopyPattern(p, pathParts) {
+	for _, pattern := range GlobalMetadata.CopyMain {
+		if matchCopyPattern(pattern, pathParts) {
 			return true
 		}
 	}

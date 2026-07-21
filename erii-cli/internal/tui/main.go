@@ -74,10 +74,9 @@ func buildConfigBrowser(parser tree.Parser, filePath string, title string, pushS
 		rootNode = tree.NewBranch("root", "Configuration")
 	}
 
-	// Re-apply metadata with plugin context if pluginName is provided
-	if pluginName != "" {
-		tree.ApplyMetadataWithPlugin(rootNode, "root", pluginName)
-	}
+	// Apply metadata once with the correct main/plugin context. Parsers only
+	// construct the raw tree so main config metadata cannot leak into plugins.
+	tree.ApplyMetadataWithPlugin(rootNode, "root", pluginName)
 
 	return config.NewBrowserModel(rootNode, title,
 		func(leaf *tree.LeafNode, onSaveCb func() tea.Cmd) {

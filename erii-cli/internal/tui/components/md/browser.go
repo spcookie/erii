@@ -447,7 +447,7 @@ func (m *BrowserModel) View() string {
 	}
 	if m.deleting && m.deleteForm != nil {
 		var b strings.Builder
-		b.WriteString(style.Title("Delete") + "\n\n")
+		b.WriteString(style.ErrorText("Delete") + "\n\n")
 		b.WriteString(m.deleteForm.View())
 		b.WriteString("\n\n" + style.Muted("esc cancel • ←/→ select • enter confirm"))
 		return b.String()
@@ -558,12 +558,12 @@ func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 				Value(&m.deleteConfirm).
 				Key("confirm"),
 		),
-	).WithWidth(w).WithShowHelp(false)
+	).WithWidth(w).WithShowHelp(false).WithTheme(style.DestructiveHuhTheme())
 	return m.deleteForm.Init()
 }
 
 // handleFormSizeAndCancel handles WindowSizeMsg and ESC cancellation for forms.
-// Returns (formUpdated, cmd) where formUpdated indicates if form was resized.
+// Returns (handled, cmd) so callers do not update a form that was resized or cleared.
 func (m *BrowserModel) handleFormSizeAndCancel(msg tea.Msg, active *bool, form *huh.Form, setForm func(*huh.Form)) (bool, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -577,7 +577,7 @@ func (m *BrowserModel) handleFormSizeAndCancel(msg tea.Msg, active *bool, form *
 		if msg.String() == "esc" {
 			*active = false
 			setForm(nil)
-			return false, nil
+			return true, nil
 		}
 	}
 	return false, nil
@@ -604,6 +604,6 @@ func (m *BrowserModel) buildRenameConfirmForm() tea.Cmd {
 				Placeholder("my_file").
 				Value(&m.newFileName),
 		),
-	).WithWidth(w).WithShowHelp(false)
+	).WithWidth(w).WithShowHelp(false).WithTheme(style.HuhTheme())
 	return m.renameForm.Init()
 }

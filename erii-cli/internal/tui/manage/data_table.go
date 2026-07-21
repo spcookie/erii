@@ -140,15 +140,13 @@ func NewDataTableModel(api *api.Client, rt ResourceType, bot api.BotInfo, group 
 }
 
 func newConfirmForm(title, description string, value *bool, width int) *huh.Form {
-	t := style.HuhTheme()
-	redTitle := lipgloss.NewStyle().Align(lipgloss.Center).Foreground(style.Error).Bold(true)
-	redDesc := lipgloss.NewStyle().Align(lipgloss.Center).Foreground(style.Error)
-	t.Focused.Base = lipgloss.NewStyle().Align(lipgloss.Center)
-	t.Focused.Title = redTitle
-	t.Focused.Description = redDesc
-	t.Blurred.Base = lipgloss.NewStyle().Align(lipgloss.Center)
-	t.Blurred.Title = redTitle
-	t.Blurred.Description = redDesc
+	t := style.DestructiveHuhTheme()
+	t.Focused.Base = t.Focused.Base.Align(lipgloss.Center)
+	t.Focused.Title = t.Focused.Title.Align(lipgloss.Center)
+	t.Focused.Description = t.Focused.Description.Align(lipgloss.Center)
+	t.Blurred.Base = t.Blurred.Base.Align(lipgloss.Center)
+	t.Blurred.Title = t.Blurred.Title.Align(lipgloss.Center)
+	t.Blurred.Description = t.Blurred.Description.Align(lipgloss.Center)
 	km := huh.NewDefaultKeyMap()
 	km.Quit = key.NewBinding(key.WithKeys("esc"))
 	return huh.NewForm(

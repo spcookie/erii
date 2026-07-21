@@ -17,7 +17,7 @@ func TestMarkdownRendererUsesVercelTheme(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	output, err := renderer.Render("# Heading\n\n[Link](https://example.com) and `code`.")
+	output, err := renderer.Render("# Heading\n\n### Detail\n\n[Link](https://example.com) and `code`.")
 	if err != nil {
 		t.Fatal(err)
 	}

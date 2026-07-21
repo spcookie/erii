@@ -37,9 +37,9 @@ func StyleDelegate(delegate list.DefaultDelegate) list.DefaultDelegate {
 		BorderForeground(Accent).
 		Bold(true)
 	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
-		Foreground(Text).
+		Foreground(TextBody).
 		BorderForeground(Accent)
 	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(Text)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(TextMuted)
+	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(TextBody)
 	return delegate
 }

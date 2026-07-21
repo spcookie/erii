@@ -7,7 +7,7 @@ const ErrorCardWidth = 52
 var (
 	BorderedPanel = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(BorderStrong).
+			BorderForeground(BorderColor).
 			Padding(1, 2)
 	PanelTitle  = lipgloss.NewStyle().Foreground(Text).Bold(true).MarginBottom(1)
 	ListTitle   = lipgloss.NewStyle().Foreground(Text).Bold(true).MarginBottom(1)

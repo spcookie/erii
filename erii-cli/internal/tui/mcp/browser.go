@@ -199,7 +199,7 @@ func (m *BrowserModel) buildNewForm() tea.Cmd {
 				Value(&m.newTransport).
 				Key("transport"),
 		),
-	).WithWidth(m.formWidth()).WithShowHelp(false)
+	).WithWidth(m.formWidth()).WithShowHelp(false).WithTheme(style.HuhTheme())
 	return m.newForm.Init()
 }
 
@@ -214,7 +214,7 @@ func (m *BrowserModel) buildDeleteForm() tea.Cmd {
 				Value(&m.deleteConfirm).
 				Key("confirm"),
 		),
-	).WithWidth(m.formWidth()).WithShowHelp(false)
+	).WithWidth(m.formWidth()).WithShowHelp(false).WithTheme(style.DestructiveHuhTheme())
 	return m.deleteForm.Init()
 }
 

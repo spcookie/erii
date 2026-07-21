@@ -16,7 +16,7 @@ func HuhTheme() *huh.Theme {
 	t.Focused.Base = t.Focused.Base.BorderForeground(Accent)
 	t.Focused.Card = t.Focused.Base
 	t.Focused.Title = t.Focused.Title.Foreground(Text).Bold(true).MarginBottom(0)
-	t.Focused.Description = t.Focused.Description.Foreground(TextMuted)
+	t.Focused.Description = t.Focused.Description.Foreground(TextBody)
 	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(Accent)
 	t.Focused.NextIndicator = t.Focused.NextIndicator.Foreground(Accent)
 	t.Focused.PrevIndicator = t.Focused.PrevIndicator.Foreground(Accent)
@@ -27,9 +27,9 @@ func HuhTheme() *huh.Theme {
 	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(Text)
 	t.Focused.UnselectedPrefix = t.Focused.UnselectedPrefix.Foreground(TextMuted)
 	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(Accent).Bold(true)
-	t.Focused.BlurredButton = t.Focused.BlurredButton.Foreground(TextMuted)
+	t.Focused.BlurredButton = t.Focused.BlurredButton.Foreground(TextFaint)
 	t.Focused.TextInput.Cursor = t.Focused.TextInput.Cursor.Foreground(Accent)
-	t.Focused.TextInput.Placeholder = t.Focused.TextInput.Placeholder.Foreground(TextMuted)
+	t.Focused.TextInput.Placeholder = t.Focused.TextInput.Placeholder.Foreground(TextFaint)
 	t.Focused.TextInput.Prompt = t.Focused.TextInput.Prompt.Foreground(Accent)
 	t.Focused.TextInput.Text = t.Focused.TextInput.Text.Foreground(Text)
 	t.Focused.ErrorIndicator = t.Focused.ErrorIndicator.Foreground(Error)
@@ -44,7 +44,18 @@ func HuhTheme() *huh.Theme {
 	t.Blurred.TextInput.Text = t.Blurred.TextInput.Text.Foreground(Text)
 
 	t.Group.Title = lipgloss.NewStyle().Foreground(Text).Bold(true)
-	t.Group.Description = lipgloss.NewStyle().Foreground(TextMuted)
+	t.Group.Description = lipgloss.NewStyle().Foreground(TextBody)
+	return t
+}
+
+// DestructiveHuhTheme applies the shared form palette with red emphasis for
+// destructive actions such as delete confirmations.
+func DestructiveHuhTheme() *huh.Theme {
+	t := HuhTheme()
+	t.Focused.Title = t.Focused.Title.Foreground(Error)
+	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(Error)
+	t.Blurred.Title = t.Blurred.Title.Foreground(Error)
+	t.Blurred.FocusedButton = t.Blurred.FocusedButton.Foreground(Error)
 	return t
 }
 

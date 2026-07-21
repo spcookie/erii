@@ -231,19 +231,19 @@ const tokenErrorPage = `<!DOCTYPE html>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
 :root, html[data-theme="light"] {
-    --page: #ffffff; --surface: #fafafa; --text: #171717;
-    --muted: #666666; --border: #eaeaea; --error: #d70022;
+    --page: #fafafa; --surface: #ffffff; --text: #171717;
+    --muted: #8f8f8f; --border: #ebebeb; --error: #ee0000;
     color-scheme: light;
 }
 html[data-theme="dark"] {
     --page: #000000; --surface: #111111; --text: #ededed;
-    --muted: #a1a1a1; --border: #333333; --error: #e5484d;
+    --muted: #737373; --border: #333333; --error: #ee0000;
     color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
     html[data-theme="auto"] {
         --page: #000000; --surface: #111111; --text: #ededed;
-        --muted: #a1a1a1; --border: #333333; --error: #e5484d;
+        --muted: #737373; --border: #333333; --error: #ee0000;
         color-scheme: dark;
     }
 }

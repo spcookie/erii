@@ -49,7 +49,6 @@ func (p *JSONParser) Parse(path string) (ConfigNode, error) {
 		return nil, err
 	}
 	root := mapToNode("root", "Configuration root", raw)
-	ApplyMetadata(root, "root")
 	return root, nil
 }
 
@@ -73,7 +72,7 @@ func mapToNode(title, desc string, m map[string]any) ConfigNode {
 func valueToNode(key, desc string, v any) ConfigNode {
 	switch val := v.(type) {
 	case map[string]any:
-		return mapToNode(key, "Object", val)
+		return mapToNode(key, "", val)
 	case []any:
 		if len(val) == 0 {
 			leaf := NewLeaf(key, "Empty array", TypeArray, []string{})
@@ -81,7 +80,7 @@ func valueToNode(key, desc string, v any) ConfigNode {
 		}
 		// Check if array of primitives or objects
 		if _, ok := val[0].(map[string]any); ok {
-			branch := NewBranch(key, fmt.Sprintf("Array (%d items)", len(val)))
+			branch := NewBranch(key, "")
 			branch.SetIsArray(true)
 			for i, item := range val {
 				if m, ok := item.(map[string]any); ok {
@@ -257,7 +256,6 @@ func (p *HOCONParser) Parse(path string) (ConfigNode, error) {
 		return nil, err
 	}
 	root := parseHOCON(string(data))
-	ApplyMetadataWithPlugin(root, "root", "")
 	return root, nil
 }
 
@@ -294,7 +292,7 @@ func parseHOCON(data string) ConfigNode {
 			key := strings.TrimSpace(strings.TrimSuffix(trimmed, "{"))
 			key = strings.TrimSuffix(key, "=")
 			key = strings.TrimSpace(key)
-			node := NewBranch(key, "Configuration section")
+			node := NewBranch(key, "")
 			stack[len(stack)-1].AddChild(node)
 			stack = append(stack, node)
 			continue

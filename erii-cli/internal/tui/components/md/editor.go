@@ -3,6 +3,7 @@ package md
 import (
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	style "erii-cli/internal/ui/theme"
@@ -110,7 +111,7 @@ func (m *NewFileModel) buildForm() {
 				Placeholder("my_file").
 				Value(&m.fileName),
 		),
-	).WithWidth(60).WithShowHelp(false)
+	).WithWidth(60).WithShowHelp(false).WithTheme(style.HuhTheme())
 }
 
 func (m *NewFileModel) Init() tea.Cmd {
@@ -243,7 +244,7 @@ func (m *FrontmatterEditorModel) buildForm() {
 	}
 
 	if len(groups) > 0 {
-		m.form = huh.NewForm(groups...).WithWidth(60).WithShowHelp(false)
+		m.form = huh.NewForm(groups...).WithWidth(60).WithShowHelp(false).WithTheme(style.HuhTheme())
 	}
 }
 
@@ -350,7 +351,8 @@ func (m *FrontmatterEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form != nil {
-		m.form, _ = updateForm(m.form, msg)
+		var cmd tea.Cmd
+		m.form, cmd = updateForm(m.form, msg)
 		if m.form.State == huh.StateCompleted {
 			m.saveFrontmatter()
 			m.done = true
@@ -359,7 +361,7 @@ func (m *FrontmatterEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		return m, nil
+		return m, cmd
 	}
 	return m, nil
 }
@@ -444,7 +446,7 @@ func (m *ContentEditorModel) buildForm() {
 				Placeholder("Enter content here...").
 				Value(&m.content),
 		),
-	).WithWidth(60).WithShowHelp(false)
+	).WithWidth(60).WithShowHelp(false).WithTheme(style.HuhTheme())
 }
 
 func (m *ContentEditorModel) Init() tea.Cmd {
@@ -486,7 +488,8 @@ func (m *ContentEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form != nil {
-		m.form, _ = updateForm(m.form, msg)
+		var cmd tea.Cmd
+		m.form, cmd = updateForm(m.form, msg)
 		if m.form.State == huh.StateCompleted {
 			m.saveContent()
 			m.done = true
@@ -495,7 +498,7 @@ func (m *ContentEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		return m, nil
+		return m, cmd
 	}
 	return m, nil
 }
@@ -961,14 +964,16 @@ func (m *FieldBrowserModel) View() string {
 
 // FieldEditorModel edits a single field value.
 type FieldEditorModel struct {
-	filePath string
-	key      string
-	value    string
-	width    int
-	height   int
-	help     help.Model
-	form     *huh.Form
-	done     bool
+	filePath  string
+	key       string
+	value     string
+	boolValue bool
+	isBoolean bool
+	width     int
+	height    int
+	help      help.Model
+	form      *huh.Form
+	done      bool
 }
 
 func NewFieldEditorModel(filePath, key, value string) *FieldEditorModel {
@@ -991,20 +996,21 @@ func (m *FieldEditorModel) buildForm() {
 	isRules := strings.Contains(m.filePath, "rules")
 
 	switch {
-	case isRules && m.key == "global":
-		var boolVal bool
-		if m.value == "true" {
-			boolVal = true
+	case (isRules && m.key == "global") || strings.EqualFold(m.value, "true") || strings.EqualFold(m.value, "false"):
+		m.isBoolean = true
+		m.boolValue = strings.EqualFold(m.value, "true")
+		description := "Boolean value"
+		if isRules && m.key == "global" {
+			description = "Global rule, applies to all groups and bots"
 		}
 		m.form = huh.NewForm(
 			huh.NewGroup(
 				huh.NewConfirm().
 					Title(m.key).
-					Description("Global rule, applies to all groups and bots").
-					Value(&boolVal),
+					Description(description).
+					Value(&m.boolValue),
 			),
-		).WithWidth(60).WithShowHelp(false)
-		m.value = "" // signal to use boolVal on save
+		).WithWidth(60).WithShowHelp(false).WithTheme(style.HuhTheme())
 
 	case m.key == "emoticon":
 		m.form = huh.NewForm(
@@ -1016,7 +1022,7 @@ func (m *FieldEditorModel) buildForm() {
 					Value(&m.value).
 					Key("value"),
 			),
-		).WithWidth(60).WithShowHelp(false)
+		).WithWidth(60).WithShowHelp(false).WithTheme(style.HuhTheme())
 
 	case m.key == "character" || m.key == "description":
 		m.form = huh.NewForm(
@@ -1026,7 +1032,7 @@ func (m *FieldEditorModel) buildForm() {
 					Placeholder("multiline value...").
 					Value(&m.value),
 			),
-		).WithWidth(60).WithShowHelp(false)
+		).WithWidth(60).WithShowHelp(false).WithTheme(style.HuhTheme())
 
 	default:
 		m.form = huh.NewForm(
@@ -1036,7 +1042,7 @@ func (m *FieldEditorModel) buildForm() {
 					Placeholder("value").
 					Value(&m.value),
 			),
-		).WithWidth(60).WithShowHelp(false)
+		).WithWidth(60).WithShowHelp(false).WithTheme(style.HuhTheme())
 	}
 }
 
@@ -1069,10 +1075,15 @@ func (m *FieldEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.form != nil {
-		m.form, _ = updateForm(m.form, msg)
+		var cmd tea.Cmd
+		m.form, cmd = updateForm(m.form, msg)
 		if m.form.State == huh.StateCompleted {
+			if m.isBoolean {
+				m.value = strconv.FormatBool(m.boolValue)
+			}
 			m.done = true
 		}
+		return m, cmd
 	}
 	return m, nil
 }

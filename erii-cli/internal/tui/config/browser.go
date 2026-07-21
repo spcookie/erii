@@ -115,7 +115,15 @@ func (i NodeItem) Title() string {
 
 func (i NodeItem) Description() string {
 	if !i.Node.IsLeaf() {
-		return i.Node.Description()
+		description := strings.TrimSpace(i.Node.Description())
+		if description != "" {
+			return description
+		}
+		branch := i.Node.(*tree.BranchNode)
+		if branch.IsArray() {
+			return fmt.Sprintf("Array (%d items)", len(branch.Children()))
+		}
+		return "Object"
 	}
 	leaf := i.Node.(*tree.LeafNode)
 	if leaf.IsNull() {
@@ -236,14 +244,14 @@ func (m *BrowserModel) WithPlugin(name string) *BrowserModel {
 }
 
 func (m *BrowserModel) canModify() bool {
-	return m.editable || tree.CanModify(m.pluginName, m.currentPath())
+	return m.editable || m.current.IsArray() || tree.CanModify(m.pluginName, m.currentPath())
 }
 
 // canEditDesc reports whether description editing is available at the current path.
 // Requires structured config context (copy.json patterns or object-typed parent),
 // not just the editable flag (env/mcp files have no desc.json metadata).
 func (m *BrowserModel) canEditDesc() bool {
-	return tree.CanModify(m.pluginName, m.currentPath())
+	return m.current.IsArray() || tree.CanModify(m.pluginName, m.currentPath())
 }
 
 // isObjectContext checks if the current path is inside an object-typed config node.
@@ -361,22 +369,30 @@ func (m *BrowserModel) currentPath() string {
 	return strings.Join(parts, ".")
 }
 
+func (m *BrowserModel) childPath(title string) string {
+	if parent := m.currentPath(); parent != "" {
+		return parent + "." + title
+	}
+	return title
+}
+
 var objectValueTypes = []string{"number", "string", "boolean", "array", "object"}
 
 func (m *BrowserModel) buildAddForm() tea.Cmd {
 	w := m.formWidth()
-	fields := []huh.Field{
-		huh.NewInput().
+	fields := make([]huh.Field, 0, 3)
+	if !m.current.IsArray() {
+		fields = append(fields, huh.NewInput().
 			Title("Title").
 			Placeholder("(empty)").
 			Value(&m.addTitle).
-			Key("title"),
-		huh.NewInput().
-			Title("Description").
-			Placeholder("(empty)").
-			Value(&m.addDesc).
-			Key("desc"),
+			Key("title"))
 	}
+	fields = append(fields, huh.NewInput().
+		Title("Description").
+		Placeholder("(empty)").
+		Value(&m.addDesc).
+		Key("desc"))
 	if m.isObjectContext() {
 		fields = append(fields,
 			huh.NewSelect[string]().
@@ -394,19 +410,21 @@ func (m *BrowserModel) buildAddForm() tea.Cmd {
 
 func (m *BrowserModel) buildRenameForm() tea.Cmd {
 	w := m.formWidth()
+	fields := make([]huh.Field, 0, 2)
+	if !m.current.IsArray() {
+		fields = append(fields, huh.NewInput().
+			Title("Name").
+			Placeholder("new name").
+			Value(&m.renameValue).
+			Key("name"))
+	}
+	fields = append(fields, huh.NewInput().
+		Title("Description").
+		Placeholder("(empty)").
+		Value(&m.renameDesc).
+		Key("desc"))
 	m.renameForm = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Name").
-				Placeholder("new name").
-				Value(&m.renameValue).
-				Key("name"),
-			huh.NewInput().
-				Title("Description").
-				Placeholder("(empty)").
-				Value(&m.renameDesc).
-				Key("desc"),
-		),
+		huh.NewGroup(fields...),
 	).WithWidth(w).WithShowHelp(false).WithTheme(style.HuhTheme())
 	return m.renameForm.Init()
 }
@@ -414,12 +432,6 @@ func (m *BrowserModel) buildRenameForm() tea.Cmd {
 func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 	w := m.formWidth()
 	m.deleteConfirm = false
-
-	t := style.HuhTheme()
-	t.Focused.Title = t.Focused.Title.Foreground(style.Error)
-	t.Focused.FocusedButton = t.Focused.FocusedButton.Foreground(style.Error)
-	t.Blurred.Title = t.Blurred.Title.Foreground(style.Error)
-	t.Blurred.FocusedButton = t.Blurred.FocusedButton.Foreground(style.Error)
 
 	m.deleteForm = huh.NewForm(
 		huh.NewGroup(
@@ -430,7 +442,7 @@ func (m *BrowserModel) buildDeleteConfirmForm() tea.Cmd {
 				Value(&m.deleteConfirm).
 				Key("confirm"),
 		),
-	).WithWidth(w).WithShowHelp(false).WithTheme(t)
+	).WithWidth(w).WithShowHelp(false).WithTheme(style.DestructiveHuhTheme())
 	return m.deleteForm.Init()
 }
 
@@ -475,15 +487,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.refreshList()
 				m.List.Select(idx)
-				nodePath := m.currentPath()
-				if nodePath != "" {
-					nodePath = nodePath + "." + child.Title()
-				} else {
-					nodePath = child.Title()
-				}
-				if newDesc != "" {
-					_ = tree.SaveDesc(nodePath, newDesc)
-				}
+				_ = tree.SaveDesc(m.childPath(child.Title()), newDesc)
 			}
 		}
 		return m, cmd
@@ -499,10 +503,10 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.addForm.State == huh.StateCompleted {
 			title := strings.TrimSpace(m.addTitle)
-			desc := strings.TrimSpace(m.addDesc)
-			if desc == "" {
-				desc = "(empty)"
+			if m.current.IsArray() {
+				title = fmt.Sprintf("[%d]", len(m.current.Children()))
 			}
+			desc := strings.TrimSpace(m.addDesc)
 			m.adding = false
 			m.addForm = nil
 			if title != "" {
@@ -513,15 +517,7 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.refreshList()
 				m.List.Select(len(m.current.Children()) - 1)
-				nodePath := m.currentPath()
-				if nodePath != "" {
-					nodePath = nodePath + "." + title
-				} else {
-					nodePath = title
-				}
-				if rawDesc := strings.TrimSpace(m.addDesc); rawDesc != "" {
-					_ = tree.SaveDesc(nodePath, rawDesc)
-				}
+				_ = tree.SaveDesc(m.childPath(title), desc)
 				m.autoSave()
 			}
 		}
@@ -539,15 +535,16 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.renameForm.State == huh.StateCompleted {
 			newName := strings.TrimSpace(m.renameValue)
 			newDesc := strings.TrimSpace(m.renameDesc)
-			if newDesc == "" {
-				newDesc = "(empty)"
-			}
 			m.renaming = false
 			m.renameForm = nil
 			if newName != "" {
 				idx := m.List.Index()
 				if idx >= 0 && idx < len(m.current.Children()) {
 					child := m.current.Children()[idx]
+					oldPath := m.childPath(child.Title())
+					if m.current.IsArray() {
+						newName = child.Title()
+					}
 					if b, ok := child.(*tree.BranchNode); ok {
 						b.SetTitle(newName)
 					} else if l, ok := child.(*tree.LeafNode); ok {
@@ -560,15 +557,11 @@ func (m *BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.refreshList()
 					m.List.Select(idx)
-				}
-				nodePath := m.currentPath()
-				if nodePath != "" {
-					nodePath = nodePath + "." + newName
-				} else {
-					nodePath = newName
-				}
-				if rawDesc := strings.TrimSpace(m.renameDesc); rawDesc != "" {
-					_ = tree.SaveDesc(nodePath, rawDesc)
+					newPath := m.childPath(newName)
+					if oldPath != newPath {
+						_ = tree.SaveDesc(oldPath, "")
+					}
+					_ = tree.SaveDesc(newPath, newDesc)
 				}
 				m.autoSave()
 			}
@@ -749,7 +742,13 @@ func (m *BrowserModel) ShortHelp() []key.Binding {
 		return []key.Binding{m.Keys.FormCancel, m.Keys.FormNext, m.Keys.FormPrev, m.Keys.FormSubmit}
 	}
 	if m.canEditDesc() {
-		return []key.Binding{m.Keys.Up, m.Keys.Down, m.Keys.Enter, m.Keys.Back, m.Keys.EditDesc, m.Keys.Help, m.Keys.Quit}
+		bindings := []key.Binding{m.Keys.Up, m.Keys.Down, m.Keys.Enter, m.Keys.Back, m.Keys.EditDesc}
+		if m.canModify() {
+			if item, ok := m.List.SelectedItem().(NodeItem); ok && !item.Node.IsLeaf() {
+				bindings = append(bindings, m.Keys.Rename)
+			}
+		}
+		return append(bindings, m.Keys.Help, m.Keys.Quit)
 	}
 	return m.Keys.ShortHelp()
 }
@@ -802,7 +801,7 @@ func (m *BrowserModel) View() string {
 
 	if m.deleting && m.deleteForm != nil {
 		var b strings.Builder
-		b.WriteString(style.Title("Delete") + "\n\n")
+		b.WriteString(style.ErrorText("Delete") + "\n\n")
 		b.WriteString(m.deleteForm.View())
 		b.WriteString("\n" + m.help.View(m))
 		return b.String()
