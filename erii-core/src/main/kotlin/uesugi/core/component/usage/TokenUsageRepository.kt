@@ -50,7 +50,14 @@ internal object TokenUsageCacheHitKeys {
             .lowercase()
 }
 
-class TokenUsageRepository {
+class TokenUsageRepository(
+    private val readConfig: (String) -> String? = { path ->
+        runCatching { ConfigHolder.getString(path) }.getOrNull()
+    },
+    private val readConfigDouble: (String) -> Double? = { path ->
+        runCatching { ConfigHolder.getDouble(path) }.getOrNull()
+    }
+) {
 
     private val logger = KotlinLogging.logger {}
 
@@ -115,6 +122,11 @@ class TokenUsageRepository {
         val unit = configString("llm.usage-pricing.price-unit")
             ?: (todayRecords.firstOrNull() ?: records.lastOrNull())?.priceUnit
             ?: "USD"
+        val pricing = TokenUsagePricing(
+            lite = pricingFor("lite").toSummary(),
+            flash = pricingFor("flash").toSummary(),
+            pro = pricingFor("pro").toSummary()
+        )
 
         fun List<TokenUsageRecord>.cacheHit() = sumOf { it.inputCacheHitTokens }
         fun List<TokenUsageRecord>.cacheMiss() = sumOf { it.inputCacheMissTokens }
@@ -169,6 +181,7 @@ class TokenUsageRepository {
             todayOutput = todayView.output,
             todayCost = todayView.cost,
             priceUnit = unit,
+            pricing = pricing,
             totalCacheHitInput = records.cacheHit(),
             totalCacheMissInput = records.cacheMiss(),
             totalOutput = records.output(),
@@ -274,11 +287,16 @@ class TokenUsageRepository {
         )
     }
 
-    private fun configString(path: String): String? =
-        runCatching { ConfigHolder.getString(path) }.getOrNull()
+    private fun TokenPricing.toSummary(): TokenUsageTierPricing = TokenUsageTierPricing(
+        inputCacheHit = inputCacheHitPerMillion,
+        inputCacheMiss = inputCacheMissPerMillion,
+        output = outputPerMillion
+    )
+
+    private fun configString(path: String): String? = runCatching { readConfig(path) }.getOrNull()
 
     private fun configDouble(path: String): Double? =
-        configString(path)?.toDoubleOrNull()
+        runCatching { readConfigDouble(path) }.getOrNull() ?: configString(path)?.toDoubleOrNull()
 
     private fun sceneFor(promptId: String): String {
         if (!promptId.startsWith("__") || !promptId.endsWith("__")) return "其他"

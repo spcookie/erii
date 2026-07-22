@@ -3,6 +3,7 @@ package usage
 import (
 	"erii-cli/internal/api"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -307,6 +308,7 @@ func (m *UsageViewModel) buildContent() string {
 		rows = append(rows, scope)
 	}
 	rows = append(rows, style.Muted(fmt.Sprintf("Unit: %s", d.PriceUnit)))
+	rows = append(rows, m.buildPricingTable()...)
 	rows = append(rows, "")
 
 	// KPI grid (5 columns)
@@ -362,6 +364,32 @@ func (m *UsageViewModel) buildContent() string {
 	rows = append(rows, "")
 
 	return strings.Join(rows, "\n")
+}
+
+func (m *UsageViewModel) buildPricingTable() []string {
+	if m.data == nil || m.data.Pricing == nil {
+		return nil
+	}
+
+	titleStyle := lipgloss.NewStyle().Foreground(style.Text).Bold(true)
+	priceStyle := lipgloss.NewStyle().Foreground(style.TextBody)
+	item := func(tier string, pricing api.TokenUsageTierPricing) string {
+		values := strings.Join([]string{
+			formatPrice(pricing.InputCacheMiss),
+			formatPrice(pricing.InputCacheHit),
+			formatPrice(pricing.Output),
+		}, "/")
+		return titleStyle.Render(tier) + priceStyle.Render("("+values+")")
+	}
+
+	pricing := m.data.Pricing
+	return []string{
+		strings.Join([]string{
+			item("Lite", pricing.Lite),
+			item("Flash", pricing.Flash),
+			item("Pro", pricing.Pro),
+		}, "  ") + style.Muted(" / 1M tokens"),
+	}
 }
 
 func (m *UsageViewModel) buildKPIGrid(width int) []string {
@@ -537,6 +565,10 @@ func compactNumber(v int64) string {
 	formatted := fmt.Sprintf("%.1f", num)
 	formatted = strings.TrimSuffix(formatted, ".0")
 	return formatted + suffixes[magnitude]
+}
+
+func formatPrice(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 
 func currencySymbol(unit string) string {

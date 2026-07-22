@@ -540,6 +540,12 @@ class ConfigHolderImpl : ConfigProvider {
     override fun getString(path: String): String? =
         if (config.hasPath(path)) config.getString(path) else null
 
+    override fun getDouble(path: String): Double? {
+        if (!config.hasPath(path)) return null
+        return runCatching { config.getDouble(path) }.getOrNull()
+            ?: runCatching { config.getString(path).toDoubleOrNull() }.getOrNull()
+    }
+
     override fun getPlaywrightUrl(): String = config.getString("browser.playwright-url")
 
     override fun getBrowserDownload(): Boolean = config.getBoolean("browser.download")

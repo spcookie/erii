@@ -123,12 +123,27 @@ data class DailyTokenUsageSummary(
 )
 
 @Serializable
+data class TokenUsageTierPricing(
+    val inputCacheHit: Double,
+    val inputCacheMiss: Double,
+    val output: Double
+)
+
+@Serializable
+data class TokenUsagePricing(
+    val lite: TokenUsageTierPricing,
+    val flash: TokenUsageTierPricing,
+    val pro: TokenUsageTierPricing
+)
+
+@Serializable
 data class TokenUsageSummary(
     val todayCacheHitInput: Long,
     val todayCacheMissInput: Long,
     val todayOutput: Long,
     val todayCost: Double,
     val priceUnit: String,
+    val pricing: TokenUsagePricing? = null,
     val totalCacheHitInput: Long,
     val totalCacheMissInput: Long,
     val totalOutput: Long,

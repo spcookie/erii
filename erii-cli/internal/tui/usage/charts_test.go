@@ -4,6 +4,7 @@ import (
 	"erii-cli/internal/api"
 	"fmt"
 	"image"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/NimbleMarkets/ntcharts/heatmap"
 	"github.com/NimbleMarkets/ntcharts/linechart"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Legacy color scale for old heatmap.Model tests (expects []lipgloss.Color)
@@ -53,6 +55,63 @@ func mockUsageData() *api.TokenUsageSummary {
 			{Name: "deepseek-v4", CacheHitInput: 4500, CacheMissInput: 1500, Output: 50},
 		},
 		DailySeries: mockDailySeries(),
+	}
+}
+
+func TestPricingTableUsesConfiguredTierOrderAndSemantics(t *testing.T) {
+	data := mockUsageData()
+	data.PriceUnit = "CNY"
+	data.Pricing = &api.TokenUsagePricing{
+		Lite:  api.TokenUsageTierPricing{InputCacheHit: 0.01875, InputCacheMiss: 0.075, Output: 0.3},
+		Flash: api.TokenUsageTierPricing{InputCacheHit: 0.025, InputCacheMiss: 0.1, Output: 0.4},
+		Pro:   api.TokenUsageTierPricing{InputCacheHit: 0.3125, InputCacheMiss: 1.25, Output: 10},
+	}
+	m := &UsageViewModel{data: data, width: 100}
+
+	lines := strings.Split(ansi.Strip(strings.Join(m.buildPricingTable(), "\n")), "\n")
+	want := [][]string{
+		{"Lite(0.075/0.01875/0.3)", "Flash(0.1/0.025/0.4)", "Pro(1.25/0.3125/10)", "/", "1M", "tokens"},
+	}
+	if len(lines) != len(want) {
+		t.Fatalf("pricing lines = %d, want %d: %q", len(lines), len(want), lines)
+	}
+	for i := range want {
+		if got := strings.Fields(lines[i]); !reflect.DeepEqual(got, want[i]) {
+			t.Errorf("pricing line %d = %q, want fields %q", i, got, want[i])
+		}
+	}
+
+	m.buildCharts()
+	content := ansi.Strip(m.buildContent())
+	unitAt := strings.Index(content, "Unit: CNY")
+	pricingAt := strings.Index(content, "Lite(0.075/0.01875/0.3)")
+	totalsAt := strings.Index(content, "Accumulated Totals")
+	if unitAt < 0 || pricingAt <= unitAt || totalsAt <= pricingAt {
+		t.Fatalf("pricing table is not between unit and usage sections: unit=%d pricing=%d totals=%d", unitAt, pricingAt, totalsAt)
+	}
+}
+
+func TestPricingTableIsHiddenForLegacyResponse(t *testing.T) {
+	m := &UsageViewModel{data: mockUsageData(), width: 100}
+	if rows := m.buildPricingTable(); len(rows) != 0 {
+		t.Fatalf("legacy pricing rows = %q, want none", rows)
+	}
+	m.buildCharts()
+	if content := ansi.Strip(m.buildContent()); strings.Contains(content, "/ 1M tokens") {
+		t.Fatalf("legacy usage content unexpectedly contains pricing: %q", content)
+	}
+}
+
+func TestFormatPriceUsesPlainTrimmedDecimals(t *testing.T) {
+	for value, want := range map[float64]string{
+		0.01875:  "0.01875",
+		0.000001: "0.000001",
+		0.30:     "0.3",
+		10.00:    "10",
+	} {
+		if got := formatPrice(value); got != want {
+			t.Errorf("formatPrice(%v) = %q, want %q", value, got, want)
+		}
 	}
 }
 

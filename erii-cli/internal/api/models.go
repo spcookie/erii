@@ -315,12 +315,25 @@ type DailyTokenUsageSummary struct {
 	ModelBars      []TokenUsageChartPoint `json:"modelBars"`
 }
 
+type TokenUsageTierPricing struct {
+	InputCacheHit  float64 `json:"inputCacheHit"`
+	InputCacheMiss float64 `json:"inputCacheMiss"`
+	Output         float64 `json:"output"`
+}
+
+type TokenUsagePricing struct {
+	Lite  TokenUsageTierPricing `json:"lite"`
+	Flash TokenUsageTierPricing `json:"flash"`
+	Pro   TokenUsageTierPricing `json:"pro"`
+}
+
 type TokenUsageSummary struct {
 	TodayCacheHitInput  int64                    `json:"todayCacheHitInput"`
 	TodayCacheMissInput int64                    `json:"todayCacheMissInput"`
 	TodayOutput         int64                    `json:"todayOutput"`
 	TodayCost           float64                  `json:"todayCost"`
 	PriceUnit           string                   `json:"priceUnit"`
+	Pricing             *TokenUsagePricing       `json:"pricing"`
 	TotalCacheHitInput  int64                    `json:"totalCacheHitInput"`
 	TotalCacheMissInput int64                    `json:"totalCacheMissInput"`
 	TotalOutput         int64                    `json:"totalOutput"`

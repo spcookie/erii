@@ -36,6 +36,22 @@ class ConfigHolderImplTest {
         }
     }
 
+    @Test
+    fun `generic double reader accepts numeric pricing values`() {
+        withConfig(
+            """
+            llm.usage-pricing {
+              lite.input-cache-hit = 0.01875
+              lite.input-cache-miss = "0.075"
+            }
+            """.trimIndent()
+        ) {
+            val config = ConfigHolderImpl()
+            assertEquals(0.01875, config.getDouble("llm.usage-pricing.lite.input-cache-hit"))
+            assertEquals(0.075, config.getDouble("llm.usage-pricing.lite.input-cache-miss"))
+        }
+    }
+
     private fun withConfig(content: String, block: () -> Unit) {
         val previous = System.getProperty("config.path")
         val config = Files.createTempFile("erii-config", ".conf")

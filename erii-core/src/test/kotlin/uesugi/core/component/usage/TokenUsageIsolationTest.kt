@@ -6,10 +6,12 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import uesugi.common.toolkit.JSON
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -34,6 +36,58 @@ class TokenUsageIsolationTest {
             assertEquals(20, summary.totalOutput)
             assertEquals(0.12, summary.totalCost)
             assertEquals(120, summary.dailySeries.single().tokens)
+        }
+    }
+
+    @Test
+    fun `summary exposes effective configured pricing without usage records`() {
+        withUsageDatabase {
+            val configuredStrings = mapOf(
+                "llm.usage-pricing.price-unit" to "CNY"
+            )
+            val configuredDoubles = mapOf(
+                "llm.usage-pricing.lite.input-cache-hit" to 0.02,
+                "llm.usage-pricing.flash.input-cache-miss" to 0.2,
+                "llm.usage-pricing.pro.output" to 12.5
+            )
+            val repository = TokenUsageRepository(configuredStrings::get, configuredDoubles::get)
+
+            val summary = repository.summary(botId = "missing-bot", groupId = "missing-group")
+            val pricing = assertNotNull(summary.pricing)
+
+            assertEquals("CNY", summary.priceUnit)
+            assertEquals(0.02, pricing.lite.inputCacheHit)
+            assertEquals(0.075, pricing.lite.inputCacheMiss)
+            assertEquals(0.30, pricing.lite.output)
+            assertEquals(0.025, pricing.flash.inputCacheHit)
+            assertEquals(0.2, pricing.flash.inputCacheMiss)
+            assertEquals(0.40, pricing.flash.output)
+            assertEquals(0.3125, pricing.pro.inputCacheHit)
+            assertEquals(1.25, pricing.pro.inputCacheMiss)
+            assertEquals(12.5, pricing.pro.output)
+
+            val payload = JSON.encodeToString(summary)
+            assertTrue(payload.contains("\"pricing\""))
+            assertTrue(payload.contains("\"inputCacheHit\":0.02"))
+            assertTrue(payload.contains("\"inputCacheMiss\":0.2"))
+            assertTrue(payload.contains("\"output\":12.5"))
+        }
+    }
+
+    @Test
+    fun `usage scope does not change current pricing`() {
+        withUsageDatabase {
+            insertUsage(botId = "bot-a", groupId = "group-1", cacheMiss = 100, output = 20, cost = 0.12)
+            val configuredStrings = mapOf(
+                "llm.usage-pricing.price-unit" to "CNY"
+            )
+            val configuredDoubles = mapOf(
+                "llm.usage-pricing.lite.input-cache-hit" to 0.01
+            )
+            val repository = TokenUsageRepository(configuredStrings::get, configuredDoubles::get)
+
+            assertEquals(repository.summary().pricing, repository.summary("bot-a", "group-1").pricing)
+            assertEquals(repository.summary().pricing, repository.summary("missing", "missing").pricing)
         }
     }
 

@@ -347,6 +347,7 @@ interface ConfigProvider {
 
     // ===== 通用配置读取 =====
     fun getString(path: String): String?
+    fun getDouble(path: String): Double?
 
     // ===== 刷新缓存 =====
     fun refresh()
@@ -440,6 +441,7 @@ object ConfigHolder {
 
     // ===== 通用配置读取 =====
     fun getString(path: String): String? = provider.getString(path)
+    fun getDouble(path: String): Double? = provider.getDouble(path)
 
     // ===== 刷新缓存 =====
     fun refresh() = provider.refresh()
