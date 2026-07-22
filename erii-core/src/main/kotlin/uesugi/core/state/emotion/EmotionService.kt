@@ -11,8 +11,8 @@ import uesugi.common.data.PAD
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.EmotionTuningConfig
 import uesugi.common.toolkit.logger
+import uesugi.core.message.history.orEmptyTruncatedHistoryContent
 import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 object BehaviorMapper {
 
@@ -140,7 +140,6 @@ class EmotionService(
     /**
      * 处理单个群组的情绪分析
      */
-    @OptIn(ExperimentalTime::class)
     suspend fun analyzeGroupEmotion(
         currentBotId: String,
         groupId: String,
@@ -151,6 +150,7 @@ class EmotionService(
         val bot = BotManage.getBot(currentBotId)
         val baseLine = bot.role.emoticon
         val tuning = ConfigHolder.getStateTuning().emotion
+        val maxMessageLength = ConfigHolder.getAgentMaxMessageLength()
 
         // 获取当前情绪状态和新消息
         val emotionEntity = withContext(Dispatchers.IO) {
@@ -195,7 +195,7 @@ class EmotionService(
                 userId = it.userId,
                 role = if (it.userId == currentBotId) GMessage.Role.SELF else GMessage.Role.OTHER,
                 time = it.createdAt,
-                content = it.content ?: ""
+                content = it.content.orEmptyTruncatedHistoryContent(maxMessageLength)
             )
         }
 
@@ -250,7 +250,6 @@ class EmotionService(
      * 处理单个群组的情绪衰减
      * 衰减时更新现有记录（不创建新记录），使 createdAt 保持为上次 analyze 的时间
      */
-    @OptIn(ExperimentalTime::class)
     suspend fun decayGroupEmotion(
         currentBotId: String,
         groupId: String

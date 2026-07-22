@@ -6,12 +6,16 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.message.history.truncateContent
 import uesugi.core.state.dispatch.StateWorkResult
 import uesugi.core.state.summary.SummaryEntity
 import uesugi.core.state.summary.SummaryTable
@@ -78,7 +82,10 @@ class MemoryService(
             log.debug("群组 $groupId 获取到 ${histories.size} 条新消息")
 
             // 2. 过滤空内容消息
-            val messages = histories.filter { !it.content.isNullOrBlank() }
+            val maxMessageLength = ConfigHolder.getAgentMaxMessageLength()
+            val messages = histories
+                .filter { !it.content.isNullOrBlank() }
+                .map { it.truncateContent(maxMessageLength) }
 
             if (messages.isEmpty()) {
                 log.debug("群组 $groupId 过滤后无有效消息,跳过处理")

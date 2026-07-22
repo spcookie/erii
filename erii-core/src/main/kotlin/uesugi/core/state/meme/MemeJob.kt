@@ -17,6 +17,7 @@ import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.message.history.truncateHistoryContent
 import uesugi.core.message.resource.ResourceService
 import uesugi.core.state.dispatch.StateWorkKind
 import uesugi.core.state.dispatch.StateWorkResult
@@ -216,6 +217,7 @@ class MemeJob(
     private suspend fun getContextMessage(botMark: String, groupId: String, historyId: Int): String? {
         return withContext(Dispatchers.IO) {
             transaction {
+                val maxMessageLength = ConfigHolder.getAgentMaxMessageLength()
             // 获取该图片之前的文本消息（id < historyId 的最近的消息）
             val beforeMessages = HistoryTable
                 .select(HistoryTable.content)
@@ -227,7 +229,7 @@ class MemeJob(
                 }
                 .orderBy(HistoryTable.id, SortOrder.DESC)
                 .limit(10)
-                .mapNotNull { it[HistoryTable.content] }
+                .mapNotNull { it[HistoryTable.content]?.truncateHistoryContent(maxMessageLength) }
                 .reversed() // 按时间正序
 
             // 获取该图片之后的文本消息（id > historyId 的最近的消息）
@@ -241,7 +243,7 @@ class MemeJob(
                 }
                 .orderBy(HistoryTable.id, SortOrder.ASC)
                 .limit(10)
-                .mapNotNull { it[HistoryTable.content] }
+                .mapNotNull { it[HistoryTable.content]?.truncateHistoryContent(maxMessageLength) }
 
             // 合并前后消息
             val allContexts = beforeMessages + afterMessages

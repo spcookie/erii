@@ -72,7 +72,6 @@ class MemoryRepository {
     /**
      * 更新记忆处理状态
      */
-    @OptIn(ExperimentalTime::class)
     fun updateMemoryState(botMark: String, groupId: String, lastHistoryId: Int) {
         transaction {
             val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -486,6 +485,10 @@ class MemoryRepository {
                     (HistoryTable.id greater lastHistoryId)
         }.orderBy(HistoryTable.id to SortOrder.ASC).limit(limit)
 
-        if (userId != null) query.filter { it.userId == userId }.map { it.toRecord() } else query.map { it.toRecord() }
+        if (userId != null) {
+            query.filter { it.userId == userId }.map { it.toRecord() }
+        } else {
+            query.map { it.toRecord() }
+        }
     }
 }

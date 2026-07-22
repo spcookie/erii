@@ -5,14 +5,13 @@ import kotlinx.coroutines.withContext
 import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
+import uesugi.core.message.history.truncateContent
 import uesugi.core.state.dispatch.StateWorkResult
-import uesugi.core.state.memory.MemoryRepository
 
 /**
  * 摘要服务 - 负责对话摘要生成的业务逻辑
  */
 class SummaryService(
-    private val memoryRepository: MemoryRepository,
     private val summaryRepository: SummaryRepository,
     private val summaryAgent: SummaryAgent
 ) {
@@ -50,7 +49,7 @@ class SummaryService(
             val lastId = summaryState.lastProcessedHistoryId
 
             val histories = withContext(Dispatchers.IO) {
-                memoryRepository.getHistoriesToProcess(botMark, groupId, lastId, batchLimit)
+                summaryRepository.getHistoriesToProcess(botMark, groupId, lastId, batchLimit)
             }
 
             if (histories.isEmpty()) {
@@ -64,7 +63,10 @@ class SummaryService(
             }
 
             // 2. 过滤空内容消息
-            val messages = histories.filter { !it.content.isNullOrBlank() }
+            val maxMessageLength = ConfigHolder.getAgentMaxMessageLength()
+            val messages = histories
+                .filter { !it.content.isNullOrBlank() }
+                .map { it.truncateContent(maxMessageLength) }
 
             if (messages.isEmpty()) {
                 log.debug("群组 $groupId 过滤后无有效消息,跳过摘要生成")

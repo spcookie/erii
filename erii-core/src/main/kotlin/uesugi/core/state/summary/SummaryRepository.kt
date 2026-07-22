@@ -8,9 +8,10 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import uesugi.common.data.HistoryEntity
+import uesugi.common.data.HistoryRecord
 import uesugi.common.data.HistoryTable
+import uesugi.common.data.toRecord
 import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 /**
  * 摘要仓库 - 负责摘要相关的数据库操作
@@ -55,7 +56,22 @@ class SummaryRepository {
         ).firstOrNull()?.toRecord()
     }
 
-    @OptIn(ExperimentalTime::class)
+    fun getHistoriesToProcess(
+        botMark: String,
+        groupId: String,
+        lastHistoryId: Int,
+        limit: Int
+    ): List<HistoryRecord> = transaction {
+        HistoryEntity.find(
+            (HistoryTable.botMark eq botMark) and
+                    (HistoryTable.groupId eq groupId) and
+                    (HistoryTable.id greater lastHistoryId)
+        )
+            .orderBy(HistoryTable.id to SortOrder.ASC)
+            .limit(limit)
+            .map { it.toRecord() }
+    }
+
     fun updateSummaryState(botMark: String, groupId: String, lastHistoryId: Int) {
         transaction {
             val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())

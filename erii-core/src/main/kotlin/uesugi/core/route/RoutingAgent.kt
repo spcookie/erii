@@ -10,8 +10,8 @@ import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
 import uesugi.core.agent.buildHistoriesPrompt
 import uesugi.core.agent.buildSummaryPrompt
-import uesugi.core.agent.truncateContent
 import uesugi.core.message.history.HistoryService
+import uesugi.core.message.history.truncateContent
 import uesugi.core.state.memory.MemoryService
 import kotlin.time.Duration.Companion.hours
 

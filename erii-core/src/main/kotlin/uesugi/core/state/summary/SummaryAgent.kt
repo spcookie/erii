@@ -12,7 +12,7 @@ import uesugi.common.data.HistoryRecord
 import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
-import uesugi.core.state.memory.asLlmPrompt
+import uesugi.core.message.history.asLlmPrompt
 import kotlin.time.ExperimentalTime
 
 @Serializable

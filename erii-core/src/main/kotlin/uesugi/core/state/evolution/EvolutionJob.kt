@@ -10,6 +10,7 @@ import uesugi.common.data.MessageType
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.message.history.truncateHistoryContent
 import uesugi.core.state.dispatch.*
 import kotlin.time.Duration.Companion.hours
 
@@ -66,7 +67,15 @@ class EvolutionJob(
                     ConfigHolder.getStateTuning().evolution.recentRangeHours.hours
                 )
             }
-            if (recentMessages.isNotEmpty()) processMessages(key.botId, key.groupId, recentMessages)
+            if (recentMessages.isNotEmpty()) {
+                val maxMessageLength = ConfigHolder.getAgentMaxMessageLength()
+                processMessages(
+                    key.botId,
+                    key.groupId,
+                    recentMessages.map { it.truncateHistoryContent(maxMessageLength) },
+                    recentMessages
+                )
+            }
             withContext(Dispatchers.IO) {
                 evolutionRepository.updateState(key.botId, key.groupId, latestId)
             }
@@ -81,8 +90,12 @@ class EvolutionJob(
         if (histories.isEmpty() || (!force && histories.size < policy.minMessages)) {
             return@withUsage StateWorkResult(0, state.lastProcessedHistoryId, false)
         }
-        val messages = evolutionService.filterMessages(histories.map { it.content })
-        if (messages.isNotEmpty()) processMessages(key.botId, key.groupId, messages)
+        val recentMessages = evolutionService.filterMessages(histories.map { it.content })
+        if (recentMessages.isNotEmpty()) {
+            val maxMessageLength = ConfigHolder.getAgentMaxMessageLength()
+            val analysisMessages = recentMessages.map { it.truncateHistoryContent(maxMessageLength) }
+            processMessages(key.botId, key.groupId, analysisMessages, recentMessages)
+        }
         val cursor = histories.last().id
         withContext(Dispatchers.IO) {
             evolutionRepository.updateState(key.botId, key.groupId, cursor)
@@ -112,8 +125,13 @@ class EvolutionJob(
         }
     }
 
-    private suspend fun processMessages(botMark: String, groupId: String, messages: List<String>) {
-        val slangWords = extractionAgent.extractSlangWords(messages)
+    private suspend fun processMessages(
+        botMark: String,
+        groupId: String,
+        analysisMessages: List<String>,
+        recentMessages: List<String>
+    ) {
+        val slangWords = extractionAgent.extractSlangWords(analysisMessages)
 
         if (slangWords.isEmpty()) {
             log.warn("Evolutions not extracted")
@@ -128,7 +146,7 @@ class EvolutionJob(
             for (slangWord in slangWords) {
                 evolutionService.addOrUpdateWord(botMark, groupId, slangWord)
             }
-            evolutionService.decayOldWords(botMark, groupId, messages)
+            evolutionService.decayOldWords(botMark, groupId, recentMessages)
         }
     }
 }

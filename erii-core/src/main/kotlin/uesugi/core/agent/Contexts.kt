@@ -16,6 +16,7 @@ import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.ref
 import uesugi.core.component.storage.ObjectStorage
 import uesugi.core.message.history.HistoryService
+import uesugi.core.message.history.truncateContent
 import uesugi.core.message.resource.ResourceService
 import uesugi.core.rule.Rule
 import uesugi.core.rule.RuleManager
@@ -557,14 +558,6 @@ internal fun buildContext(event: ProactiveSpeakEvent): Context {
             },
         )
     }
-}
-
-internal fun HistoryRecord.truncateContent(maxLength: Int): HistoryRecord {
-    val content = this.content
-    if (content != null && content.length > maxLength) {
-        this.content = content.take(maxLength) + "..."
-    }
-    return this
 }
 
 internal fun buildConstraint(

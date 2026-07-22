@@ -9,6 +9,7 @@ import uesugi.common.data.MessageType
 import uesugi.common.toolkit.ConfigHolder
 import uesugi.common.toolkit.logger
 import uesugi.core.component.usage.UsageContext
+import uesugi.core.message.history.orEmptyTruncatedHistoryContent
 import uesugi.core.state.dispatch.*
 import kotlin.time.ExperimentalTime
 
@@ -88,13 +89,14 @@ class FlowJob(
 
             log.debug("群组 $groupId 获取到 ${histories.size} 条新消息")
 
+            val maxMessageLength = ConfigHolder.getAgentMaxMessageLength()
             val messages = histories.map {
                 FlowMessage(
                     id = it.id.value,
                     groupId = it.groupId,
                     userId = it.userId,
                     time = it.createdAt,
-                    content = it.content ?: ""
+                    content = it.content.orEmptyTruncatedHistoryContent(maxMessageLength)
                 )
             }
 

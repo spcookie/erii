@@ -14,6 +14,7 @@ import uesugi.core.state.evolution.EvolutionService
 import uesugi.core.state.evolution.EvolutionStateTable
 import uesugi.core.state.flow.FlowRepository
 import uesugi.core.state.memory.MemoryRepository
+import uesugi.core.state.summary.SummaryRepository
 import uesugi.core.state.volition.VolitionRepository
 import java.util.*
 import kotlin.test.Test
@@ -51,6 +52,10 @@ class StateCursorRepositoryTest {
         assertEquals(
             ids.drop(1).take(2),
             repository.getUnprocessedMessages("bot-a", "group-a", null, ids.first(), 2).map { it.id }
+        )
+        assertEquals(
+            ids.drop(1).take(2),
+            SummaryRepository().getHistoriesToProcess("bot-a", "group-a", ids.first(), 2).map { it.id }
         )
     }
 

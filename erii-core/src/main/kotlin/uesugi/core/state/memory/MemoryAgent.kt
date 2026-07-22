@@ -7,13 +7,12 @@ import ai.koog.prompt.executor.model.StructureFixingParser
 import ai.koog.prompt.executor.model.executeStructured
 import ai.koog.prompt.params.LLMParams
 import kotlinx.coroutines.*
-import kotlinx.datetime.format
 import kotlinx.serialization.Serializable
 import uesugi.common.LLMModelChoice
 import uesugi.common.data.HistoryRecord
-import uesugi.common.toolkit.DateTimeFormat
 import uesugi.common.toolkit.logger
 import uesugi.common.toolkit.ref
+import uesugi.core.message.history.asLlmPrompt
 import kotlin.time.ExperimentalTime
 
 /**
@@ -676,6 +675,3 @@ class MemoryAgent(
         }
     }
 }
-
-internal fun HistoryRecord.asLlmPrompt(): String =
-    "[ID:${id ?: 0} $userId ${createdAt.format(DateTimeFormat)}] ${content ?: ""}"
